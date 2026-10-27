@@ -70,6 +70,8 @@ check("page shows author and dates", (await alice.getByText("Автор: alice@a
 // New page from the sidebar, renamed, survives a reload.
 await alice.getByRole("button", { name: "Нова сторінка" }).first().click();
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/p/[0-9a-f-]{36}$`));
+// Wait for the new, empty page to be on screen before typing (as a person would).
+await alice.waitForFunction(() => document.querySelector("textarea")?.value === "");
 await alice.locator("textarea").fill("Created in browser");
 await alice.locator("textarea").blur();
 await alice.waitForTimeout(1500);
@@ -79,6 +81,8 @@ check("new page saved in this workspace", (await alice.locator("textarea").input
 check("sidebar lists the new page", (await alice.locator("aside").getByText("Created in browser").count()) > 0);
 const newPageWs = sql("select w.name from public.pages p join public.workspaces w on w.id = p.workspace_id where p.title = 'Created in browser'");
 check("new page stored with workspace_id", newPageWs === "Alpha", newPageWs);
+const original = sql(`select title from public.pages where id = '${alphaPage}'`);
+check("the other page kept its title", original === "Alpha secret", original);
 
 // Settings tabs.
 for (const [tab, text] of [
