@@ -47,26 +47,29 @@ function ClearFormattingButton() {
 }
 
 function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
-  const special = t.editor.groups.special;
-  return [
-    ...getDefaultReactSlashMenuItems(editor),
-    {
-      title: t.editor.callout.title,
-      subtext: t.editor.callout.subtext,
-      aliases: t.editor.callout.aliases,
-      group: special,
-      icon: <span aria-hidden="true">ℹ️</span>,
-      onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "callout" }),
-    },
-    {
-      title: t.editor.youtube.title,
-      subtext: t.editor.youtube.subtext,
-      aliases: t.editor.youtube.aliases,
-      group: t.editor.groups.media,
-      icon: <span aria-hidden="true">▶️</span>,
-      onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "youtube" }),
-    },
-  ];
+  const items = getDefaultReactSlashMenuItems(editor);
+  const callout: DefaultReactSuggestionItem = {
+    title: t.editor.callout.title,
+    subtext: t.editor.callout.subtext,
+    aliases: t.editor.callout.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">ℹ️</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "callout" }),
+  };
+  // In BlockNote's own media group (next to images): the menu groups adjacent items only.
+  const mediaGroup = items.find((item) => item.title === editor.dictionary.slash_menu.image.title)?.group;
+  const youtube: DefaultReactSuggestionItem = {
+    title: t.editor.youtube.title,
+    subtext: t.editor.youtube.subtext,
+    aliases: t.editor.youtube.aliases,
+    group: mediaGroup ?? t.editor.groups.media,
+    icon: <span aria-hidden="true">▶️</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "youtube" }),
+  };
+  const lastMedia = mediaGroup ? items.findLastIndex((item) => item.group === mediaGroup) : -1;
+  if (lastMedia >= 0) items.splice(lastMedia + 1, 0, youtube);
+  else items.push(youtube);
+  return [...items, callout];
 }
 
 export type PageEditorProps = {
@@ -95,7 +98,8 @@ export default function PageEditor({ pageId, initialContent, initialVersion, edi
       setUploadError(null);
       try {
         const { url } = await uploadImage(pageId, file);
-        return { url, name: file.name.replace(/\.[^.]+$/, "") };
+        // BlockNote applies the returned object as a block update.
+        return { props: { url, name: file.name.replace(/\.[^.]+$/, "") } };
       } catch (error) {
         const code = error instanceof ImageError || error instanceof UploadError ? error.message : "upload_failed";
         setUploadError(t.editor.image.errors[code] ?? t.editor.image.errors.upload_failed);
