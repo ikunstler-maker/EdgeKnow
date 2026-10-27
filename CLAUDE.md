@@ -2,7 +2,7 @@
 
 # EdgeKnow — internal wiki (Notion-like)
 
-`docs/SPEC.md` is the single source of truth (in Ukrainian). If a request contradicts it, ask first.
+`docs/SPEC.md` is the single source of truth (in Ukrainian), amended by owner-approved decisions in `docs/decisions.md`. If a request contradicts them, ask first.
 
 ## Working agreement
 - Work strictly stage by stage (SPEC → "Етапи реалізації"): plan → owner's OK → code → verify "Готово, коли" → commit.

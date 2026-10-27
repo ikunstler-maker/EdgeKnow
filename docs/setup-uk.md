@@ -1,76 +1,41 @@
-# Налаштування сервісів (Етап 1)
+# Налаштування сервісів (Етап 1) — як зроблено
 
-Ключі й паролі вводяться лише в панелях Google, Supabase, Vercel та в GitHub Secrets. Не вставляйте їх у код, чат чи документи.
+Довідка на випадок, якщо доведеться повторити налаштування (новий проєкт, заміна ключа). Ключі й паролі вводяться лише в панелях сервісів і GitHub Secrets — ніколи в код, чат чи документи.
 
-## 1. Google Cloud Console
+Поточні значення: проєкт Supabase `xcnfeyajqrrfvtrmmteu`, сайт `https://edge-know.vercel.app`.
 
-1. Відкрийте проєкт **EdgeKnow** під корпоративним акаунтом @iyo.gg.
-2. **Google Auth Platform → Audience**:
-   - тип **External**;
-   - у блоці *Publishing status* натисніть **Publish app** → **Confirm**, статус має стати **In production**.
+## Google Cloud (під акаунтом @iyo.gg — він власник проєкту EdgeKnow)
 
-   У режимі *Testing* увійти можуть лише люди зі списку *Test users*, а вхід злітає кожні 7 днів.
-3. **Data Access**: лише `openid`, `email`, `profile`.
-4. **Branding → Authorized domains**: `xcnfeyajqrrfvtrmmteu.supabase.co`, а коли буде свій піддомен, ще й його.
+1. **Google Auth Platform → Audience**: тип External, статус In production, тестові користувачі не потрібні після публікації.
+2. **Data Access**: лише `openid`, `email`, `profile`.
+3. **Branding**: пошта підтримки й контактна — корпоративні; Application home page `https://edge-know.vercel.app`; Privacy policy `https://edge-know.vercel.app/privacy`; Authorized domains `xcnfeyajqrrfvtrmmteu.supabase.co` і `edge-know.vercel.app`.
+4. **Clients → клієнт**: JavaScript origins `http://localhost:3000`, `https://edge-know.vercel.app`; Redirect URI `https://xcnfeyajqrrfvtrmmteu.supabase.co/auth/v1/callback`. Новий секрет: **+ Add secret**, старий — Disable → Delete.
 
-   Просто `supabase.co` Google не приймає, бо це спільний домен багатьох проєктів. Якщо й повна адреса не додається, залиште поле порожнім: для стандартних даних (пошта, ім'я, фото) це вхід не блокує.
-5. **Clients → (ваш клієнт)**:
-   - *Authorized JavaScript origins*: `http://localhost:3000` і адреса з Vercel (`https://….vercel.app`);
-   - *Authorized redirect URIs*: `https://xcnfeyajqrrfvtrmmteu.supabase.co/auth/v1/callback`.
+## Supabase
 
-## 2. Supabase
+1. **Authentication → Sign In / Providers**: Google увімкнено (Client ID + Client Secret); Email і Anonymous — вимкнено.
+2. **Authentication → URL Configuration**: Site URL `https://edge-know.vercel.app`; Redirect URLs `http://localhost:3000/auth/callback`, `https://edge-know.vercel.app/auth/callback`.
+3. **Authentication → Hooks**: Before User Created → Postgres → `public.hook_before_user_created`.
+4. **Access token для GitHub** (https://supabase.com/dashboard/account/tokens → Generate new token):
+   - строк — менше року (рівно рік форма не приймає);
+   - Resource access: Project → цей проєкт;
+   - права: Database → **Migrations** і **Database** — Read-write, усе інше в Database — Read; Project, Application services, Infrastructure — Read; Account and organization — No access;
+   - токен починається з `sbp_`.
 
-1. **Authentication → Sign In / Providers → Google**:
-   - увімкніть провайдер;
-   - вставте *Client ID* і *Client Secret*;
-   - натисніть **Save**.
-2. **Email**, **Anonymous sign-ins** — вимкнено.
-3. **Authentication → URL Configuration**:
-   - *Site URL*: адреса Vercel, наприклад `https://edgeknow.vercel.app`;
-   - *Redirect URLs*: `http://localhost:3000/auth/callback` і `https://<адреса Vercel>/auth/callback`.
-4. **Після першого успішного запуску GitHub Action «Database»:**
-   - **Authentication → Hooks → Before User Created** → *Add hook*;
-   - тип **Postgres**, схема `public`, функція `hook_before_user_created`;
-   - **Create**.
+## GitHub → Settings → Secrets and variables → Actions
 
-   Цей хук не дає створити акаунт людині з домену поза списком.
+`SUPABASE_ACCESS_TOKEN` (`sbp_…`), `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF` = `xcnfeyajqrrfvtrmmteu`.
 
-## 3. GitHub Secrets
+Якщо Action «Database» червоний — помилка видна в блоці **Annotations** на сторінці запуску.
 
-**Settings → Secrets and variables → Actions → Repository secrets:**
+## Vercel
 
-| Name | Звідки взяти |
-| --- | --- |
-| `SUPABASE_ACCESS_TOKEN` | supabase.com → аватар → **Account preferences → Access Tokens → Generate new token**. Значення починається з `sbp_`. Це **не** токен GitHub. |
-| `SUPABASE_DB_PASSWORD` | Пароль бази, заданий при створенні проєкту. Якщо загубили, скиньте його: **Project Settings → Database → Reset database password**. |
-| `SUPABASE_PROJECT_REF` | `xcnfeyajqrrfvtrmmteu` |
+Змінні середовища (Production і Preview): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Деплой відбувається сам при кожному пуші в `main`.
 
-## 4. Vercel
+## Адміни
 
-1. **Add New → Project** → імпорт репозиторію `ikunstler-maker/EdgeKnow`.
-2. **Environment Variables** (для Production і Preview):
-   - `NEXT_PUBLIC_SUPABASE_URL` = `https://xcnfeyajqrrfvtrmmteu.supabase.co`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` = ключ `sb_publishable_…` з Supabase (**Project Settings → API Keys**)
-
-   Ці два значення не секретні, вони все одно потрапляють у браузер. Дані захищає база через правила RLS. Секретний ключ Supabase (`sb_secret_…`) на цьому етапі не потрібен узагалі.
-3. **Deploy**. Отриману адресу внесіть у Google (крок 1.5) і Supabase (крок 2.3).
-
-## 5. Призначити адмінів
-
-Обидва адміни мають хоча б раз увійти у вікі. Потім виконайте в **Supabase → SQL Editor**:
+Нового адміна призначає SQL Editor (людина має хоча б раз увійти):
 
 ```sql
-update public.profiles
-set is_admin = true
-where email in ('elaidzha_motion.designer@iyo.gg', 'daniil_head.of.design@iyo.gg');
+update public.profiles set is_admin = true where email = 'name@iyo.gg';
 ```
-
-Це зміна даних, а не схеми, тому міграція тут не потрібна. Далі доменами керують з інтерфейсу: **Головна → Налаштування доступу до сервісу**.
-
-## 6. Перевірка етапу 1 («Готово, коли»)
-
-1. Акаунт @iyo.gg входить і бачить «Вітаємо, …».
-2. Акаунт Gmail отримує сторінку «Немає доступу». У **Supabase → Authentication → Users** нового користувача не з'являється.
-3. Адмін додає домен у налаштуваннях. Людина з цього домену входить одразу, без нового деплою.
-4. Звичайний користувач, який відкриє `/settings/access`, бачить «доступна лише адміністраторам».
-5. Після вимкнення домену його користувач на наступному кліку потрапляє на «Немає доступу».
