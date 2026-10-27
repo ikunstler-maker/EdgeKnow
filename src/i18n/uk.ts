@@ -176,6 +176,23 @@ export const uk = {
       copied: "Ваші зміни скопійовано в буфер обміну.",
     },
     readOnly: "Лише перегляд",
+    image: {
+      qualityLabel: "Якість",
+      qualities: { fullhd: "Full HD (1920 px)", hd: "HD (1280 px)", sd: "480p (мініатюра)" } as Record<string, string>,
+      qualityHint: "Зображення стиснеться у браузері до вибраного розміру й до 1 МБ.",
+      widths: { "25": "25%", "50": "50%", "100": "100%", full: "На всю ширину" } as Record<string, string>,
+      widthLabel: "Ширина зображення",
+      errors: {
+        unsupported_type: "Цей формат не підтримується. Можна JPEG, PNG, WebP або GIF (SVG і відео — ні).",
+        gif_too_large: "GIF більший за 2 МБ. Зменште його або вставте посилання на відео.",
+        too_large: "Не вдалося стиснути зображення до 2 МБ.",
+        unreadable: "Не вдалося прочитати файл зображення.",
+        quota_exceeded: "У workspace закінчилося місце для файлів.",
+        forbidden: "Недостатньо прав, щоб додати зображення.",
+        in_trash: "Сторінка в кошику.",
+        upload_failed: "Не вдалося завантажити файл. Перевірте зв'язок і спробуйте ще раз.",
+      } as Record<string, string>,
+    },
   },
   toc: {
     title: "Зміст",

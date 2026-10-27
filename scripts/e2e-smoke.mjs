@@ -249,6 +249,73 @@ check("HTML in text stays text", (await alice.locator(".bn-editor img").count())
 check("non-YouTube embeds are not rendered", (await alice.locator("iframe").count()) === 0 && (await alice.getByText("Fake").count()) === 0);
 check("nothing executed", !alerted);
 
+// --- Stage 4: images ------------------------------------------------------------
+
+// A 4K PNG over 10 MB, drawn in the browser (gradient + noise, like a photo).
+const png = await alice.evaluate(async () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 3840;
+  canvas.height = 2160;
+  const ctx = canvas.getContext("2d");
+  const image = ctx.createImageData(canvas.width, canvas.height);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const x = (i / 4) % canvas.width;
+    const y = Math.floor(i / 4 / canvas.width);
+    image.data[i] = (x / 15 + Math.random() * 40) | 0;
+    image.data[i + 1] = (y / 9 + Math.random() * 40) | 0;
+    image.data[i + 2] = (((x + y) / 24) + Math.random() * 40) | 0;
+    image.data[i + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+});
+const pngBuffer = Buffer.from(png, "base64");
+check("test image is a 4K PNG over 10 MB", pngBuffer.length > 10 * 1024 * 1024, `${(pngBuffer.length / 1048576).toFixed(1)} MB`);
+
+const imagePage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "Images" })).data.id;
+await alice.goto(`${APP}/w/${alphaShort}/p/${imagePage}`);
+await alice.waitForSelector(".bn-editor");
+await alice.locator(".bn-editor").click();
+await alice.keyboard.type("/зображення");
+await alice.getByRole("option", { name: /Зображення/ }).first().waitFor();
+await alice.keyboard.press("Enter");
+await alice.locator(".bn-panel input[type=file]").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: pngBuffer });
+await alice.locator(".bn-editor img.bn-visual-media[src^='http']").first().waitFor({ timeout: 60000 });
+await alice.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+await alice.waitForTimeout(1500);
+const stored = sql(`select mime_type || '|' || bytes || '|' || width || 'x' || height || '|' || storage_path from public.attachments where page_id = '${imagePage}'`).split("|");
+check("stored as WebP", stored[0] === "image/webp", stored[0]);
+check("stored under 1 MB", Number(stored[1]) <= 1024 * 1024, `${(Number(stored[1]) / 1024).toFixed(0)} KB`);
+check("resized to Full HD", stored[2] === "1920x1080", stored[2]);
+check("file sits in the workspace folder", stored[3]?.startsWith(sql("select id from public.workspaces where name = 'Alpha'") + "/"), stored[3]);
+check("document keeps the storage path, not a URL", JSON.stringify(pageContent(imagePage)).includes(`ek-attachment:${stored[3]}`));
+const shownSrc = await alice.locator(".bn-editor img.bn-visual-media").first().getAttribute("src");
+check("image shown through a signed URL", /\/storage\/v1\/object\/sign\//.test(shownSrc ?? ""), shownSrc?.slice(0, 80));
+check("image loads lazily", (await alice.locator(".bn-editor img.bn-visual-media").first().getAttribute("loading")) === "lazy");
+
+// Width steps from the toolbar.
+await alice.locator(".bn-editor img.bn-visual-media").first().click();
+await alice.getByRole("button", { name: /Ширина зображення: 50%/ }).click();
+await alice.waitForTimeout(1800);
+const width50 = JSON.stringify(pageContent(imagePage)).match(/"previewWidth":(\d+)/)?.[1];
+// 50% of 1920 px, capped by the column width.
+check("50% width step applied", Number(width50) > 0 && Number(width50) <= 960, String(width50));
+
+// Nobody without access gets the file, signed URL or not.
+const bobSession = await sessionCookies("bob@beta.test");
+const bobUrl = await bobSession.client.storage.from("attachments").createSignedUrl(stored[3], 60);
+check("bob can't get a signed URL for alpha's image", !bobUrl.data?.signedUrl, JSON.stringify(bobUrl.error?.message ?? bobUrl.data));
+const anonFile = await fetch(`${API}/storage/v1/object/attachments/${stored[3]}`, { headers: { apikey: ANON } });
+check("the file isn't public", anonFile.status >= 400, String(anonFile.status));
+const svg = await aliceClient.rpc("register_attachment", { target_page: imagePage, file_type: "image/svg+xml", file_bytes: 100, file_width: 1, file_height: 1 });
+check("SVG refused", svg.data?.error === "unsupported_type", JSON.stringify(svg.data));
+const bigUpload = await aliceClient.storage.from("attachments").upload(`${stored[3]}.big.webp`, new Blob([new Uint8Array(3 * 1024 * 1024)], { type: "image/webp" }));
+check("storage refuses unregistered / oversized uploads", Boolean(bigUpload.error), bigUpload.error?.message);
+
 // Security headers and the video info route.
 const headers = (await alice.goto(`${APP}/w/${alphaShort}/p/${docPage}`)).headers();
 check("only YouTube may be framed (CSP)", (headers["content-security-policy"] ?? "").includes("frame-src https://www.youtube-nocookie.com"), headers["content-security-policy"]);

@@ -1,0 +1,21 @@
+path in workspace folder: true
+svg refused: {"ok": false, "error": "unsupported_type"}
+too big: {"ok": false, "error": "too_large"}
+alice uploaded registered path: 1
+psql: ERROR:  new row violates row-level security policy for table "objects"
+psql: ERROR:  permission denied for table attachments
+bob registers: {"ok": false, "error": "forbidden"}
+bob sees file: 0
+bob sees record: 0
+carol registers: {"ok": false, "error": "forbidden"}
+carol sees file: 0
+alice sees file: 1
+psql: ERROR:  new row violates row-level security policy for table "objects"
+within quota: true
+over quota: {"ok": false, "error": "quota_exceeded"}
+collected: 1
+kept referenced: 1
+tombstones: 1
+page deleted -> tombstones: 2
+psql: ERROR:  permission denied for function collect_unreferenced_attachments
+psql: ERROR:  permission denied for table attachment_tombstones

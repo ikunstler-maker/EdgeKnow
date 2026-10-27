@@ -4,8 +4,9 @@ import { LAST_WORKSPACE_COOKIE } from "@/lib/paths";
 
 // Routes reachable without access to any workspace.
 const PUBLIC_PATHS = ["/login", "/auth", "/no-access", "/invite"];
-// Routes open to everyone, signed in or not (Google requires a public privacy policy).
-const ALWAYS_PUBLIC_PATHS = ["/privacy"];
+// Routes open to everyone, signed in or not (Google requires a public privacy policy;
+// the cron route checks its own secret).
+const ALWAYS_PUBLIC_PATHS = ["/privacy", "/api/cron/cleanup-files"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

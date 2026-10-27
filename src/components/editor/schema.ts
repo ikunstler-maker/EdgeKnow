@@ -45,11 +45,29 @@ function codeBlockWithCopy() {
   };
 }
 
-// Images arrive in stage 4; video/audio/file uploads are not part of v1.
-const EXCLUDED = new Set(["image", "video", "audio", "file"]);
+// Images load only when scrolled near (SPEC: lazy loading on phones).
+function lazyImage() {
+  const spec = defaultBlockSpecs.image;
+  const render = spec.implementation.render;
+  if (!render) return spec;
+  return {
+    ...spec,
+    implementation: {
+      ...spec.implementation,
+      render(this: ThisParameterType<typeof render>, ...args: Parameters<typeof render>) {
+        const view = render.apply(this, args);
+        view.dom.querySelectorAll("img").forEach((img) => (img.loading = "lazy"));
+        return view;
+      },
+    },
+  };
+}
+
+// Video, audio and file uploads are not part of v1.
+const EXCLUDED = new Set(["video", "audio", "file"]);
 const textBlocks = Object.fromEntries(
   Object.entries(defaultBlockSpecs).filter(([type]) => !EXCLUDED.has(type)),
-) as Omit<typeof defaultBlockSpecs, "image" | "video" | "audio" | "file">;
+) as Omit<typeof defaultBlockSpecs, "video" | "audio" | "file">;
 
 export const schema = BlockNoteSchema.create({
   blockSpecs: {
@@ -57,6 +75,7 @@ export const schema = BlockNoteSchema.create({
     // H4–H6 are planned for v2.
     heading: createHeadingBlockSpec({ levels: [1, 2, 3] }),
     codeBlock: codeBlockWithCopy(),
+    image: lazyImage(),
     callout: calloutBlock(),
     youtube: youTubeBlock(),
   },

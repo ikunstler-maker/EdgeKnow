@@ -8,6 +8,7 @@ import { syntaxHighlighter } from "@blocknote/code-block";
 import {
   BasicTextStyleButton,
   FormattingToolbar,
+  FilePanelController,
   FormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
@@ -19,7 +20,10 @@ import {
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { t } from "@/i18n";
+import { resolveAttachmentUrl, uploadImage, UploadError } from "@/lib/attachments";
+import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
+import { ImageFilePanel, ImageWidthButtons } from "./image-tools";
 import { schema, type EditorBlock } from "./schema";
 import { collectHeadings, scrollToBlock, TableOfContents, type Heading } from "./table-of-contents";
 import { useAutosave } from "./use-autosave";
@@ -73,6 +77,7 @@ export type PageEditorProps = {
 };
 
 export default function PageEditor({ pageId, initialContent, initialVersion, editable }: PageEditorProps) {
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const editor = useCreateBlockNote({
     schema,
     dictionary: {
@@ -84,6 +89,20 @@ export default function PageEditor({ pageId, initialContent, initialVersion, edi
         ? (initialContent as EditorBlock[])
         : undefined,
     tables: { headers: true },
+    // Images are compressed in the browser and stored privately; the document keeps
+    // only their storage path, turned into a short-lived signed URL for display.
+    uploadFile: async (file) => {
+      setUploadError(null);
+      try {
+        const { url } = await uploadImage(pageId, file);
+        return { url, name: file.name.replace(/\.[^.]+$/, "") };
+      } catch (error) {
+        const code = error instanceof ImageError || error instanceof UploadError ? error.message : "upload_failed";
+        setUploadError(t.editor.image.errors[code] ?? t.editor.image.errors.upload_failed);
+        throw error;
+      }
+    },
+    resolveFileUrl: resolveAttachmentUrl,
     extensions: [syntaxHighlighter],
     // A YouTube link pasted on its own becomes a video card.
     pasteHandler: ({ event, editor, defaultPasteHandler }) => {
@@ -118,6 +137,7 @@ export default function PageEditor({ pageId, initialContent, initialVersion, edi
           <FormattingToolbar>
             {[
               ...getFormattingToolbarItems(),
+              <ImageWidthButtons key="imageWidthButtons" />,
               <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />,
               <ClearFormattingButton key="clearFormattingButton" />,
             ]}
@@ -133,6 +153,11 @@ export default function PageEditor({ pageId, initialContent, initialVersion, edi
         <div className="mb-2 flex min-h-6 items-center justify-end">
           {editable ? <SaveIndicator status={autosave.status} /> : <span className="text-xs text-muted">{t.editor.readOnly}</span>}
         </div>
+        {uploadError && (
+          <p role="alert" className="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
+            {uploadError}
+          </p>
+        )}
         {autosave.conflict && (
           <ConflictBanner
             conflict={autosave.conflict}
@@ -154,6 +179,7 @@ export default function PageEditor({ pageId, initialContent, initialVersion, edi
           editable={editable}
           slashMenu={false}
           formattingToolbar={false}
+          filePanel={false}
           spellCheck
           className="ek-editor"
           onChange={() => {
@@ -166,6 +192,7 @@ export default function PageEditor({ pageId, initialContent, initialVersion, edi
             getItems={async (query) => filterSuggestionItems(slashMenuItems(editor), query)}
           />
           <FormattingToolbarController formattingToolbar={formattingToolbar} />
+          <FilePanelController filePanel={ImageFilePanel} />
         </BlockNoteView>
       </div>
       <TableOfContents headings={headings} />

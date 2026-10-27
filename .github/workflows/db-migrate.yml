@@ -59,7 +59,7 @@ jobs:
         # Test users sign in with a password; only this throwaway copy allows it.
         run: |
           sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
       - name: Run API isolation test
         run: |
           supabase status -o json > status.json
