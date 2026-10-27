@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { t } from "@/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspace } from "@/lib/workspace";
+import { PageBody } from "@/components/editor/page-body";
 import { PageHeader } from "@/components/pages/page-header";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
@@ -13,6 +14,8 @@ type PageRecord = {
   workspace_id: string;
   title: string;
   icon: string | null;
+  content: unknown;
+  version: number;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -28,7 +31,7 @@ async function loadPage(id: string): Promise<PageRecord | null> {
   const { data } = await supabase
     .from("pages")
     .select(
-      "id, workspace_id, title, icon, created_at, updated_at, deleted_at, trashed_with, author:profiles!pages_created_by_fkey(name, email)",
+      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, author:profiles!pages_created_by_fkey(name, email)",
     )
     .eq("id", id)
     .maybeSingle()
@@ -55,8 +58,13 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
     );
   }
 
+  const supabase = await createClient();
+  // Owners and editors edit; the trash and (from stage 5) viewers/commenters only read.
+  const { data: role } = await supabase.rpc("effective_role", { target_page: page.id });
+  const editable = (role === "owner" || role === "editor") && !page.deleted_at;
+
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16 pt-6 md:px-12 md:pt-12">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} />}
       <PageHeader
         key={page.id}
@@ -70,7 +78,15 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
         createdAt={page.created_at}
         updatedAt={page.updated_at}
       />
-      <p className="mt-8 text-muted">{t.pages.bodyPlaceholder}</p>
+      <div className="mt-6">
+        <PageBody
+          key={page.id}
+          pageId={page.id}
+          initialContent={page.content}
+          initialVersion={page.version}
+          editable={editable}
+        />
+      </div>
     </main>
   );
 }

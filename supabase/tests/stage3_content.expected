@@ -1,0 +1,17 @@
+initial version: 1, content null: true
+save v1: {"ok": true, "version": 2}
+stored: Hello, version 2
+stale save: {"ok": false, "error": "conflict", "version": 2, "updated_by": "Alice"}
+content kept: Hello
+overwrite: {"ok": true, "version": 3}
+after overwrite: Mine, version 3
+not an array: {"ok": false, "error": "invalid_content"}
+too large: {"ok": false, "error": "too_large"}
+updated by: true
+bob saves: {"ok": false, "error": "forbidden"}
+bob forces: {"ok": false, "error": "forbidden"}
+carol saves: {"ok": false, "error": "forbidden"}
+save trashed: {"ok": false, "error": "in_trash"}
+final: Mine, version 3
+psql: ERROR:  permission denied for function save_page_content
+psql: ERROR:  permission denied for function page_content_limit

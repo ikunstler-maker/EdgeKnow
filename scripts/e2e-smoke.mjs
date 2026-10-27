@@ -42,6 +42,7 @@ async function newPage(cookies = []) {
   if (cookies.length) await context.addCookies(cookies);
   const page = await context.newPage();
   page.on("pageerror", (e) => problems.push(`page error: ${e.message}`));
+  page.on("dialog", (d) => d.accept().catch(() => {}));
   page.on("response", (r) => {
     if (r.status() >= 500) problems.push(`HTTP ${r.status()} ${r.url()}`);
   });
@@ -141,6 +142,105 @@ check("invitation page shows the workspace", (await anon.getByText("Запрош
 await anon.goto(`${APP}/w/${alphaShort}`);
 await anon.waitForURL(/\/login\?/);
 check("signed-out visitor goes to the workspace login link", anon.url().includes(`w=${alphaShort}`), anon.url());
+
+// --- Stage 3: the editor ------------------------------------------------------
+
+const fixture = JSON.parse(readFileSync(new URL("./fixtures/all-blocks.json", import.meta.url), "utf8"));
+const pageContent = (id) => JSON.parse(sql(`select coalesce(content, 'null'::jsonb)::text from public.pages where id = '${id}'`));
+const pageVersion = (id) => Number(sql(`select version from public.pages where id = '${id}'`));
+
+// Types and erases a character at the end so the unchanged document gets saved.
+async function nudge(page) {
+  await page.getByText("Last paragraph").click();
+  await page.keyboard.press("End");
+  await page.keyboard.type("x");
+  await page.keyboard.press("Backspace");
+  await page.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+  await page.waitForTimeout(300);
+}
+
+const docPage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "All blocks" })).data.id;
+const seeded = await aliceClient.rpc("save_page_content", { target_page: docPage, new_content: fixture, base_version: 1 });
+check("fixture saved through the API", seeded.data?.ok === true, JSON.stringify(seeded.data));
+
+await alice.goto(`${APP}/w/${alphaShort}/p/${docPage}`);
+await alice.waitForSelector(".bn-editor");
+await nudge(alice);
+const roundTrip1 = pageContent(docPage);
+const types = new Set();
+const walk = (list) => list.forEach((b) => { types.add(b.type); if (b.children) walk(b.children); });
+walk(roundTrip1);
+const expected = ["heading", "paragraph", "bulletListItem", "numberedListItem", "checkListItem", "toggleListItem", "quote", "codeBlock", "divider", "table", "callout", "youtube"];
+check("editor: every block type survives a save", expected.every((type) => types.has(type)), [...types].join(","));
+const saved = JSON.stringify(roundTrip1);
+const needles = ['"bold":true', '"italic":true', '"underline":true', '"strike":true', '"code":true', '"textColor":"red"', '"backgroundColor":"yellow"', "https://example.com/", '"textAlignment":"center"', '"checked":true', '"isToggleable":true', '"language":"javascript"', '"headerRows":1', '"variant":"warning"', "dQw4w9WgXcQ", "Nested bullet", "Hidden detail", "Inside the toggle heading"];
+const missing = needles.filter((n) => !saved.includes(n));
+check("editor: every style and nested block survives a save", missing.length === 0, missing.join(" "));
+
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+await nudge(alice);
+check("editor: reopening and saving again changes nothing", JSON.stringify(pageContent(docPage)) === saved);
+check("editor: each save bumps the version", pageVersion(docPage) === 4, String(pageVersion(docPage)));
+check("editor: table of contents lists the headings", (await alice.locator('nav[aria-label="Зміст"] button').count()) === 3);
+
+// Typing through the "/" menu, as a person would.
+await alice.getByText("Last paragraph").click();
+await alice.keyboard.press("End");
+await alice.keyboard.press("Enter");
+await alice.keyboard.type("/плашка");
+await alice.getByRole("option", { name: /Плашка/ }).first().waitFor();
+await alice.keyboard.press("Enter");
+await alice.keyboard.type("Typed in the browser");
+await alice.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+await alice.waitForTimeout(1500);
+check("editor: block inserted with / is saved", JSON.stringify(pageContent(docPage)).includes("Typed in the browser"));
+
+// Two tabs on one page: the second save is a conflict, nothing is overwritten silently.
+const tab1 = await newPage(aliceCookies);
+const tab2 = await newPage(aliceCookies);
+for (const tab of [tab1, tab2]) {
+  await tab.goto(`${APP}/w/${alphaShort}/p/${docPage}`);
+  await tab.waitForSelector(".bn-editor");
+}
+await tab1.getByText("Last paragraph").click();
+await tab1.keyboard.press("End");
+await tab1.keyboard.type(" from tab one");
+await tab1.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+await tab1.waitForTimeout(1200);
+await tab2.getByText("Last paragraph").click();
+await tab2.keyboard.press("End");
+await tab2.keyboard.type(" from tab two");
+await tab2.getByText(/Сторінку щойно змінив/).waitFor({ timeout: 15000 });
+check("editor: second tab gets the conflict banner", true);
+check("editor: first tab's text is kept", JSON.stringify(pageContent(docPage)).includes("from tab one") && !JSON.stringify(pageContent(docPage)).includes("from tab two"));
+await tab2.getByRole("button", { name: "Залишити мою" }).click();
+await tab2.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+await tab2.waitForTimeout(500);
+check("editor: 'keep mine' overwrites on purpose", JSON.stringify(pageContent(docPage)).includes("from tab two"));
+
+// Bob can't save into Alice's page even straight through the route.
+const bobSave = await bob.evaluate(async (id) => {
+  const r = await fetch(`/api/pages/${id}/content`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: [], baseVersion: 1, force: true }) });
+  return r.json();
+}, docPage);
+check("editor: another workspace can't save the page", bobSave?.error === "forbidden", JSON.stringify(bobSave));
+
+// Security headers and the video info route.
+const headers = (await alice.goto(`${APP}/w/${alphaShort}/p/${docPage}`)).headers();
+check("only YouTube may be framed (CSP)", (headers["content-security-policy"] ?? "").includes("frame-src https://www.youtube-nocookie.com"), headers["content-security-policy"]);
+const anonVideo = await fetch(`${APP}/api/youtube?url=https://youtu.be/dQw4w9WgXcQ`, { redirect: "manual" });
+check("video info route needs a session", anonVideo.status === 401 || (anonVideo.status >= 300 && anonVideo.status < 400), String(anonVideo.status));
+
+// Phone layout.
+const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })).newPage();
+await phone.context().addCookies(aliceCookies);
+await phone.goto(`${APP}/w/${alphaShort}/p/${docPage}`);
+await phone.waitForSelector(".bn-editor");
+check("phone: no horizontal page scroll", (await phone.evaluate(() => document.documentElement.scrollWidth)) <= 390);
+check("phone: text is 17px", (await phone.evaluate(() => getComputedStyle(document.querySelector(".bn-editor")).fontSize)) === "17px");
+await phone.getByRole("button", { name: /Зміст/ }).tap();
+check("phone: contents open in a bottom sheet", (await phone.getByRole("dialog", { name: "Зміст" }).count()) > 0);
 
 await aliceClient.auth.signOut();
 await browser.close();
