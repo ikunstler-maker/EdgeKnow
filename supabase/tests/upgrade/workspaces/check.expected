@@ -20,4 +20,5 @@ daniil sees log: 2
 colleague role: member
 colleague sees pages: 0
 colleague sees profiles: 3
-legacy is_allowed_user: true
+legacy tables gone: true
+is_admin column gone: true

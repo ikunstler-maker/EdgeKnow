@@ -52,6 +52,5 @@ remaining titles: Bob page,Renamed child
 move across workspaces: {"ok": false, "error": "forbidden"}
 child in other workspace: {"ok": false, "error": "forbidden"}
 author recorded: true
-legacy create: true
 psql: ERROR:  page and parent must be in the same workspace
 CONTEXT:  PL/pgSQL function public.check_page_workspace() line 6 at RAISE

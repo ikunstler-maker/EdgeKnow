@@ -125,9 +125,6 @@ select public.create_page(:'ws2', null, 'Elsewhere') ->> 'id' as elsewhere \gset
 select 'move across workspaces: ' || (public.move_page(:'elsewhere', :'child', 0))::text;
 select 'child in other workspace: ' || (public.create_page(:'ws2', :'child', 'x'))::text;
 select 'author recorded: ' || ((select created_by from public.pages where id = :'elsewhere') = auth.uid());
--- The pre-workspace signature still works until drop_legacy (top level -> first workspace).
-select public.create_page(null::uuid, 'Legacy') ->> 'id' as legacy \gset
-select 'legacy create: ' || ((select workspace_id from public.pages where id = :'legacy') = :'ws');
 reset role;
 \set ON_ERROR_STOP 0
 update public.pages set parent_id = :'child' where id = :'elsewhere';
