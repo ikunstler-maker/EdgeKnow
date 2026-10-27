@@ -67,9 +67,16 @@ const denied = (res) => res.status === 200 && res.json?.ok === false && res.json
 
 // --- Setup: two people, two workspaces ------------------------------------
 
-// With registration closed the sign-in hook refuses unknown accounts.
-const refused = await createUser("outsider@nowhere.test");
-check("closed registration: account for unknown domain refused by the hook", refused.status >= 400, `HTTP ${refused.status}`);
+// With registration closed the Before User Created hook refuses unknown accounts
+// on the public sign-up path (the one Google sign-in uses to create accounts).
+const refused = await http("POST", "/auth/v1/signup", {
+  body: { email: "outsider@nowhere.test", password: "Test-password-1!" },
+});
+check(
+  "closed registration: account for unknown domain refused by the hook",
+  refused.status >= 400 && JSON.stringify(refused.json).includes("domain_not_allowed"),
+  `HTTP ${refused.status} ${JSON.stringify(refused.json).slice(0, 120)}`,
+);
 
 sql("update public.platform_settings set open_registration = true");
 for (const email of ["alice@alpha.test", "bob@beta.test", "stranger@gamma.test"]) {
@@ -86,6 +93,14 @@ await rpc(alice, "add_workspace_domain", { ws: alpha.id, new_domain: "alpha.test
 const page = (await rpc(alice, "create_page", { ws: alpha.id, parent: null, new_title: "Alpha secret" })).json;
 await rpc(alice, "invite_member", { ws: alpha.id, invitee_email: "friend@else.test", invitee_role: "member" });
 sql("update public.platform_settings set open_registration = false");
+const domainSignup = await http("POST", "/auth/v1/signup", {
+  body: { email: "colleague@alpha.test", password: "Test-password-1!" },
+});
+check(
+  "closed registration: account on an active workspace domain is allowed",
+  domainSignup.status < 400,
+  `HTTP ${domainSignup.status} ${JSON.stringify(domainSignup.json).slice(0, 120)}`,
+);
 check("setup: workspaces and page created", Boolean(alpha?.id && beta?.id && page?.id), JSON.stringify(alphaRes.json));
 
 const stranger = await signIn("stranger@gamma.test");
@@ -163,7 +178,8 @@ for (const [method, path, body] of writes) {
 const titleAfter = (await rest(alice, `pages?id=eq.${page.id}&select=title`)).json?.[0]?.title;
 check("alpha page unchanged after bob's attempts", titleAfter === "Alpha secret", String(titleAfter));
 const logged = sql(`select count(*) from public.audit_log where workspace_id = '${alpha.id}' and action = 'access_denied'`);
-check("bob's attempts are in alpha's audit log", Number(logged) >= 5, `${logged} entries`);
+// Workspace management attempts (invite, add domain, delete, rename) are logged; page actions are not.
+check("bob's attempts are in alpha's audit log", Number(logged) === 4, `${logged} entries`);
 
 // --- No workspace / no account ----------------------------------------------
 
