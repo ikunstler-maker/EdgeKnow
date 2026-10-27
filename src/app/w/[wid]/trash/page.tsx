@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { t } from "@/i18n";
-import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getWorkspace } from "@/lib/workspace";
 import { TrashList, type TrashItem } from "./trash-list";
 
 export const metadata: Metadata = { title: `${t.trash.title} · ${t.app.name}` };
@@ -28,12 +28,14 @@ function toTrashItems(rows: TrashRow[], now = Date.now()): TrashItem[] {
     });
 }
 
-export default async function TrashPage() {
-  await getCurrentUser();
+export default async function TrashPage({ params }: PageProps<"/w/[wid]/trash">) {
+  const workspace = await getWorkspace((await params).wid);
+  if (!workspace) return null;
   const supabase = await createClient();
   const { data } = await supabase
     .from("pages")
     .select("id, title, icon, deleted_at, trashed_with")
+    .eq("workspace_id", workspace.id)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false })
     .overrideTypes<TrashRow[], { merge: false }>();
@@ -44,7 +46,7 @@ export default async function TrashPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <h1 className="text-2xl font-semibold">🗑️ {t.trash.title}</h1>
       <p className="mt-2 text-muted">{t.trash.intro}</p>
-      <TrashList items={items} />
+      <TrashList items={items} workspaceShortId={workspace.shortId} />
     </main>
   );
 }

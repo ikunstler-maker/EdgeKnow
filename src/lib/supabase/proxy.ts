@@ -1,13 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { LAST_WORKSPACE_COOKIE } from "@/lib/paths";
 
-// Routes reachable without an allowed session.
-const PUBLIC_PATHS = ["/login", "/auth", "/no-access"];
+// Routes reachable without access to any workspace.
+const PUBLIC_PATHS = ["/login", "/auth", "/no-access", "/invite"];
 // Routes open to everyone, signed in or not (Google requires a public privacy policy).
 const ALWAYS_PUBLIC_PATHS = ["/privacy"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+function workspaceIdFromPath(pathname: string): string | null {
+  return pathname.match(/^\/w\/([a-z0-9]{8})(?:\/|$)/)?.[1] ?? null;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -37,12 +42,13 @@ export async function updateSession(request: NextRequest) {
   // Must run right after creating the client: it validates and refreshes the session.
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims);
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
+  const workspaceId = workspaceIdFromPath(pathname);
 
-  const redirectTo = (path: string) => {
+  const redirectTo = (path: string, params?: Record<string, string>) => {
     const url = request.nextUrl.clone();
     url.pathname = path;
-    url.search = "";
+    url.search = params ? `?${new URLSearchParams(params)}` : "";
     const redirect = NextResponse.redirect(url);
     // Keep refreshed auth cookies so the browser and server stay in sync.
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
@@ -54,21 +60,34 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!signedIn) {
-    return isPublicPath(pathname) ? response : redirectTo("/login");
+    if (isPublicPath(pathname)) return response;
+    // Come back here after signing in; a workspace link also gives Google its domain hint.
+    const params: Record<string, string> = {};
+    if (pathname !== "/") params.next = pathname + search;
+    if (workspaceId) params.w = workspaceId;
+    return redirectTo("/login", params);
   }
 
-  // Re-check the domain on every request, so a removed or disabled domain
-  // locks its users out immediately instead of when their token expires.
-  const { data: allowed } = await supabase.rpc("is_allowed_user");
+  // Re-check on every request, so a removed member or a disabled domain loses
+  // access immediately instead of when the session token expires.
+  const { data: allowed } = await supabase.rpc("has_platform_access");
 
   if (!allowed) {
-    return pathname.startsWith("/no-access") || pathname.startsWith("/auth")
-      ? response
-      : redirectTo("/no-access");
+    return isPublicPath(pathname) && pathname !== "/login" ? response : redirectTo("/no-access");
   }
 
   if (pathname === "/login" || pathname.startsWith("/no-access")) {
     return redirectTo("/");
+  }
+
+  // Remember the last opened workspace for the next visit to "/".
+  if (workspaceId && request.cookies.get(LAST_WORKSPACE_COOKIE)?.value !== workspaceId) {
+    response.cookies.set(LAST_WORKSPACE_COOKIE, workspaceId, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      httpOnly: true,
+    });
   }
 
   return response;

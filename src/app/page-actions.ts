@@ -17,8 +17,12 @@ async function callPageRpc<T extends object = object>(
   return data as ActionResult<T>;
 }
 
-export async function createPage(parentId: string | null) {
-  return callPageRpc<{ id: string }>("create_page", { parent: parentId, new_title: "" });
+export async function createPage(workspaceId: string, parentId: string | null) {
+  return callPageRpc<{ id: string }>("create_page", {
+    ws: workspaceId,
+    parent: parentId,
+    new_title: "",
+  });
 }
 
 export async function renamePage(id: string, title: string) {

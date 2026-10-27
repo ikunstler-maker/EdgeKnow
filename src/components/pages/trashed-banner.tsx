@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { t } from "@/i18n";
-import { restorePage } from "@/app/(app)/page-actions";
+import { restorePage } from "@/app/page-actions";
 
 export function TrashedBanner({ trashRootId }: { trashRootId: string }) {
   const [pending, startTransition] = useTransition();
