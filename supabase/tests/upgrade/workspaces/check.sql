@@ -1,4 +1,5 @@
--- After the workspace migrations: everything moved into workspace "iyo" intact.
+-- After the workspace migrations (including drop_legacy): everything moved into
+-- workspace "iyo" intact, and the legacy tables are gone.
 \pset format unaligned
 \pset tuples_only on
 select 'workspaces: ' || string_agg(name, ',') from public.workspaces;
@@ -30,6 +31,7 @@ set request.jwt.claim.sub = '10000000-0000-0000-0000-000000000003';
 select 'colleague role: ' || public.workspace_role((select id from public.workspaces));
 select 'colleague sees pages: ' || count(*) from public.pages;
 select 'colleague sees profiles: ' || count(*) from public.profiles;
--- The old app keeps working until it is redeployed.
-select 'legacy is_allowed_user: ' || public.is_allowed_user();
 reset role;
+select 'legacy tables gone: ' || (to_regclass('public.allowed_domains') is null and to_regclass('public.admin_audit_log') is null);
+select 'is_admin column gone: ' || not exists (
+  select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'is_admin');

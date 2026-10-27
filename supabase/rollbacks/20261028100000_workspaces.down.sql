@@ -1,6 +1,7 @@
--- Undo 20261028100000_workspaces.sql. Run after the pages_workspace rollback.
--- The legacy allowed_domains / admin_audit_log / profiles.is_admin were never
--- changed, so stage 1 behaviour comes back as it was.
+-- Undo 20261028100000_workspaces.sql. Run after the drop_legacy, workspace_auth
+-- and pages_workspace rollbacks; drop_legacy's rollback has already restored
+-- allowed_domains / admin_audit_log / profiles.is_admin, so stage 1 behaviour
+-- comes back as it was.
 
 drop policy if exists "Users can read profiles of people in their workspaces" on public.profiles;
 
