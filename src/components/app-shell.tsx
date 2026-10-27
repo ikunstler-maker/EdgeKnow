@@ -20,7 +20,21 @@ export function AppShell({
 }) {
   const { workspace } = usePages();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState(false);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  // Phone top bar: hides while scrolling down through a page, returns on scroll up.
+  useEffect(() => {
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - lastY) < 8) return;
+      setHeaderHidden(y > lastY && y > 64);
+      lastY = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     const onTouchStart = (event: TouchEvent) => {
@@ -73,7 +87,11 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-background/95 px-2 py-1 backdrop-blur md:hidden">
+        <header
+          className={`sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-background/95 px-2 py-1 backdrop-blur transition-transform md:hidden ${
+            headerHidden ? "-translate-y-full" : ""
+          }`}
+        >
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}

@@ -1,0 +1,34 @@
+[
+  { "type": "heading", "props": { "level": 1 }, "content": "Heading one" },
+  { "type": "heading", "props": { "level": 2 }, "content": "Heading two" },
+  { "type": "heading", "props": { "level": 3, "isToggleable": true }, "content": "Toggle heading three",
+    "children": [{ "type": "paragraph", "content": "Inside the toggle heading" }] },
+  { "type": "paragraph", "props": { "textAlignment": "center" }, "content": [
+    { "type": "text", "text": "Bold", "styles": { "bold": true } },
+    { "type": "text", "text": " italic", "styles": { "italic": true } },
+    { "type": "text", "text": " underline", "styles": { "underline": true } },
+    { "type": "text", "text": " strike", "styles": { "strike": true } },
+    { "type": "text", "text": " code", "styles": { "code": true } },
+    { "type": "text", "text": " red", "styles": { "textColor": "red" } },
+    { "type": "text", "text": " yellow", "styles": { "backgroundColor": "yellow" } },
+    { "type": "link", "href": "https://example.com/", "content": [{ "type": "text", "text": " link", "styles": {} }] }
+  ] },
+  { "type": "bulletListItem", "content": "Bullet", "children": [
+    { "type": "bulletListItem", "content": "Nested bullet" }
+  ] },
+  { "type": "numberedListItem", "content": "Numbered one" },
+  { "type": "numberedListItem", "content": "Numbered two" },
+  { "type": "checkListItem", "props": { "checked": true }, "content": "Done task" },
+  { "type": "checkListItem", "props": { "checked": false }, "content": "Open task" },
+  { "type": "toggleListItem", "content": "Toggle list", "children": [{ "type": "paragraph", "content": "Hidden detail" }] },
+  { "type": "quote", "content": "A quote" },
+  { "type": "codeBlock", "props": { "language": "javascript" }, "content": "const answer = 42;" },
+  { "type": "divider" },
+  { "type": "table", "content": { "type": "tableContent", "headerRows": 1, "rows": [
+    { "cells": ["Name", "Role"] },
+    { "cells": ["Alice", "Owner"] }
+  ] } },
+  { "type": "callout", "props": { "variant": "warning" }, "content": "Careful callout" },
+  { "type": "youtube", "props": { "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "title": "A video", "author": "A channel" } },
+  { "type": "paragraph", "content": "Last paragraph" }
+]
