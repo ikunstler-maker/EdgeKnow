@@ -1,0 +1,51 @@
+alice sees pages: 4
+tree depth ok: true
+roots in order: Root,Second
+rename: {"ok": true}
+renamed title: Renamed child
+icon: {"ok": true}
+icon too long: {"ok": false, "error": "invalid_icon"}
+title too long: {"ok": false, "error": "title_too_long"}
+move to root: {"ok": true}
+roots after move: Grandchild,Root,Second
+move branch: {"ok": true}
+root parent is second: true
+cycle: {"ok": false, "error": "cycle"}
+self parent: {"ok": false, "error": "cycle"}
+bob sees pages: 0
+bob sees by id: 0
+bob rename: {"ok": false, "error": "forbidden"}
+bob icon: {"ok": false, "error": "forbidden"}
+bob child: {"ok": false, "error": "forbidden"}
+bob move: {"ok": false, "error": "forbidden"}
+bob trash: {"ok": false, "error": "forbidden"}
+bob role: none
+bob own page: true
+bob sees pages now: 1
+carol create: {"ok": false, "error": "forbidden"}
+carol sees pages: 0
+psql: ERROR:  permission denied for table pages
+psql: ERROR:  permission denied for table pages
+psql: ERROR:  permission denied for table pages
+psql: ERROR:  permission denied for function place_page
+psql: ERROR:  permission denied for function purge_trash
+trash second: {"ok": true}
+trashed rows: 3
+trash roots: Second
+child under trashed: {"ok": false, "error": "in_trash"}
+move into trashed: {"ok": false, "error": "in_trash"}
+trash twice: {"ok": false, "error": "in_trash"}
+forever not in trash: {"ok": false, "error": "not_in_trash"}
+restore subpage: {"ok": false, "error": "not_in_trash"}
+restore: {"ok": true}
+trashed after restore: 0
+trash child: {"ok": true}
+trash second again: {"ok": true}
+trash roots: Renamed child,Second
+restore child alone: {"ok": true}
+child now top level: true
+child stays live: true
+forever: {"ok": true}
+alice pages left: Grandchild,Renamed child
+purged: 1
+remaining titles: Bob page,Renamed child

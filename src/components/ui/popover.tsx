@@ -1,0 +1,77 @@
+"use client";
+
+import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+// A panel pinned next to the element that opened it. Rendered into <body> so the
+// sidebar's scroll container can't clip it; closes on outside tap or Escape.
+export function Popover({
+  anchor,
+  onClose,
+  children,
+  width = 224,
+}: {
+  anchor: HTMLElement;
+  onClose: () => void;
+  children: ReactNode;
+  width?: number;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!panelRef.current?.contains(target) && !anchor.contains(target)) onClose();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [anchor, onClose]);
+
+  const rect = anchor.getBoundingClientRect();
+  const margin = 8;
+  const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+  const openUp = rect.bottom > window.innerHeight * 0.6;
+  const style = openUp
+    ? { left, width, bottom: window.innerHeight - rect.top + 4 }
+    : { left, width, top: rect.bottom + 4 };
+
+  return createPortal(
+    <div
+      ref={panelRef}
+      style={style}
+      className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-lg"
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
+export function MenuItem({
+  onSelect,
+  danger,
+  children,
+}: {
+  onSelect: () => void;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`flex min-h-11 w-full items-center rounded-md px-3 text-left text-sm hover:bg-surface ${
+        danger ? "text-danger" : ""
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

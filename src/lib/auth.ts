@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,7 +13,8 @@ export type CurrentUser = {
 
 // The proxy already gates every page; this re-checks on the server so a page
 // never renders for a session the proxy let through by mistake.
-export async function getCurrentUser(): Promise<CurrentUser> {
+// Cached per request, so the layout and the page share one lookup.
+export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
@@ -33,4 +35,4 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     avatarUrl: profile.avatar_url,
     isAdmin: profile.is_admin,
   };
-}
+});

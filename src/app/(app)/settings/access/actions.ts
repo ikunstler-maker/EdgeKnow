@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionResult } from "@/lib/action-result";
 import { createClient } from "@/lib/supabase/server";
-
-export type ActionResult = { ok: true } | { ok: false; error: string };
 
 // Permission checks and audit logging live in the database functions, so these
 // actions stay thin: anyone can call them, only admins get past the RPC.

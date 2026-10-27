@@ -1,7 +1,6 @@
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { AppHeader } from "@/components/app-header";
 import { DomainManager, type DomainRow } from "./domain-manager";
 
 const s = t.settings.access;
@@ -28,13 +27,10 @@ export default async function AccessSettingsPage() {
 
   if (!user.isAdmin) {
     return (
-      <>
-        <AppHeader user={user} />
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-          <h1 className="text-2xl font-semibold">{s.title}</h1>
-          <p className="mt-3 text-muted">{s.forbidden}</p>
-        </main>
-      </>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+        <h1 className="text-2xl font-semibold">{s.title}</h1>
+        <p className="mt-3 text-muted">{s.forbidden}</p>
+      </main>
     );
   }
 
@@ -60,9 +56,7 @@ export default async function AccessSettingsPage() {
   }));
 
   return (
-    <>
-      <AppHeader user={user} />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
         <p className="text-sm text-muted">{t.settings.title}</p>
         <h1 className="text-2xl font-semibold">{s.title}</h1>
         <p className="mt-2 text-muted">{s.intro}</p>
@@ -106,7 +100,6 @@ export default async function AccessSettingsPage() {
             </div>
           )}
         </section>
-      </main>
-    </>
+    </main>
   );
 }

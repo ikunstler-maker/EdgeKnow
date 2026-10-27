@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Applies all migrations to a throwaway Postgres (with a minimal stand-in for
 # Supabase's auth schema and roles) and compares security test output with the
-# expected file. Usage: PGHOST=... PGPORT=... PGUSER=postgres scripts/test-db.sh
+# expected file. Usage: PGHOST=... PGPORT=... PGUSER=postgres scripts/test-db.sh [--update]
+# --update rewrites the .expected files from the current output (review the diff!).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -16,7 +17,10 @@ status=0
 for t in supabase/tests/stage*.sql; do
   expected="${t%.sql}.expected"
   actual=$(psql -q -d $DB -f "$t" 2>&1 | sed -E 's#^psql:[^ ]*:[0-9]+: #psql: #' || true)
-  if diff -u "$expected" <(echo "$actual"); then
+  if [ "${1:-}" = "--update" ]; then
+    echo "$actual" > "$expected"
+    echo "UPDATED $expected"
+  elif diff -u "$expected" <(echo "$actual"); then
     echo "PASS $t"
   else
     echo "FAIL $t"

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { t } from "@/i18n";
-import { addDomain, removeDomain, setDomainActive, type ActionResult } from "./actions";
+import type { ActionResult } from "@/lib/action-result";
+import { addDomain, removeDomain, setDomainActive } from "./actions";
 
 const s = t.settings.access;
 
