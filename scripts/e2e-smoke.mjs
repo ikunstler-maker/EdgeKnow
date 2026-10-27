@@ -15,6 +15,14 @@ const ANON = status.ANON_KEY ?? status.PUBLISHABLE_KEY;
 const sql = (query) => execFileSync("psql", [status.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
 
 const results = [];
+// A crash (timeout, missing element) is reported as an annotation with the last passed step.
+const crash = (error) => {
+  const message = String(error?.message ?? error).split("\n").slice(0, 3).join(" ").slice(0, 600);
+  console.log(`::error title=E2E crashed::${message} — after: ${results.at(-1)?.name ?? "start"}`);
+  process.exit(1);
+};
+process.on("unhandledRejection", crash);
+process.on("uncaughtException", crash);
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
