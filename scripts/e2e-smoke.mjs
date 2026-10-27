@@ -16,9 +16,14 @@ const sql = (query) => execFileSync("psql", [status.DB_URL, "-Atc", query], { en
 
 const results = [];
 // A crash (timeout, missing element) is reported as an annotation with the last passed step.
-const crash = (error) => {
+const consoleErrors = [];
+let lastPage = null;
+const crash = async (error) => {
   const message = String(error?.message ?? error).split("\n").slice(0, 3).join(" ").slice(0, 600);
   console.log(`::error title=E2E crashed::${message} — after: ${results.at(-1)?.name ?? "start"}`);
+  const alerts = await lastPage?.locator("[role=alert]").allInnerTexts().catch(() => []);
+  if (alerts?.length) console.log(`::error title=On-screen alerts::${alerts.join(" | ").slice(0, 600)}`);
+  if (consoleErrors.length) console.log(`::error title=Browser console::${consoleErrors.slice(-4).join(" | ").slice(0, 900)}`);
   process.exit(1);
 };
 process.on("unhandledRejection", crash);
@@ -50,6 +55,10 @@ async function newPage(cookies = []) {
   if (cookies.length) await context.addCookies(cookies);
   const page = await context.newPage();
   page.on("pageerror", (e) => problems.push(`page error: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
+  });
+  lastPage = page;
   page.on("dialog", (d) => d.accept().catch(() => {}));
   page.on("response", (r) => {
     if (r.status() >= 500) problems.push(`HTTP ${r.status()} ${r.url()}`);
@@ -284,6 +293,7 @@ const png = await alice.evaluate(async () => {
 const pngBuffer = Buffer.from(png, "base64");
 check("test image is a 4K PNG over 10 MB", pngBuffer.length > 10 * 1024 * 1024, `${(pngBuffer.length / 1048576).toFixed(1)} MB`);
 
+lastPage = alice;
 const imagePage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "Images" })).data.id;
 await alice.goto(`${APP}/w/${alphaShort}/p/${imagePage}`);
 await alice.waitForSelector(".bn-editor");
