@@ -10,6 +10,7 @@ import {
   GeneralPanel,
   LeaveButton,
   MembersPanel,
+  type DepartedOwner,
   type DomainItem,
   type InvitationItem,
   type MemberItem,
@@ -65,7 +66,7 @@ export default async function WorkspaceSettingsPage({
 
   const supabase = await createClient();
   // Each query is limited by RLS to this workspace and to admins.
-  const [members, domains, invitations, log] = await Promise.all([
+  const [members, domains, invitations, log, departed] = await Promise.all([
     tab === "general" || tab === "members"
       ? supabase
           .from("workspace_members")
@@ -103,7 +104,19 @@ export default async function WorkspaceSettingsPage({
           .limit(100)
           .overrideTypes<LogRow[], { merge: false }>()
       : null,
+    // Only counts per former member: admins don't see other people's pages.
+    tab === "members" ? supabase.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
+  const departedData = departed?.data as
+    | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number }[] }
+    | null
+    | undefined;
+  const departedItems: DepartedOwner[] = (departedData?.owners ?? []).map((d) => ({
+    userId: d.user_id,
+    name: d.name,
+    email: d.email,
+    pages: d.pages,
+  }));
 
   const memberItems: MemberItem[] = (members?.data ?? []).map((m) => ({
     userId: m.user_id,
@@ -158,6 +171,7 @@ export default async function WorkspaceSettingsPage({
             currentUserId={user.id}
             members={memberItems}
             invitations={invitationItems}
+            departed={departedItems}
           />
         )}
         {tab === "domains" && (
@@ -189,7 +203,7 @@ export default async function WorkspaceSettingsPage({
                         <td className="px-3 py-2">{row.actor?.email ?? "—"}</td>
                         <td className="px-3 py-2">
                           {t.settings.access.actions[row.action] ?? row.action}{" "}
-                          {["domain", "email", "name", "to"].map((key) =>
+                          {["domain", "email", "name", "from", "to"].map((key) =>
                             typeof row.details[key] === "string" ? (
                               <span key={key} className="font-mono">
                                 {String(row.details[key])}{" "}

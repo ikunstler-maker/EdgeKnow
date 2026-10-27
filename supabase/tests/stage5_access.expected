@@ -1,0 +1,63 @@
+bob before sharing: 0
+share viewer: {"ok": true}
+share commenter: {"ok": true}
+share child editor: {"ok": true}
+invalid role: {"ok": false, "error": "invalid_role"}
+owner as member: {"ok": false, "error": "is_owner"}
+other workspace: {"ok": false, "error": "not_a_member"}
+bob roles: Child=viewer, Grandchild=viewer, Parent=viewer
+viewer saves: {"ok": false, "error": "forbidden"}
+viewer renames: {"ok": false, "error": "forbidden"}
+viewer adds subpage: {"ok": false, "error": "forbidden"}
+viewer shares: {"ok": false, "error": "forbidden"}
+viewer trashes: {"ok": false, "error": "forbidden"}
+carol role on grandchild: commenter
+commenter saves: {"ok": false, "error": "forbidden"}
+dave sees: Child=editor, Grandchild=editor
+editor saves: true
+editor shares: {"ok": false, "error": "forbidden"}
+editor trashes: {"ok": false, "error": "forbidden"}
+editor restricts: {"ok": false, "error": "forbidden"}
+alice on dave's subpage: editor
+eve sees pages: 0
+eve sees grants: 0
+eve role: null
+eve sharing info: {"ok": false, "error": "forbidden"}
+psql: ERROR:  permission denied for table page_access
+psql: ERROR:  permission denied for table pages
+bob sharing: viewer, entries 2, members 0
+bob sees grants: 3
+alice sharing on grandchild: Bob:viewer:Parent, Carol:commenter:Parent, Dave:editor:Child, members 3
+workspace viewer: {"ok": true}
+dave on parent now: viewer
+dave on child (editor wins): editor
+shared with workspace: Child=viewer, Dave sub=viewer, Grandchild=viewer, Parent=viewer
+restrict root page: {"ok": false, "error": "no_parent"}
+restrict: {"ok": true}
+copied grants: bob@access.test=viewer, carol@access.test=commenter, dave@access.test=editor
+copied workspace role: viewer
+remove bob: {"ok": true}
+no workspace: {"ok": true}
+bob after restriction: grandchild null, child viewer
+parent share does not reach restricted: true
+bob on grandchild still: null
+inherit again: {"ok": true}
+bob after inherit: editor
+non-owner transfers: {"ok": false, "error": "forbidden"}
+transfer to other workspace: {"ok": false, "error": "not_a_member"}
+transfer: {"ok": true}
+alice on child: editor
+dave on child: owner
+dave own grant gone: 0
+departed before: []
+remove dave: true
+dave grants left: 0
+dave sees after leaving: 0
+member lists departed: {"ok": false, "error": "forbidden"}
+member reassigns: {"ok": false, "error": "forbidden"}
+departed: [{"name": "Dave", "email": "dave@access.test", "pages": 2, "user_id": "00000000-0000-0000-0000-0000000005d1"}]
+reassign active member: {"ok": false, "error": "still_a_member"}
+reassign to outsider: {"ok": false, "error": "not_a_member"}
+reassign: {"ok": true, "pages": 2}
+carol now owns: Child, Dave sub
+audit: access_denied {"attempted": "reassign_member_pages"}; pages_reassigned {"to": "carol@access.test", "from": "dave@access.test", "pages": 2}

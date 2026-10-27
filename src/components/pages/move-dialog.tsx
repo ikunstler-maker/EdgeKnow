@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
-import { childrenOf, rootsOf, subtreeIds, type PageNode } from "@/lib/pages";
+import { canEdit, childrenOf, rootsOf, subtreeIds, type PageNode } from "@/lib/pages";
 
 type Option = { page: PageNode; depth: number };
 
@@ -35,7 +35,10 @@ export function MoveDialog({
 
   const blocked = subtreeIds(pages, pageId);
   const current = pages.find((p) => p.id === pageId)?.parentId ?? null;
-  const options = flatten(pages, rootsOf(pages), 0, []).filter((o) => !blocked.has(o.page.id));
+  // Only pages the user may edit can take a subpage.
+  const options = flatten(pages, rootsOf(pages), 0, []).filter(
+    (o) => !blocked.has(o.page.id) && canEdit(o.page.role),
+  );
 
   const choose = (parentId: string | null) => {
     if (parentId !== current) onMove(parentId);

@@ -17,7 +17,16 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { t } from "@/i18n";
-import { childrenOf, rootsOf, siblingsOf, subtreeIds, type PageNode } from "@/lib/pages";
+import {
+  canEdit,
+  childrenOf,
+  rootsOf,
+  sectionOf,
+  siblingsOf,
+  subtreeIds,
+  type PageNode,
+  type SidebarSection,
+} from "@/lib/pages";
 import { pagePath } from "@/lib/paths";
 import { usePages } from "@/components/pages/pages-provider";
 import { MoveDialog } from "@/components/pages/move-dialog";
@@ -28,7 +37,9 @@ type Zone = "before" | "inside" | "after";
 type DropTarget = { id: string; zone: Zone };
 type VisibleItem = { page: PageNode; depth: number; hasChildren: boolean };
 
-function flattenVisible(pages: PageNode[], expanded: Set<string>): VisibleItem[] {
+const SECTIONS: SidebarSection[] = ["workspace", "mine", "shared"];
+
+function flattenVisible(pages: PageNode[], roots: PageNode[], expanded: Set<string>): VisibleItem[] {
   const out: VisibleItem[] = [];
   const walk = (nodes: PageNode[], depth: number) => {
     for (const page of nodes) {
@@ -37,7 +48,7 @@ function flattenVisible(pages: PageNode[], expanded: Set<string>): VisibleItem[]
       if (expanded.has(page.id)) walk(children, depth + 1);
     }
   };
-  walk(rootsOf(pages), 0);
+  walk(roots, 0);
   return out;
 }
 
@@ -51,9 +62,11 @@ function pointerY(event: DragMoveEvent): number | null {
 }
 
 export function PageTree({
+  userId,
   currentId,
   onNavigate,
 }: {
+  userId: string;
   currentId: string | null;
   onNavigate?: () => void;
 }) {
@@ -69,7 +82,15 @@ export function PageTree({
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
-  const items = flattenVisible(pages, expanded);
+  const roots = rootsOf(pages);
+  const sections = SECTIONS.map((section) => ({
+    section,
+    items: flattenVisible(
+      pages,
+      roots.filter((p) => sectionOf(p, userId) === section),
+      expanded,
+    ),
+  })).filter((s) => s.section === "mine" || s.items.length > 0);
   const blocked = activeId ? subtreeIds(pages, activeId) : new Set<string>();
   const activePage = activeId ? pages.find((p) => p.id === activeId) : undefined;
 
@@ -81,12 +102,21 @@ export function PageTree({
   const onDragMove = (event: DragMoveEvent) => {
     const over = event.over;
     const y = pointerY(event);
-    if (!over || y === null || blocked.has(String(over.id))) {
+    const overPage = over ? pages.find((p) => p.id === over.id) : undefined;
+    if (!over || !overPage || y === null || blocked.has(overPage.id)) {
       if (drop) setDrop(null);
       return;
     }
     const ratio = (y - over.rect.top) / over.rect.height;
-    const zone: Zone = ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
+    let zone: Zone = ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
+    // Next to a page means into its parent: that one must be editable too.
+    const parent = overPage.parentId ? pages.find((p) => p.id === overPage.parentId) : undefined;
+    const besideAllowed = !parent || canEdit(parent.role);
+    if (zone === "inside" && !canEdit(overPage.role)) zone = ratio < 0.5 ? "before" : "after";
+    if (zone !== "inside" && !besideAllowed) {
+      if (drop) setDrop(null);
+      return;
+    }
     if (drop?.id !== over.id || drop.zone !== zone) setDrop({ id: String(over.id), zone });
   };
 
@@ -120,10 +150,6 @@ export function PageTree({
     setDrop(null);
   };
 
-  if (items.length === 0) {
-    return <p className="px-3 py-2 text-sm text-muted">{t.sidebar.empty}</p>;
-  }
-
   return (
     <DndContext
       sensors={sensors}
@@ -133,23 +159,34 @@ export function PageTree({
       onDragEnd={onDragEnd}
       onDragCancel={onDragCancel}
     >
-      <ul role="tree" aria-label={t.sidebar.pagesHeading} title={t.sidebar.dragHint}>
-        {items.map((item) => (
-          <TreeRow
-            key={item.page.id}
-            item={item}
-            expanded={expanded.has(item.page.id)}
-            current={item.page.id === currentId}
-            dragging={item.page.id === activeId}
-            dropBlocked={blocked.has(item.page.id)}
-            dropZone={drop?.id === item.page.id ? drop.zone : null}
-            onNavigate={(event) => {
-              if (suppressClick.current) event.preventDefault();
-              else onNavigate?.();
-            }}
-          />
-        ))}
-      </ul>
+      {sections.map(({ section, items }) => (
+        <section key={section} aria-label={t.sidebar.sections[section]} className="mb-2">
+          <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted">
+            {t.sidebar.sections[section]}
+          </p>
+          {items.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-muted">{t.sidebar.empty}</p>
+          ) : (
+            <ul role="tree" aria-label={t.sidebar.sections[section]} title={t.sidebar.dragHint}>
+              {items.map((item) => (
+                <TreeRow
+                  key={item.page.id}
+                  item={item}
+                  expanded={expanded.has(item.page.id)}
+                  current={item.page.id === currentId}
+                  dragging={item.page.id === activeId}
+                  dropBlocked={blocked.has(item.page.id)}
+                  dropZone={drop?.id === item.page.id ? drop.zone : null}
+                  onNavigate={(event) => {
+                    if (suppressClick.current) event.preventDefault();
+                    else onNavigate?.();
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
       <DragOverlay dropAnimation={null}>
         {activePage && (
           <div className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm shadow-lg">
@@ -181,7 +218,10 @@ function TreeRow({
 }) {
   const { page, depth, hasChildren } = item;
   const { workspace, pages, create, rename, move, trash } = usePages();
-  const drag = useDraggable({ id: page.id });
+  const editable = canEdit(page.role);
+  const owner = page.role === "owner";
+  // Moving needs edit rights on the page itself.
+  const drag = useDraggable({ id: page.id, disabled: !editable });
   const dropArea = useDroppable({ id: page.id, disabled: dropBlocked });
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [renaming, setRenaming] = useState(false);
@@ -263,27 +303,31 @@ function TreeRow({
         )}
 
         {/* Always visible on touch screens; on desktop they appear on hover. */}
-        <button
-          type="button"
-          onClick={() => {
-            create(page.id);
-            setExpanded(page.id, true);
-          }}
-          aria-label={t.sidebar.addSubpage}
-          title={t.sidebar.addSubpage}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={(event) => setMenuAnchor(menuAnchor ? null : event.currentTarget)}
-          aria-label={t.sidebar.moreActions}
-          title={t.sidebar.moreActions}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
-        >
-          ⋯
-        </button>
+        {editable && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                create(page.id);
+                setExpanded(page.id, true);
+              }}
+              aria-label={t.sidebar.addSubpage}
+              title={t.sidebar.addSubpage}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={(event) => setMenuAnchor(menuAnchor ? null : event.currentTarget)}
+              aria-label={t.sidebar.moreActions}
+              title={t.sidebar.moreActions}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
+            >
+              ⋯
+            </button>
+          </>
+        )}
       </div>
 
       {menuAnchor && (
@@ -313,15 +357,17 @@ function TreeRow({
           >
             {t.pages.menu.moveTo}
           </MenuItem>
-          <MenuItem
-            danger
-            onSelect={() => {
-              setMenuAnchor(null);
-              trash(page.id);
-            }}
-          >
-            {t.pages.menu.delete}
-          </MenuItem>
+          {owner && (
+            <MenuItem
+              danger
+              onSelect={() => {
+                setMenuAnchor(null);
+                trash(page.id);
+              }}
+            >
+              {t.pages.menu.delete}
+            </MenuItem>
+          )}
         </Popover>
       )}
 

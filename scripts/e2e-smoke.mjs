@@ -350,6 +350,51 @@ check("phone: text is 17px", (await phone.evaluate(() => getComputedStyle(docume
 await phone.getByRole("button", { name: /Зміст/ }).tap();
 check("phone: contents open in a bottom sheet", (await phone.getByRole("dialog", { name: "Зміст" }).count()) > 0);
 
+// --- Stage 5: access -------------------------------------------------------------
+
+// The API test left the colleague as a commenter on "Alpha secret".
+const until = async (condition, ms = 8000) => {
+  for (let i = 0; i < ms / 200; i++) {
+    if (condition()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return false;
+};
+const { cookies: colleagueCookies } = await sessionCookies("colleague@alpha.test");
+const colleague = await newPage(colleagueCookies);
+await colleague.goto(`${APP}/w/${alphaShort}`);
+await colleague.waitForSelector("aside");
+check("shared page is under 'Поділились зі мною'", (await colleague.getByRole("region", { name: "Поділились зі мною" }).getByText("Alpha secret").count()) > 0);
+check("colleague doesn't see alice's private pages", (await colleague.locator("aside").getByText("Images").count()) === 0);
+await colleague.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await colleague.waitForSelector(".bn-editor");
+check(
+  "commenter sees the page read-only",
+  (await colleague.locator("textarea").count()) === 0 &&
+    (await colleague.getByRole("heading", { name: "Alpha secret" }).count()) > 0 &&
+    (await colleague.getByText("Лише перегляд").count()) > 0 &&
+    (await colleague.locator('.bn-editor[contenteditable="true"]').count()) === 0,
+);
+await colleague.getByRole("button", { name: "Поділитися" }).click();
+const colleagueDialog = colleague.getByRole("dialog", { name: "Доступ до сторінки" });
+await colleagueDialog.getByText("Змінювати доступ може лише власник").waitFor();
+check("non-owner sees who has access but no controls", (await colleagueDialog.locator("select").count()) === 0 && (await colleagueDialog.locator('[title="alice@alpha.test"]').count()) > 0);
+
+// The owner makes the colleague an editor and opens the page to the whole workspace.
+await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await alice.getByRole("button", { name: "Поділитися" }).click();
+const aliceDialog = alice.getByRole("dialog", { name: "Доступ до сторінки" });
+await aliceDialog.getByLabel(/^Роль: /).selectOption("editor");
+const grantRole = () => sql(`select a.role from public.page_access a join auth.users u on u.id = a.user_id where a.page_id = '${alphaPage}' and u.email = 'colleague@alpha.test'`);
+check("owner changes a role in the share dialog", await until(() => grantRole() === "editor"), grantRole());
+await aliceDialog.getByLabel("Весь workspace").selectOption("viewer");
+const wsRole = () => sql(`select coalesce(workspace_role, '-') from public.pages where id = '${alphaPage}'`);
+check("owner opens the page to the whole workspace", await until(() => wsRole() === "viewer"), wsRole());
+await colleague.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await colleague.waitForSelector("textarea");
+check("editor can now edit the page", (await colleague.locator('.bn-editor[contenteditable="true"]').count()) > 0);
+check("page moved to the 'Весь workspace' section", (await colleague.getByRole("region", { name: "Весь workspace" }).getByText("Alpha secret").count()) > 0);
+
 await aliceClient.auth.signOut();
 await browser.close();
 

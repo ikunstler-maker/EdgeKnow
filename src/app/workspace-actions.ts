@@ -80,3 +80,7 @@ export async function leaveWorkspace(ws: string, me: string): Promise<ActionResu
 export async function setOpenRegistration(open: boolean) {
   return callWorkspaceRpc("set_open_registration", { open });
 }
+
+export async function reassignMemberPages(ws: string, fromUser: string, toUser: string) {
+  return callWorkspaceRpc("reassign_member_pages", { ws, from_user: fromUser, to_user: toUser });
+}

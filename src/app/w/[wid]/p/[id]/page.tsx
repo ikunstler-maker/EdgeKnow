@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { t } from "@/i18n";
 import { createClient } from "@/lib/supabase/server";
+import { canEdit, type PageRole } from "@/lib/pages";
 import { getWorkspace } from "@/lib/workspace";
 import { PageBody } from "@/components/editor/page-body";
 import { PageHeader } from "@/components/pages/page-header";
+import { ShareButton } from "@/components/pages/share-dialog";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
 
@@ -20,6 +22,7 @@ type PageRecord = {
   updated_at: string;
   deleted_at: string | null;
   trashed_with: string | null;
+  my_role: PageRole;
   author: { name: string | null; email: string } | null;
 };
 
@@ -31,7 +34,7 @@ async function loadPage(id: string): Promise<PageRecord | null> {
   const { data } = await supabase
     .from("pages")
     .select(
-      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, author:profiles!pages_created_by_fkey(name, email)",
+      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, author:profiles!pages_created_by_fkey(name, email)",
     )
     .eq("id", id)
     .maybeSingle()
@@ -58,20 +61,23 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
     );
   }
 
-  const supabase = await createClient();
-  // Owners and editors edit; the trash and (from stage 5) viewers/commenters only read.
-  const { data: role } = await supabase.rpc("effective_role", { target_page: page.id });
-  const editable = (role === "owner" || role === "editor") && !page.deleted_at;
+  // Owners and editors edit; commenters and viewers only read, and so does everyone in the trash.
+  const editable = canEdit(page.my_role) && !page.deleted_at;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
-      {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} />}
+      {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
+      {!page.deleted_at && (
+        <div className="mb-2 flex justify-end">
+          <ShareButton pageId={page.id} />
+        </div>
+      )}
       <PageHeader
         key={page.id}
         id={page.id}
         initialTitle={page.title}
         initialIcon={page.icon}
-        readOnly={Boolean(page.deleted_at)}
+        readOnly={!editable}
       />
       <PageMeta
         author={page.author?.name || page.author?.email || null}

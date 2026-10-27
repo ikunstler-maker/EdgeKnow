@@ -112,8 +112,8 @@ check("alice sees her page", alicePages.json?.length === 1 && alicePages.json[0]
 
 // The exact queries the app makes (embedded profiles/workspaces) must work.
 const appQueries = {
-  "page with author": `pages?id=eq.${page.id}&select=id,workspace_id,title,icon,created_at,updated_at,deleted_at,trashed_with,author:profiles!pages_created_by_fkey(name,email)`,
-  "sidebar tree": `pages?workspace_id=eq.${alpha.id}&deleted_at=is.null&select=id,parent_id,title,icon,position&order=position`,
+  "page with author": `pages?id=eq.${page.id}&select=id,workspace_id,title,icon,created_at,updated_at,deleted_at,trashed_with,my_role,author:profiles!pages_created_by_fkey(name,email)`,
+  "sidebar tree": `pages?workspace_id=eq.${alpha.id}&deleted_at=is.null&select=id,parent_id,title,icon,position,owner_id,my_role,shared_with_workspace&order=position`,
   "members with profiles": `workspace_members?workspace_id=eq.${alpha.id}&status=eq.active&select=user_id,role,joined_via,profile:profiles!workspace_members_user_id_fkey(name,email)`,
   "audit log with actor": `audit_log?workspace_id=eq.${alpha.id}&select=id,action,details,created_at,actor:profiles(email)`,
   "legacy link lookup": `pages?id=eq.${page.id}&select=id,workspace:workspaces(short_id)`,
@@ -181,6 +181,41 @@ const logged = sql(`select count(*) from public.audit_log where workspace_id = '
 // Workspace management attempts (invite, add domain, delete, rename) are logged; page actions are not.
 check("bob's attempts are in alpha's audit log", Number(logged) === 4, `${logged} entries`);
 
+// --- Page access inside a workspace (stage 5) --------------------------------
+
+const colleague = await signIn("colleague@alpha.test");
+await rpc(colleague, "join_workspaces");
+const colleagueId = (await rest(colleague, "profiles?email=eq.colleague@alpha.test&select=id")).json?.[0]?.id;
+const before = await rest(colleague, `pages?id=eq.${page.id}&select=id`);
+check("colleague doesn't see a private page", isEmptyOrDenied(before), JSON.stringify(before.json));
+const shareCommenter = await rpc(alice, "set_page_member_role", { target_page: page.id, member: colleagueId, new_role: "commenter" });
+check("alice shares the page with a colleague as commenter", shareCommenter.json?.ok === true, JSON.stringify(shareCommenter.json));
+const sharedRow = (await rest(colleague, `pages?id=eq.${page.id}&select=id,my_role`)).json?.[0];
+check("colleague now reads the page as commenter", sharedRow?.my_role === "commenter", JSON.stringify(sharedRow));
+const commenterSave = await rpc(colleague, "save_page_content", { target_page: page.id, new_content: [], base_version: 1, force: true });
+check("commenter cannot save the text", denied(commenterSave), JSON.stringify(commenterSave.json));
+const commenterRename = await rpc(colleague, "rename_page", { target_page: page.id, new_title: "edited" });
+check("commenter cannot rename", denied(commenterRename), JSON.stringify(commenterRename.json));
+const commenterShare = await rpc(colleague, "set_page_member_role", { target_page: page.id, member: colleagueId, new_role: "editor" });
+check("commenter cannot raise their own role", denied(commenterShare), JSON.stringify(commenterShare.json));
+for (const [method, path, body] of [
+  ["PATCH", `/rest/v1/pages?id=eq.${page.id}`, { content: [] }],
+  ["POST", "/rest/v1/page_access", { workspace_id: alpha.id, page_id: page.id, user_id: colleagueId, role: "editor" }],
+  ["PATCH", `/rest/v1/page_access?page_id=eq.${page.id}`, { role: "editor" }],
+]) {
+  const res = await http(method, path, { token: colleague, body });
+  check(`commenter direct ${method} ${path.split("?")[0]} blocked`, res.status >= 400 || (Array.isArray(res.json) && res.json.length === 0), `HTTP ${res.status}`);
+}
+const stillCommenter = (await rest(colleague, `pages?id=eq.${page.id}&select=my_role`)).json?.[0]?.my_role;
+check("colleague is still only a commenter", stillCommenter === "commenter", String(stillCommenter));
+const bobId = sql("select id from auth.users where email = 'bob@beta.test'");
+const crossShare = await rpc(alice, "set_page_member_role", { target_page: page.id, member: bobId, new_role: "viewer" });
+check("sharing with someone from another workspace is refused", crossShare.json?.error === "not_a_member", JSON.stringify(crossShare.json));
+const bobGrants = await rest(bob, "page_access?select=page_id");
+check("bob cannot read alpha's grants", isEmptyOrDenied(bobGrants), JSON.stringify(bobGrants.json));
+const bobSharing = await rpc(bob, "page_sharing", { target_page: page.id });
+check("bob gets no sharing info for alpha's page", denied(bobSharing), JSON.stringify(bobSharing.json));
+
 // --- No workspace / no account ----------------------------------------------
 
 const strangerAccess = await rpc(stranger, "has_platform_access");
@@ -190,7 +225,7 @@ check("stranger sees no pages", isEmptyOrDenied(strangerPages), `HTTP ${stranger
 const strangerCreate = await rpc(stranger, "create_workspace", { new_name: "Mine" });
 check("stranger cannot create a workspace while registration is closed", denied(strangerCreate), JSON.stringify(strangerCreate.json));
 
-for (const path of ["pages?select=id", "workspaces?select=id", "profiles?select=email", "workspace_members?select=user_id"]) {
+for (const path of ["pages?select=id", "workspaces?select=id", "profiles?select=email", "workspace_members?select=user_id", "page_access?select=id"]) {
   const res = await http("GET", `/rest/v1/${path}`);
   check(`anonymous cannot read ${path.split("?")[0]}`, isEmptyOrDenied(res), `HTTP ${res.status}`);
 }
