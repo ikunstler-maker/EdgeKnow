@@ -226,6 +226,29 @@ const bobSave = await bob.evaluate(async (id) => {
 }, docPage);
 check("editor: another workspace can't save the page", bobSave?.error === "forbidden", JSON.stringify(bobSave));
 
+// Content written straight through the API (bypassing the editor) still can't run code.
+const evilPage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "Evil" })).data.id;
+await aliceClient.rpc("save_page_content", {
+  target_page: evilPage,
+  base_version: 1,
+  new_content: [
+    { type: "paragraph", content: [{ type: "link", href: "javascript:alert(1)", content: [{ type: "text", text: "click me", styles: {} }] }] },
+    { type: "paragraph", content: [{ type: "text", text: "<img src=x onerror=alert(1)>", styles: {} }] },
+    { type: "youtube", props: { url: "https://evil.example/embed/x", title: "Fake", author: "" } },
+    { type: "youtube", props: { url: "javascript:alert(1)", title: "Fake2", author: "" } },
+  ],
+});
+let alerted = false;
+alice.on("dialog", () => (alerted = true));
+await alice.goto(`${APP}/w/${alphaShort}/p/${evilPage}`);
+await alice.waitForSelector(".bn-editor");
+await alice.getByText("click me").click().catch(() => {});
+await alice.waitForTimeout(500);
+check("no javascript: links reach the page", (await alice.locator('a[href^="javascript"]').count()) === 0);
+check("HTML in text stays text", (await alice.locator(".bn-editor img").count()) === 0 && (await alice.getByText("<img src=x onerror=alert(1)>").count()) === 1);
+check("non-YouTube embeds are not rendered", (await alice.locator("iframe").count()) === 0 && (await alice.getByText("Fake").count()) === 0);
+check("nothing executed", !alerted);
+
 // Security headers and the video info route.
 const headers = (await alice.goto(`${APP}/w/${alphaShort}/p/${docPage}`)).headers();
 check("only YouTube may be framed (CSP)", (headers["content-security-policy"] ?? "").includes("frame-src https://www.youtube-nocookie.com"), headers["content-security-policy"]);
