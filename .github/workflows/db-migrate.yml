@@ -54,7 +54,21 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.122.0
+      # Each step re-emits the CLI's last output lines as an error annotation,
+      # so failures are readable from the run summary without opening the log.
       - name: Link project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+        run: |
+          if ! supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" > out.txt 2>&1; then
+            cat out.txt
+            echo "::error title=supabase link failed::$(tail -n 5 out.txt | tr '\n' ' ')"
+            exit 1
+          fi
+          cat out.txt
       - name: Apply migrations
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+        run: |
+          if ! supabase db push --password "$SUPABASE_DB_PASSWORD" > out.txt 2>&1; then
+            cat out.txt
+            echo "::error title=supabase db push failed::$(tail -n 5 out.txt | tr '\n' ' ')"
+            exit 1
+          fi
+          cat out.txt
