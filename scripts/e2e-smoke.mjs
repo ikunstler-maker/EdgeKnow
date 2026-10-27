@@ -317,7 +317,7 @@ check("image loads lazily", (await alice.locator(".bn-editor img.bn-visual-media
 
 // Width steps from the toolbar.
 await alice.locator(".bn-editor img.bn-visual-media").first().click();
-await alice.getByRole("button", { name: /Ширина зображення: 50%/ }).click();
+await alice.getByRole("button", { name: "50%", exact: true }).click();
 await alice.waitForTimeout(1800);
 const width50 = JSON.stringify(pageContent(imagePage)).match(/"previewWidth":(\d+)/)?.[1];
 // 50% of 1920 px, capped by the column width.
