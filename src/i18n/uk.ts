@@ -1,0 +1,75 @@
+// All Ukrainian UI strings. To add a language, create a sibling file that
+// satisfies the `Dictionary` type and register it in ./index.ts.
+
+export const uk = {
+  app: {
+    name: "Вікі",
+    description: "Внутрішня база знань команди",
+  },
+  common: {
+    signOut: "Вийти",
+    backHome: "На головну",
+    save: "Зберегти",
+    unknownError: "Щось пішло не так. Спробуйте ще раз.",
+  },
+  login: {
+    title: "Вхід до вікі",
+    subtitle: "Увійдіть корпоративним Google-акаунтом.",
+    googleButton: "Увійти через Google",
+    redirecting: "Переходимо до Google…",
+  },
+  noAccess: {
+    title: "Немає доступу",
+    domainNotAllowed:
+      "Вхід дозволено лише для акаунтів із дозволених корпоративних доменів. Якщо вважаєте, що це помилка, зверніться до адміністратора.",
+    signInFailed: "Не вдалося увійти. Спробуйте ще раз або зверніться до адміністратора.",
+    tryAnotherAccount: "Увійти іншим акаунтом",
+  },
+  home: {
+    greeting: (name: string) => `Вітаємо, ${name}!`,
+    placeholder: "Тут з'явиться дерево сторінок і редактор.",
+    settingsLink: "Налаштування доступу до сервісу",
+  },
+  settings: {
+    title: "Налаштування",
+    access: {
+      title: "Доступ до сервісу",
+      intro:
+        "Увійти можуть лише люди з пошти на цих доменах. Зміни діють одразу, без перевипуску сайту.",
+      forbidden: "Ця сторінка доступна лише технічним адміністраторам.",
+      domainsHeading: "Дозволені домени",
+      addLabel: "Новий домен",
+      addPlaceholder: "наприклад, company.com",
+      addButton: "Додати",
+      active: "Активний",
+      inactive: "Вимкнений",
+      disable: "Вимкнути",
+      enable: "Увімкнути",
+      remove: "Видалити",
+      confirmRemove: (domain: string) =>
+        `Видалити домен ${domain}? Його користувачі втратять доступ, але їхні сторінки залишаться.`,
+      empty: "Список порожній.",
+      addedBy: "Додав(-ла)",
+      auditHeading: "Журнал змін",
+      auditEmpty: "Записів ще немає.",
+      auditColumns: { when: "Коли", who: "Хто", what: "Що" },
+      errors: {
+        forbidden: "Недостатньо прав. Спробу записано в журнал.",
+        invalid_domain: "Невірний формат домену. Приклад: company.com",
+        already_exists: "Такий домен уже є в списку.",
+        not_found: "Домен не знайдено.",
+        last_admin_domain:
+          "Не можна: це домен останнього активного адміністратора, ви заблокуєте вхід усім адмінам.",
+      } as Record<string, string>,
+      actions: {
+        domain_added: "додав(-ла) домен",
+        domain_enabled: "увімкнув(-ла) домен",
+        domain_disabled: "вимкнув(-ла) домен",
+        domain_removed: "видалив(-ла) домен",
+        access_denied: "спроба дії без прав",
+      } as Record<string, string>,
+    },
+  },
+};
+
+export type Dictionary = typeof uk;
