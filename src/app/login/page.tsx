@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { t } from "@/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { LoginButton } from "./login-button";
@@ -15,6 +16,9 @@ export default async function LoginPage() {
         <div className="mt-6">
           <LoginButton domainHint={domainHint ?? null} />
         </div>
+        <Link href="/privacy" className="mt-6 inline-block text-sm text-muted underline">
+          {t.privacy.linkLabel}
+        </Link>
       </div>
     </main>
   );

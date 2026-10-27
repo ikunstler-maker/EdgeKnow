@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Routes reachable without an allowed session.
 const PUBLIC_PATHS = ["/login", "/auth", "/no-access"];
+// Routes open to everyone, signed in or not (Google requires a public privacy policy).
+const ALWAYS_PUBLIC_PATHS = ["/privacy"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -46,6 +48,10 @@ export async function updateSession(request: NextRequest) {
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
   };
+
+  if (ALWAYS_PUBLIC_PATHS.includes(pathname)) {
+    return response;
+  }
 
   if (!signedIn) {
     return isPublicPath(pathname) ? response : redirectTo("/login");
