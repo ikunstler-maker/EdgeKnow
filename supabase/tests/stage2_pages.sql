@@ -4,17 +4,28 @@
 \pset tuples_only on
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000000a1', 'alice@iyo.gg', now()),
- ('00000000-0000-0000-0000-0000000000b1', 'bob@iyo.gg', now()),
- ('00000000-0000-0000-0000-0000000000c1', 'carol@blocked.com', now());
+ ('00000000-0000-0000-0000-0000000000a1', 'alice@team.test', now()),
+ ('00000000-0000-0000-0000-0000000000b1', 'bob@team.test', now()),
+ ('00000000-0000-0000-0000-0000000000c1', 'carol@blocked.test', now());
+
+-- Alice and Bob share a workspace (Bob joins by domain); Carol is in none.
+update public.platform_settings set open_registration = true;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select public.create_workspace('Team') ->> 'id' as ws \gset
+select public.add_workspace_domain(:'ws', 'team.test') ->> 'ok' as ignored \gset
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
+select public.join_workspaces() ->> 'ok' as ignored \gset
+reset role;
+update public.platform_settings set open_registration = false;
 
 -- Alice builds a 3-level tree: root > child > grandchild, plus a second root.
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
-select public.create_page(null, 'Root') ->> 'id' as root \gset
-select public.create_page(:'root', 'Child') ->> 'id' as child \gset
-select public.create_page(:'child', 'Grandchild') ->> 'id' as grand \gset
-select public.create_page(null, 'Second') ->> 'id' as second \gset
+select public.create_page(:'ws', null, 'Root') ->> 'id' as root \gset
+select public.create_page(:'ws', :'root', 'Child') ->> 'id' as child \gset
+select public.create_page(:'ws', :'child', 'Grandchild') ->> 'id' as grand \gset
+select public.create_page(:'ws', null, 'Second') ->> 'id' as second \gset
 select 'alice sees pages: ' || count(*) from public.pages;
 select 'tree depth ok: ' || ((select parent_id from public.pages where id = :'grand') = :'child');
 select 'roots in order: ' || string_agg(title, ',' order by position) from public.pages where parent_id is null;
@@ -34,24 +45,24 @@ select 'root parent is second: ' || ((select parent_id from public.pages where i
 select 'cycle: ' || (public.move_page(:'second', :'child', 0))::text;
 select 'self parent: ' || (public.move_page(:'second', :'second', 0))::text;
 
--- Bob (same domain, no access) sees and changes nothing.
+-- Bob (same workspace, no access to Alice's pages) sees and changes nothing.
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000b1';
 select 'bob sees pages: ' || count(*) from public.pages;
 select 'bob sees by id: ' || count(*) from public.pages where id = :'root';
 select 'bob rename: ' || (public.rename_page(:'root', 'hacked'))::text;
 select 'bob icon: ' || (public.set_page_icon(:'root', 'x'))::text;
-select 'bob child: ' || (public.create_page(:'root', 'intruder'))::text;
+select 'bob child: ' || (public.create_page(:'ws', :'root', 'intruder'))::text;
 select 'bob move: ' || (public.move_page(:'root', null, 0))::text;
 select 'bob trash: ' || (public.trash_page(:'root'))::text;
 select 'bob role: ' || coalesce(public.effective_role(:'root'), 'none');
-select 'bob own page: ' || (public.create_page(null, 'Bob page') ->> 'ok');
+select 'bob own page: ' || (public.create_page(:'ws', null, 'Bob page') ->> 'ok');
 select 'bob sees pages now: ' || count(*) from public.pages;
 reset role;
 
--- Carol's domain is not allowed: no access at all.
+-- Carol is in no workspace: no access at all.
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
-select 'carol create: ' || (public.create_page(null, 'x'))::text;
+select 'carol create: ' || (public.create_page(:'ws', null, 'x'))::text;
 select 'carol sees pages: ' || count(*) from public.pages;
 reset role;
 
@@ -73,7 +84,7 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
 select 'trash second: ' || (public.trash_page(:'second'))::text;
 select 'trashed rows: ' || count(*) from public.pages where deleted_at is not null;
 select 'trash roots: ' || string_agg(title, ',') from public.pages where trashed_with = id;
-select 'child under trashed: ' || (public.create_page(:'child', 'x'))::text;
+select 'child under trashed: ' || (public.create_page(:'ws', :'child', 'x'))::text;
 select 'move into trashed: ' || (public.move_page(:'grand', :'child', 0))::text;
 select 'trash twice: ' || (public.trash_page(:'root'))::text;
 select 'forever not in trash: ' || (public.delete_page_forever(:'grand'))::text;
@@ -105,3 +116,19 @@ update public.pages set deleted_at = now() - interval '31 days' where id = :'gra
 update public.pages set deleted_at = now() - interval '29 days' where id = :'child';
 select 'purged: ' || public.purge_trash();
 select 'remaining titles: ' || string_agg(title, ',' order by title) from public.pages;
+
+-- Pages never cross workspaces.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+select public.create_workspace('Other') ->> 'id' as ws2 \gset
+select public.create_page(:'ws2', null, 'Elsewhere') ->> 'id' as elsewhere \gset
+select 'move across workspaces: ' || (public.move_page(:'elsewhere', :'child', 0))::text;
+select 'child in other workspace: ' || (public.create_page(:'ws2', :'child', 'x'))::text;
+select 'author recorded: ' || ((select created_by from public.pages where id = :'elsewhere') = auth.uid());
+-- The pre-workspace signature still works until drop_legacy (top level -> first workspace).
+select public.create_page(null::uuid, 'Legacy') ->> 'id' as legacy \gset
+select 'legacy create: ' || ((select workspace_id from public.pages where id = :'legacy') = :'ws');
+reset role;
+\set ON_ERROR_STOP 0
+update public.pages set parent_id = :'child' where id = :'elsewhere';
+\set ON_ERROR_STOP 1

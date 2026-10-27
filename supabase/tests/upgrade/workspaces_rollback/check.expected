@@ -1,0 +1,9 @@
+workspaces table gone: true
+pages.workspace_id gone: true
+pages kept: 5
+domains kept: iyo.gg
+hook iyo.gg: true
+elaidzha allowed: true
+elaidzha sees: Гайдлайни,Креатив,Логотип
+create works: true
+daniil sees: Daniil notes
