@@ -1,0 +1,23 @@
+workspaces: iyo
+owner: elaidzha_motion.designer@iyo.gg
+platform admins: elaidzha_motion.designer@iyo.gg
+members: colleague@iyo.gg=member/domain/active, daniil_head.of.design@iyo.gg=admin/domain/active, elaidzha_motion.designer@iyo.gg=owner/creator/active
+domains: iyo.gg active=true verified=true
+audit moved: domain_added,domain_removed
+pages without workspace: 0
+pages author = owner: true
+tree: Daniil notes<-, Баїнг<-, Гайдлайни<Креатив, Креатив<-, Логотип<Гайдлайни
+trash kept: Баїнг
+hook iyo.gg: true
+hook gmail: true
+elaidzha access: true role owner
+elaidzha sees: Гайдлайни,Креатив,Логотип
+elaidzha platform admin: true
+daniil role: admin
+daniil sees: Daniil notes
+daniil sees domains: 1
+daniil sees log: 2
+colleague role: member
+colleague sees pages: 0
+colleague sees profiles: 3
+legacy is_allowed_user: true

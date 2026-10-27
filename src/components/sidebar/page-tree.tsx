@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { t } from "@/i18n";
 import { childrenOf, rootsOf, siblingsOf, subtreeIds, type PageNode } from "@/lib/pages";
+import { pagePath } from "@/lib/paths";
 import { usePages } from "@/components/pages/pages-provider";
 import { MoveDialog } from "@/components/pages/move-dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
@@ -179,7 +180,7 @@ function TreeRow({
   onNavigate: (event: React.MouseEvent) => void;
 }) {
   const { page, depth, hasChildren } = item;
-  const { pages, create, rename, move, trash } = usePages();
+  const { workspace, pages, create, rename, move, trash } = usePages();
   const drag = useDraggable({ id: page.id });
   const dropArea = useDroppable({ id: page.id, disabled: dropBlocked });
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -251,7 +252,7 @@ function TreeRow({
           />
         ) : (
           <Link
-            href={`/p/${page.id}`}
+            href={pagePath(workspace.shortId, page.id)}
             onClick={onNavigate}
             draggable={false}
             className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-sm"

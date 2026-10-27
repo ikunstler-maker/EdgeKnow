@@ -1,6 +1,7 @@
 name: Database
 
-# Tests migrations on a throwaway Postgres, then applies them to Supabase.
+# Tests migrations on a throwaway Postgres and workspace isolation on a local
+# Supabase, then backs up the production database and applies the migrations.
 # Requires repository secrets: SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_REF.
 
 on:
@@ -8,12 +9,17 @@ on:
     branches: [main]
     paths:
       - "supabase/**"
-      - "scripts/test-db.sh"
+      - "scripts/**"
+      - "src/**"
+      - "package*.json"
       - ".github/workflows/db-migrate.yml"
   pull_request:
     paths:
       - "supabase/**"
-      - "scripts/test-db.sh"
+      - "scripts/**"
+      - "src/**"
+      - "package*.json"
+      - ".github/workflows/db-migrate.yml"
   workflow_dispatch:
 
 concurrency:
@@ -41,8 +47,46 @@ jobs:
       - name: Run database security tests
         run: scripts/test-db.sh
 
+  # Real HTTP requests (Auth + PostgREST + RLS) prove two workspaces can't see each other.
+  api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0
+      - name: Start local Supabase
+        # Test users sign in with a password; only this throwaway copy allows it.
+        run: |
+          sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,storage-api,postgres-meta
+      - name: Run API isolation test
+        run: |
+          supabase status -o json > status.json
+          node scripts/api-isolation.mjs status.json
+      # Then click through the workspace screens in a real browser against the same backend.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Build and start the app against local Supabase
+        run: |
+          export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
+          npm run build
+          nohup npm start -- -p 3000 > next.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/privacy && break; sleep 1; done
+      - name: Run browser smoke test
+        run: |
+          if ! node scripts/e2e-smoke.mjs status.json http://localhost:3000; then
+            echo "::error title=next.log::$(grep -iE 'error|failed' next.log | tail -n 8 | tr '\n' ' ' | cut -c1-900)"
+            exit 1
+          fi
+
   migrate:
-    needs: test
+    needs: [test, api]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     env:
@@ -64,6 +108,19 @@ jobs:
             exit 1
           fi
           cat out.txt
+      # Safety copy of production data, kept 7 days with this run (private to the repository).
+      - name: Back up database
+        run: |
+          if ! supabase db dump --linked --data-only -f backup.sql --password "$SUPABASE_DB_PASSWORD" > out.txt 2>&1; then
+            cat out.txt
+            echo "::error title=backup failed::$(tail -n 5 out.txt | tr '\n' ' ')"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v6
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.sql
+          retention-days: 7
       - name: Apply migrations
         run: |
           if ! supabase db push --password "$SUPABASE_DB_PASSWORD" > out.txt 2>&1; then

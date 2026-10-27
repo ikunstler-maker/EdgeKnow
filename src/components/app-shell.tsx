@@ -3,11 +3,22 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
+import type { WorkspaceSummary } from "@/lib/workspace";
+import { usePages } from "@/components/pages/pages-provider";
 import { Sidebar } from "@/components/sidebar/sidebar";
 
 // Desktop: the sidebar is always on the left. Phone: it lives in a drawer opened
 // with ☰ or a swipe from the left edge of the screen.
-export function AppShell({ user, children }: { user: CurrentUser; children: ReactNode }) {
+export function AppShell({
+  user,
+  workspaces,
+  children,
+}: {
+  user: CurrentUser;
+  workspaces: WorkspaceSummary[];
+  children: ReactNode;
+}) {
+  const { workspace } = usePages();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -46,7 +57,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
   return (
     <div className="flex min-h-dvh flex-1">
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-border bg-surface/60 md:block">
-        <Sidebar user={user} />
+        <Sidebar user={user} workspaces={workspaces} />
       </aside>
 
       {drawerOpen && (
@@ -56,7 +67,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
             aria-label={t.sidebar.pagesHeading}
             className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-background shadow-xl"
           >
-            <Sidebar user={user} onNavigate={close} />
+            <Sidebar user={user} workspaces={workspaces} onNavigate={close} />
           </aside>
         </div>
       )}
@@ -71,7 +82,7 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
           >
             ☰
           </button>
-          <span className="font-semibold">{t.app.name}</span>
+          <span className="truncate font-semibold">{workspace.name}</span>
         </header>
         {children}
       </div>

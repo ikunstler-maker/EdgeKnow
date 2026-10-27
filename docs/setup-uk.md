@@ -32,10 +32,12 @@
 
 Змінні середовища (Production і Preview): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Деплой відбувається сам при кожному пуші в `main`.
 
-## Адміни
+## Workspace і ролі
 
-Нового адміна призначає SQL Editor (людина має хоча б раз увійти):
+- Учасників, адмінів, домени й запрошення workspace налаштовують у самому сервісі: **сайдбар → ⚙️ Налаштування workspace**. SQL для цього не потрібен.
+- Посилання для входу в конкретний workspace (з підказкою домену для Google) — у вкладці «Загальні».
+- Супер-адмін платформи (статистика всіх workspace, перемикач «Відкрита реєстрація») — **сайдбар → 🛰️ Панель платформи**. Призначити ще одного супер-адміна можна лише в SQL Editor:
 
 ```sql
-update public.profiles set is_admin = true where email = 'name@iyo.gg';
+update public.profiles set is_platform_admin = true where email = 'name@example.com';
 ```

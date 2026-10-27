@@ -1,0 +1,101 @@
+hook alpha before: true
+access closed: false
+create closed: {"ok": false, "error": "forbidden"}
+hook anyone when open: true
+owner role: owner
+bad name: {"ok": false, "error": "invalid_name"}
+add own domain: {"ok": true}
+add other domain: {"ok": false, "error": "domain_mismatch"}
+add public domain: {"ok": false, "error": "public_domain"}
+add invalid: {"ok": false, "error": "invalid_domain"}
+same domain twice: {"ok": false, "error": "domain_taken"}
+bob adds own: {"ok": true}
+hook alpha now: true
+hook stranger: true
+member joins: true
+member role: member
+admin joins: true
+promote admin: {"ok": true}
+demote owner: {"ok": false, "error": "owner_role"}
+stranger joins: {"ok": true, "workspaces": []}
+stranger access: false
+unverified joins: {"ok": false, "error": "forbidden"}
+member adds domain: {"ok": false, "error": "forbidden"}
+member invites: {"ok": false, "error": "forbidden"}
+member sets role: {"ok": false, "error": "forbidden"}
+member renames: {"ok": false, "error": "forbidden"}
+member sees members: 3
+member sees domains: 0
+member sees log: 0
+denied attempts logged: 4
+hook guest before invite: true
+bad email: {"ok": false, "error": "invalid_email"}
+bad role: {"ok": false, "error": "invalid_role"}
+admin sees invitations: 1
+hook guest after invite: true
+preview: {"email": "guest@gmail.com", "valid": true, "workspace": "Alpha"}
+preview wrong token: null
+guest joins: true
+guest role: member
+preview after accept: false
+disable domain: {"ok": true}
+member after disable: false / access false
+member sees workspaces: 0
+invited guest after disable: true
+owner after disable: true
+enable domain: {"ok": true}
+member after enable: true
+disable last admin domain: {"ok": false, "error": "last_admin_domain"}
+remove last admin domain: {"ok": false, "error": "last_admin_domain"}
+remove member: {"ok": true}
+remove owner: {"ok": false, "error": "owner_role"}
+removed rejoins by domain: []
+removed is member: false
+invited back joins: true
+invited back is member: true
+guest leaves: {"ok": true}
+guest after leaving: false
+bob workspaces: Beta
+bob sees alpha by id: 0
+bob members: 1
+bob domains: beta.test
+bob invitations: 0
+bob log rows of alpha: 0
+bob profiles: bob@beta.test
+bob pages: 0
+bob alpha page by id: 0
+bob role on alpha page: none
+bob creates in alpha: {"ok": false, "error": "forbidden"}
+bob renames alpha page: {"ok": false, "error": "forbidden"}
+bob invites to alpha: {"ok": false, "error": "forbidden"}
+bob adds domain to alpha: {"ok": false, "error": "forbidden"}
+bob deletes alpha: {"ok": false, "error": "forbidden"}
+bob login hint alpha: null
+psql: ERROR:  permission denied for table workspace_members
+psql: ERROR:  permission denied for table workspaces
+psql: ERROR:  permission denied for table audit_log
+psql: ERROR:  permission denied for table platform_settings
+psql: ERROR:  permission denied for function log_workspace_action
+psql: ERROR:  permission denied for table workspaces
+psql: ERROR:  permission denied for function has_platform_access
+stats: Alpha=3m/1p,Alpha two=1m/0p,Beta=1m/0p
+admin sees alpha pages: 0
+admin reads platform log: true
+open registration: {"ok": true}
+close registration: {"ok": true}
+non-admin stats: 0
+non-admin registration: {"ok": false, "error": "forbidden"}
+admin transfers: {"ok": false, "error": "forbidden"}
+transfer to outsider: {"ok": false, "error": "not_a_member"}
+transfer: {"ok": true}
+old owner role: admin
+old owner deletes: {"ok": false, "error": "forbidden"}
+new owner role: owner
+rename: {"ok": true}
+delete wrong name: {"ok": false, "error": "name_mismatch"}
+delete: {"ok": true}
+alpha left: 0
+alpha pages left: 0
+alpha members left: 0
+deletion logged: 1
+workspaces now: Alpha two,Beta

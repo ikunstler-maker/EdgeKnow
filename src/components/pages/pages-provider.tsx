@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { movePageLocally, subtreeIds, type PageNode } from "@/lib/pages";
+import { pagePath } from "@/lib/paths";
 import {
   createPage,
   movePage,
   renamePage,
   setPageIcon,
   trashPage,
-} from "@/app/(app)/page-actions";
+} from "@/app/page-actions";
 
 type OptimisticOp =
   | { type: "rename"; id: string; title: string }
@@ -35,7 +36,15 @@ function reducer(pages: PageNode[], op: OptimisticOp): PageNode[] {
   }
 }
 
+export type WorkspaceInfo = {
+  id: string;
+  shortId: string;
+  name: string;
+  role: "owner" | "admin" | "member";
+};
+
 type PagesContextValue = {
+  workspace: WorkspaceInfo;
   pages: PageNode[];
   pending: boolean;
   create: (parentId: string | null) => void;
@@ -58,7 +67,15 @@ export function errorMessage(result: ActionResult) {
   return t.pages.errors[result.error] ?? t.common.unknownError;
 }
 
-export function PagesProvider({ pages, children }: { pages: PageNode[]; children: ReactNode }) {
+export function PagesProvider({
+  workspace,
+  pages,
+  children,
+}: {
+  workspace: WorkspaceInfo;
+  pages: PageNode[];
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [optimisticPages, applyOptimistic] = useOptimistic(pages, reducer);
   const [pending, startTransition] = useTransition();
@@ -74,13 +91,14 @@ export function PagesProvider({ pages, children }: { pages: PageNode[]; children
     });
 
   const value: PagesContextValue = {
+    workspace,
     pages: optimisticPages,
     pending,
     create: (parentId) =>
       startTransition(async () => {
-        const result = await createPage(parentId);
+        const result = await createPage(workspace.id, parentId);
         setError(errorMessage(result));
-        if (result.ok) router.push(`/p/${result.id}`);
+        if (result.ok) router.push(pagePath(workspace.shortId, result.id));
       }),
     rename: (id, title) => run({ type: "rename", id, title }, () => renamePage(id, title)),
     setIcon: (id, icon) => run({ type: "icon", id, icon }, () => setPageIcon(id, icon)),

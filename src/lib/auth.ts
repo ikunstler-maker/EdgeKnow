@@ -8,7 +8,7 @@ export type CurrentUser = {
   email: string;
   name: string | null;
   avatarUrl: string | null;
-  isAdmin: boolean;
+  isPlatformAdmin: boolean;
 };
 
 // The proxy already gates every page; this re-checks on the server so a page
@@ -22,10 +22,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, name, avatar_url, is_admin")
+    .select("id, email, name, avatar_url, is_platform_admin")
     .eq("id", userId)
     .maybeSingle();
-  // RLS hides profiles from users whose domain is no longer allowed.
+  // RLS hides even your own profile once you have no verified email.
   if (!profile) redirect("/no-access");
 
   return {
@@ -33,6 +33,6 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
     email: profile.email,
     name: profile.name,
     avatarUrl: profile.avatar_url,
-    isAdmin: profile.is_admin,
+    isPlatformAdmin: profile.is_platform_admin,
   };
 });

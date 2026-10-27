@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { t } from "@/i18n";
 import { ancestorsOf } from "@/lib/pages";
+import { pagePath } from "@/lib/paths";
 import { EmojiPicker } from "./emoji-picker";
 import { usePages } from "./pages-provider";
 
@@ -22,7 +23,7 @@ export function PageHeader({
   initialIcon: string | null;
   readOnly: boolean;
 }) {
-  const { pages, rename, setIcon } = usePages();
+  const { workspace, pages, rename, setIcon } = usePages();
   const node = pages.find((p) => p.id === id);
   const icon = node ? node.icon : initialIcon;
   const crumbs = ancestorsOf(pages, id).slice(0, -1);
@@ -56,7 +57,7 @@ export function PageHeader({
         <nav aria-label={t.pages.breadcrumbs} className="mb-4 flex flex-wrap items-center gap-1 text-sm text-muted">
           {crumbs.map((crumb) => (
             <span key={crumb.id} className="flex min-w-0 items-center gap-1">
-              <Link href={`/p/${crumb.id}`} className="truncate hover:text-foreground hover:underline">
+              <Link href={pagePath(workspace.shortId, crumb.id)} className="truncate hover:text-foreground hover:underline">
                 {crumb.icon ? `${crumb.icon} ` : ""}
                 {crumb.title || t.pages.untitled}
               </Link>
