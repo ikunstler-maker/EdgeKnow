@@ -392,8 +392,116 @@ const wsRole = () => sql(`select coalesce(workspace_role, '-') from public.pages
 check("owner opens the page to the whole workspace", await until(() => wsRole() === "viewer"), wsRole());
 await colleague.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
 await colleague.waitForSelector("textarea");
-check("editor can now edit the page", (await colleague.locator('.bn-editor[contenteditable="true"]').count()) > 0);
+// The editor loads after the page itself.
+const editableEditor = await colleague.waitForSelector('.bn-editor[contenteditable="true"]', { timeout: 15000 }).then(() => true, () => false);
+check("editor can now edit the page", editableEditor);
 check("page moved to the 'Весь workspace' section", (await colleague.getByRole("region", { name: "Весь workspace" }).getByText("Alpha secret").count()) > 0);
+
+// --- Stage 6: comments -----------------------------------------------------------
+
+const alphaId = sql("select id from public.workspaces where name = 'Alpha'");
+const colleagueId = sql("select id from auth.users where email = 'colleague@alpha.test'");
+const para = (id, text) => ({ id, type: "paragraph", props: {}, content: [{ type: "text", text, styles: {} }], children: [] });
+const talkPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Discussion" })).data.id;
+await aliceClient.rpc("save_page_content", {
+  target_page: talkPage,
+  new_content: [para("p1", "Intro text."), para("p2", "Middle paragraph."), para("p3", "The commented phrase lives here.")],
+  base_version: 1,
+});
+await aliceClient.rpc("set_page_member_role", { target_page: talkPage, member: colleagueId, new_role: "commenter" });
+
+// Selects characters [start, end) of a paragraph's text, as a mouse drag would.
+const selectText = async (page, text, start, end) => {
+  await page.locator(".bn-inline-content", { hasText: text }).first().evaluate((el, [s, e]) => {
+    const range = document.createRange();
+    range.setStart(el.firstChild, s);
+    range.setEnd(el.firstChild, e);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, [start, end]);
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(400);
+};
+const threadsOf = (id) => sql(`select coalesce(string_agg(t.id || ':' || t.status, ',' order by t.created_at), '') from public.comment_threads t where t.page_id = '${id}'`);
+
+await alice.goto(`${APP}/w/${alphaShort}/p/${talkPage}`);
+await alice.waitForSelector('.bn-editor[contenteditable="true"]');
+await selectText(alice, "The commented phrase", 4, 20);
+await alice.getByRole("button", { name: "Коментар", exact: true }).click();
+const draftField = alice.getByLabel("Напишіть коментар… @ — згадати колегу");
+await draftField.fill("Please check @coll");
+await alice.getByRole("option", { name: /colleague/ }).click();
+await draftField.press("End");
+await draftField.type("thanks");
+await alice.getByRole("button", { name: "Коментувати" }).click();
+check("thread created", await until(() => threadsOf(talkPage).includes(":open")), threadsOf(talkPage));
+const thread1 = threadsOf(talkPage).split(":")[0];
+const markSaved = () => sql(`select (content::text like '%${thread1}%')::text from public.pages where id = '${talkPage}'`) === "true";
+check("editor's comment mark saved in the document", await until(markSaved, 10000));
+check("mention stored", sql(`select array_to_string(mentions, ',') from public.comments where thread_id = '${thread1}'`) === colleagueId);
+
+// "Готово, коли": edits above the fragment keep the comment on it.
+const versionBefore = pageVersion(talkPage);
+await alice.locator(".bn-inline-content", { hasText: "Intro text." }).click();
+await alice.keyboard.press("Home");
+await alice.keyboard.type("Added above. ");
+await alice.keyboard.press("Enter");
+await alice.keyboard.type("A whole new paragraph.");
+check("edits above saved", await until(() => pageVersion(talkPage) > versionBefore, 10000));
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+const marked = alice.locator(`[data-comment-thread="${thread1}"]`);
+await marked.first().waitFor();
+check("comment still on its words after edits above", (await marked.allInnerTexts()).join("") === "commented phrase", (await marked.allInnerTexts()).join("|"));
+check("thread still open after edits", threadsOf(talkPage) === `${thread1}:open`, threadsOf(talkPage));
+check("open thread is highlighted", (await marked.first().evaluate((el) => getComputedStyle(el).backgroundColor)) !== "rgba(0, 0, 0, 0)");
+
+// A commenter: the server marks the fragment for them; the rest of the text is unchanged.
+const textBefore = sql(`select string_agg(value #>> '{}', '') from public.pages, jsonb_path_query(content, 'strict $.**.text') value where id = '${talkPage}'`);
+await colleague.goto(`${APP}/w/${alphaShort}/p/${talkPage}`);
+await colleague.waitForSelector(".bn-editor");
+await colleague.waitForTimeout(500);
+await selectText(colleague, "Middle paragraph.", 0, 6);
+await colleague.getByRole("button", { name: "Коментар", exact: true }).click();
+await colleague.getByLabel("Напишіть коментар… @ — згадати колегу").fill("Commenter's note");
+await colleague.getByRole("button", { name: "Коментувати" }).click();
+check("commenter's thread created", await until(() => threadsOf(talkPage).split(",").length === 2), threadsOf(talkPage));
+const thread2 = threadsOf(talkPage).split(",")[1]?.split(":")[0];
+check("server marked the commenter's fragment", sql(`select (content::text like '%${thread2}%')::text from public.pages where id = '${talkPage}'`) === "true");
+const textAfter = sql(`select string_agg(value #>> '{}', '') from public.pages, jsonb_path_query(content, 'strict $.**.text') value where id = '${talkPage}'`);
+check("commenter's mark changed no text", textBefore === textAfter, `${textBefore} -> ${textAfter}`);
+check("commenter's quote recorded", sql(`select quoted_text from public.comment_threads where id = '${thread2}'`) === "Middle");
+
+// The mention shows on the colleague's home page.
+await colleague.goto(`${APP}/w/${alphaShort}`);
+check("mention listed under 'Вас згадали'", (await colleague.getByText("Please check @colleague").count()) > 0 || (await colleague.getByText(/Please check @/).count()) > 0);
+
+// Reply and resolve; the resolved thread moves to the archive and loses its highlight.
+await alice.goto(`${APP}/w/${alphaShort}/p/${talkPage}?thread=${thread1}`);
+await alice.waitForSelector(".bn-editor");
+await alice.locator(`[data-comment-thread="${thread1}"]`).first().click();
+const card = alice.locator(`[data-thread-card="${thread1}"]`);
+await card.getByLabel("Відповісти… @ — згадати колегу").fill("Done, fixed.");
+await card.getByRole("button", { name: "Відповісти" }).click();
+check("reply saved", await until(() => sql(`select count(*) from public.comments where thread_id = '${thread1}'`) === "2"));
+await card.getByRole("button", { name: "Вирішено" }).click();
+check("thread resolved", await until(() => threadsOf(talkPage).includes(`${thread1}:resolved`)), threadsOf(talkPage));
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+await alice.locator(`[data-comment-thread="${thread1}"]`).first().waitFor();
+check("resolved fragment no longer highlighted", (await alice.locator(`[data-comment-thread="${thread1}"]`).first().evaluate((el) => getComputedStyle(el).backgroundColor)) === "rgba(0, 0, 0, 0)");
+check("archive button lists the resolved thread", (await alice.getByRole("button", { name: "Архів коментарів (1)" }).count()) > 0);
+
+// Deleting the commented text keeps the thread, marked "Фрагмент видалено".
+const contentNow = pageContent(talkPage).filter((b) => !JSON.stringify(b).includes(thread2));
+const deleted = await aliceClient.rpc("save_page_content", { target_page: talkPage, new_content: contentNow, base_version: pageVersion(talkPage) });
+check("fragment deleted", deleted.data?.ok === true, JSON.stringify(deleted.data));
+check("thread orphaned, not lost", threadsOf(talkPage).includes(`${thread2}:orphaned`), threadsOf(talkPage));
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+await alice.getByRole("button", { name: /Коментарі: 1/ }).click();
+check("orphaned thread shown as 'Фрагмент видалено'", (await alice.getByRole("dialog", { name: "Коментарі" }).getByText("Фрагмент видалено").count()) > 0);
 
 await aliceClient.auth.signOut();
 await browser.close();

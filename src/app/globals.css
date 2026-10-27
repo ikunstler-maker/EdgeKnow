@@ -8,6 +8,8 @@
   --surface: #f7f7f5;
   --accent: #2f6feb;
   --danger: #c4372f;
+  --comment: rgba(255, 212, 0, 0.35);
+  --comment-active: rgba(255, 196, 0, 0.7);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,6 +21,8 @@
     --surface: #222222;
     --accent: #5b8def;
     --danger: #e5675f;
+    --comment: rgba(255, 212, 0, 0.22);
+    --comment-active: rgba(255, 196, 0, 0.45);
   }
 }
 
@@ -207,4 +211,10 @@ body {
 }
 .ek-code-copy:hover {
   opacity: 1;
+}
+
+/* Commented fragments: highlighted only while their thread is open (see CommentHighlights). */
+.ek-comment {
+  border-radius: 2px;
+  transition: background-color 0.15s;
 }

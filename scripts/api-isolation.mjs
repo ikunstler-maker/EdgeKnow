@@ -216,6 +216,31 @@ check("bob cannot read alpha's grants", isEmptyOrDenied(bobGrants), JSON.stringi
 const bobSharing = await rpc(bob, "page_sharing", { target_page: page.id });
 check("bob gets no sharing info for alpha's page", denied(bobSharing), JSON.stringify(bobSharing.json));
 
+// --- Comments (stage 6) -------------------------------------------------------
+
+const thread = (await rpc(alice, "create_comment_thread", { target_page: page.id, quoted: "Alpha", body: "Secret remark", mention_ids: [] })).json;
+check("alice starts a comment thread", thread?.ok === true, JSON.stringify(thread));
+const colleagueThreads = await rest(colleague, `comment_threads?page_id=eq.${page.id}&select=id,comments(body)`);
+check("colleague with access reads the thread", colleagueThreads.json?.[0]?.comments?.[0]?.body === "Secret remark", JSON.stringify(colleagueThreads.json));
+for (const path of ["comment_threads?select=id,quoted_text", "comments?select=id,body"]) {
+  const res = await rest(bob, path);
+  check(`bob cannot read alpha ${path.split("?")[0]}`, isEmptyOrDenied(res), JSON.stringify(res.json));
+}
+const bobReply = await rpc(bob, "reply_to_thread", { target_thread: thread.id, body: "hi", mention_ids: [] });
+check("bob cannot reply in alpha", denied(bobReply), JSON.stringify(bobReply.json));
+const bobResolve = await rpc(bob, "set_thread_resolved", { target_thread: thread.id, resolved: true });
+check("bob cannot resolve alpha's thread", denied(bobResolve), JSON.stringify(bobResolve.json));
+for (const [method, path, body] of [
+  ["POST", "/rest/v1/comments", { workspace_id: alpha.id, thread_id: thread.id, author_id: colleagueId, body: "forged" }],
+  ["PATCH", `/rest/v1/comments?thread_id=eq.${thread.id}`, { body: "edited" }],
+  ["PATCH", `/rest/v1/comment_threads?id=eq.${thread.id}`, { status: "resolved" }],
+]) {
+  const res = await http(method, path, { token: colleague, body });
+  check(`colleague direct ${method} ${path.split("?")[0]} blocked`, res.status >= 400 || (Array.isArray(res.json) && res.json.length === 0), `HTTP ${res.status}`);
+}
+const bodyAfter = sql(`select string_agg(body, ',') from public.comments where thread_id = '${thread.id}'`);
+check("alpha comment unchanged", bodyAfter === "Secret remark", bodyAfter);
+
 // --- No workspace / no account ----------------------------------------------
 
 const strangerAccess = await rpc(stranger, "has_platform_access");
@@ -225,7 +250,7 @@ check("stranger sees no pages", isEmptyOrDenied(strangerPages), `HTTP ${stranger
 const strangerCreate = await rpc(stranger, "create_workspace", { new_name: "Mine" });
 check("stranger cannot create a workspace while registration is closed", denied(strangerCreate), JSON.stringify(strangerCreate.json));
 
-for (const path of ["pages?select=id", "workspaces?select=id", "profiles?select=email", "workspace_members?select=user_id", "page_access?select=id"]) {
+for (const path of ["pages?select=id", "workspaces?select=id", "profiles?select=email", "workspace_members?select=user_id", "page_access?select=id", "comments?select=id"]) {
   const res = await http("GET", `/rest/v1/${path}`);
   check(`anonymous cannot read ${path.split("?")[0]}`, isEmptyOrDenied(res), `HTTP ${res.status}`);
 }
