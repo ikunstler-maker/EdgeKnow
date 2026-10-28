@@ -5,13 +5,19 @@ import {
   createCodeBlockSpec,
   createHeadingBlockSpec,
   defaultBlockSpecs,
+  defaultInlineContentSpecs,
   defaultStyleSpecs,
 } from "@blocknote/core";
 import { codeBlockOptions } from "@blocknote/code-block";
 import { t } from "@/i18n";
 import { calloutBlock } from "./callout-block";
+import { dropdownChip, pageChip, personChip } from "./chips";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
+import { linkCardBlock } from "./link-card-block";
+import { navigationBlock } from "./navigation-block";
+import { monoStyle } from "./mono-style";
+import { subtitleBlock } from "./subtitle-block";
 import { youTubeBlock } from "./youtube-block";
 
 // Code blocks with a "Copy" button next to the language picker.
@@ -59,7 +65,17 @@ function lazyImage() {
       ...spec.implementation,
       render(this: ThisParameterType<typeof render>, ...args: Parameters<typeof render>) {
         const view = render.apply(this, args);
-        view.dom.querySelectorAll("img").forEach((img) => (img.loading = "lazy"));
+        view.dom.querySelectorAll("img").forEach((img) => {
+          img.loading = "lazy";
+          // Images by link: the other site doesn't learn which page shows them.
+          img.referrerPolicy = "no-referrer";
+        });
+        // Marked so readers know the picture lives on another site.
+        const url = String((args[0] as { props?: { url?: string } }).props?.url ?? "");
+        if (url.startsWith("https://") && view.dom instanceof HTMLElement) {
+          view.dom.dataset.external = "true";
+          view.dom.title = t.editor.image.externalBadge;
+        }
         return view;
       },
     },
@@ -75,17 +91,27 @@ const textBlocks = Object.fromEntries(
 export const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...textBlocks,
-    // H4–H6 are planned for v2.
-    heading: createHeadingBlockSpec({ levels: [1, 2, 3] }),
+    // H1–H4, each can be collapsible (H5–H6 are not planned).
+    heading: createHeadingBlockSpec({ levels: [1, 2, 3, 4] }),
+    subtitle: subtitleBlock(),
     codeBlock: codeBlockWithCopy(),
     image: lazyImage(),
     callout: calloutBlock(),
     youtube: youTubeBlock(),
     diagram: diagramBlock(),
+    linkCard: linkCardBlock(),
+    navigation: navigationBlock(),
+  },
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    chip: dropdownChip,
+    pageChip,
+    personChip,
   },
   styleSpecs: {
     ...defaultStyleSpecs,
     comment: commentStyle(),
+    mono: monoStyle,
   },
 });
 

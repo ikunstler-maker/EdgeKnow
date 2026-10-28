@@ -3,6 +3,7 @@
 import "@blocknote/mantine/style.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
+import { SuggestionMenu } from "@blocknote/core/extensions";
 import { uk as blockNoteUk } from "@blocknote/core/locales";
 import { syntaxHighlighter } from "@blocknote/code-block";
 import {
@@ -21,7 +22,13 @@ import {
 import { BlockNoteView } from "@blocknote/mantine";
 import { t } from "@/i18n";
 import { resolveAttachmentUrl, uploadImage, UploadError } from "@/lib/attachments";
-import type { CommentThread, PeopleNames } from "@/lib/comments";
+import { CHIP_PRESETS } from "@/lib/chips";
+import type { CommentThread, MentionPerson, PeopleNames } from "@/lib/comments";
+import type { PageNode } from "@/lib/pages";
+import { getMentionCandidates } from "@/app/comment-actions";
+import { useOptionalPages } from "@/components/pages/pages-provider";
+import { ChipPeopleContext } from "./chips";
+import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
 import {
@@ -35,6 +42,7 @@ import {
 import { ImageFilePanel, ImageWidthButtons } from "./image-tools";
 import { schema, type EditorBlock } from "./schema";
 import { collectHeadings, scrollToBlock, TableOfContents, type Heading } from "./table-of-contents";
+import { publishSidebarToc, setTocPlacement, useTocPlacement, type TocPlacement } from "./toc-store";
 import { useAutosave } from "./use-autosave";
 import { SaveIndicator, ConflictBanner } from "./save-status";
 import { fetchYouTubeInfo } from "./youtube-block";
@@ -64,6 +72,22 @@ function CommentButton({ onComment }: { onComment: () => void }) {
       label={t.comments.add}
       icon={<span aria-hidden="true">💬</span>}
       onClick={onComment}
+    />
+  );
+}
+
+// Monospace text: the code font without the code background.
+function MonoButton() {
+  const editor = useBlockNoteEditor<typeof schema.blockSchema, typeof schema.inlineContentSchema, typeof schema.styleSchema>();
+  const Components = useComponentsContext()!;
+  const active = Boolean(editor.getActiveStyles().mono);
+  return (
+    <Components.FormattingToolbar.Button
+      mainTooltip={t.editor.mono}
+      label={t.editor.mono}
+      isSelected={active}
+      icon={<span aria-hidden="true" style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 13 }}>M</span>}
+      onClick={() => editor.toggleStyles({ mono: true })}
     />
   );
 }
@@ -99,7 +123,94 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <span aria-hidden="true">🔷</span>,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "diagram" }),
   };
-  return [...items, callout, diagram];
+  // Headings in one group: H1–H4, the subtitle, then the collapsible ones.
+  const menu = editor.dictionary.slash_menu;
+  const byTitle = (title: string) => items.find((item) => item.title === title);
+  const headingGroup = byTitle(menu.heading.title)?.group ?? t.editor.groups.special;
+  const plain = [menu.heading, menu.heading_2, menu.heading_3, menu.heading_4].map((d) => byTitle(d.title));
+  const toggles = [menu.toggle_heading, menu.toggle_heading_2, menu.toggle_heading_3].map((d) => byTitle(d.title));
+  const subtitle: DefaultReactSuggestionItem = {
+    title: t.editor.subtitle.title,
+    subtext: t.editor.subtitle.subtext,
+    aliases: t.editor.subtitle.aliases,
+    group: headingGroup,
+    icon: byTitle(menu.paragraph.title)?.icon,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "subtitle" }),
+  };
+  const toggleH4: DefaultReactSuggestionItem = {
+    title: t.editor.toggleHeading4.title,
+    subtext: t.editor.toggleHeading4.subtext,
+    aliases: t.editor.toggleHeading4.aliases,
+    group: headingGroup,
+    icon: toggles[2]?.icon ?? plain[3]?.icon,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "heading", props: { level: 4, isToggleable: true } }),
+  };
+  const headingItems = [...plain, subtitle, ...toggles, toggleH4]
+    .filter((item): item is DefaultReactSuggestionItem => Boolean(item))
+    .map((item) => ({ ...item, group: headingGroup }));
+  const firstHeading = items.findIndex((item) => headingItems.some((h) => h.title === item.title));
+  const rest = items.filter((item) => !headingItems.some((h) => h.title === item.title));
+  rest.splice(Math.max(0, firstHeading), 0, ...headingItems);
+  items.splice(0, items.length, ...rest);
+  const chip: DefaultReactSuggestionItem = {
+    title: t.editor.chips.dropdownTitle,
+    subtext: t.editor.chips.dropdownSubtext,
+    aliases: t.editor.chips.dropdownAliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🏷️</span>,
+    onItemClick: () => {
+      const preset = CHIP_PRESETS[0];
+      editor.insertInlineContent([
+        { type: "chip", props: { name: preset.name, options: JSON.stringify(preset.options), value: preset.options[0].id } },
+        " ",
+      ]);
+    },
+  };
+  // Page and person chips are picked from the "@" menu.
+  const mention: DefaultReactSuggestionItem = {
+    title: t.editor.chips.mentionTitle,
+    subtext: t.editor.chips.mentionSubtext,
+    aliases: t.editor.chips.mentionAliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">@</span>,
+    onItemClick: () => editor.getExtension(SuggestionMenu)?.openSuggestionMenu("@", { deleteTriggerCharacter: true, ignoreQueryLength: true }),
+  };
+  const linkCard: DefaultReactSuggestionItem = {
+    title: t.editor.linkCard.title,
+    subtext: t.editor.linkCard.subtext,
+    aliases: t.editor.linkCard.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🔗</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "linkCard" }),
+  };
+  const navigation: DefaultReactSuggestionItem = {
+    title: t.editor.navigation.title,
+    subtext: t.editor.navigation.subtext,
+    aliases: t.editor.navigation.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🧭</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "navigation" }),
+  };
+  return [...items, callout, navigation, linkCard, diagram, chip, mention];
+}
+
+// "@": people who can see the page, then pages, as chips.
+function mentionItems(editor: Editor, people: MentionPerson[], pages: PageNode[], currentPageId: string): DefaultReactSuggestionItem[] {
+  const personItems = people.map((person) => ({
+    title: person.label,
+    group: t.editor.chips.people,
+    icon: <span aria-hidden="true">👤</span>,
+    onItemClick: () => editor.insertInlineContent([{ type: "personChip", props: { userId: person.userId, label: person.label } }, " "]),
+  }));
+  const pageItems = pages
+    .filter((p) => p.id !== currentPageId)
+    .map((page) => ({
+      title: page.title || t.pages.untitled,
+      group: t.editor.chips.pages,
+      icon: <span aria-hidden="true">{page.icon ?? "📄"}</span>,
+      onItemClick: () => editor.insertInlineContent([{ type: "pageChip", props: { pageId: page.id } }, " "]),
+    }));
+  return [...personItems, ...pageItems];
 }
 
 export type PageEditorProps = {
@@ -129,12 +240,18 @@ export default function PageEditor({
     dictionary: {
       ...blockNoteUk,
       placeholders: { ...blockNoteUk.placeholders, default: t.editor.placeholder },
+      slash_menu: {
+        ...blockNoteUk.slash_menu,
+        toggle_heading: { ...blockNoteUk.slash_menu.toggle_heading, ...t.editor.toggleHeadings[0] },
+        toggle_heading_2: { ...blockNoteUk.slash_menu.toggle_heading_2, ...t.editor.toggleHeadings[1] },
+        toggle_heading_3: { ...blockNoteUk.slash_menu.toggle_heading_3, ...t.editor.toggleHeadings[2] },
+      },
     },
     initialContent:
       Array.isArray(initialContent) && initialContent.length > 0
         ? (initialContent as EditorBlock[])
         : undefined,
-    tables: { headers: true },
+    tables: { headers: true, cellBackgroundColor: true, cellTextColor: true },
     // Images are compressed in the browser and stored privately; the document keeps
     // only their storage path, turned into a short-lived signed URL for display.
     uploadFile: async (file) => {
@@ -167,6 +284,16 @@ export default function PageEditor({
     },
   });
 
+  const pagesContext = useOptionalPages();
+  const [chipPeople, setChipPeople] = useState<MentionPerson[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void getMentionCandidates(pageId).then((list) => alive && setChipPeople(list));
+    return () => {
+      alive = false;
+    };
+  }, [pageId]);
+
   const getContent = useCallback(() => editor.document as unknown[], [editor]);
   const autosave = useAutosave({ pageId, initialVersion, getContent });
   const [headings, setHeadings] = useState<Heading[]>(() => collectHeadings(editor.document));
@@ -178,7 +305,19 @@ export default function PageEditor({
   const wide = useWide();
   const [sheet, setSheet] = useState<"threads" | "archive" | null>(null);
   const hasColumn = wide && (comments.visible.length > 0 || comments.draft !== null);
-  const startComment = comments.start;
+  // With comments on the page, the contents go where the reader chose.
+  const placement = useTocPlacement();
+  const [tab, setTab] = useState<"toc" | "comments">("comments");
+  const commentsStart = comments.start;
+  const startComment = useCallback(() => {
+    setTab("comments");
+    commentsStart();
+  }, [commentsStart]);
+  const leftToc = hasColumn && placement === "left";
+  useEffect(() => {
+    publishSidebarToc(leftToc ? headings : null);
+    return () => publishSidebarToc(null);
+  }, [leftToc, headings]);
   // On narrow screens a new comment is written in the sheet.
   const sheetShown = sheet ?? (!wide && comments.draft ? "threads" : null);
 
@@ -205,6 +344,7 @@ export default function PageEditor({
               ...getFormattingToolbarItems(),
               <ImageWidthButtons key="imageWidthButtons" />,
               <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />,
+              <MonoButton key="monoButton" />,
               <ClearFormattingButton key="clearFormattingButton" />,
               ...(canComment ? [<CommentButton key="commentButton" onComment={startComment} />] : []),
             ]}
@@ -219,6 +359,7 @@ export default function PageEditor({
     const id = (target as HTMLElement).closest?.("[data-comment-thread]")?.getAttribute("data-comment-thread");
     if (!id || !comments.visible.some((th) => th.id === id && th.status === "open")) return;
     comments.setActive(id);
+    setTab("comments");
     if (!wide) setSheet("threads");
   };
 
@@ -255,6 +396,8 @@ export default function PageEditor({
             }}
           />
         )}
+        <EditorPageContext value={{ pageId }}>
+        <ChipPeopleContext value={chipPeople}>
         <BlockNoteView
           editor={editor}
           editable={editable}
@@ -273,15 +416,38 @@ export default function PageEditor({
             triggerCharacter="/"
             getItems={async (query) => filterSuggestionItems(slashMenuItems(editor), query)}
           />
+          {editable && (
+            <SuggestionMenuController
+              triggerCharacter="@"
+              getItems={async (query) =>
+                filterSuggestionItems(mentionItems(editor, chipPeople, pagesContext?.pages ?? [], pageId), query).slice(0, 12)
+              }
+            />
+          )}
           <FormattingToolbarController formattingToolbar={formattingToolbar} />
           <FilePanelController filePanel={ImageFilePanel} />
         </BlockNoteView>
+        </ChipPeopleContext>
+        </EditorPageContext>
+        {hasColumn && placement === "bottom" && <TableOfContents headings={headings} variant="bottom" />}
       </div>
       {hasColumn ? (
-        <>
-          <CommentsColumn controller={comments} props={commentProps} layoutKey={layoutKey} />
-          <TableOfContents headings={headings} asButton />
-        </>
+        <div>
+          <RightPanelHeader
+            placement={placement}
+            tab={tab}
+            onTab={setTab}
+            commentCount={comments.visible.length}
+            hasHeadings={headings.length > 0}
+          />
+          {placement === "right" && tab === "toc" && headings.length > 0 ? (
+            <div className="sticky top-12 max-h-[calc(100dvh-6rem)] overflow-y-auto">
+              <TableOfContents headings={headings} variant="embedded" />
+            </div>
+          ) : (
+            <CommentsColumn controller={comments} props={commentProps} layoutKey={layoutKey} />
+          )}
+        </div>
       ) : (
         <TableOfContents headings={headings} />
       )}
@@ -300,6 +466,57 @@ export default function PageEditor({
             comments.cancelDraft();
           }}
         />
+      )}
+    </div>
+  );
+}
+
+// The right column on pages with comments: "Зміст | Коментарі" and where the
+// contents should live.
+function RightPanelHeader({
+  placement,
+  tab,
+  onTab,
+  commentCount,
+  hasHeadings,
+}: {
+  placement: TocPlacement;
+  tab: "toc" | "comments";
+  onTab: (tab: "toc" | "comments") => void;
+  commentCount: number;
+  hasHeadings: boolean;
+}) {
+  const tabs = placement === "right" && hasHeadings;
+  const tabClass = (active: boolean) =>
+    `min-h-8 flex-1 rounded px-2 text-sm ${active ? "bg-background font-medium shadow-sm" : "text-muted hover:text-foreground"}`;
+  return (
+    <div className="mb-3 space-y-2">
+      {tabs ? (
+        <div role="tablist" aria-label={t.toc.panel} className="flex gap-1 rounded-md bg-surface p-1">
+          <button type="button" role="tab" aria-selected={tab === "toc"} onClick={() => onTab("toc")} className={tabClass(tab === "toc")}>
+            {t.toc.title}
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => onTab("comments")} className={tabClass(tab === "comments")}>
+            {t.comments.column}
+            {commentCount > 0 && ` (${commentCount})`}
+          </button>
+        </div>
+      ) : (
+        <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted">{t.comments.column}</p>
+      )}
+      {hasHeadings && (
+        <label className="flex items-center gap-2 px-1 text-xs text-muted">
+          {t.toc.placementLabel}
+          <select
+            value={placement}
+            onChange={(event) => setTocPlacement(event.target.value as TocPlacement)}
+            className="min-h-8 flex-1 rounded-md border border-border bg-background px-1 text-xs text-foreground"
+          >
+            <option value="right">{t.toc.placements.right}</option>
+            <option value="bottom">{t.toc.placements.bottom}</option>
+            <option value="left">{t.toc.placements.left}</option>
+          </select>
+        </label>
       )}
     </div>
   );

@@ -93,3 +93,30 @@ export async function setPageInherit(id: string, inherit: boolean) {
 export async function transferPageOwnership(id: string, userId: string) {
   return callPageRpc("transfer_page_ownership", { target_page: id, new_owner: userId });
 }
+
+// Search (titles and text). Rights, the workspace and the trash are handled by
+// public.search_pages; matches in the snippet are marked with \u0001…\u0002.
+export type SearchHit = {
+  id: string;
+  title: string;
+  icon: string | null;
+  parent_id: string | null;
+  depth: number;
+  snippet: string;
+};
+
+export async function searchPages(
+  workspaceId: string,
+  query: string,
+  rootId: string | null,
+  maxDepth: number | null,
+): Promise<SearchHit[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("search_pages", {
+    ws: workspaceId,
+    query: query.slice(0, 200),
+    root: rootId,
+    max_depth: maxDepth,
+  });
+  return (data ?? []) as SearchHit[];
+}

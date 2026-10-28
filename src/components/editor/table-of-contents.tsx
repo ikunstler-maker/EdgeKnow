@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 
 export type Heading = { id: string; level: number; text: string };
 
-// Headings H1–H3 anywhere in the document (including nested blocks), in order.
+// Headings H1–H4 anywhere in the document (including nested blocks), in order.
 export function collectHeadings(blocks: readonly unknown[]): Heading[] {
   const out: Heading[] = [];
   const walk = (list: readonly unknown[]) => {
@@ -18,7 +18,7 @@ export function collectHeadings(blocks: readonly unknown[]): Heading[] {
         content?: unknown;
         children?: unknown[];
       };
-      if (block.type === "heading" && (block.props?.level ?? 1) <= 3) {
+      if (block.type === "heading" && (block.props?.level ?? 1) <= 4) {
         const text = Array.isArray(block.content)
           ? block.content.map((c) => (c as { text?: string }).text ?? "").join("")
           : "";
@@ -41,7 +41,7 @@ export function scrollToBlock(id: string) {
 }
 
 // The heading the reader is in: the last one above the top quarter of the screen.
-function useActiveHeading(headings: Heading[]) {
+export function useActiveHeading(headings: Heading[]) {
   const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     if (!headings.length) return;
@@ -67,7 +67,7 @@ function useActiveHeading(headings: Heading[]) {
   return active;
 }
 
-function HeadingList({ headings, active, onPick }: { headings: Heading[]; active: string | null; onPick?: () => void }) {
+export function HeadingList({ headings, active, onPick }: { headings: Heading[]; active: string | null; onPick?: () => void }) {
   if (!headings.length) return <p className="text-sm text-muted">{t.toc.empty}</p>;
   return (
     <ul className="flex flex-col">
@@ -92,15 +92,38 @@ function HeadingList({ headings, active, onPick }: { headings: Heading[]; active
   );
 }
 
-// Desktop: a sticky column next to the text. Phone (and pages whose column holds
-// comments): a "Зміст" button that opens a bottom sheet.
-export function TableOfContents({ headings, asButton = false }: { headings: Heading[]; asButton?: boolean }) {
+// "column": a sticky column next to the text on wide screens, a "Зміст" button
+// that opens a bottom sheet on phones. "button": the button everywhere.
+// "bottom": a list under the text (plus the phone button). "embedded": just the
+// list, for a container that is already sticky (the right column's tab).
+export function TableOfContents({
+  headings,
+  variant = "column",
+}: {
+  headings: Heading[];
+  variant?: "column" | "button" | "bottom" | "embedded";
+}) {
   const active = useActiveHeading(headings);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const asButton = variant === "button";
+
+  if (variant === "embedded") {
+    return (
+      <nav aria-label={t.toc.title}>
+        <HeadingList headings={headings} active={active} />
+      </nav>
+    );
+  }
 
   return (
     <>
-      {!asButton && (
+      {variant === "bottom" && headings.length > 0 && (
+        <nav aria-label={t.toc.title} className="mt-10 hidden border-t border-border pt-4 xl:block">
+          <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
+          <HeadingList headings={headings} active={active} />
+        </nav>
+      )}
+      {variant === "column" && (
         <nav aria-label={t.toc.title} className="sticky top-12 hidden max-h-[calc(100dvh-6rem)] overflow-y-auto xl:block">
           <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
           <HeadingList headings={headings} active={active} />

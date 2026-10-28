@@ -312,3 +312,189 @@ body {
   width: 100000px;
   height: 1px;
 }
+
+/* Subtitle (as in Google Docs). */
+.ek-editor .ek-subtitle {
+  font-size: 1.35em;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* Monospace text: code font, no background. */
+.ek-editor .ek-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+/* Heading 4. */
+.ek-editor [data-content-type="heading"][data-level="4"] {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+/* Text highlight and colours: rounded corners. */
+.ek-editor [data-style-type="backgroundColor"] {
+  border-radius: 4px;
+  padding: 0 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Links: dotted underline on a rounded backdrop, stronger on hover and focus. */
+.ek-editor .bn-inline-content a:not(.ek-chip) {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--muted);
+  text-underline-offset: 3px;
+  border-radius: 4px;
+  padding: 0 2px;
+  margin: 0 -2px;
+  transition: background-color 0.15s;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.ek-editor .bn-inline-content a:not(.ek-chip):hover,
+.ek-editor .bn-inline-content a:not(.ek-chip):focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  text-decoration-color: var(--accent);
+}
+
+/* Images by link: a small badge so readers know the picture lives elsewhere. */
+.ek-editor [data-external="true"] .bn-visual-media-wrapper {
+  position: relative;
+}
+.ek-editor [data-external="true"] .bn-visual-media-wrapper::after {
+  content: "↗";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 6px;
+  pointer-events: none;
+}
+
+/* Navigation block: the page tree inside the text. */
+.ek-navigation {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  font-size: 15px;
+}
+
+/* Link card: preview on the left, title and description on the right. */
+.ek-link-card {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+}
+.ek-link-card-empty {
+  padding: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.ek-link-card-body {
+  display: flex;
+  min-height: 96px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ek-link-card-body:hover {
+  background: var(--surface);
+}
+.ek-link-card-thumb {
+  display: flex;
+  flex: 0 0 132px;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.ek-link-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ek-link-card-thumb img.ek-link-card-icon-large {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.ek-link-card-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+}
+.ek-link-card-title {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ek-link-card-description {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ek-link-card-site {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ek-link-card-site img {
+  width: 14px;
+  height: 14px;
+}
+.ek-link-card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ek-link-card:hover .ek-link-card-actions,
+.ek-link-card:focus-within .ek-link-card-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .ek-link-card-actions {
+    opacity: 1;
+  }
+}
+.ek-link-card-actions button {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+}
+@media (max-width: 480px) {
+  .ek-link-card-thumb {
+    flex-basis: 88px;
+  }
+}

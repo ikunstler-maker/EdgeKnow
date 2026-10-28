@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
+  SelectionMode,
   ConnectionMode,
   Handle,
   MarkerType,
@@ -169,6 +170,8 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
   const [nodes, setNodes] = useState<BoxNode[]>(initial.nodes);
   const [edges, setEdges] = useState<Edge[]>(initial.edges);
   const [guides, setGuides] = useState<Guides>({ vertical: null, horizontal: null });
+  // "hand" drags the canvas around; "select" draws a frame to pick several nodes.
+  const [tool, setTool] = useState<"hand" | "select">("hand");
   // The document value we last wrote, and the last one we've seen from the document.
   const [emitted, setEmitted] = useState(data);
   const [seen, setSeen] = useState(data);
@@ -200,9 +203,11 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
   const onNodesChange = useCallback((changes: NodeChange<BoxNode>[]) => {
     setNodes((current) => {
       let nextGuides: Guides = { vertical: null, horizontal: null };
+      // A group moves as one piece on the grid; only a single node sticks to its neighbours.
+      const draggedCount = changes.filter((c) => c.type === "position" && c.dragging).length;
       const adjusted = changes.map((change) => {
         // While dragging, stick to the edges and centres of nearby nodes.
-        if (change.type === "position" && change.dragging && change.position) {
+        if (change.type === "position" && change.dragging && change.position && draggedCount === 1) {
           const node = current.find((n) => n.id === change.id);
           if (!node) return change;
           const size = { width: node.width ?? node.measured?.width ?? 192, height: node.height ?? node.measured?.height ?? 96 };
@@ -285,11 +290,21 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
   };
 
   const buttonClass = "min-h-11 rounded-md border border-border bg-background px-2.5 text-sm hover:bg-surface disabled:opacity-50 md:min-h-8";
+  const toolClass = (active: boolean) =>
+    `min-h-11 rounded px-2 text-sm md:min-h-7 ${active ? "bg-background font-medium shadow-sm" : "text-muted hover:text-foreground"}`;
 
   return (
     <div className="ek-diagram" contentEditable={false}>
       {editable && (
         <div className="flex flex-wrap items-center gap-1.5 border-b border-border p-1.5" role="toolbar" aria-label={d.toolbar}>
+          <div role="group" aria-label={d.tools} className="flex gap-0.5 rounded-md bg-surface p-0.5">
+            <button type="button" aria-pressed={tool === "hand"} onClick={() => setTool("hand")} title={d.handHint} className={toolClass(tool === "hand")}>
+              ✋ {d.hand}
+            </button>
+            <button type="button" aria-pressed={tool === "select"} onClick={() => setTool("select")} title={d.selectHint} className={toolClass(tool === "select")}>
+              ⬚ {d.select}
+            </button>
+          </div>
           <button type="button" onClick={addNode} className={buttonClass}>
             ＋ {d.addNode}
           </button>
@@ -340,6 +355,13 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
           edgesFocusable={editable}
           nodesFocusable={editable}
           deleteKeyCode={editable ? ["Backspace", "Delete"] : null}
+          // Shift+click adds nodes to the selection; Shift+drag (or the selection
+          // tool) draws a frame around several nodes; then they move together.
+          multiSelectionKeyCode={editable ? ["Shift", "Meta", "Control"] : null}
+          selectionKeyCode={editable ? "Shift" : null}
+          selectionOnDrag={editable && tool === "select"}
+          panOnDrag={tool === "select" && editable ? [1, 2] : true}
+          selectionMode={SelectionMode.Partial}
           // The page scrolls with the wheel; zoom with the buttons, Ctrl+wheel or a pinch.
           zoomOnScroll={false}
           preventScrolling={false}
@@ -377,11 +399,14 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
       {editable && selected && (
         <NodeSettings key={selected.id} data={selected.data} onChange={updateSelected} />
       )}
-      {editable && !selected && selectedEdges.length > 0 && (
+      {editable && selectedNodes.length > 1 && (
+        <div className="border-t border-border px-3 py-2 text-xs text-muted">{d.selected(selectedNodes.length)}</div>
+      )}
+      {editable && !selectedNodes.length && selectedEdges.length > 0 && (
         <div className="border-t border-border px-3 py-2 text-xs text-muted">{d.edgeSelected}</div>
       )}
-      {editable && !selected && !selectedEdges.length && nodes.length > 0 && (
-        <div className="border-t border-border px-3 py-2 text-xs text-muted">{d.hint}</div>
+      {editable && !selectedNodes.length && !selectedEdges.length && nodes.length > 0 && (
+        <div className="border-t border-border px-3 py-2 text-xs text-muted">{d.hint} {d.multiHint}</div>
       )}
     </div>
   );
