@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
-import { toPageNode, type PageRow } from "@/lib/pages";
+import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspace, listMyWorkspaces } from "@/lib/workspace";
 import { AppShell } from "@/components/app-shell";
@@ -35,7 +35,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
   // RLS returns only this workspace's pages that the user has a role on.
   const { data } = await supabase
     .from("pages")
-    .select("id, parent_id, title, icon, position")
+    .select(PAGE_TREE_COLUMNS)
     .eq("workspace_id", workspace.id)
     .is("deleted_at", null)
     .order("position")

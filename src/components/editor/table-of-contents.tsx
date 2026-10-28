@@ -92,23 +92,28 @@ function HeadingList({ headings, active, onPick }: { headings: Heading[]; active
   );
 }
 
-// Desktop: a sticky column next to the text. Phone: a "Зміст" button that opens a bottom sheet.
-export function TableOfContents({ headings }: { headings: Heading[] }) {
+// Desktop: a sticky column next to the text. Phone (and pages whose column holds
+// comments): a "Зміст" button that opens a bottom sheet.
+export function TableOfContents({ headings, asButton = false }: { headings: Heading[]; asButton?: boolean }) {
   const active = useActiveHeading(headings);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
     <>
-      <nav aria-label={t.toc.title} className="sticky top-12 hidden max-h-[calc(100dvh-6rem)] overflow-y-auto xl:block">
-        <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
-        <HeadingList headings={headings} active={active} />
-      </nav>
+      {!asButton && (
+        <nav aria-label={t.toc.title} className="sticky top-12 hidden max-h-[calc(100dvh-6rem)] overflow-y-auto xl:block">
+          <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
+          <HeadingList headings={headings} active={active} />
+        </nav>
+      )}
 
       {headings.length > 0 && (
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
-          className="fixed bottom-4 right-4 z-30 min-h-11 rounded-full border border-border bg-background px-4 text-sm shadow-lg xl:hidden"
+          className={`fixed bottom-4 right-4 z-30 min-h-11 rounded-full border border-border bg-background px-4 text-sm shadow-lg ${
+            asButton ? "" : "xl:hidden"
+          }`}
         >
           ☰ {t.toc.open}
         </button>
@@ -116,7 +121,7 @@ export function TableOfContents({ headings }: { headings: Heading[] }) {
 
       {sheetOpen &&
         createPortal(
-          <div className="fixed inset-0 z-50 xl:hidden" onClick={() => setSheetOpen(false)}>
+          <div className={`fixed inset-0 z-50 ${asButton ? "" : "xl:hidden"}`} onClick={() => setSheetOpen(false)}>
             <div className="absolute inset-0 bg-black/40" />
             <div
               role="dialog"

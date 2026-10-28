@@ -9,6 +9,7 @@ import {
   deleteWorkspace,
   inviteMember,
   leaveWorkspace,
+  reassignMemberPages,
   removeDomain,
   removeMember,
   renameWorkspace,
@@ -29,6 +30,7 @@ export type MemberItem = {
 };
 export type DomainItem = { domain: string; isActive: boolean };
 export type InvitationItem = { id: string; email: string; role: string; expiresLabel: string };
+export type DepartedOwner = { userId: string; name: string | null; email: string; pages: number };
 
 const inputClass = "min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 text-base";
 const buttonClass =
@@ -180,11 +182,13 @@ export function MembersPanel({
   currentUserId,
   members,
   invitations,
+  departed,
 }: {
   workspace: Workspace;
   currentUserId: string;
   members: MemberItem[];
   invitations: InvitationItem[];
+  departed: DepartedOwner[];
 }) {
   const { pending, run, errorLine } = useAction();
   const [email, setEmail] = useState("");
@@ -311,8 +315,67 @@ export function MembersPanel({
           ))}
         </ul>
       </section>
+
+      {departed.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold">{s.members.departedHeading}</h2>
+          <p className="mt-1 text-sm text-muted">{s.members.departedIntro}</p>
+          <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
+            {departed.map((d) => (
+              <DepartedRow key={d.userId} workspaceId={workspace.id} owner={d} members={members} run={run} pending={pending} />
+            ))}
+          </ul>
+        </section>
+      )}
       {errorLine}
     </div>
+  );
+}
+
+function DepartedRow({
+  workspaceId,
+  owner,
+  members,
+  run,
+  pending,
+}: {
+  workspaceId: string;
+  owner: DepartedOwner;
+  members: MemberItem[];
+  run: (action: () => Promise<ActionResult>) => void;
+  pending: boolean;
+}) {
+  const [to, setTo] = useState("");
+  return (
+    <li className="flex flex-wrap items-center gap-2 px-3 py-2">
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{owner.name ?? owner.email}</span>
+        <span className="block truncate text-xs text-muted">
+          {owner.email} · {s.members.departedPages(owner.pages)}
+        </span>
+      </span>
+      <select value={to} onChange={(e) => setTo(e.target.value)} aria-label={s.members.newOwner} className={inputClass}>
+        <option value="">{s.members.chooseOwner}</option>
+        {members.map((m) => (
+          <option key={m.userId} value={m.userId}>
+            {m.name ?? m.email}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={!to || pending}
+        className={buttonClass}
+        onClick={() => {
+          const target = members.find((m) => m.userId === to);
+          if (target && confirm(s.members.confirmReassign(owner.email, target.email))) {
+            run(() => reassignMemberPages(workspaceId, owner.userId, target.userId));
+          }
+        }}
+      >
+        {s.members.reassign}
+      </button>
+    </li>
   );
 }
 

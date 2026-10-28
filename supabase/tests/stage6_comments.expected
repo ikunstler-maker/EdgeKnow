@@ -1,0 +1,45 @@
+mentions kept: 00000000-0000-0000-0000-0000000006b1
+empty comment: {"ok": false, "error": "invalid_comment"}
+viewer sees threads: 1
+viewer sees comments: 1
+viewer comments: {"ok": false, "error": "forbidden"}
+viewer replies: {"ok": false, "error": "forbidden"}
+viewer resolves: {"ok": false, "error": "forbidden"}
+no access sees threads: 0
+no access replies: {"ok": false, "error": "forbidden"}
+no access mentions: {"ok": false, "error": "forbidden"}
+other workspace sees comments: 0
+other workspace replies: {"ok": false, "error": "forbidden"}
+psql: ERROR:  permission denied for table comment_threads
+psql: ERROR:  permission denied for table comments
+commenter saves text: {"ok": false, "error": "forbidden"}
+mention candidates: Alice, Carol
+reply: true
+stale version: {"ok": false, "error": "conflict", "version": 2}
+text mismatch: {"ok": false, "error": "invalid_range"}
+unknown block: {"ok": false, "error": "invalid_range"}
+bad range: {"ok": false, "error": "invalid_range"}
+version unchanged: 2
+marked version: 3, updated by bob: true
+quoted: lo bold 🙂 world l Nested
+b2 after mark: [{"text": "Hel", "type": "text", "styles": {}}, {"text": "lo ", "type": "text", "styles": {"comment": "T2"}}, {"text": "bold 🙂 world", "type": "text", "styles": {"bold": true, "comment": "T2"}}, {"href": "https://example.com", "type": "link", "content": [{"text": " l", "type": "text", "styles": {"comment": "T2"}}, {"text": "ink", "type": "text", "styles": {}}]}]
+b3 after mark: [{"text": "Nested", "type": "text", "styles": {"comment": "T2"}}, {"text": " text", "type": "text", "styles": {}}]
+b1 untouched: {"id": "b1", "type": "paragraph", "props": {}, "content": [{"text": "First line", "type": "text", "styles": {}}], "children": []}
+edit above: true
+status after edit above: open
+still marked: true
+delete fragment: true
+orphaned: orphaned, orphaned
+resolve: true
+resolved: resolved, by alice: true
+reopen: true
+reopened without fragment: orphaned
+edit other's: {"ok": false, "error": "forbidden"}
+delete other's: {"ok": false, "error": "forbidden"}
+edit own: true
+edited: Yes indeed, edited_at set: true
+delete own: true
+thread t1 messages: 1
+delete last message: true
+thread t2 gone: 0
+after unshare sees: 0

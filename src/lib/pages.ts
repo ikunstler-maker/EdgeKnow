@@ -1,12 +1,22 @@
 // Page tree types and pure helpers, shared by server and client code.
 
+export type PageRole = "owner" | "editor" | "commenter" | "viewer";
+export type GrantRole = Exclude<PageRole, "owner">;
+
 export type PageNode = {
   id: string;
   parentId: string | null;
   title: string;
   icon: string | null;
   position: number;
+  ownerId: string;
+  role: PageRole;
+  // Whole-workspace access, own or inherited.
+  workspaceRole: GrantRole | null;
 };
+
+// Columns for the tree; my_role and shared_with_workspace are computed in the database.
+export const PAGE_TREE_COLUMNS = "id, parent_id, title, icon, position, owner_id, my_role, shared_with_workspace";
 
 export type PageRow = {
   id: string;
@@ -14,6 +24,9 @@ export type PageRow = {
   title: string;
   icon: string | null;
   position: number;
+  owner_id: string;
+  my_role: PageRole;
+  shared_with_workspace: GrantRole | null;
 };
 
 export function toPageNode(row: PageRow): PageNode {
@@ -23,7 +36,23 @@ export function toPageNode(row: PageRow): PageNode {
     title: row.title,
     icon: row.icon,
     position: row.position,
+    ownerId: row.owner_id,
+    role: row.my_role,
+    workspaceRole: row.shared_with_workspace,
   };
+}
+
+export function canEdit(role: PageRole | null | undefined): boolean {
+  return role === "owner" || role === "editor";
+}
+
+export type SidebarSection = "workspace" | "mine" | "shared";
+
+// Notion-like sidebar: pages open to the whole workspace, my own pages, and pages
+// someone shared with me whose parent I can't see.
+export function sectionOf(page: PageNode, userId: string): SidebarSection {
+  if (page.workspaceRole) return "workspace";
+  return page.ownerId === userId ? "mine" : "shared";
 }
 
 export function childrenOf(pages: PageNode[], parentId: string | null): PageNode[] {

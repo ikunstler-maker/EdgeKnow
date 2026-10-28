@@ -15,6 +15,19 @@ const ANON = status.ANON_KEY ?? status.PUBLISHABLE_KEY;
 const sql = (query) => execFileSync("psql", [status.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
 
 const results = [];
+// A crash (timeout, missing element) is reported as an annotation with the last passed step.
+const consoleErrors = [];
+let lastPage = null;
+const crash = async (error) => {
+  const message = String(error?.message ?? error).split("\n").slice(0, 3).join(" ").slice(0, 600);
+  console.log(`::error title=E2E crashed::${message} — after: ${results.at(-1)?.name ?? "start"}`);
+  const alerts = await lastPage?.locator("[role=alert]").allInnerTexts().catch(() => []);
+  if (alerts?.length) console.log(`::error title=On-screen alerts::${alerts.join(" | ").slice(0, 600)}`);
+  if (consoleErrors.length) console.log(`::error title=Browser console::${consoleErrors.slice(-4).join(" | ").slice(0, 900)}`);
+  process.exit(1);
+};
+process.on("unhandledRejection", crash);
+process.on("uncaughtException", crash);
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
@@ -42,6 +55,10 @@ async function newPage(cookies = []) {
   if (cookies.length) await context.addCookies(cookies);
   const page = await context.newPage();
   page.on("pageerror", (e) => problems.push(`page error: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
+  });
+  lastPage = page;
   page.on("dialog", (d) => d.accept().catch(() => {}));
   page.on("response", (r) => {
     if (r.status() >= 500) problems.push(`HTTP ${r.status()} ${r.url()}`);
@@ -249,6 +266,74 @@ check("HTML in text stays text", (await alice.locator(".bn-editor img").count())
 check("non-YouTube embeds are not rendered", (await alice.locator("iframe").count()) === 0 && (await alice.getByText("Fake").count()) === 0);
 check("nothing executed", !alerted);
 
+// --- Stage 4: images ------------------------------------------------------------
+
+// A 4K PNG over 10 MB, drawn in the browser (gradient + noise, like a photo).
+const png = await alice.evaluate(async () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 3840;
+  canvas.height = 2160;
+  const ctx = canvas.getContext("2d");
+  const image = ctx.createImageData(canvas.width, canvas.height);
+  for (let i = 0; i < image.data.length; i += 4) {
+    const x = (i / 4) % canvas.width;
+    const y = Math.floor(i / 4 / canvas.width);
+    image.data[i] = (x / 15 + Math.random() * 40) | 0;
+    image.data[i + 1] = (y / 9 + Math.random() * 40) | 0;
+    image.data[i + 2] = (((x + y) / 24) + Math.random() * 40) | 0;
+    image.data[i + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+});
+const pngBuffer = Buffer.from(png, "base64");
+check("test image is a 4K PNG over 10 MB", pngBuffer.length > 10 * 1024 * 1024, `${(pngBuffer.length / 1048576).toFixed(1)} MB`);
+
+lastPage = alice;
+const imagePage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "Images" })).data.id;
+await alice.goto(`${APP}/w/${alphaShort}/p/${imagePage}`);
+await alice.waitForSelector(".bn-editor");
+await alice.locator(".bn-editor").click();
+await alice.keyboard.type("/зображення");
+await alice.getByRole("option", { name: /Зображення/ }).first().waitFor();
+await alice.keyboard.press("Enter");
+await alice.locator(".bn-panel input[type=file]").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: pngBuffer });
+await alice.locator(".bn-editor img.bn-visual-media[src^='http']").first().waitFor({ timeout: 60000 });
+await alice.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+await alice.waitForTimeout(1500);
+const stored = sql(`select mime_type || '|' || bytes || '|' || width || 'x' || height || '|' || storage_path from public.attachments where page_id = '${imagePage}'`).split("|");
+check("stored as WebP", stored[0] === "image/webp", stored[0]);
+check("stored under 1 MB", Number(stored[1]) <= 1024 * 1024, `${(Number(stored[1]) / 1024).toFixed(0)} KB`);
+check("resized to Full HD", stored[2] === "1920x1080", stored[2]);
+check("file sits in the workspace folder", stored[3]?.startsWith(sql("select id from public.workspaces where name = 'Alpha'") + "/"), stored[3]);
+check("document keeps the storage path, not a URL", JSON.stringify(pageContent(imagePage)).includes(`ek-attachment:${stored[3]}`));
+const shownSrc = await alice.locator(".bn-editor img.bn-visual-media").first().getAttribute("src");
+check("image shown through a signed URL", /\/storage\/v1\/object\/sign\//.test(shownSrc ?? ""), shownSrc?.slice(0, 80));
+check("image loads lazily", (await alice.locator(".bn-editor img.bn-visual-media").first().getAttribute("loading")) === "lazy");
+
+// Width steps from the toolbar.
+await alice.locator(".bn-editor img.bn-visual-media").first().click();
+await alice.getByRole("button", { name: "50%", exact: true }).click();
+await alice.waitForTimeout(1800);
+const width50 = JSON.stringify(pageContent(imagePage)).match(/"previewWidth":(\d+)/)?.[1];
+// 50% of 1920 px, capped by the column width.
+check("50% width step applied", Number(width50) > 0 && Number(width50) <= 960, String(width50));
+
+// Nobody without access gets the file, signed URL or not.
+const bobSession = await sessionCookies("bob@beta.test");
+const bobUrl = await bobSession.client.storage.from("attachments").createSignedUrl(stored[3], 60);
+check("bob can't get a signed URL for alpha's image", !bobUrl.data?.signedUrl, JSON.stringify(bobUrl.error?.message ?? bobUrl.data));
+const anonFile = await fetch(`${API}/storage/v1/object/attachments/${stored[3]}`, { headers: { apikey: ANON } });
+check("the file isn't public", anonFile.status >= 400, String(anonFile.status));
+const svg = await aliceClient.rpc("register_attachment", { target_page: imagePage, file_type: "image/svg+xml", file_bytes: 100, file_width: 1, file_height: 1 });
+check("SVG refused", svg.data?.error === "unsupported_type", JSON.stringify(svg.data));
+const bigUpload = await aliceClient.storage.from("attachments").upload(`${stored[3]}.big.webp`, new Blob([new Uint8Array(3 * 1024 * 1024)], { type: "image/webp" }));
+check("storage refuses unregistered / oversized uploads", Boolean(bigUpload.error), bigUpload.error?.message);
+
 // Security headers and the video info route.
 const headers = (await alice.goto(`${APP}/w/${alphaShort}/p/${docPage}`)).headers();
 check("only YouTube may be framed (CSP)", (headers["content-security-policy"] ?? "").includes("frame-src https://www.youtube-nocookie.com"), headers["content-security-policy"]);
@@ -264,6 +349,223 @@ check("phone: no horizontal page scroll", (await phone.evaluate(() => document.d
 check("phone: text is 17px", (await phone.evaluate(() => getComputedStyle(document.querySelector(".bn-editor")).fontSize)) === "17px");
 await phone.getByRole("button", { name: /Зміст/ }).tap();
 check("phone: contents open in a bottom sheet", (await phone.getByRole("dialog", { name: "Зміст" }).count()) > 0);
+
+// --- Stage 5: access -------------------------------------------------------------
+
+// The API test left the colleague as a commenter on "Alpha secret".
+const until = async (condition, ms = 8000) => {
+  for (let i = 0; i < ms / 200; i++) {
+    if (condition()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return false;
+};
+const { cookies: colleagueCookies } = await sessionCookies("colleague@alpha.test");
+const colleague = await newPage(colleagueCookies);
+await colleague.goto(`${APP}/w/${alphaShort}`);
+await colleague.waitForSelector("aside");
+check("shared page is under 'Поділились зі мною'", (await colleague.getByRole("region", { name: "Поділились зі мною" }).getByText("Alpha secret").count()) > 0);
+check("colleague doesn't see alice's private pages", (await colleague.locator("aside").getByText("Images").count()) === 0);
+await colleague.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await colleague.waitForSelector(".bn-editor");
+check(
+  "commenter sees the page read-only",
+  (await colleague.locator("textarea").count()) === 0 &&
+    (await colleague.getByRole("heading", { name: "Alpha secret" }).count()) > 0 &&
+    (await colleague.getByText("Лише перегляд").count()) > 0 &&
+    (await colleague.locator('.bn-editor[contenteditable="true"]').count()) === 0,
+);
+await colleague.getByRole("button", { name: "Поділитися" }).click();
+const colleagueDialog = colleague.getByRole("dialog", { name: "Доступ до сторінки" });
+await colleagueDialog.getByText("Змінювати доступ може лише власник").waitFor();
+check("non-owner sees who has access but no controls", (await colleagueDialog.locator("select").count()) === 0 && (await colleagueDialog.locator('[title="alice@alpha.test"]').count()) > 0);
+
+// The owner makes the colleague an editor and opens the page to the whole workspace.
+await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await alice.getByRole("button", { name: "Поділитися" }).click();
+const aliceDialog = alice.getByRole("dialog", { name: "Доступ до сторінки" });
+await aliceDialog.getByLabel(/^Роль: /).selectOption("editor");
+const grantRole = () => sql(`select a.role from public.page_access a join auth.users u on u.id = a.user_id where a.page_id = '${alphaPage}' and u.email = 'colleague@alpha.test'`);
+check("owner changes a role in the share dialog", await until(() => grantRole() === "editor"), grantRole());
+await aliceDialog.getByLabel("Весь workspace").selectOption("viewer");
+const wsRole = () => sql(`select coalesce(workspace_role, '-') from public.pages where id = '${alphaPage}'`);
+check("owner opens the page to the whole workspace", await until(() => wsRole() === "viewer"), wsRole());
+await colleague.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await colleague.waitForSelector("textarea");
+// The editor loads after the page itself.
+const editableEditor = await colleague.waitForSelector('.bn-editor[contenteditable="true"]', { timeout: 15000 }).then(() => true, () => false);
+check("editor can now edit the page", editableEditor);
+check("page moved to the 'Весь workspace' section", (await colleague.getByRole("region", { name: "Весь workspace" }).getByText("Alpha secret").count()) > 0);
+
+// --- Stage 6: comments -----------------------------------------------------------
+
+const alphaId = sql("select id from public.workspaces where name = 'Alpha'");
+const colleagueId = sql("select id from auth.users where email = 'colleague@alpha.test'");
+const para = (id, text) => ({ id, type: "paragraph", props: {}, content: [{ type: "text", text, styles: {} }], children: [] });
+const talkPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Discussion" })).data.id;
+await aliceClient.rpc("save_page_content", {
+  target_page: talkPage,
+  new_content: [para("p1", "Intro text."), para("p2", "Middle paragraph."), para("p3", "The commented phrase lives here.")],
+  base_version: 1,
+});
+await aliceClient.rpc("set_page_member_role", { target_page: talkPage, member: colleagueId, new_role: "commenter" });
+
+// Selects characters [start, end) of a paragraph's text, as a mouse drag would.
+const selectText = async (page, text, start, end) => {
+  await page.locator(".bn-inline-content", { hasText: text }).first().evaluate((el, [s, e]) => {
+    const range = document.createRange();
+    range.setStart(el.firstChild, s);
+    range.setEnd(el.firstChild, e);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, [start, end]);
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(400);
+};
+const threadsOf = (id) => sql(`select coalesce(string_agg(t.id || ':' || t.status, ',' order by t.created_at), '') from public.comment_threads t where t.page_id = '${id}'`);
+
+await alice.goto(`${APP}/w/${alphaShort}/p/${talkPage}`);
+await alice.waitForSelector('.bn-editor[contenteditable="true"]');
+await selectText(alice, "The commented phrase", 4, 20);
+await alice.getByRole("button", { name: "Коментар", exact: true }).click();
+const draftField = alice.getByLabel("Напишіть коментар… @ — згадати колегу");
+await draftField.fill("Please check @coll");
+await alice.getByRole("option", { name: /colleague/ }).click();
+await draftField.press("End");
+await draftField.type("thanks");
+await alice.getByRole("button", { name: "Коментувати" }).click();
+check("thread created", await until(() => threadsOf(talkPage).includes(":open")), threadsOf(talkPage));
+const thread1 = threadsOf(talkPage).split(":")[0];
+const markSaved = () => sql(`select (content::text like '%${thread1}%')::text from public.pages where id = '${talkPage}'`) === "true";
+check("editor's comment mark saved in the document", await until(markSaved, 10000));
+check("mention stored", sql(`select array_to_string(mentions, ',') from public.comments where thread_id = '${thread1}'`) === colleagueId);
+
+// "Готово, коли": edits above the fragment keep the comment on it.
+const versionBefore = pageVersion(talkPage);
+await alice.locator(".bn-inline-content", { hasText: "Intro text." }).click();
+await alice.keyboard.press("Home");
+await alice.keyboard.type("Added above. ");
+await alice.keyboard.press("Enter");
+await alice.keyboard.type("A whole new paragraph.");
+check("edits above saved", await until(() => pageVersion(talkPage) > versionBefore, 10000));
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+const marked = alice.locator(`[data-comment-thread="${thread1}"]`);
+await marked.first().waitFor();
+check("comment still on its words after edits above", (await marked.allInnerTexts()).join("") === "commented phrase", (await marked.allInnerTexts()).join("|"));
+check("thread still open after edits", threadsOf(talkPage) === `${thread1}:open`, threadsOf(talkPage));
+check("open thread is highlighted", (await marked.first().evaluate((el) => getComputedStyle(el).backgroundColor)) !== "rgba(0, 0, 0, 0)");
+
+// A commenter: the server marks the fragment for them; the rest of the text is unchanged.
+const textBefore = sql(`select string_agg(value #>> '{}', '') from public.pages, jsonb_path_query(content, 'strict $.**.text') value where id = '${talkPage}'`);
+await colleague.goto(`${APP}/w/${alphaShort}/p/${talkPage}`);
+await colleague.waitForSelector(".bn-editor");
+await colleague.waitForTimeout(500);
+await selectText(colleague, "Middle paragraph.", 0, 6);
+await colleague.getByRole("button", { name: "Коментар", exact: true }).click();
+await colleague.getByLabel("Напишіть коментар… @ — згадати колегу").fill("Commenter's note");
+await colleague.getByRole("button", { name: "Коментувати" }).click();
+check("commenter's thread created", await until(() => threadsOf(talkPage).split(",").length === 2), threadsOf(talkPage));
+const thread2 = threadsOf(talkPage).split(",")[1]?.split(":")[0];
+check("server marked the commenter's fragment", sql(`select (content::text like '%${thread2}%')::text from public.pages where id = '${talkPage}'`) === "true");
+const textAfter = sql(`select string_agg(value #>> '{}', '') from public.pages, jsonb_path_query(content, 'strict $.**.text') value where id = '${talkPage}'`);
+check("commenter's mark changed no text", textBefore === textAfter, `${textBefore} -> ${textAfter}`);
+check("commenter's quote recorded", sql(`select quoted_text from public.comment_threads where id = '${thread2}'`) === "Middle");
+
+// The mention shows on the colleague's home page.
+await colleague.goto(`${APP}/w/${alphaShort}`);
+check("mention listed under 'Вас згадали'", (await colleague.getByText("Please check @colleague").count()) > 0 || (await colleague.getByText(/Please check @/).count()) > 0);
+
+// Reply and resolve; the resolved thread moves to the archive and loses its highlight.
+await alice.goto(`${APP}/w/${alphaShort}/p/${talkPage}?thread=${thread1}`);
+await alice.waitForSelector(".bn-editor");
+await alice.locator(`[data-comment-thread="${thread1}"]`).first().click();
+const card = alice.locator(`[data-thread-card="${thread1}"]`);
+await card.getByLabel("Відповісти… @ — згадати колегу").fill("Done, fixed.");
+await card.getByRole("button", { name: "Відповісти" }).click();
+check("reply saved", await until(() => sql(`select count(*) from public.comments where thread_id = '${thread1}'`) === "2"));
+await card.getByRole("button", { name: "Вирішено" }).click();
+check("thread resolved", await until(() => threadsOf(talkPage).includes(`${thread1}:resolved`)), threadsOf(talkPage));
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+await alice.locator(`[data-comment-thread="${thread1}"]`).first().waitFor();
+check("resolved fragment no longer highlighted", (await alice.locator(`[data-comment-thread="${thread1}"]`).first().evaluate((el) => getComputedStyle(el).backgroundColor)) === "rgba(0, 0, 0, 0)");
+check("archive button lists the resolved thread", (await alice.getByRole("button", { name: "Архів коментарів (1)" }).count()) > 0);
+
+// Deleting the commented text keeps the thread, marked "Фрагмент видалено".
+const contentNow = pageContent(talkPage).filter((b) => !JSON.stringify(b).includes(thread2));
+const deleted = await aliceClient.rpc("save_page_content", { target_page: talkPage, new_content: contentNow, base_version: pageVersion(talkPage) });
+check("fragment deleted", deleted.data?.ok === true, JSON.stringify(deleted.data));
+check("thread orphaned, not lost", threadsOf(talkPage).includes(`${thread2}:orphaned`), threadsOf(talkPage));
+await alice.reload();
+await alice.waitForSelector(".bn-editor");
+await alice.getByRole("button", { name: /Коментарі: 1/ }).click();
+check("orphaned thread shown as 'Фрагмент видалено'", (await alice.getByRole("dialog", { name: "Коментарі" }).getByText("Фрагмент видалено").count()) > 0);
+
+// --- Diagram block -----------------------------------------------------------------
+
+const diagramPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Diagram" })).data.id;
+await aliceClient.rpc("set_page_member_role", { target_page: diagramPage, member: colleagueId, new_role: "viewer" });
+const wide = await newPage(aliceCookies);
+await wide.setViewportSize({ width: 1400, height: 1000 });
+await wide.goto(`${APP}/w/${alphaShort}/p/${diagramPage}`);
+await wide.waitForSelector('.bn-editor[contenteditable="true"]');
+await wide.locator(".bn-editor").click();
+await wide.keyboard.type("/схема");
+await wide.getByRole("option", { name: /Схема/ }).first().click();
+await wide.waitForSelector(".ek-diagram .react-flow", { timeout: 20000 });
+const addNode = wide.getByRole("button", { name: /Нода/ });
+await addNode.click();
+await wide.getByLabel("Назва", { exact: true }).fill("<b>Brief</b>");
+await wide.getByLabel("Опис").fill("From the client");
+await wide.getByRole("group", { name: "Налаштування ноди" }).getByRole("button", { name: "Жовтий" }).first().click();
+await wide.getByRole("button", { name: "✅" }).click();
+await addNode.click();
+await wide.getByLabel("Назва", { exact: true }).fill("Design");
+check("two nodes on the canvas", (await wide.locator(".react-flow__node").count()) === 2);
+// The second node lands on top of the first: move it to the right, along the grid.
+const second = wide.locator(".react-flow__node").nth(1);
+const sb = await second.boundingBox();
+await wide.mouse.move(sb.x + 40, sb.y + 40);
+await wide.mouse.down();
+await wide.mouse.move(sb.x + 140, sb.y + 45, { steps: 6 });
+await wide.mouse.move(sb.x + 300, sb.y + 43, { steps: 6 });
+await wide.mouse.up();
+const firstNode = wide.locator(".react-flow__node").nth(0);
+await firstNode.hover();
+const from = await firstNode.locator(".react-flow__handle-right").boundingBox();
+await wide.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+await wide.mouse.down();
+await second.hover({ force: true });
+const to = await second.locator(".react-flow__handle-left").boundingBox();
+await wide.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+await wide.mouse.up();
+check("nodes connected", (await wide.locator(".react-flow__edge").count()) === 1);
+const diagramData = () => {
+  const block = (pageContent(diagramPage) ?? []).find((b) => b.type === "diagram");
+  return block ? JSON.parse(block.props.data || "{}") : null;
+};
+const savedDiagram = await until(() => diagramData()?.edges?.length === 1 && diagramData()?.nodes?.[1]?.title === "Design", 12000);
+const dd = diagramData();
+check("diagram saved with the page", savedDiagram, JSON.stringify(dd).slice(0, 300));
+check("node settings saved (title, description, fill, status)", dd?.nodes?.[0]?.title === "<b>Brief</b>" && dd.nodes[0].description === "From the client" && dd.nodes[0].fill === "yellow" && dd.nodes[0].emoji === "✅", JSON.stringify(dd?.nodes?.[0]));
+check("positions snap to the 16px grid", dd?.nodes?.every((n) => n.x % 16 === 0 && n.y % 16 === 0), JSON.stringify(dd?.nodes?.map((n) => [n.x, n.y])));
+check("dragged node stays aligned with its neighbour", dd?.nodes?.[0]?.y === dd?.nodes?.[1]?.y, JSON.stringify(dd?.nodes?.map((n) => n.y)));
+
+// Readers see the same diagram, can't change it, and node text is never HTML.
+await colleague.goto(`${APP}/w/${alphaShort}/p/${diagramPage}`);
+await colleague.waitForSelector(".ek-diagram .react-flow__node", { timeout: 20000 });
+check("reader sees the nodes", (await colleague.locator(".react-flow__node").count()) === 2 && (await colleague.locator(".react-flow__edge").count()) === 1);
+check("node title shown as text, not HTML", (await colleague.getByText("<b>Brief</b>").count()) > 0 && (await colleague.locator(".react-flow__node b").count()) === 0);
+check("reader has no diagram toolbar", (await colleague.getByRole("toolbar", { name: "Дії зі схемою" }).count()) === 0);
+const rb = await colleague.locator(".react-flow__node").first().boundingBox();
+await colleague.mouse.move(rb.x + 20, rb.y + 20);
+await colleague.mouse.down();
+await colleague.mouse.move(rb.x + 220, rb.y + 220, { steps: 5 });
+await colleague.mouse.up();
+const nodeLeft = async (p, i) => (await p.locator(".react-flow__node").nth(i).boundingBox()).x;
+check("reader can't move nodes", Math.round((await nodeLeft(colleague, 1)) - (await nodeLeft(colleague, 0))) === Math.round((await nodeLeft(wide, 1)) - (await nodeLeft(wide, 0))));
 
 await aliceClient.auth.signOut();
 await browser.close();

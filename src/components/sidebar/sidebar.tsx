@@ -68,10 +68,7 @@ export function Sidebar({
       </button>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted">
-          {t.sidebar.pagesHeading}
-        </p>
-        <PageTree currentId={currentId} onNavigate={onNavigate} />
+        <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
       </div>
 
       <div className="border-t border-border pt-2">

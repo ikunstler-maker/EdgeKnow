@@ -37,6 +37,8 @@ export default async function TrashPage({ params }: PageProps<"/w/[wid]/trash">)
     .select("id, title, icon, deleted_at, trashed_with")
     .eq("workspace_id", workspace.id)
     .not("deleted_at", "is", null)
+    // Only owners restore or delete, so the trash lists only their pages.
+    .eq("my_role", "owner")
     .order("deleted_at", { ascending: false })
     .overrideTypes<TrashRow[], { merge: false }>();
 
