@@ -909,6 +909,61 @@ await alice.locator("aside").getByRole("link", { name: /Довідка/ }).click
 await alice.waitForURL(/\/help$/);
 check("help linked from the sidebar, with every section", (await alice.locator("main section").count()) >= 14);
 
+// --- Page counter and profile statistics -------------------------------------------------
+
+await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+await alice.waitForSelector(".bn-editor");
+const counter = alice.getByRole("button", { name: /📊/ });
+await counter.waitFor();
+// "📊 1 234 слова · 6 хв" → 1234 (thousands are separated by a space).
+const parseWords = (text) => Number((text.match(/📊\s*([\d\s\u00a0\u202f]*\d)/)?.[1] ?? "0").replace(/\D/g, ""));
+const wordsOf = async () => parseWords(await counter.innerText());
+const wordsBefore = await wordsOf();
+check("page counter shows words", /📊\s*[\d\s\u00a0\u202f]+ сл(ово|ова|ів)/.test(await counter.innerText()), await counter.innerText());
+await counter.click();
+check("counter details list characters and paragraphs", (await alice.getByText("Символів без пробілів").count()) === 1 && (await alice.getByText("Абзаців").count()) === 1);
+await alice.keyboard.press("Escape");
+const lastBlock = alice.locator(".bn-editor .bn-block-content").last();
+const box = await lastBlock.boundingBox();
+await alice.mouse.click(box.x + box.width - 2, box.y + box.height / 2);
+await alice.keyboard.press("Enter");
+await alice.keyboard.type("лічильник рахує нові слова");
+await alice.waitForFunction(
+  (before) => {
+    const button = [...document.querySelectorAll("button")].find((b) => b.textContent?.startsWith("📊"));
+    const words = Number((button?.textContent.match(/📊\s*([\d\s\u00a0\u202f]*\d)/)?.[1] ?? "0").replace(/\D/g, ""));
+    return words >= before + 4;
+  },
+  wordsBefore,
+  { timeout: 10000 },
+);
+check("counter follows typing", (await wordsOf()) >= wordsBefore + 4, `${wordsBefore} → ${await wordsOf()}`);
+await alice.getByText("Збережено").first().waitFor({ timeout: 15000 }).catch(() => {});
+
+await alice.locator("aside").getByRole("link", { name: /Мій профіль/ }).click();
+await alice.waitForURL(new RegExp(`/w/${alphaShort}/profile$`));
+const aliceId = sql("select id from public.profiles where email = 'alice@alpha.test'");
+const written = sql(`select coalesce(sum(chars_added), 0) from public.page_contributions where user_id = '${aliceId}'`);
+check("characters written are counted", Number(written) > 0, written);
+check("own profile shows statistics, private by default",
+  (await alice.getByText("Символів написано").count()) === 1 && (await alice.getByRole("radio", { name: /Тільки я/ }).isChecked()));
+
+const { cookies: peerCookies } = await sessionCookies("colleague@alpha.test");
+const peer = await newPage(peerCookies);
+await peer.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`);
+check("a private profile is hidden from colleagues", (await peer.getByText("Профіль недоступний").count()) === 1);
+await alice.getByRole("radio", { name: /Усі учасники workspace/ }).check();
+await alice.getByText("Посилання на профіль:").waitFor();
+await alice.waitForFunction(() => !document.querySelector("input[name=profile-visibility]:disabled"));
+const shown = sql(`select profile_visibility from public.workspace_members m join public.workspaces w on w.id = m.workspace_id where w.name = 'Alpha' and m.user_id = '${aliceId}'`);
+check("profile shown to the workspace", shown === "workspace", shown);
+await peer.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`);
+check("colleague sees a shown profile", (await peer.getByText("Символів написано").count()) === 1);
+await bob.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`).catch(() => {});
+check("outsider never sees the profile", (await bob.getByText("Символів написано").count()) === 0);
+await alice.getByRole("radio", { name: /Тільки я/ }).check();
+await alice.waitForFunction(() => !document.querySelector("input[name=profile-visibility]:disabled"));
+
 await aliceClient.auth.signOut();
 await browser.close();
 

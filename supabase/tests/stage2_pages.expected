@@ -48,7 +48,7 @@ child stays live: true
 forever: {"ok": true}
 alice pages left: Grandchild,Renamed child
 purged: 1
-remaining titles: Bob page,Files,Mentioning,Renamed child
+remaining titles: Bob page,Files,First,Mentioning,Renamed child,Second
 move across workspaces: {"ok": false, "error": "forbidden"}
 child in other workspace: {"ok": false, "error": "forbidden"}
 author recorded: true
