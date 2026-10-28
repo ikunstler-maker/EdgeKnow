@@ -10,6 +10,14 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import { SignJWT, exportJWK, generateKeyPair, importJWK } from "jose";
 
 const here = new URL(".", import.meta.url).pathname;
+// A crash shows up as an annotation with the last step that passed.
+const crash = (error) => {
+  const message = String(error?.stack ?? error).split("\n").slice(0, 4).join(" ").slice(0, 800);
+  console.log(`::error title=Prototype crashed::${message} — after: ${results.at(-1)?.name ?? "start"}`);
+  process.exit(1);
+};
+process.on("unhandledRejection", crash);
+process.on("uncaughtException", crash);
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push({ name, ok, detail });

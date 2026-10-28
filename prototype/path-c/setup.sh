@@ -16,5 +16,7 @@ for team in team-a team-b; do
   sed -i '/^\[auth\]/a signing_keys_path = "./signing_keys.json"' supabase/config.toml
   supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta,storage-api
   supabase status -o json > status.json
+  node -e "const s=require('./status.json');console.log('::notice title=$team status keys::'+Object.keys(s).join(','))"
+  grep -n signing_keys supabase/config.toml || true
   cd ../..
 done
