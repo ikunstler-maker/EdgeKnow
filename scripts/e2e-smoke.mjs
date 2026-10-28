@@ -995,7 +995,7 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
 
 // --- A workspace whose data lives in the team's own database (path C) ------------------------
 
-const gammaShort = sql("select short_id from public.workspaces where name = 'Gamma'");
+const gammaShort = sql("select short_id from public.workspaces where name = 'Team Delta'");
 const teamStatus = JSON.parse(readFileSync(".team-stacks/team-b/status.json", "utf8"));
 const teamSql = (query) => execFileSync("psql", [teamStatus.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
 const gammaTab = await newPage(aliceCookies);
@@ -1028,7 +1028,7 @@ const gammaResults = gammaTab.getByRole("list", { name: "Результати п
 await gammaResults.waitFor({ timeout: 10000 });
 check("search finds it in the team database", (await gammaResults.getByText("Team-owned page").count()) > 0);
 await gammaTab.keyboard.press("Escape");
-// Bob isn't in Gamma: the central check stops him before any team token exists.
+// Bob isn't in Team Delta: the central check stops him before any team token exists.
 await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);
 

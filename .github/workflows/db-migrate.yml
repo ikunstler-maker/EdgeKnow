@@ -73,9 +73,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # Path C: the "Gamma" workspace keeps its data in a second, team-owned stack
+      # Path C: the "Team Delta" workspace keeps its data in a second, team-owned stack
       # that trusts the app's own (throwaway) EdgeKnow signing key.
-      - name: Team database for the Gamma workspace
+      - name: Team database for the Team Delta workspace
         run: |
           keys="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
           echo "EDGEKNOW_OIDC_SIGNING_KEYS=$keys" >> "$GITHUB_ENV"

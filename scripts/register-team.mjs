@@ -1,4 +1,4 @@
-// CI helper (path C): creates the "Gamma" workspace for alice in the central
+// CI helper (path C): creates the "Team Delta" workspace for alice in the central
 // database, gives it the team database from scripts/team-stacks.sh and brings
 // that database to the current schema. The app then syncs members on first use.
 //
@@ -27,8 +27,8 @@ const [result] = await migrateTeams([{ team: "gamma", executor: () => postgresEx
 if (result.error) throw new Error(`team migrations failed: ${result.error}`);
 
 const alice = sql("select id from public.profiles where email = 'alice@alpha.test'");
-const ws = sql(`insert into public.workspaces (name, owner_id, created_by) values ('Gamma', '${alice}', '${alice}') returning id`).split("\n")[0];
+const ws = sql(`insert into public.workspaces (name, owner_id, created_by) values ('Team Delta', '${alice}', '${alice}') returning id`).split("\n")[0];
 sql(`insert into public.workspace_members (workspace_id, user_id, role, joined_via) values ('${ws}', '${alice}', 'owner', 'creator')`);
 sql(`insert into public.team_databases (workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, status)
      values ('${ws}', ${quote(team.API_URL)}, ${quote(team.PUBLISHABLE_KEY ?? team.ANON_KEY)}, ${quote(encrypt(team.SECRET_KEY ?? team.SERVICE_ROLE_KEY))}, ${quote(encrypt(team.DB_URL))}, 'ok')`);
-console.log(`Gamma ${sql(`select short_id from public.workspaces where id = '${ws}'`)} → ${team.API_URL} (${result.applied.length} migrations)`);
+console.log(`Team Delta ${sql(`select short_id from public.workspaces where id = '${ws}'`)} → ${team.API_URL} (${result.applied.length} migrations)`);
