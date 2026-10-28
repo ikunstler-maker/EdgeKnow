@@ -14,6 +14,8 @@ import { calloutBlock } from "./callout-block";
 import { dropdownChip, pageChip, personChip } from "./chips";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
+import { linkCardBlock } from "./link-card-block";
+import { navigationBlock } from "./navigation-block";
 import { monoStyle } from "./mono-style";
 import { subtitleBlock } from "./subtitle-block";
 import { youTubeBlock } from "./youtube-block";
@@ -63,7 +65,17 @@ function lazyImage() {
       ...spec.implementation,
       render(this: ThisParameterType<typeof render>, ...args: Parameters<typeof render>) {
         const view = render.apply(this, args);
-        view.dom.querySelectorAll("img").forEach((img) => (img.loading = "lazy"));
+        view.dom.querySelectorAll("img").forEach((img) => {
+          img.loading = "lazy";
+          // Images by link: the other site doesn't learn which page shows them.
+          img.referrerPolicy = "no-referrer";
+        });
+        // Marked so readers know the picture lives on another site.
+        const url = String((args[0] as { props?: { url?: string } }).props?.url ?? "");
+        if (url.startsWith("https://") && view.dom instanceof HTMLElement) {
+          view.dom.dataset.external = "true";
+          view.dom.title = t.editor.image.externalBadge;
+        }
         return view;
       },
     },
@@ -87,6 +99,8 @@ export const schema = BlockNoteSchema.create({
     callout: calloutBlock(),
     youtube: youTubeBlock(),
     diagram: diagramBlock(),
+    linkCard: linkCardBlock(),
+    navigation: navigationBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

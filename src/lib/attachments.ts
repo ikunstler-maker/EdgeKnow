@@ -39,8 +39,18 @@ export async function uploadImage(pageId: string, file: File, quality: ImageQual
 // Signed URLs are cached until shortly before they expire.
 const cache = new Map<string, { url: string; expires: number }>();
 
+// Images by link: shown straight from the other site while it keeps them, https only.
+export function isExternalImageUrl(url: string): boolean {
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveAttachmentUrl(url: string): Promise<string> {
-  // Only our own files are shown; images from other sites are not loaded (import by URL is v2).
+  if (isExternalImageUrl(url)) return url;
+  // Anything else that isn't our own file (http:, data:, javascript:…) is not shown.
   if (!url.startsWith(ATTACHMENT_SCHEME)) return "";
   const path = url.slice(ATTACHMENT_SCHEME.length);
   const cached = cache.get(path);

@@ -28,6 +28,7 @@ import type { PageNode } from "@/lib/pages";
 import { getMentionCandidates } from "@/app/comment-actions";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { ChipPeopleContext } from "./chips";
+import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
 import {
@@ -173,7 +174,23 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <span aria-hidden="true">@</span>,
     onItemClick: () => editor.getExtension(SuggestionMenu)?.openSuggestionMenu("@", { deleteTriggerCharacter: true, ignoreQueryLength: true }),
   };
-  return [...items, callout, diagram, chip, mention];
+  const linkCard: DefaultReactSuggestionItem = {
+    title: t.editor.linkCard.title,
+    subtext: t.editor.linkCard.subtext,
+    aliases: t.editor.linkCard.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🔗</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "linkCard" }),
+  };
+  const navigation: DefaultReactSuggestionItem = {
+    title: t.editor.navigation.title,
+    subtext: t.editor.navigation.subtext,
+    aliases: t.editor.navigation.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🧭</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "navigation" }),
+  };
+  return [...items, callout, navigation, linkCard, diagram, chip, mention];
 }
 
 // "@": people who can see the page, then pages, as chips.
@@ -365,6 +382,7 @@ export default function PageEditor({
             }}
           />
         )}
+        <EditorPageContext value={{ pageId }}>
         <ChipPeopleContext value={chipPeople}>
         <BlockNoteView
           editor={editor}
@@ -396,6 +414,7 @@ export default function PageEditor({
           <FilePanelController filePanel={ImageFilePanel} />
         </BlockNoteView>
         </ChipPeopleContext>
+        </EditorPageContext>
       </div>
       {hasColumn ? (
         <>

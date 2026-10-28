@@ -10,9 +10,10 @@ import {
   type FilePanelProps,
 } from "@blocknote/react";
 import { t } from "@/i18n";
+import { isExternalImageUrl } from "@/lib/attachments";
 import { getImageQuality, IMAGE_QUALITIES, setImageQuality, type ImageQuality } from "@/lib/image-compression";
 
-// The image panel: upload only (import by URL is v2), with the quality choice above it.
+// The image panel: upload (with the quality choice) or a link to an image elsewhere.
 export function ImageFilePanel(props: FilePanelProps) {
   const [, setLoading] = useState(false);
   return (
@@ -28,8 +29,69 @@ export function ImageFilePanel(props: FilePanelProps) {
             </div>
           ),
         },
+        { name: t.editor.image.byLink, tabPanel: <ImageLinkTab blockId={props.blockId} /> },
       ]}
     />
+  );
+}
+
+// Not copied to our storage: the picture shows while the other site keeps it.
+function ImageLinkTab({ blockId }: { blockId: string }) {
+  const editor = useBlockNoteEditor();
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const submit = () => {
+    const value = url.trim();
+    if (!isExternalImageUrl(value)) return setError(t.editor.image.errors.link_https);
+    setChecking(true);
+    // Make sure it really is a picture before putting it on the page.
+    const probe = new Image();
+    probe.onload = () => {
+      setChecking(false);
+      if (!editor.getBlock(blockId)) return;
+      const name = decodeURIComponent(new URL(value).pathname.split("/").pop() ?? "").replace(/\.[^.]+$/, "");
+      editor.updateBlock(blockId, { props: { url: value, name } as never });
+    };
+    probe.onerror = () => {
+      setChecking(false);
+      setError(t.editor.image.errors.link_unreachable);
+    };
+    probe.referrerPolicy = "no-referrer";
+    probe.src = value;
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-2 p-1 text-sm"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <input
+        type="url"
+        inputMode="url"
+        value={url}
+        placeholder="https://…"
+        aria-label={t.editor.image.linkLabel}
+        onChange={(event) => {
+          setUrl(event.target.value);
+          setError(null);
+        }}
+        className="min-h-11 rounded-md border border-border bg-background px-2 text-base md:text-sm"
+      />
+      {error && (
+        <p role="alert" className="text-danger">
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={!url.trim() || checking} className="min-h-11 rounded-md bg-accent px-3 font-medium text-white disabled:opacity-60">
+        {t.editor.image.insertLink}
+      </button>
+      <p className="text-xs text-muted">{t.editor.image.linkHint}</p>
+    </form>
   );
 }
 
