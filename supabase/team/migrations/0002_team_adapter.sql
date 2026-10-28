@@ -222,7 +222,9 @@ begin
     workspace_id = ws_id,
     issuer = coalesce(payload -> 'settings' ->> 'issuer', issuer),
     files_on_drive = coalesce((payload -> 'settings' ->> 'files_on_drive')::boolean, files_on_drive),
-    updated_at = now();
+    updated_at = now()
+  -- Supabase refuses an UPDATE without WHERE coming through its API.
+  where id;
   return jsonb_build_object('ok', true);
 end;
 $$;
@@ -247,6 +249,8 @@ revoke execute on function public.team_member_settings() from public, anon, auth
 
 -- Runs before every API request. Even with a leaked signing key, a token from our
 -- issuer can't claim an admin role here.
+-- The issuer arrives with the first sync, so connecting a project always runs
+-- migrations and the first sync before our sign-in is added to it (step 1.5).
 create function public.edgeknow_guard()
 returns void
 language plpgsql

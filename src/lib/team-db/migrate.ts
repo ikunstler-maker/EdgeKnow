@@ -88,8 +88,10 @@ export function postgresExecutor(connectionString: string): TeamExecutor {
         await client.query("rollback").catch(() => {});
         throw new Error(`${migration.name}: ${(error as Error).message}`);
       }
-      // A migration may change the session (search_path); start the next one clean.
+      // A migration may change the session (search_path); start the next one clean,
+      // and make the team's API see new functions and tables right away.
       await client.query("reset all");
+      await client.query("notify pgrst, 'reload schema'");
     },
     async close() {
       await client.end();
