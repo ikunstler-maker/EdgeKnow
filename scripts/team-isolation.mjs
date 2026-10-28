@@ -91,6 +91,14 @@ const payload = (ws, shortId, owner, people) => ({
   },
 });
 
+// The API reloads its schema in the background after migrations; wait for it.
+for (const t of [A, B]) {
+  for (let i = 0; i < 40; i++) {
+    const probe = await rpc(t, "team_sync", { payload: {} }, t.secret, t.secret);
+    if (probe.status !== 404) break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
 const anonSync = await rpc(A, "team_sync", payload(wsA, "teama001", alice, [alice, bob]));
 check("only the secret key may sync members", anonSync.status === 401 || anonSync.status === 403 || anonSync.status === 404, String(anonSync.status));
 const syncA = await rpc(A, "team_sync", payload(wsA, "teama001", alice, [alice, bob]), A.secret, A.secret);

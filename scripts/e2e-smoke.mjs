@@ -24,6 +24,8 @@ const crash = async (error) => {
   const alerts = await lastPage?.locator("[role=alert]").allInnerTexts().catch(() => []);
   if (alerts?.length) console.log(`::error title=On-screen alerts::${alerts.join(" | ").slice(0, 600)}`);
   if (consoleErrors.length) console.log(`::error title=Browser console::${consoleErrors.slice(-4).join(" | ").slice(0, 900)}`);
+  const screen = await lastPage?.evaluate(() => `${location.pathname} — ${document.body.innerText.replace(/\s+/g, " ").slice(0, 500)}`).catch(() => "");
+  if (screen) console.log(`::error title=On screen::${screen}`);
   process.exit(1);
 };
 process.on("unhandledRejection", crash);
