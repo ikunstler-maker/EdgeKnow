@@ -24,6 +24,11 @@
   (`--update` rewrites the expected files — review the diff). `supabase/tests/upgrade/*` replay data migrations
   and rollbacks.
 - Each migration gets a rollback script in `supabase/rollbacks/`.
+- Path C (team-owned databases): the team schema lives in `supabase/team/migrations/` with rollbacks in
+  `supabase/team/rollbacks/` and tests in `supabase/team/tests/` (`scripts/test-team-db.sh`).
+  `0001_baseline.sql` is a generated dump; never edit it, add numbered migrations instead.
+  Until step 1.7, a page-feature change needs both a central and a team migration.
+  CI's `team` job runs `scripts/team-isolation.mjs` against two local Supabase stacks.
 - CI also runs `scripts/api-isolation.mjs` (real HTTP against local Supabase) and `scripts/e2e-smoke.mjs`
   (browser). Errors surface as annotations on the run.
 

@@ -1,0 +1,7 @@
+payload: {"drive": false, "members": ["alice@sync.test owner", "bob@sync.test member"], "profiles": 2}
+after domain off: 1
+unknown workspace: null
+psql: ERROR:  permission denied for function team_sync_payload
+psql: ERROR:  permission denied for table team_databases
+psql: ERROR:  permission denied for table team_databases
+psql: ERROR:  permission denied for function team_sync_payload
