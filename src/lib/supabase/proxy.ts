@@ -8,7 +8,15 @@ const PUBLIC_PATHS = ["/login", "/auth", "/no-access", "/invite"];
 // Routes open to everyone, signed in or not (Google requires a public privacy policy,
 // the help holds no team data;
 // the cron route checks its own secret).
-const ALWAYS_PUBLIC_PATHS = ["/privacy", "/help", "/api/cron/cleanup-files", "/api/cron/backup-pages"];
+const ALWAYS_PUBLIC_PATHS = [
+  "/privacy",
+  "/help",
+  "/api/cron/cleanup-files",
+  "/api/cron/backup-pages",
+  // Fetched by the teams' Supabase projects to check our tokens (public keys only).
+  "/oidc/.well-known/openid-configuration",
+  "/oidc/jwks",
+];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

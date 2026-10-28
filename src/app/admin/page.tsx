@@ -4,7 +4,11 @@ import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
+import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
+import { teamCheckSql } from "@/lib/oidc-guard";
 import { RegistrationToggle } from "./registration-toggle";
+import { TeamLoginPanel } from "./team-login/team-login-panel";
 
 // Read per request, so the title follows the interface language.
 export async function generateMetadata(): Promise<Metadata> {
@@ -52,6 +56,8 @@ export default async function PlatformAdminPage() {
     supabase.from("platform_settings").select("open_registration").maybeSingle(),
   ]);
   const c = t.platform.columns;
+  const h = await headers();
+  const issuer = oidcIssuer(`${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`);
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
@@ -63,6 +69,8 @@ export default async function PlatformAdminPage() {
         <h2 className="font-semibold">{t.platform.registrationHeading}</h2>
         <RegistrationToggle open={Boolean(settings?.open_registration)} />
       </section>
+
+      <TeamLoginPanel configured={oidcConfigured()} issuer={issuer} sql={teamCheckSql(issuer)} />
 
       <div className="mt-8 overflow-x-auto rounded-lg border border-border">
         <table className="w-full min-w-[640px] text-left text-sm">

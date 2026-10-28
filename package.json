@@ -20,6 +20,7 @@
     "@supabase/supabase-js": "^2.118.0",
     "@xyflow/react": "12.11.6",
     "browser-image-compression": "^2.0.2",
+    "jose": "^6.2.13",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
