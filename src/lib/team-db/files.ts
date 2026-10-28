@@ -31,5 +31,16 @@ export function teamStorage(db: TeamDatabase): SupabaseClient {
   });
 }
 
+// The whole team database with its secret key: for background jobs only.
+export const teamAdmin = teamStorage;
+
+// Every connected team database, for background jobs.
+export async function readyTeams(admin: SupabaseClient): Promise<TeamDatabase[]> {
+  const { data } = await admin
+    .from("team_databases")
+    .select("workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step");
+  return ((data ?? []) as TeamDatabase[]).filter(teamReady);
+}
+
 // The person's own view of the team database (null if they aren't a member).
 export const teamDataFor = (shortId: string) => dataClient(shortId);

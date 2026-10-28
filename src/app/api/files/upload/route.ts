@@ -3,7 +3,7 @@ import { ATTACHMENT_COLUMNS, activeConnection, putOnDrive, type AttachmentRow } 
 import { ATTACHMENT_PATH, looksLike } from "@/lib/drive/file-checks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { TEAM_BUCKET, teamDataFor, teamOfPath, teamStorage } from "@/lib/team-db/files";
+import { TEAM_BUCKET, teamAdmin, teamDataFor, teamOfPath, teamStorage } from "@/lib/team-db/files";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -34,18 +34,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
   }
 
-  if (team) {
+  const admin = createAdminClient();
+  const connection = admin ? await activeConnection(admin, row.workspace_id) : null;
+  // A team workspace without a Drive: the team's own storage.
+  if (team && !(connection?.status === "ok")) {
     const { error } = await teamStorage(team.db).storage.from(TEAM_BUCKET).upload(path, bytes, { contentType: row.mime_type, upsert: false });
     return error ? NextResponse.json({ ok: false, error: "upload_failed" }, { status: 502 }) : NextResponse.json({ ok: true });
   }
-
-  const admin = createAdminClient();
-  const connection = admin ? await activeConnection(admin, row.workspace_id) : null;
   if (!admin || !connection || connection.status !== "ok") {
     return NextResponse.json({ ok: false, error: "drive_unavailable" }, { status: 503 });
   }
   try {
-    await putOnDrive(admin, row, connection, bytes);
+    await putOnDrive(admin, row, connection, bytes, team ? teamAdmin(team.db) : admin);
   } catch {
     return NextResponse.json({ ok: false, error: "drive_failed" }, { status: 502 });
   }

@@ -1047,6 +1047,36 @@ check("…and not in the central database or storage", sql(`select count(*) from
 check("the team image is shown", (await teamImage.evaluate((img) => img.naturalWidth)) > 0);
 const teamSchema = sql("select coalesce(schema_version, '-') from public.team_databases t join public.workspaces w on w.id = t.workspace_id where w.name = 'Team Delta'");
 check("the team database was brought to the current schema", teamSchema === "0003_attachments_bucket", teamSchema);
+
+// Google Drive for a team workspace: files and daily copies go there, records stay in the team database.
+await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=storage`);
+check("the storage tab explains where a team workspace keeps its files", (await gammaTab.getByText(/сховищі вашого власного Supabase/).count()) === 1);
+await gammaTab.getByRole("link", { name: "Підключити Google Drive" }).click();
+await gammaTab.waitForURL(/tab=storage&drive=connected/);
+await gammaTab.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
+await gammaTab.waitForSelector(".bn-editor");
+await gammaTab.locator(".bn-editor").click();
+await gammaTab.keyboard.press("Control+End");
+await gammaTab.keyboard.press("Enter");
+await gammaTab.keyboard.type("/зображення");
+await gammaTab.getByRole("option", { name: /Зображення/ }).first().waitFor();
+await gammaTab.keyboard.press("Enter");
+await gammaTab.locator(".bn-panel input[type=file]").setInputFiles({ name: "drive.png", mimeType: "image/png", buffer: pngBuffer });
+await gammaTab.waitForFunction(() => document.querySelectorAll(".bn-editor img.bn-visual-media[src^='/api/files/']").length >= 2, null, { timeout: 60000 });
+await gammaTab.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+const onDrive = teamSql(`select count(*) from public.attachments where page_id = '${gammaPage}' and storage_backend = 'drive' and drive_file_id is not null`);
+check("with a Drive, a team workspace's new image goes to the Drive", onDrive === "1", onDrive);
+const driveImage = gammaTab.locator(".bn-editor img.bn-visual-media[src^='/api/files/']").nth(1);
+await gammaTab.waitForFunction((el) => el.complete && el.naturalWidth > 0, await driveImage.elementHandle(), { timeout: 15000 }).catch(() => {});
+check("…and is shown from the Drive", (await driveImage.evaluate((img) => img.naturalWidth)) > 0);
+await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=storage`);
+await gammaTab.getByRole("button", { name: "Зробити копію зараз" }).click();
+await gammaTab.getByText(/Скопійовано/).waitFor({ timeout: 60000 });
+const teamBackups = teamSql(`select count(*) from public.page_backups where page_id = '${gammaPage}'`);
+check("a team workspace's pages are backed up to its Drive", teamBackups === "1", teamBackups);
+check("…recorded in the team database, not centrally", sql(`select count(*) from public.page_backups where page_id = '${gammaPage}'`) === "0");
+const cleanupRun = await fetch(`${APP}/api/cron/cleanup-files`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
+check("the cleanup job also visits team databases", cleanupRun.status === 200, String(cleanupRun.status));
 const teamFileForBob = await fetch(`${APP}/api/files/${teamFile[0]}`, { headers: { cookie: bobCookies.map((c) => `${c.name}=${c.value}`).join("; ") }, redirect: "manual" });
 check("a non-member gets no team file", teamFileForBob.status === 404 || teamFileForBob.status === 307, String(teamFileForBob.status));
 

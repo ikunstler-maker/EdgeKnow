@@ -79,7 +79,15 @@ export async function readAttachment(admin: SupabaseClient, row: AttachmentRow):
   return { bytes: new Uint8Array(await data.arrayBuffer()), mimeType: row.mime_type };
 }
 
-export async function putOnDrive(admin: SupabaseClient, row: AttachmentRow, connection: DriveConnection, bytes: Uint8Array) {
+// `rows` is where the attachment record lives: the central database, or a team
+// database (path C) reached with its secret key.
+export async function putOnDrive(
+  admin: SupabaseClient,
+  row: AttachmentRow,
+  connection: DriveConnection,
+  bytes: Uint8Array,
+  rows: SupabaseClient = admin,
+) {
   let fileId: string;
   try {
     fileId = await driveApi().upload(refreshTokenOf(connection), connection.files_folder_id, driveFileName(row), row.mime_type, bytes);
@@ -87,7 +95,7 @@ export async function putOnDrive(admin: SupabaseClient, row: AttachmentRow, conn
     await noteDriveError(admin, connection, error);
     throw error;
   }
-  const { error } = await admin
+  const { error } = await rows
     .from("attachments")
     .update({ storage_backend: "drive", drive_connection_id: connection.id, drive_file_id: fileId })
     .eq("id", row.id);

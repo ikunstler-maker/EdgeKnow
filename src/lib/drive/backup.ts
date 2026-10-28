@@ -7,14 +7,15 @@ import { noteDriveError, refreshTokenOf, type DriveConnection } from "./storage"
 // Copies pages changed since their last backup to the Drive's backup folder:
 // an exact JSON copy (for restoring) and a readable Markdown one. Existing backup
 // files are overwritten, so the folder always holds the latest version of each page.
-export async function backupWorkspace(admin: SupabaseClient, connection: DriveConnection, limit = 40) {
-  const { data: pages } = await admin
+// `source` holds the pages: the central database or a team database (path C).
+export async function backupWorkspace(admin: SupabaseClient, connection: DriveConnection, limit = 40, source: SupabaseClient = admin) {
+  const { data: pages } = await source
     .from("pages")
     .select("id, title, icon, parent_id, content, cover, created_at, updated_at")
     .eq("workspace_id", connection.workspace_id)
     .is("deleted_at", null)
     .order("updated_at", { ascending: true });
-  const { data: done } = await admin
+  const { data: done } = await source
     .from("page_backups")
     .select("page_id, json_file_id, markdown_file_id, backed_up_at")
     .eq("drive_connection_id", connection.id);
@@ -42,7 +43,7 @@ export async function backupWorkspace(admin: SupabaseClient, connection: DriveCo
         jsonId = await api.upload(token, connection.backups_folder_id, `${base}.json`, "application/json", json);
         markdownId = await api.upload(token, connection.backups_folder_id, `${base}.md`, "text/markdown", markdown);
       }
-      await admin.from("page_backups").upsert({
+      await source.from("page_backups").upsert({
         page_id: page.id,
         drive_connection_id: connection.id,
         json_file_id: jsonId,
@@ -63,7 +64,7 @@ const KEEP_SNAPSHOTS = 14;
 
 // Everything of the workspace except the page text (that is in the page backups)
 // and secrets: enough to rebuild members, access and discussions.
-export async function snapshotWorkspace(admin: SupabaseClient, connection: DriveConnection) {
+export async function snapshotWorkspace(admin: SupabaseClient, connection: DriveConnection, source: SupabaseClient = admin) {
   const { data: last } = await admin
     .from("workspace_data_backups")
     .select("created_at")
@@ -76,13 +77,14 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
 
   const ws = connection.workspace_id;
   const rows = async (query: PromiseLike<{ data: unknown[] | null }>) => (await query).data ?? [];
-  const of = (name: string, columns: string) => admin.from(name).select(columns).eq("workspace_id", ws);
+  // Members and domains are always central; pages and discussions where the workspace keeps them.
+  const of = (name: string, columns: string, from: SupabaseClient = source) => from.from(name).select(columns).eq("workspace_id", ws);
   const snapshot = {
     format: "edgeknow-workspace-snapshot/1",
     created_at: new Date().toISOString(),
     workspace: (await admin.from("workspaces").select("id, short_id, name, owner_id, storage_limit_mb, created_at").eq("id", ws).maybeSingle()).data,
-    members: await rows(of("workspace_members", "user_id, role, joined_via, status, joined_at, profile:profiles!workspace_members_user_id_fkey(email, name)")),
-    domains: await rows(of("workspace_domains", "domain, is_active, added_at")),
+    members: await rows(of("workspace_members", "user_id, role, joined_via, status, joined_at, profile:profiles!workspace_members_user_id_fkey(email, name)", admin)),
+    domains: await rows(of("workspace_domains", "domain, is_active, added_at", admin)),
     pages: await rows(of("pages", "id, parent_id, title, icon, position, owner_id, created_by, inherit, workspace_role, cover, created_at, updated_at, deleted_at")),
     page_access: await rows(of("page_access", "page_id, user_id, role, granted_by, created_at")),
     comment_threads: await rows(of("comment_threads", "id, page_id, quoted_text, status, created_by, created_at, resolved_by, resolved_at")),

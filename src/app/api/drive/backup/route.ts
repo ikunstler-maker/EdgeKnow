@@ -3,6 +3,8 @@ import { backupWorkspace, snapshotWorkspace } from "@/lib/drive/backup";
 import { requireOwner } from "@/lib/drive/owner";
 import { activeConnection } from "@/lib/drive/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { teamAdmin } from "@/lib/team-db/files";
+import { teamDatabase, teamReady } from "@/lib/team-db/sync";
 
 // "Back up now" from the settings (owner); the daily job does the same for everyone.
 export async function POST(request: NextRequest) {
@@ -13,8 +15,11 @@ export async function POST(request: NextRequest) {
   const connection = await activeConnection(admin, String(workspaceId));
   if (!connection || connection.status !== "ok") return NextResponse.json({ ok: false, error: "drive_unavailable" }, { status: 409 });
   try {
-    const pages = await backupWorkspace(admin, connection);
-    const snapshot = await snapshotWorkspace(admin, connection);
+    // A team workspace (path C) keeps its pages in the team database.
+    const team = await teamDatabase(admin, connection.workspace_id);
+    const source = team && teamReady(team) ? teamAdmin(team) : admin;
+    const pages = await backupWorkspace(admin, connection, 40, source);
+    const snapshot = await snapshotWorkspace(admin, connection, source);
     return NextResponse.json({ ok: true, ...pages, snapshot: snapshot.saved });
   } catch {
     return NextResponse.json({ ok: false, error: "drive_failed" }, { status: 502 });
