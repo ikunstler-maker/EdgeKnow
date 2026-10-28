@@ -847,8 +847,11 @@ await alice.waitForSelector(".bn-editor img.bn-visual-media");
 await alice.waitForFunction(() => document.querySelector(".bn-editor img.bn-visual-media")?.naturalWidth > 0, null, { timeout: 15000 });
 check("image now served from Drive", true);
 const drivePath = sql(`select storage_path from public.attachments where page_id = '${imagePage}' limit 1`);
-const ownStatus = await alice.evaluate(async (p) => { const r = await fetch(`/api/files/${p}`); return `${r.status} ${r.headers.get("content-type")} ${r.headers.get("x-content-type-options")}`; }, drivePath);
-check("Drive file served as an image only", ownStatus === "200 image/webp nosniff", ownStatus);
+// Straight from the server (no browser cache), with alice's session cookies.
+const cookieHeader = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+const direct = await fetch(`${APP}/api/files/${drivePath}`, { headers: { cookie: cookieHeader }, cache: "no-store" });
+const ownStatus = `${direct.status} ${direct.headers.get("content-type")} ${direct.headers.get("x-content-type-options")}`;
+check("Drive file served as an image only", direct.status === 200 && direct.headers.get("content-type") === "image/webp" && /nosniff/.test(direct.headers.get("x-content-type-options") ?? ""), `${ownStatus} | ${[...direct.headers.keys()].join(",")}`);
 const strangerFile = await colleague.evaluate(async (p) => (await fetch(`/api/files/${p}`)).status, drivePath);
 check("someone without access to the page gets no file", strangerFile === 404, String(strangerFile));
 const bobFile = await bob.evaluate(async (p) => (await fetch(`/api/files/${p}`)).status, drivePath);
