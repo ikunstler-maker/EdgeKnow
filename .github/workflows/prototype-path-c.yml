@@ -1,0 +1,26 @@
+# Throwaway experiment for stage 1 of the roadmap (path C). Not part of the app's checks.
+name: Prototype path C
+
+on:
+  push:
+    branches: ["prototype/**"]
+    paths: ["prototype/path-c/**", ".github/workflows/prototype-path-c.yml"]
+  workflow_dispatch:
+
+jobs:
+  prototype:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start two team stacks
+        run: prototype/path-c/setup.sh
+      - name: Run the checks
+        run: node prototype/path-c/run.mjs
