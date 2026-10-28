@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 
 export type Heading = { id: string; level: number; text: string };
 
-// Headings H1–H3 anywhere in the document (including nested blocks), in order.
+// Headings H1–H4 anywhere in the document (including nested blocks), in order.
 export function collectHeadings(blocks: readonly unknown[]): Heading[] {
   const out: Heading[] = [];
   const walk = (list: readonly unknown[]) => {
@@ -18,7 +18,7 @@ export function collectHeadings(blocks: readonly unknown[]): Heading[] {
         content?: unknown;
         children?: unknown[];
       };
-      if (block.type === "heading" && (block.props?.level ?? 1) <= 3) {
+      if (block.type === "heading" && (block.props?.level ?? 1) <= 4) {
         const text = Array.isArray(block.content)
           ? block.content.map((c) => (c as { text?: string }).text ?? "").join("")
           : "";

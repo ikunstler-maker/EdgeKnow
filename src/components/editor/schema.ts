@@ -5,13 +5,17 @@ import {
   createCodeBlockSpec,
   createHeadingBlockSpec,
   defaultBlockSpecs,
+  defaultInlineContentSpecs,
   defaultStyleSpecs,
 } from "@blocknote/core";
 import { codeBlockOptions } from "@blocknote/code-block";
 import { t } from "@/i18n";
 import { calloutBlock } from "./callout-block";
+import { dropdownChip, pageChip, personChip } from "./chips";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
+import { monoStyle } from "./mono-style";
+import { subtitleBlock } from "./subtitle-block";
 import { youTubeBlock } from "./youtube-block";
 
 // Code blocks with a "Copy" button next to the language picker.
@@ -75,17 +79,25 @@ const textBlocks = Object.fromEntries(
 export const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...textBlocks,
-    // H4–H6 are planned for v2.
-    heading: createHeadingBlockSpec({ levels: [1, 2, 3] }),
+    // H1–H4, each can be collapsible (H5–H6 are not planned).
+    heading: createHeadingBlockSpec({ levels: [1, 2, 3, 4] }),
+    subtitle: subtitleBlock(),
     codeBlock: codeBlockWithCopy(),
     image: lazyImage(),
     callout: calloutBlock(),
     youtube: youTubeBlock(),
     diagram: diagramBlock(),
   },
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    chip: dropdownChip,
+    pageChip,
+    personChip,
+  },
   styleSpecs: {
     ...defaultStyleSpecs,
     comment: commentStyle(),
+    mono: monoStyle,
   },
 });
 

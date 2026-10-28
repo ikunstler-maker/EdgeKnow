@@ -3,6 +3,7 @@
 import "@blocknote/mantine/style.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
+import { SuggestionMenu } from "@blocknote/core/extensions";
 import { uk as blockNoteUk } from "@blocknote/core/locales";
 import { syntaxHighlighter } from "@blocknote/code-block";
 import {
@@ -21,7 +22,12 @@ import {
 import { BlockNoteView } from "@blocknote/mantine";
 import { t } from "@/i18n";
 import { resolveAttachmentUrl, uploadImage, UploadError } from "@/lib/attachments";
-import type { CommentThread, PeopleNames } from "@/lib/comments";
+import { CHIP_PRESETS } from "@/lib/chips";
+import type { CommentThread, MentionPerson, PeopleNames } from "@/lib/comments";
+import type { PageNode } from "@/lib/pages";
+import { getMentionCandidates } from "@/app/comment-actions";
+import { useOptionalPages } from "@/components/pages/pages-provider";
+import { ChipPeopleContext } from "./chips";
 import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
 import {
@@ -68,6 +74,22 @@ function CommentButton({ onComment }: { onComment: () => void }) {
   );
 }
 
+// Monospace text: the code font without the code background.
+function MonoButton() {
+  const editor = useBlockNoteEditor<typeof schema.blockSchema, typeof schema.inlineContentSchema, typeof schema.styleSchema>();
+  const Components = useComponentsContext()!;
+  const active = Boolean(editor.getActiveStyles().mono);
+  return (
+    <Components.FormattingToolbar.Button
+      mainTooltip={t.editor.mono}
+      label={t.editor.mono}
+      isSelected={active}
+      icon={<span aria-hidden="true" style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 13 }}>M</span>}
+      onClick={() => editor.toggleStyles({ mono: true })}
+    />
+  );
+}
+
 function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
   const items = getDefaultReactSlashMenuItems(editor);
   const callout: DefaultReactSuggestionItem = {
@@ -99,7 +121,78 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <span aria-hidden="true">🔷</span>,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "diagram" }),
   };
-  return [...items, callout, diagram];
+  // Headings in one group: H1–H4, the subtitle, then the collapsible ones.
+  const menu = editor.dictionary.slash_menu;
+  const byTitle = (title: string) => items.find((item) => item.title === title);
+  const headingGroup = byTitle(menu.heading.title)?.group ?? t.editor.groups.special;
+  const plain = [menu.heading, menu.heading_2, menu.heading_3, menu.heading_4].map((d) => byTitle(d.title));
+  const toggles = [menu.toggle_heading, menu.toggle_heading_2, menu.toggle_heading_3].map((d) => byTitle(d.title));
+  const subtitle: DefaultReactSuggestionItem = {
+    title: t.editor.subtitle.title,
+    subtext: t.editor.subtitle.subtext,
+    aliases: t.editor.subtitle.aliases,
+    group: headingGroup,
+    icon: byTitle(menu.paragraph.title)?.icon,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "subtitle" }),
+  };
+  const toggleH4: DefaultReactSuggestionItem = {
+    title: t.editor.toggleHeading4.title,
+    subtext: t.editor.toggleHeading4.subtext,
+    aliases: t.editor.toggleHeading4.aliases,
+    group: headingGroup,
+    icon: toggles[2]?.icon ?? plain[3]?.icon,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "heading", props: { level: 4, isToggleable: true } }),
+  };
+  const headingItems = [...plain, subtitle, ...toggles, toggleH4]
+    .filter((item): item is DefaultReactSuggestionItem => Boolean(item))
+    .map((item) => ({ ...item, group: headingGroup }));
+  const firstHeading = items.findIndex((item) => headingItems.some((h) => h.title === item.title));
+  const rest = items.filter((item) => !headingItems.some((h) => h.title === item.title));
+  rest.splice(Math.max(0, firstHeading), 0, ...headingItems);
+  items.splice(0, items.length, ...rest);
+  const chip: DefaultReactSuggestionItem = {
+    title: t.editor.chips.dropdownTitle,
+    subtext: t.editor.chips.dropdownSubtext,
+    aliases: t.editor.chips.dropdownAliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🏷️</span>,
+    onItemClick: () => {
+      const preset = CHIP_PRESETS[0];
+      editor.insertInlineContent([
+        { type: "chip", props: { name: preset.name, options: JSON.stringify(preset.options), value: preset.options[0].id } },
+        " ",
+      ]);
+    },
+  };
+  // Page and person chips are picked from the "@" menu.
+  const mention: DefaultReactSuggestionItem = {
+    title: t.editor.chips.mentionTitle,
+    subtext: t.editor.chips.mentionSubtext,
+    aliases: t.editor.chips.mentionAliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">@</span>,
+    onItemClick: () => editor.getExtension(SuggestionMenu)?.openSuggestionMenu("@", { deleteTriggerCharacter: true, ignoreQueryLength: true }),
+  };
+  return [...items, callout, diagram, chip, mention];
+}
+
+// "@": people who can see the page, then pages, as chips.
+function mentionItems(editor: Editor, people: MentionPerson[], pages: PageNode[], currentPageId: string): DefaultReactSuggestionItem[] {
+  const personItems = people.map((person) => ({
+    title: person.label,
+    group: t.editor.chips.people,
+    icon: <span aria-hidden="true">👤</span>,
+    onItemClick: () => editor.insertInlineContent([{ type: "personChip", props: { userId: person.userId, label: person.label } }, " "]),
+  }));
+  const pageItems = pages
+    .filter((p) => p.id !== currentPageId)
+    .map((page) => ({
+      title: page.title || t.pages.untitled,
+      group: t.editor.chips.pages,
+      icon: <span aria-hidden="true">{page.icon ?? "📄"}</span>,
+      onItemClick: () => editor.insertInlineContent([{ type: "pageChip", props: { pageId: page.id } }, " "]),
+    }));
+  return [...personItems, ...pageItems];
 }
 
 export type PageEditorProps = {
@@ -129,12 +222,18 @@ export default function PageEditor({
     dictionary: {
       ...blockNoteUk,
       placeholders: { ...blockNoteUk.placeholders, default: t.editor.placeholder },
+      slash_menu: {
+        ...blockNoteUk.slash_menu,
+        toggle_heading: { ...blockNoteUk.slash_menu.toggle_heading, ...t.editor.toggleHeadings[0] },
+        toggle_heading_2: { ...blockNoteUk.slash_menu.toggle_heading_2, ...t.editor.toggleHeadings[1] },
+        toggle_heading_3: { ...blockNoteUk.slash_menu.toggle_heading_3, ...t.editor.toggleHeadings[2] },
+      },
     },
     initialContent:
       Array.isArray(initialContent) && initialContent.length > 0
         ? (initialContent as EditorBlock[])
         : undefined,
-    tables: { headers: true },
+    tables: { headers: true, cellBackgroundColor: true, cellTextColor: true },
     // Images are compressed in the browser and stored privately; the document keeps
     // only their storage path, turned into a short-lived signed URL for display.
     uploadFile: async (file) => {
@@ -166,6 +265,16 @@ export default function PageEditor({
       return true;
     },
   });
+
+  const pagesContext = useOptionalPages();
+  const [chipPeople, setChipPeople] = useState<MentionPerson[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void getMentionCandidates(pageId).then((list) => alive && setChipPeople(list));
+    return () => {
+      alive = false;
+    };
+  }, [pageId]);
 
   const getContent = useCallback(() => editor.document as unknown[], [editor]);
   const autosave = useAutosave({ pageId, initialVersion, getContent });
@@ -205,6 +314,7 @@ export default function PageEditor({
               ...getFormattingToolbarItems(),
               <ImageWidthButtons key="imageWidthButtons" />,
               <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />,
+              <MonoButton key="monoButton" />,
               <ClearFormattingButton key="clearFormattingButton" />,
               ...(canComment ? [<CommentButton key="commentButton" onComment={startComment} />] : []),
             ]}
@@ -255,6 +365,7 @@ export default function PageEditor({
             }}
           />
         )}
+        <ChipPeopleContext value={chipPeople}>
         <BlockNoteView
           editor={editor}
           editable={editable}
@@ -273,9 +384,18 @@ export default function PageEditor({
             triggerCharacter="/"
             getItems={async (query) => filterSuggestionItems(slashMenuItems(editor), query)}
           />
+          {editable && (
+            <SuggestionMenuController
+              triggerCharacter="@"
+              getItems={async (query) =>
+                filterSuggestionItems(mentionItems(editor, chipPeople, pagesContext?.pages ?? [], pageId), query).slice(0, 12)
+              }
+            />
+          )}
           <FormattingToolbarController formattingToolbar={formattingToolbar} />
           <FilePanelController filePanel={ImageFilePanel} />
         </BlockNoteView>
+        </ChipPeopleContext>
       </div>
       {hasColumn ? (
         <>

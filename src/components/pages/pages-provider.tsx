@@ -56,6 +56,11 @@ type PagesContextValue = {
 
 const PagesContext = createContext<PagesContextValue | null>(null);
 
+// Outside a workspace (e.g. a test harness) there is no page list.
+export function useOptionalPages() {
+  return use(PagesContext);
+}
+
 export function usePages() {
   const value = use(PagesContext);
   if (!value) throw new Error("usePages must be used inside PagesProvider");

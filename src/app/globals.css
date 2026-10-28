@@ -312,3 +312,50 @@ body {
   width: 100000px;
   height: 1px;
 }
+
+/* Subtitle (as in Google Docs). */
+.ek-editor .ek-subtitle {
+  font-size: 1.35em;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* Monospace text: code font, no background. */
+.ek-editor .ek-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+/* Heading 4. */
+.ek-editor [data-content-type="heading"][data-level="4"] {
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+/* Text highlight and colours: rounded corners. */
+.ek-editor [data-style-type="backgroundColor"] {
+  border-radius: 4px;
+  padding: 0 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Links: dotted underline on a rounded backdrop, stronger on hover and focus. */
+.ek-editor .bn-editor a {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--muted);
+  text-underline-offset: 3px;
+  border-radius: 4px;
+  padding: 0 2px;
+  margin: 0 -2px;
+  transition: background-color 0.15s;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.ek-editor .bn-editor a:hover,
+.ek-editor .bn-editor a:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  text-decoration-color: var(--accent);
+}
