@@ -1,0 +1,21 @@
+colour: {"type": "color", "color": "#ffaa00"}
+gradient: {"kind": "radial", "type": "gradient", "angle": 90, "stops": [{"at": 0, "color": "#ffffff"}, {"at": 41, "color": "#123456"}, {"at": 80, "color": "#000000"}]}
+link image: {"y": 100, "url": "https://example.com/a.jpg", "type": "image"}
+css in colour: {"ok": false, "error": "invalid_cover"}
+one stop: {"ok": false, "error": "invalid_cover"}
+five stops: {"ok": false, "error": "invalid_cover"}
+http image: {"ok": false, "error": "invalid_cover"}
+quote in url: {"ok": false, "error": "invalid_cover"}
+javascript: {"ok": false, "error": "invalid_cover"}
+unknown kind: {"ok": false, "error": "invalid_cover"}
+still link image: https://example.com/a.jpg
+own upload: true
+other page's file: {"ok": false, "error": "invalid_cover"}
+made-up file: {"ok": false, "error": "invalid_cover"}
+no access: {"ok": false, "error": "forbidden"}
+viewer: {"ok": false, "error": "forbidden"}
+viewer reads cover: image
+psql: ERROR:  permission denied for table pages
+collected: 1
+cover file kept: 1
+remove: {"ok": true, "cover": null}

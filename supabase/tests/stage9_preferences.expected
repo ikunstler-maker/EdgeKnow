@@ -1,0 +1,9 @@
+defaults: system uk
+dark: true
+english: true
+bad theme: {"ok": false, "error": "invalid"}
+bad locale: {"ok": false, "error": "invalid"}
+alice: dark en
+bob untouched: system uk
+psql: ERROR:  permission denied for table profiles
+psql: ERROR:  permission denied for function set_my_preferences

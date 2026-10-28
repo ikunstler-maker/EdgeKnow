@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
 import { RegistrationToggle } from "./registration-toggle";
 
-export const metadata: Metadata = { title: `${t.platform.title} · ${t.app.name}` };
+// Read per request, so the title follows the interface language.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${t.platform.title} · ${t.app.name}` };
+}
 
 type WorkspaceStats = {
   id: string;
@@ -20,7 +23,7 @@ type WorkspaceStats = {
   created_at: string;
 };
 
-const dateFormat = new Intl.DateTimeFormat("uk-UA", { dateStyle: "medium" });
+const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" });
 const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 
 // Platform admin: statistics of every workspace. The database function returns
@@ -88,7 +91,7 @@ export default async function PlatformAdminPage() {
                 <td className="px-3 py-2 text-right">
                   {mb(w.storage_bytes)} / {w.storage_limit_mb} МБ
                 </td>
-                <td className="whitespace-nowrap px-3 py-2">{dateFormat.format(new Date(w.created_at))}</td>
+                <td className="whitespace-nowrap px-3 py-2">{dateFormat().format(new Date(w.created_at))}</td>
               </tr>
             ))}
           </tbody>

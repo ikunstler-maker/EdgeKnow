@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import type { Conflict, SaveStatus } from "./use-autosave";
 
 const noop = () => () => {};
@@ -41,7 +41,7 @@ export function ConflictBanner({
     noop,
     () =>
       conflict.updatedAt
-        ? new Intl.DateTimeFormat("uk-UA", { timeStyle: "short" }).format(new Date(conflict.updatedAt))
+        ? new Intl.DateTimeFormat(dateLocale(), { timeStyle: "short" }).format(new Date(conflict.updatedAt))
         : "—",
     () => "",
   );

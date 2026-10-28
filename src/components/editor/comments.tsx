@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import {
   mentionsIn,
@@ -37,7 +37,7 @@ type Editor = typeof schema.BlockNoteEditor;
 type Draft = { from: number; to: number; quoted: string };
 
 const c = t.comments;
-const dateFormat = new Intl.DateTimeFormat("uk-UA", { dateStyle: "short", timeStyle: "short" });
+const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "short", timeStyle: "short" });
 const buttonClass =
   "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-8";
 const primaryClass =
@@ -436,7 +436,7 @@ function CommentRow({
       <div className="flex items-baseline gap-2">
         <span className="min-w-0 flex-1 truncate font-medium">{author}</span>
         <time className="shrink-0 text-xs text-muted" dateTime={comment.createdAt}>
-          {dateFormat.format(new Date(comment.createdAt))}
+          {dateFormat().format(new Date(comment.createdAt))}
         </time>
       </div>
       {editing ? (

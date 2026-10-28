@@ -120,3 +120,7 @@ export async function searchPages(
   });
   return (data ?? []) as SearchHit[];
 }
+
+export async function setPageCover(id: string, cover: unknown) {
+  return callPageRpc<{ cover: unknown }>("set_page_cover", { target_page: id, new_cover: cover });
+}

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { LAST_WORKSPACE_COOKIE } from "@/lib/paths";
+import { LOCALE_COOKIE, THEME_COOKIE, asLocale, asTheme } from "@/lib/preferences";
 
 // Routes reachable without access to any workspace.
 const PUBLIC_PATHS = ["/login", "/auth", "/no-access", "/invite"];
@@ -79,6 +80,30 @@ export async function updateSession(request: NextRequest) {
 
   if (pathname === "/login" || pathname.startsWith("/no-access")) {
     return redirectTo("/");
+  }
+
+  // On a new device the language and theme come from the profile once; from then
+  // on the cookies carry them (and the page renders with them on this very request).
+  if (!request.cookies.get(LOCALE_COOKIE) || !request.cookies.get(THEME_COOKIE)) {
+    const { data: prefs } = await supabase
+      .from("profiles")
+      .select("theme, locale")
+      .eq("id", String(data?.claims?.sub))
+      .maybeSingle();
+    const values = {
+      [LOCALE_COOKIE]: request.cookies.get(LOCALE_COOKIE)?.value ?? asLocale(prefs?.locale) ?? "uk",
+      [THEME_COOKIE]: request.cookies.get(THEME_COOKIE)?.value ?? asTheme(prefs?.theme) ?? "system",
+    };
+    Object.entries(values).forEach(([name, value]) => request.cookies.set(name, value));
+    const next = NextResponse.next({ request });
+    response.cookies.getAll().forEach((cookie) => next.cookies.set(cookie));
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "set-cookie" && !next.headers.has(key)) next.headers.set(key, value);
+    });
+    Object.entries(values).forEach(([name, value]) =>
+      next.cookies.set(name, value, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true }),
+    );
+    response = next;
   }
 
   // Remember the last opened workspace for the next visit to "/".

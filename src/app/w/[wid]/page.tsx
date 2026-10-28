@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { pagePath, workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
@@ -14,7 +14,7 @@ type MentionRow = {
   thread: { id: string; page: { id: string; title: string; icon: string | null } };
 };
 
-const dateFormat = new Intl.DateTimeFormat("uk-UA", { dateStyle: "short", timeStyle: "short" });
+const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "short", timeStyle: "short" });
 
 export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
   const { wid } = await params;
@@ -66,7 +66,7 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
                   <span className="block text-xs text-muted">
                     {m.author?.name || m.author?.email || t.comments.formerMember} ·{" "}
                     {t.mentions.on(`${m.thread.page.icon ? `${m.thread.page.icon} ` : ""}${m.thread.page.title || t.pages.untitled}`)} ·{" "}
-                    {dateFormat.format(new Date(m.created_at))}
+                    {dateFormat().format(new Date(m.created_at))}
                   </span>
                   <span className="line-clamp-2 text-sm">{m.body}</span>
                 </Link>

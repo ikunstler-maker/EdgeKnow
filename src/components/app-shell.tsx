@@ -5,6 +5,7 @@ import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import type { WorkspaceSummary } from "@/lib/workspace";
 import { usePages } from "@/components/pages/pages-provider";
+import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
 
 // Desktop: the sidebar is always on the left. Phone: it lives in a drawer opened
@@ -104,6 +105,7 @@ export function AppShell({
         </header>
         {children}
       </div>
+      <FeedbackButton />
     </div>
   );
 }

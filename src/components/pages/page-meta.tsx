@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 
 const noop = () => () => {};
 
@@ -11,7 +11,7 @@ function LocalTime({ iso }: { iso: string }) {
   const text = useSyncExternalStore(
     noop,
     () =>
-      new Intl.DateTimeFormat("uk-UA", { dateStyle: "medium", timeStyle: "short" }).format(
+      new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium", timeStyle: "short" }).format(
         new Date(iso),
       ),
     () => "",

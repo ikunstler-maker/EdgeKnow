@@ -6,6 +6,7 @@ import { THREAD_COLUMNS, toThread, type PeopleNames, type ThreadRow } from "@/li
 import { canEdit, type PageRole } from "@/lib/pages";
 import { getWorkspace } from "@/lib/workspace";
 import { PageBody } from "@/components/editor/page-body";
+import { PageCover } from "@/components/pages/page-cover";
 import { PageHeader } from "@/components/pages/page-header";
 import { ShareButton } from "@/components/pages/share-dialog";
 import { PageMeta } from "@/components/pages/page-meta";
@@ -25,6 +26,7 @@ type PageRecord = {
   deleted_at: string | null;
   trashed_with: string | null;
   my_role: PageRole;
+  cover: unknown;
   author: { name: string | null; email: string } | null;
 };
 
@@ -36,7 +38,7 @@ async function loadPage(id: string): Promise<PageRecord | null> {
   const { data } = await supabase
     .from("pages")
     .select(
-      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, author:profiles!pages_created_by_fkey(name, email)",
+      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, author:profiles!pages_created_by_fkey(name, email)",
     )
     .eq("id", id)
     .maybeSingle()
@@ -97,6 +99,8 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
   const canComment = page.my_role !== "viewer" && !page.deleted_at;
 
   return (
+    <div className="flex flex-1 flex-col">
+    <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editable} />
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
       {!page.deleted_at && (
@@ -130,5 +134,6 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
         />
       </div>
     </main>
+    </div>
   );
 }

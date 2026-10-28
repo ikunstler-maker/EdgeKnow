@@ -10,11 +10,12 @@ import { searchPages, type SearchHit } from "@/app/page-actions";
 import { usePages } from "@/components/pages/pages-provider";
 
 const s = t.search;
+// Labels are read when shown, in the current language.
 const DEPTHS = [
-  { value: "0", label: s.depths.level },
-  { value: "1", label: s.depths.one },
-  { value: "2", label: s.depths.two },
-  { value: "all", label: s.depths.all },
+  { value: "0", label: () => s.depths.level },
+  { value: "1", label: () => s.depths.one },
+  { value: "2", label: () => s.depths.two },
+  { value: "all", label: () => s.depths.all },
 ];
 
 // Matches arrive marked with \u0001…\u0002 and are shown as <mark>, the rest as text.
@@ -162,7 +163,7 @@ function SearchDialog({
               >
                 {DEPTHS.map((d) => (
                   <option key={d.value} value={d.value}>
-                    {d.label}
+                    {d.label()}
                   </option>
                 ))}
               </select>

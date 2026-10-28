@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspace } from "@/lib/workspace";
 import { TrashList, type TrashItem } from "./trash-list";
 
-export const metadata: Metadata = { title: `${t.trash.title} · ${t.app.name}` };
+// Read per request, so the title follows the interface language.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${t.trash.title} · ${t.app.name}` };
+}
 
 const RETENTION_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -13,7 +16,7 @@ type TrashRow = { id: string; title: string; icon: string | null; deleted_at: st
 
 // Only the pages the user deleted themselves; their subpages come back with them.
 function toTrashItems(rows: TrashRow[], now = Date.now()): TrashItem[] {
-  const dateFormat = new Intl.DateTimeFormat("uk-UA", { dateStyle: "medium" });
+  const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" });
   return rows
     .filter((row) => row.trashed_with === row.id)
     .map((row) => {
@@ -22,7 +25,7 @@ function toTrashItems(rows: TrashRow[], now = Date.now()): TrashItem[] {
         id: row.id,
         title: row.title || t.pages.untitled,
         icon: row.icon,
-        deletedLabel: t.trash.deletedAt(dateFormat.format(deletedAt)),
+        deletedLabel: t.trash.deletedAt(dateFormat().format(deletedAt)),
         daysLeft: Math.ceil((deletedAt.getTime() + RETENTION_DAYS * DAY_MS - now) / DAY_MS),
       };
     });

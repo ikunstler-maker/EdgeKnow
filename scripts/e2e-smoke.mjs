@@ -61,7 +61,8 @@ async function newPage(cookies = []) {
   lastPage = page;
   page.on("dialog", (d) => d.accept().catch(() => {}));
   page.on("response", (r) => {
-    if (r.status() >= 500) problems.push(`HTTP ${r.status()} ${r.url()}`);
+    // 503 from the feedback route is expected in CI: no Google Sheet is connected there.
+    if (r.status() >= 500 && !(r.status() === 503 && r.url().endsWith("/api/feedback"))) problems.push(`HTTP ${r.status()} ${r.url()}`);
   });
   return page;
 }
@@ -663,12 +664,14 @@ await wide.keyboard.press("Backspace");
 check("contents/comments tabs", (await wide.getByRole("tab", { name: "Зміст" }).count()) === 1 && (await wide.getByRole("tab", { name: /Коментарі/ }).count()) === 1);
 await wide.getByRole("tab", { name: "Зміст" }).click();
 check("contents tab lists headings", (await wide.getByRole("navigation", { name: "Зміст" }).getByText("Section one").count()) > 0);
-await wide.getByLabel("Зміст:").selectOption("left");
+await wide.getByRole("button", { name: "Зміст:" }).click();
+await wide.getByRole("radio", { name: "ліворуч замість дерева" }).click();
 await wide.waitForTimeout(300);
 check("contents move to the sidebar instead of the tree", (await wide.locator("aside").getByRole("region", { name: "Зміст" }).getByText("Section one").count()) > 0 && (await wide.locator("aside").getByRole("button", { name: /Дерево сторінок/ }).count()) > 0);
 await wide.locator("aside").getByRole("button", { name: /Дерево сторінок/ }).click();
 check("tree comes back on request", (await wide.locator("aside").getByRole("tree").count()) > 0);
-await wide.getByLabel("Зміст:").selectOption("right");
+await wide.getByRole("button", { name: "Зміст:" }).click();
+await wide.getByRole("radio", { name: "праворуч (перемикач)" }).click();
 
 // A reader: chip is read-only, a page they can't open shows no title.
 await colleague.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
@@ -720,6 +723,81 @@ await colleagueSearch.fill("Extras");
 await colleague.getByRole("list", { name: "Результати пошуку" }).waitFor({ timeout: 10000 });
 check("search finds shared pages", (await colleague.getByRole("list", { name: "Результати пошуку" }).getByText("Extras").count()) > 0);
 await colleague.keyboard.press("Escape");
+
+// --- Contents/comments switch follows the scroll ---------------------------------
+
+await wide.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
+await wide.waitForSelector(".bn-editor");
+await wide.evaluate(() => {
+  const spacer = document.createElement("div");
+  spacer.style.height = "3000px";
+  document.querySelector(".ek-editor").parentElement.appendChild(spacer);
+});
+await wide.mouse.wheel(0, 2000);
+await wide.waitForTimeout(400);
+const pill = await wide.getByRole("tab", { name: /Зміст/ }).boundingBox();
+check("contents/comments switch stays on screen while scrolling", pill !== null && pill.y >= 0 && pill.y < 200, JSON.stringify(pill));
+
+// --- Feedback ------------------------------------------------------------------------
+
+await wide.getByRole("button", { name: "Залишити відгук" }).click();
+const feedback = wide.getByRole("dialog", { name: "Відгук про вікі" });
+await feedback.getByLabel("Що це?").selectOption("bug");
+await feedback.getByLabel("Опис").fill("Smoke test feedback");
+await feedback.getByRole("button", { name: "Надіслати" }).click();
+// CI has no sheet configured: the form says so instead of pretending it worked.
+await feedback.getByRole("alert").waitFor();
+check("feedback without a sheet says it's not connected", (await feedback.getByRole("alert").innerText()).includes("не підключено"));
+await wide.keyboard.press("Escape");
+const badFeedback = await wide.evaluate(async () => (await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "hack", text: "" }) })).status);
+check("feedback rejects unknown types", badFeedback === 400, String(badFeedback));
+const anonFeedback = await fetch(`${APP}/api/feedback`, { method: "POST", body: "{}", redirect: "manual", headers: { "Content-Type": "application/json" } });
+check("feedback needs a session", anonFeedback.status === 401 || (anonFeedback.status >= 300 && anonFeedback.status < 400), String(anonFeedback.status));
+
+// --- Page cover ------------------------------------------------------------------------
+
+const coverOf = (id) => JSON.parse(sql(`select coalesce(cover, 'null'::jsonb)::text from public.pages where id = '${id}'`));
+await wide.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
+await wide.getByRole("button", { name: /Додати обкладинку/ }).click();
+await wide.getByRole("tab", { name: "Колір" }).click();
+await wide.getByRole("group", { name: "Кольори" }).getByRole("button").first().click();
+check("colour cover saved", await until(() => coverOf(extrasPage)?.type === "color"), JSON.stringify(coverOf(extrasPage)));
+await wide.locator('[data-testid="page-cover"]').hover();
+await wide.getByRole("button", { name: "Змінити обкладинку" }).click();
+await wide.getByRole("tab", { name: "Градієнт" }).click();
+await wide.getByRole("radio", { name: "Радіальний" }).click();
+await wide.getByRole("button", { name: /Точка кольору/ }).click();
+await wide.getByRole("button", { name: "Застосувати" }).click();
+const gradientSaved = await until(() => coverOf(extrasPage)?.type === "gradient");
+const savedGradient = coverOf(extrasPage);
+check("gradient cover saved (radial, 3 stops)", gradientSaved && savedGradient.kind === "radial" && savedGradient.stops.length === 3, JSON.stringify(savedGradient));
+await colleague.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
+await colleague.waitForSelector('[data-testid="page-cover"]');
+check("reader sees the cover but can't change it", (await colleague.getByRole("button", { name: "Змінити обкладинку" }).count()) === 0);
+const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");
+const readerCover = await colleagueClient.rpc("set_page_cover", { target_page: extrasPage, new_cover: null });
+check("reader's direct cover change refused", readerCover.data?.error === "forbidden", JSON.stringify(readerCover.data));
+
+// --- Theme and language --------------------------------------------------------------
+
+const prefsOf = (email) => sql(`select theme || ' ' || locale from public.profiles where email = '${email}'`);
+await wide.getByRole("radio", { name: "Темна", exact: true }).click();
+check("dark theme applied", (await wide.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+check("theme saved in the profile", await until(() => prefsOf("alice@alpha.test").startsWith("dark")), prefsOf("alice@alpha.test"));
+await wide.reload();
+check("theme kept after reload", (await wide.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+await Promise.all([wide.waitForEvent("load"), wide.getByRole("radio", { name: "EN" }).click()]);
+await wide.waitForSelector("aside");
+check("interface switches to English", (await wide.locator("aside").getByText("New page").count()) > 0 && (await wide.evaluate(() => document.documentElement.lang)) === "en");
+check("language saved in the profile", prefsOf("alice@alpha.test") === "dark en", prefsOf("alice@alpha.test"));
+// A new device (no cookies yet) gets the language and theme from the profile.
+const { cookies: freshCookies } = await sessionCookies("alice@alpha.test");
+const freshDevice = await newPage(freshCookies);
+await freshDevice.goto(`${APP}/w/${alphaShort}`);
+check("new device follows the profile", (await freshDevice.evaluate(() => `${document.documentElement.lang} ${document.documentElement.dataset.theme}`)) === "en dark");
+await Promise.all([wide.waitForEvent("load"), wide.getByRole("radio", { name: "UA" }).click()]);
+await wide.getByRole("radio", { name: "System", exact: true }).or(wide.getByRole("radio", { name: "Системна", exact: true })).first().click();
+check("back to Ukrainian and system theme", await until(() => prefsOf("alice@alpha.test") === "system uk"), prefsOf("alice@alpha.test"));
 
 await aliceClient.auth.signOut();
 await browser.close();

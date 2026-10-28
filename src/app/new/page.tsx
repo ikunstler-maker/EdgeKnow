@@ -4,7 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { listMyWorkspaces } from "@/lib/workspace";
 import { NewWorkspaceForm } from "./new-workspace-form";
 
-export const metadata: Metadata = { title: `${t.newWorkspace.title} · ${t.app.name}` };
+// Read per request, so the title follows the interface language.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${t.newWorkspace.title} · ${t.app.name}` };
+}
 
 export default async function NewWorkspacePage() {
   await getCurrentUser();

@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 // Chips: small coloured pills inside the text. A dropdown chip switches between
 // options the author defines (statuses, versions…); page and person chips point
 // at a page or a colleague, like smart chips in Google Docs.
@@ -22,27 +24,30 @@ export const CHIP_LABEL_MAX = 40;
 
 const option = (id: string, label: string, color: ChipColor): ChipOption => ({ id, label, color });
 
-// Ready-made sets; the Ukrainian labels are defaults the author can rename.
-export const CHIP_PRESETS: ChipSet[] = [
-  {
-    name: "Статус",
-    options: [
-      option("todo", "Не розпочато", "gray"),
-      option("doing", "В роботі", "blue"),
-      option("review", "На перевірці", "yellow"),
-      option("done", "Готово", "green"),
-      option("blocked", "Заблоковано", "red"),
-    ],
-  },
-  {
-    name: "Версія",
-    options: [option("v1", "v1", "gray"), option("v2", "v2", "blue"), option("v3", "v3", "purple")],
-  },
-  {
-    name: "Пріоритет",
-    options: [option("low", "Низький", "green"), option("mid", "Середній", "yellow"), option("high", "Високий", "red")],
-  },
-];
+// Ready-made sets, in the interface language; the author can rename everything.
+export function chipPresets(): ChipSet[] {
+  const p = t.editor.chips.presets;
+  return [
+    {
+      name: p.status,
+      options: [
+        option("todo", p.todo, "gray"),
+        option("doing", p.doing, "blue"),
+        option("review", p.review, "yellow"),
+        option("done", p.done, "green"),
+        option("blocked", p.blocked, "red"),
+      ],
+    },
+    {
+      name: p.version,
+      options: [option("v1", "v1", "gray"), option("v2", "v2", "blue"), option("v3", "v3", "purple")],
+    },
+    {
+      name: p.priority,
+      options: [option("low", p.low, "green"), option("mid", p.mid, "yellow"), option("high", p.high, "red")],
+    },
+  ];
+}
 
 // Options are stored as a JSON string prop; whatever comes back is checked.
 export function parseOptions(value: string): ChipOption[] {
