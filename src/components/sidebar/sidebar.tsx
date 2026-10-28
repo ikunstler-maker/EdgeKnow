@@ -11,6 +11,8 @@ import type { WorkspaceSummary } from "@/lib/workspace";
 import { usePages } from "@/components/pages/pages-provider";
 import { SignOutButton } from "@/components/sign-out-button";
 import { expandAll } from "./expanded-store";
+import { HeadingList, useActiveHeading, type Heading } from "@/components/editor/table-of-contents";
+import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
 import { PageTree } from "./page-tree";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
@@ -30,6 +32,8 @@ export function Sidebar({
   const pathname = usePathname();
   const { workspace, pages, create, pending } = usePages();
   const currentId = currentPageId(pathname);
+  // A page with comments may ask to show its contents here instead of the tree.
+  const sidebarToc = useSidebarToc();
 
   // Open the branches leading to the page being viewed.
   useEffect(() => {
@@ -68,7 +72,20 @@ export function Sidebar({
       </button>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
+        {sidebarToc && (
+          <button
+            type="button"
+            onClick={() => setSidebarShowsTree(!sidebarToc.showTree)}
+            className="mb-1 flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-muted hover:bg-surface hover:text-foreground md:min-h-9"
+          >
+            {sidebarToc.showTree ? `☰ ${t.toc.showToc}` : `🗂 ${t.toc.showTree}`}
+          </button>
+        )}
+        {sidebarToc && !sidebarToc.showTree ? (
+          <SidebarContents headings={sidebarToc.headings} onPick={onNavigate} />
+        ) : (
+          <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
+        )}
       </div>
 
       <div className="border-t border-border pt-2">
@@ -83,5 +100,15 @@ export function Sidebar({
         </div>
       </div>
     </nav>
+  );
+}
+
+function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: () => void }) {
+  const active = useActiveHeading(headings);
+  return (
+    <section aria-label={t.toc.title}>
+      <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
+      <HeadingList headings={headings} active={active} onPick={onPick} />
+    </section>
   );
 }

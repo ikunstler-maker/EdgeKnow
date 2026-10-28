@@ -42,6 +42,7 @@ import {
 import { ImageFilePanel, ImageWidthButtons } from "./image-tools";
 import { schema, type EditorBlock } from "./schema";
 import { collectHeadings, scrollToBlock, TableOfContents, type Heading } from "./table-of-contents";
+import { publishSidebarToc, setTocPlacement, useTocPlacement, type TocPlacement } from "./toc-store";
 import { useAutosave } from "./use-autosave";
 import { SaveIndicator, ConflictBanner } from "./save-status";
 import { fetchYouTubeInfo } from "./youtube-block";
@@ -304,7 +305,19 @@ export default function PageEditor({
   const wide = useWide();
   const [sheet, setSheet] = useState<"threads" | "archive" | null>(null);
   const hasColumn = wide && (comments.visible.length > 0 || comments.draft !== null);
-  const startComment = comments.start;
+  // With comments on the page, the contents go where the reader chose.
+  const placement = useTocPlacement();
+  const [tab, setTab] = useState<"toc" | "comments">("comments");
+  const commentsStart = comments.start;
+  const startComment = useCallback(() => {
+    setTab("comments");
+    commentsStart();
+  }, [commentsStart]);
+  const leftToc = hasColumn && placement === "left";
+  useEffect(() => {
+    publishSidebarToc(leftToc ? headings : null);
+    return () => publishSidebarToc(null);
+  }, [leftToc, headings]);
   // On narrow screens a new comment is written in the sheet.
   const sheetShown = sheet ?? (!wide && comments.draft ? "threads" : null);
 
@@ -346,6 +359,7 @@ export default function PageEditor({
     const id = (target as HTMLElement).closest?.("[data-comment-thread]")?.getAttribute("data-comment-thread");
     if (!id || !comments.visible.some((th) => th.id === id && th.status === "open")) return;
     comments.setActive(id);
+    setTab("comments");
     if (!wide) setSheet("threads");
   };
 
@@ -415,12 +429,25 @@ export default function PageEditor({
         </BlockNoteView>
         </ChipPeopleContext>
         </EditorPageContext>
+        {hasColumn && placement === "bottom" && <TableOfContents headings={headings} variant="bottom" />}
       </div>
       {hasColumn ? (
-        <>
-          <CommentsColumn controller={comments} props={commentProps} layoutKey={layoutKey} />
-          <TableOfContents headings={headings} asButton />
-        </>
+        <div>
+          <RightPanelHeader
+            placement={placement}
+            tab={tab}
+            onTab={setTab}
+            commentCount={comments.visible.length}
+            hasHeadings={headings.length > 0}
+          />
+          {placement === "right" && tab === "toc" && headings.length > 0 ? (
+            <div className="sticky top-12 max-h-[calc(100dvh-6rem)] overflow-y-auto">
+              <TableOfContents headings={headings} variant="embedded" />
+            </div>
+          ) : (
+            <CommentsColumn controller={comments} props={commentProps} layoutKey={layoutKey} />
+          )}
+        </div>
       ) : (
         <TableOfContents headings={headings} />
       )}
@@ -439,6 +466,57 @@ export default function PageEditor({
             comments.cancelDraft();
           }}
         />
+      )}
+    </div>
+  );
+}
+
+// The right column on pages with comments: "Зміст | Коментарі" and where the
+// contents should live.
+function RightPanelHeader({
+  placement,
+  tab,
+  onTab,
+  commentCount,
+  hasHeadings,
+}: {
+  placement: TocPlacement;
+  tab: "toc" | "comments";
+  onTab: (tab: "toc" | "comments") => void;
+  commentCount: number;
+  hasHeadings: boolean;
+}) {
+  const tabs = placement === "right" && hasHeadings;
+  const tabClass = (active: boolean) =>
+    `min-h-8 flex-1 rounded px-2 text-sm ${active ? "bg-background font-medium shadow-sm" : "text-muted hover:text-foreground"}`;
+  return (
+    <div className="mb-3 space-y-2">
+      {tabs ? (
+        <div role="tablist" aria-label={t.toc.panel} className="flex gap-1 rounded-md bg-surface p-1">
+          <button type="button" role="tab" aria-selected={tab === "toc"} onClick={() => onTab("toc")} className={tabClass(tab === "toc")}>
+            {t.toc.title}
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => onTab("comments")} className={tabClass(tab === "comments")}>
+            {t.comments.column}
+            {commentCount > 0 && ` (${commentCount})`}
+          </button>
+        </div>
+      ) : (
+        <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted">{t.comments.column}</p>
+      )}
+      {hasHeadings && (
+        <label className="flex items-center gap-2 px-1 text-xs text-muted">
+          {t.toc.placementLabel}
+          <select
+            value={placement}
+            onChange={(event) => setTocPlacement(event.target.value as TocPlacement)}
+            className="min-h-8 flex-1 rounded-md border border-border bg-background px-1 text-xs text-foreground"
+          >
+            <option value="right">{t.toc.placements.right}</option>
+            <option value="bottom">{t.toc.placements.bottom}</option>
+            <option value="left">{t.toc.placements.left}</option>
+          </select>
+        </label>
       )}
     </div>
   );
