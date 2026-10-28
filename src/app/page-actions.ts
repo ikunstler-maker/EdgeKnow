@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import type { GrantRole, PageRole } from "@/lib/pages";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 
 // Permission checks live in the database functions; these actions only forward
 // the call and refresh every page that shows the tree.
@@ -11,7 +11,7 @@ async function callPageRpc<T extends object = object>(
   fn: string,
   args: Record<string, unknown>,
 ): Promise<ActionResult<T>> {
-  const supabase = await createClient();
+  const supabase = await dataClient();
   const { data, error } = await supabase.rpc(fn, args);
   if (error || !data) return { ok: false, error: "unknown" };
   revalidatePath("/", "layout");
@@ -72,7 +72,7 @@ export type PageSharing = {
 };
 
 export async function getPageSharing(id: string): Promise<ActionResult<PageSharing>> {
-  const supabase = await createClient();
+  const supabase = await dataClient();
   const { data, error } = await supabase.rpc("page_sharing", { target_page: id });
   if (error || !data) return { ok: false, error: "unknown" };
   return data as ActionResult<PageSharing>;
@@ -111,7 +111,7 @@ export async function searchPages(
   rootId: string | null,
   maxDepth: number | null,
 ): Promise<SearchHit[]> {
-  const supabase = await createClient();
+  const supabase = await dataClient();
   const { data } = await supabase.rpc("search_pages", {
     ws: workspaceId,
     query: query.slice(0, 200),

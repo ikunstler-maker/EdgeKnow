@@ -21,7 +21,7 @@ export default async function PersonProfilePage({ params }: PageProps<"/w/[wid]/
   if (!workspace) return null;
   const user = await getCurrentUser();
   if (uid === user.id) redirect(workspacePath(workspace.shortId, "/profile"));
-  const stats = UUID.test(uid) ? await loadProfileStats(workspace.id, uid) : null;
+  const stats = UUID.test(uid) ? await loadProfileStats(workspace.shortId, workspace.id, uid) : null;
 
   if (!stats) {
     return (

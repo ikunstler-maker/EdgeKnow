@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { WORKSPACE_HEADER } from "@/lib/team-db/header";
 import { NextResponse, type NextRequest } from "next/server";
 import { LAST_WORKSPACE_COOKIE } from "@/lib/paths";
 import { LOCALE_COOKIE, THEME_COOKIE, asLocale, asTheme } from "@/lib/preferences";
@@ -27,6 +28,10 @@ function workspaceIdFromPath(pathname: string): string | null {
 }
 
 export async function updateSession(request: NextRequest) {
+  // Only the proxy says which workspace a request belongs to.
+  request.headers.delete(WORKSPACE_HEADER);
+  const pathWorkspace = workspaceIdFromPath(request.nextUrl.pathname);
+  if (pathWorkspace) request.headers.set(WORKSPACE_HEADER, pathWorkspace);
   let response = NextResponse.next({ request });
 
   // Create a new client per request; never cache it in a module-level variable.
