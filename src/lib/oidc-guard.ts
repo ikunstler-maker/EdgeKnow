@@ -21,5 +21,6 @@ end;
 $$;
 alter role authenticator set pgrst.db_pre_request = 'public.edgeknow_guard';
 notify pgrst, 'reload config';
+notify pgrst, 'reload schema';
 `;
 }
