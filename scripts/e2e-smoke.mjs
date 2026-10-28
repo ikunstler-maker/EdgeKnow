@@ -303,7 +303,7 @@ await alice.keyboard.type("/зображення");
 await alice.getByRole("option", { name: /Зображення/ }).first().waitFor();
 await alice.keyboard.press("Enter");
 await alice.locator(".bn-panel input[type=file]").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: pngBuffer });
-await alice.locator(".bn-editor img.bn-visual-media[src^='http']").first().waitFor({ timeout: 60000 });
+await alice.locator(".bn-editor img.bn-visual-media[src^='/api/files/']").first().waitFor({ timeout: 60000 });
 await alice.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
 await alice.waitForTimeout(1500);
 const stored = sql(`select mime_type || '|' || bytes || '|' || width || 'x' || height || '|' || storage_path from public.attachments where page_id = '${imagePage}'`).split("|");
