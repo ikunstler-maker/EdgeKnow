@@ -964,6 +964,33 @@ check("outsider never sees the profile", (await bob.getByText("Символів 
 await alice.getByRole("radio", { name: /Тільки я/ }).check();
 await alice.waitForFunction(() => !document.querySelector("input[name=profile-visibility]:disabled"));
 
+// --- Sign-in for team databases (path C) --------------------------------------------------
+
+const discovery = await fetch(`${APP}/oidc/.well-known/openid-configuration`);
+const discoveryJson = await discovery.json().catch(() => ({}));
+check("OIDC discovery is public", discovery.status === 200 && discoveryJson.issuer === `${APP}/oidc` && discoveryJson.jwks_uri === `${APP}/oidc/jwks`, `${discovery.status} ${JSON.stringify(discoveryJson).slice(0, 160)}`);
+const jwksText = await (await fetch(`${APP}/oidc/jwks`)).text();
+check("JWKS publishes only public keys", jwksText.includes('"kty":"EC"') && !jwksText.includes('"d"'), jwksText.slice(0, 160));
+const anonToken = await fetch(`${APP}/api/oidc/token`, { method: "POST", body: "{}", redirect: "manual" });
+check("no token without signing in", anonToken.status >= 300 && anonToken.status !== 200, String(anonToken.status));
+const tokenFor = (workspace) =>
+  fetch(`${APP}/api/oidc/token`, { method: "POST", headers: { cookie: cookieHeader, "content-type": "application/json" }, body: JSON.stringify(workspace ? { workspace } : {}) });
+const minted = await tokenFor(alphaId);
+const { token: teamToken } = await minted.json().catch(() => ({}));
+const { createRemoteJWKSet, jwtVerify } = await import("jose");
+const verified = teamToken
+  ? await jwtVerify(teamToken, createRemoteJWKSet(new URL(`${APP}/oidc/jwks`)), { issuer: `${APP}/oidc`, audience: "authenticated" }).catch((e) => ({ error: e.message }))
+  : { error: "no token" };
+const aliceUserId = sql("select id from public.profiles where email = 'alice@alpha.test'");
+check(
+  "a member gets a short-lived token for their team database",
+  minted.status === 200 && verified.payload?.sub === aliceUserId && verified.payload?.role === "authenticated" && verified.payload?.ek_workspace === alphaId && verified.payload.exp - verified.payload.iat <= 600,
+  `${minted.status} ${verified.error ?? JSON.stringify(verified.payload ?? {}).slice(0, 200)}`,
+);
+const betaId = sql("select id from public.workspaces where name = 'Beta'");
+const foreign = await tokenFor(betaId);
+check("no token for someone else's workspace", foreign.status === 403, String(foreign.status));
+
 await aliceClient.auth.signOut();
 await browser.close();
 

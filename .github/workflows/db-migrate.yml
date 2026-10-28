@@ -80,6 +80,8 @@ jobs:
           export DRIVE_TOKEN_KEY="ci-drive-token-key-$(openssl rand -hex 16)"
           export DRIVE_FAKE_DIR="$RUNNER_TEMP/fake-drive"
           export CRON_SECRET="ci-cron-secret"
+          # A throwaway signing key for EdgeKnow's sign-in for team databases (path C).
+          export EDGEKNOW_OIDC_SIGNING_KEYS="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
           echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"
           npm run build
