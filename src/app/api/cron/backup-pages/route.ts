@@ -3,6 +3,8 @@ import { backupWorkspace, snapshotWorkspace } from "@/lib/drive/backup";
 import type { DriveConnection } from "@/lib/drive/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { migrateAllTeams } from "@/lib/team-db/connect";
+import { teamAdmin } from "@/lib/team-db/files";
+import { teamDatabase, teamReady } from "@/lib/team-db/sync";
 
 // Daily (vercel.json): backs up changed pages of every workspace with a Drive.
 // Needs CRON_SECRET (Vercel sends it as a bearer token) and SUPABASE_SECRET_KEY.
@@ -23,8 +25,10 @@ export async function GET(request: NextRequest) {
   const results: Record<string, unknown> = {};
   for (const connection of (data ?? []) as DriveConnection[]) {
     try {
-      const pages = await backupWorkspace(admin, connection, 200);
-      results[connection.workspace_id] = { ...pages, snapshot: (await snapshotWorkspace(admin, connection)).saved };
+      const team = await teamDatabase(admin, connection.workspace_id);
+      const source = team && teamReady(team) ? teamAdmin(team) : admin;
+      const pages = await backupWorkspace(admin, connection, 200, source);
+      results[connection.workspace_id] = { ...pages, snapshot: (await snapshotWorkspace(admin, connection, source)).saved };
     } catch {
       results[connection.workspace_id] = { error: "drive_failed" };
     }

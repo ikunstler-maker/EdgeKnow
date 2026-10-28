@@ -17,8 +17,10 @@ export async function GET(_request: NextRequest, { params }: RouteContext<"/api/
   const team = await teamOfPath(path);
   if (team) {
     const rows = await teamDataFor(team.shortId);
-    const { data } = await rows.from("attachments").select("storage_path").eq("storage_path", path).maybeSingle();
-    if (!data) return new NextResponse(null, { status: 404 });
+    const { data } = await rows.from("attachments").select(ATTACHMENT_COLUMNS).eq("storage_path", path).maybeSingle();
+    const teamRow = data as AttachmentRow | null;
+    if (!teamRow) return new NextResponse(null, { status: 404 });
+    if (teamRow.storage_backend === "drive") return streamFromDrive(teamRow);
     const { data: signed } = await teamStorage(team.db).storage.from(TEAM_BUCKET).createSignedUrl(path, 3600);
     if (!signed?.signedUrl) return new NextResponse(null, { status: 404 });
     return NextResponse.redirect(signed.signedUrl, { status: 302, headers: { "Cache-Control": "private, max-age=3000" } });
@@ -35,6 +37,11 @@ export async function GET(_request: NextRequest, { params }: RouteContext<"/api/
     return NextResponse.redirect(signed.signedUrl, { status: 302, headers: { "Cache-Control": "private, max-age=3000" } });
   }
 
+  return streamFromDrive(row);
+}
+
+// A file on the workspace's Google Drive, streamed by our server.
+async function streamFromDrive(row: AttachmentRow) {
   const admin = createAdminClient();
   if (!admin) return new NextResponse(null, { status: 503 });
   try {

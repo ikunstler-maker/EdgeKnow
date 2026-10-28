@@ -215,9 +215,9 @@ export default async function WorkspaceSettingsPage({
           />
         )}
         {tab === "storage" && teamRow?.data && (
-          <p className="rounded-lg border border-border p-4 text-sm">{t.teamDatabase.filesInTeam}</p>
+          <p className="mb-4 rounded-lg border border-border p-4 text-sm">{t.teamDatabase.filesInTeam}</p>
         )}
-        {tab === "storage" && !teamRow?.data && storage?.data && (
+        {tab === "storage" && storage?.data && (
           <StoragePanel
             workspaceId={workspace.id}
             status={storage.data as StorageStatus}

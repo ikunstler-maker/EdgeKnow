@@ -42,8 +42,7 @@ export async function syncTeam(admin: SupabaseClient, db: TeamDatabase, issuer: 
     fetch(`${db.project_url}/rest/v1/rpc/team_sync`, {
       method: "POST",
       headers: { apikey: secretKey, Authorization: `Bearer ${secretKey}`, "Content-Type": "application/json" },
-      // Files of team workspaces go to the team's own storage; Google Drive for them comes later.
-      body: JSON.stringify({ payload: { ...payload, settings: { ...payload.settings, issuer, files_on_drive: false } } }),
+      body: JSON.stringify({ payload: { ...payload, settings: { ...payload.settings, issuer } } }),
       signal: AbortSignal.timeout(15_000),
       cache: "no-store",
     });
