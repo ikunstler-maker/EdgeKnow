@@ -1,0 +1,18 @@
+title: Дизайн-система, Кольори
+prefix in text: Відтінки, Кольори, Приватні нотатки
+two words: Відтінки
+diagram node: Кольори
+link card: Кольори
+snippet: [Основна] палітра для дизайнерів  bold  Гайдлайн бренду Макет банера Етап погодження
+punctuation only: 0
+injection: 0
+workspace depth 0: Приватні нотатки
+workspace depth 1: Кольори, Приватні нотатки
+branch all: Відтінки@2, Кольори@1
+branch depth 1: Кольори
+branch only itself: Відтінки
+bob finds: Відтінки, Кольори
+bob in a branch he can't open: 0
+bob private: 0
+eve: 0
+after trash: 0

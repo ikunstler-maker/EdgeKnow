@@ -407,6 +407,23 @@ export const uk = {
     empty: "Поки ніхто вас не згадував.",
     on: (page: string) => `на сторінці «${page}»`,
   },
+  search: {
+    button: "Пошук",
+    title: "Пошук по сторінках",
+    placeholder: "Шукати в назвах і тексті сторінок…",
+    scope: "Де:",
+    scopes: {
+      workspace: "Весь workspace",
+      page: (title: string) => `«${title}» і підсторінки`,
+    },
+    depth: "Глибина:",
+    depths: { level: "Лише цей рівень", one: "+1 рівень", two: "+2 рівні", all: "Усі рівні" },
+    depthHint: (page: boolean) => (page ? "рахуємо від цієї сторінки" : "рахуємо від верхнього рівня"),
+    hint: "Пошук іде за початком слів: «дизайн» знайде і «дизайнер».",
+    searching: "Шукаємо…",
+    nothing: "Нічого не знайдено.",
+    results: "Результати пошуку",
+  },
   toc: {
     panel: "Права панель",
     placementLabel: "Зміст:",

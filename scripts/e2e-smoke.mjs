@@ -567,6 +567,158 @@ await colleague.mouse.up();
 const nodeLeft = async (p, i) => (await p.locator(".react-flow__node").nth(i).boundingBox()).x;
 check("reader can't move nodes", Math.round((await nodeLeft(colleague, 1)) - (await nodeLeft(colleague, 0))) === Math.round((await nodeLeft(wide, 1)) - (await nodeLeft(wide, 0))));
 
+// --- Diagram: several nodes at once ---------------------------------------------
+
+await wide.goto(`${APP}/w/${alphaShort}/p/${diagramPage}`);
+await wide.waitForSelector(".ek-diagram .react-flow__node", { timeout: 20000 });
+const before2 = diagramData();
+const n0 = wide.locator(".react-flow__node").nth(0);
+const n1 = wide.locator(".react-flow__node").nth(1);
+await n0.click();
+await wide.keyboard.down("Shift");
+await n1.click();
+await wide.keyboard.up("Shift");
+check("Shift+click selects two nodes", (await wide.locator(".react-flow__node.selected").count()) === 2);
+const g0 = await n0.boundingBox();
+await wide.mouse.move(g0.x + 30, g0.y + 30);
+await wide.mouse.down();
+await wide.mouse.move(g0.x + 60, g0.y + 80, { steps: 6 });
+await wide.mouse.move(g0.x + 30, g0.y + 160, { steps: 6 });
+await wide.mouse.up();
+const movedTogether = await until(() => diagramData()?.nodes?.[0]?.y !== before2.nodes[0].y, 10000);
+const after2 = diagramData();
+const dx = after2.nodes.map((nd, i) => nd.x - before2.nodes[i].x);
+const dy = after2.nodes.map((nd, i) => nd.y - before2.nodes[i].y);
+check("selected nodes move together on the grid", movedTogether && dx[0] === dx[1] && dy[0] === dy[1] && dy[0] % 16 === 0 && dy[0] > 0, JSON.stringify({ dx, dy }));
+await wide.getByRole("button", { name: /Виділення/ }).click();
+const paneBox = await wide.locator(".ek-diagram .react-flow__pane").boundingBox();
+await wide.locator(".ek-diagram .react-flow__pane").click({ position: { x: 4, y: 4 } });
+await wide.mouse.move(paneBox.x + 4, paneBox.y + 4);
+await wide.mouse.down();
+await wide.mouse.move(paneBox.x + paneBox.width - 8, paneBox.y + paneBox.height - 8, { steps: 10 });
+await wide.mouse.up();
+check("selection tool frames all nodes", (await wide.locator(".react-flow__node.selected").count()) === 2);
+
+// --- Editor extras: headings, chips, cards, navigation, images by link --------------
+
+const privatePage = imagePage; // alice's own page, not shared with the colleague
+const extrasPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Extras" })).data.id;
+const extrasChild = (await aliceClient.rpc("create_page", { ws: alphaId, parent: extrasPage, new_title: "Extras child" })).data.id;
+await aliceClient.rpc("set_page_member_role", { target_page: extrasPage, member: colleagueId, new_role: "viewer" });
+const extrasThread = (await aliceClient.rpc("create_comment_thread", { target_page: extrasPage, quoted: "Body", body: "Note", mention_ids: [] })).data.id;
+const statusSet = JSON.stringify([{ id: "todo", label: "Не розпочато", color: "gray" }, { id: "done", label: "Готово", color: "green" }]);
+const extrasContent = [
+  { id: "x1", type: "heading", props: { level: 1 }, content: [{ type: "text", text: "Section one", styles: {} }], children: [] },
+  { id: "x2", type: "subtitle", props: {}, content: [{ type: "text", text: "A subtitle line", styles: {} }], children: [] },
+  { id: "x3", type: "heading", props: { level: 4, isToggleable: true }, content: [{ type: "text", text: "Small heading", styles: {} }], children: [para("x3a", "Hidden under H4")] },
+  { id: "x4", type: "paragraph", props: {}, content: [
+    { type: "text", text: "Body ", styles: { comment: extrasThread } },
+    { type: "text", text: "mono", styles: { mono: true } },
+    { type: "text", text: " status ", styles: {} },
+    { type: "chip", props: { name: "Статус", options: statusSet, value: "todo" } },
+    { type: "text", text: " see ", styles: {} },
+    { type: "pageChip", props: { pageId: privatePage } },
+    { type: "text", text: " ask ", styles: {} },
+    { type: "personChip", props: { userId: colleagueId, label: "Colleague" } },
+  ], children: [] },
+  { id: "x5", type: "linkCard", props: { url: "https://example.com/", title: "Example card", description: "Card description", image: "", icon: "", siteName: "example.com" }, children: [] },
+  { id: "x6", type: "navigation", props: { scope: "children" }, children: [] },
+  { id: "x7", type: "image", props: { url: "https://example.com/picture.png", name: "picture", previewWidth: 320 }, children: [] },
+  { id: "x8", type: "table", content: { type: "tableContent", columnWidths: [null, null], rows: [{ cells: [{ type: "tableCell", props: { backgroundColor: "yellow", textColor: "default", textAlignment: "left", colspan: 1, rowspan: 1 }, content: [{ type: "text", text: "Cell", styles: {} }] }, { type: "tableCell", props: { backgroundColor: "default", textColor: "default", textAlignment: "left", colspan: 1, rowspan: 1 }, content: [] }] }] }, children: [] },
+];
+const extrasSaved = await aliceClient.rpc("save_page_content", { target_page: extrasPage, new_content: extrasContent, base_version: 1 });
+check("extras page saved", extrasSaved.data?.ok === true, JSON.stringify(extrasSaved.data));
+
+await wide.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
+await wide.waitForSelector('.bn-editor[contenteditable="true"]');
+await wide.waitForTimeout(500);
+check("subtitle shown", (await wide.locator(".ek-subtitle", { hasText: "A subtitle line" }).count()) === 1);
+check("collapsible H4 shown", (await wide.locator('[data-content-type="heading"][data-level="4"]').count()) === 1);
+check("monospace text shown", (await wide.locator(".ek-mono", { hasText: "mono" }).count()) === 1);
+check("table cell colour kept", (await wide.locator('td[data-background-color="yellow"], th[data-background-color="yellow"]').count()) === 1);
+check("link card shown", (await wide.locator(".ek-link-card-title", { hasText: "Example card" }).count()) === 1);
+check("navigation lists subpages", (await wide.locator(".ek-navigation").getByText("Extras child").count()) === 1);
+check("image by link marked external", (await wide.locator('[data-external="true"] img[referrerpolicy="no-referrer"]').count()) === 1);
+check("page chip shows the title to someone with access", (await wide.locator(".ek-chip-link", { hasText: "Images" }).count()) === 1);
+const chipButton = wide.getByRole("button", { name: "Статус: Не розпочато" });
+await chipButton.click();
+await wide.getByRole("menuitemradio", { name: "Готово" }).click();
+const chipValue = () => JSON.stringify(pageContent(extrasPage)).includes('"value":"done"');
+check("dropdown chip switch saved", await until(chipValue, 10000));
+
+// The slash menu offers the new blocks.
+await wide.locator(".bn-inline-content", { hasText: "Section one" }).click();
+await wide.keyboard.press("End");
+await wide.keyboard.press("Enter");
+await wide.keyboard.type("/");
+await wide.waitForSelector(".bn-suggestion-menu-item");
+const menu = (await wide.locator(".bn-suggestion-menu-item").allInnerTexts()).map((x) => x.split("\n")[0]);
+const wanted = ["Заголовок 4", "Згортаний заголовок 4", "Підзаголовок", "Навігація", "Картка посилання", "Чіп-перемикач"];
+check("slash menu has the new items", wanted.every((w) => menu.includes(w)), wanted.filter((w) => !menu.includes(w)).join(", "));
+await wide.keyboard.press("Escape");
+
+// Right column on a page with comments: contents/comments switch and placement.
+check("contents/comments tabs", (await wide.getByRole("tab", { name: "Зміст" }).count()) === 1 && (await wide.getByRole("tab", { name: /Коментарі/ }).count()) === 1);
+await wide.getByRole("tab", { name: "Зміст" }).click();
+check("contents tab lists headings", (await wide.getByRole("navigation", { name: "Зміст" }).getByText("Section one").count()) > 0);
+await wide.getByLabel("Зміст:").selectOption("left");
+await wide.waitForTimeout(300);
+check("contents move to the sidebar instead of the tree", (await wide.locator("aside").getByRole("region", { name: "Зміст" }).getByText("Section one").count()) > 0 && (await wide.locator("aside").getByRole("button", { name: /Дерево сторінок/ }).count()) > 0);
+await wide.locator("aside").getByRole("button", { name: /Дерево сторінок/ }).click();
+check("tree comes back on request", (await wide.locator("aside").getByRole("tree").count()) > 0);
+await wide.getByLabel("Зміст:").selectOption("right");
+
+// A reader: chip is read-only, a page they can't open shows no title.
+await colleague.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
+await colleague.waitForSelector(".bn-editor");
+await colleague.waitForTimeout(500);
+check("reader can't switch the chip", await colleague.getByRole("button", { name: /Статус:/ }).isDisabled());
+check("page chip hides a page the reader can't open", (await colleague.locator(".ek-chip", { hasText: "Немає доступу" }).count()) === 1 && (await colleague.locator(".ek-chip", { hasText: "Images" }).count()) === 0);
+check("person chip shows the colleague", (await colleague.locator(".ek-chip", { hasText: /colleague|Colleague/ }).count()) === 1);
+
+// Link previews: only public https addresses, only for signed-in people.
+const preview = (url) => wide.evaluate(async (u) => (await fetch(`/api/link-preview?url=${encodeURIComponent(u)}`)).status, url);
+for (const [label, url, expected] of [
+  ["http refused", "http://example.com/", 400],
+  ["loopback refused", "https://127.0.0.1/", 400],
+  ["localhost refused", "https://localhost/", 400],
+  ["private network refused", "https://192.168.1.1/", 400],
+  ["metadata address refused", "https://169.254.169.254/latest/meta-data", 400],
+  ["other port refused", "https://example.com:8443/", 400],
+  ["name pointing inside refused", "https://localtest.me/", 422],
+]) {
+  const status = await preview(url);
+  check(`link preview: ${label}`, status === expected, String(status));
+}
+const anonPreview = await fetch(`${APP}/api/link-preview?url=https://example.com/`, { redirect: "manual" });
+check("link preview needs a session", anonPreview.status === 401 || (anonPreview.status >= 300 && anonPreview.status < 400), String(anonPreview.status));
+const realPreview = await wide.evaluate(async () => {
+  const r = await fetch("/api/link-preview?url=https://example.com/");
+  return r.ok ? (await r.json()).title : `HTTP ${r.status}`;
+});
+check("link preview reads a public page", /Example Domain/i.test(String(realPreview)), String(realPreview));
+
+// Search: titles and text, only pages the person can open.
+await wide.keyboard.press("Control+k");
+const searchBox = wide.getByLabel("Шукати в назвах і тексті сторінок…");
+await searchBox.fill("Hidden");
+const searchResults = wide.getByRole("list", { name: "Результати пошуку" });
+await searchResults.waitFor({ timeout: 10000 });
+check("search finds text inside a page", (await searchResults.getByText("Extras").count()) > 0);
+await searchBox.fill("Imag");
+await wide.waitForTimeout(800);
+check("search matches word beginnings in titles", (await searchResults.getByText("Images").count()) > 0);
+await wide.keyboard.press("Escape");
+await colleague.keyboard.press("Control+k");
+const colleagueSearch = colleague.getByLabel("Шукати в назвах і тексті сторінок…");
+await colleagueSearch.fill("Images");
+await colleague.waitForTimeout(1200);
+check("search hides pages the person can't open", (await colleague.getByRole("list", { name: "Результати пошуку" }).getByText("Images").count()) === 0);
+await colleagueSearch.fill("Extras");
+await colleague.getByRole("list", { name: "Результати пошуку" }).waitFor({ timeout: 10000 });
+check("search finds shared pages", (await colleague.getByRole("list", { name: "Результати пошуку" }).getByText("Extras").count()) > 0);
+await colleague.keyboard.press("Escape");
+
 await aliceClient.auth.signOut();
 await browser.close();
 

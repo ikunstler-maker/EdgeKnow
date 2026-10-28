@@ -241,6 +241,17 @@ for (const [method, path, body] of [
 const bodyAfter = sql(`select string_agg(body, ',') from public.comments where thread_id = '${thread.id}'`);
 check("alpha comment unchanged", bodyAfter === "Secret remark", bodyAfter);
 
+// --- Search (titles and text) ---------------------------------------------------
+
+const aliceSearch = await rpc(alice, "search_pages", { ws: alpha.id, query: "Alpha", root: null, max_depth: null });
+check("alice finds her page by title", Array.isArray(aliceSearch.json) && aliceSearch.json.some((r) => r.title === "Alpha secret"), JSON.stringify(aliceSearch.json).slice(0, 160));
+const bobSearch = await rpc(bob, "search_pages", { ws: alpha.id, query: "Alpha", root: null, max_depth: null });
+check("bob's search in alpha returns nothing", Array.isArray(bobSearch.json) && bobSearch.json.length === 0, JSON.stringify(bobSearch.json).slice(0, 160));
+const bobOwn = await rpc(bob, "search_pages", { ws: beta.id, query: "Alpha", root: null, max_depth: null });
+check("bob's own workspace has no alpha pages", Array.isArray(bobOwn.json) && bobOwn.json.length === 0, JSON.stringify(bobOwn.json).slice(0, 160));
+const bobText = await rest(bob, "pages?select=search_text");
+check("bob cannot read alpha's search text", isEmptyOrDenied(bobText) || bobText.json.every((r) => !String(r.search_text).includes("Alpha")), JSON.stringify(bobText.json).slice(0, 120));
+
 // --- No workspace / no account ----------------------------------------------
 
 const strangerAccess = await rpc(stranger, "has_platform_access");

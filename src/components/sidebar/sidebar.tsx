@@ -13,6 +13,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { expandAll } from "./expanded-store";
 import { HeadingList, useActiveHeading, type Heading } from "@/components/editor/table-of-contents";
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
+import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
@@ -57,6 +58,8 @@ export function Sidebar({
   return (
     <nav className="flex h-full flex-col gap-2 p-2" aria-label={t.sidebar.pagesHeading}>
       <WorkspaceSwitcher workspaces={workspaces} onNavigate={onNavigate} />
+
+      <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
 
       <button
         type="button"
