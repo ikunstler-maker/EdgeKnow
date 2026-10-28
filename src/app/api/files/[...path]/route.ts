@@ -3,6 +3,7 @@ import { ATTACHMENT_COLUMNS, readAttachment, type AttachmentRow } from "@/lib/dr
 import { ATTACHMENT_PATH, FILE_HEADERS } from "@/lib/drive/file-checks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { TEAM_BUCKET, teamDataFor, teamOfPath, teamStorage } from "@/lib/team-db/files";
 
 // Shows an image from wherever it lives. The attachment row is read with the
 // person's own session, so RLS decides: no access to the page, no file.
@@ -10,6 +11,18 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(_request: NextRequest, { params }: RouteContext<"/api/files/[...path]">) {
   const path = (await params).path.join("/");
   if (!ATTACHMENT_PATH.test(path)) return new NextResponse(null, { status: 404 });
+
+  // A team workspace (path C): the row from the team database with the person's
+  // own token, the bytes straight from the team's storage via a signed link.
+  const team = await teamOfPath(path);
+  if (team) {
+    const rows = await teamDataFor(team.shortId);
+    const { data } = await rows.from("attachments").select("storage_path").eq("storage_path", path).maybeSingle();
+    if (!data) return new NextResponse(null, { status: 404 });
+    const { data: signed } = await teamStorage(team.db).storage.from(TEAM_BUCKET).createSignedUrl(path, 3600);
+    if (!signed?.signedUrl) return new NextResponse(null, { status: 404 });
+    return NextResponse.redirect(signed.signedUrl, { status: 302, headers: { "Cache-Control": "private, max-age=3000" } });
+  }
 
   const supabase = await createClient();
   const { data } = await supabase.from("attachments").select(ATTACHMENT_COLUMNS).eq("storage_path", path).maybeSingle();

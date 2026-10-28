@@ -526,6 +526,7 @@ export const uk = {
     waiting: (status: string) => `зачекайте, статус: ${status}`,
     retry: "Спробувати ще раз",
     oauthFailed: "Не вдалося увійти в Supabase. Спробуйте ще раз.",
+    filesInTeam: "Зображення й обкладинки цього workspace зберігаються у сховищі вашого власного Supabase (вкладка «База даних»). Google Drive для власних баз з'явиться згодом.",
     connectedTitle: "Дані зберігаються у вашому Supabase",
     connected: "Сторінки, коментарі й доступи цього workspace живуть у проєкті:",
     schema: "Версія структури",

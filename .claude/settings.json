@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api -X PUT repos/ikunstler-maker/EdgeKnow/pulls/*/merge -f merge_method=merge*)"
+    ]
+  }
+}

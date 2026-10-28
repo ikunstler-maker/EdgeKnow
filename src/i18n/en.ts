@@ -515,6 +515,7 @@ export const en: Dictionary = {
     waiting: (status: string) => `please wait, status: ${status}`,
     retry: "Try again",
     oauthFailed: "Signing in to Supabase didn't work. Please try again.",
+    filesInTeam: "This workspace's images and covers are kept in your own Supabase's storage (the Database tab). Google Drive for own databases comes later.",
     connectedTitle: "The data lives in your Supabase",
     connected: "This workspace's pages, comments and access live in the project:",
     schema: "Structure version",

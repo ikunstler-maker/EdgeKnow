@@ -1028,6 +1028,26 @@ const gammaResults = gammaTab.getByRole("list", { name: "Результати п
 await gammaResults.waitFor({ timeout: 10000 });
 check("search finds it in the team database", (await gammaResults.getByText("Team-owned page").count()) > 0);
 await gammaTab.keyboard.press("Escape");
+// Images of a team workspace go to the team's own storage and are read from there.
+await gammaTab.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
+await gammaTab.waitForSelector(".bn-editor");
+await gammaTab.locator(".bn-editor").click();
+await gammaTab.keyboard.press("Control+End");
+await gammaTab.keyboard.press("Enter");
+await gammaTab.keyboard.type("/зображення");
+await gammaTab.getByRole("option", { name: /Зображення/ }).first().waitFor();
+await gammaTab.keyboard.press("Enter");
+await gammaTab.locator(".bn-panel input[type=file]").setInputFiles({ name: "team.png", mimeType: "image/png", buffer: pngBuffer });
+const teamImage = gammaTab.locator(".bn-editor img.bn-visual-media[src^='/api/files/']").first();
+await teamImage.waitFor({ timeout: 60000 });
+await gammaTab.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+const teamFile = teamSql(`select a.storage_path || '|' || (select count(*) from storage.objects o where o.bucket_id = 'attachments' and o.name = a.storage_path) from public.attachments a where a.page_id = '${gammaPage}'`).split("|");
+check("an image of a team workspace lands in the team's own storage", teamFile[1] === "1", teamFile.join(" "));
+check("…and not in the central database or storage", sql(`select count(*) from public.attachments where page_id = '${gammaPage}'`) === "0" && sql(`select count(*) from storage.objects where name like '${sql("select id from public.workspaces where name = 'Team Delta'")}/%'`) === "0");
+check("the team image is shown", (await teamImage.evaluate((img) => img.naturalWidth)) > 0);
+const teamFileForBob = await fetch(`${APP}/api/files/${teamFile[0]}`, { headers: { cookie: bobCookies.map((c) => `${c.name}=${c.value}`).join("; ") }, redirect: "manual" });
+check("a non-member gets no team file", teamFileForBob.status === 404 || teamFileForBob.status === 307, String(teamFileForBob.status));
+
 // Settings → Database: the connected project, and the wizard where nothing is connected.
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=team`);
 check("the database tab shows the team's project", (await gammaTab.getByText("Дані зберігаються у вашому Supabase").count()) === 1 && (await gammaTab.getByText(teamStatus.API_URL).count()) === 1);
