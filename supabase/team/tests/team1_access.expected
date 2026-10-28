@@ -1,0 +1,29 @@
+before sync: forbidden
+psql: ERROR:  permission denied for function team_sync
+psql: ERROR:  permission denied for function team_sync
+sync: {"ok": true}
+second workspace refused: other_workspace
+save: true
+share with workspace: true
+share with bob: true
+alice sees: Handbook, Private notes
+bob sees: Handbook (viewer), Private notes (editor)
+bob searches: 1
+bob (viewer) may not comment: false
+bob sees people: Alice, Bob
+psql: ERROR:  permission denied for table team_settings
+carol sees pages: 0
+carol creates: forbidden
+carol sees members: 0
+psql: ERROR:  permission denied for table workspace_members
+psql: ERROR:  permission denied for table profiles
+resync: true
+member list: 00000000-0000-0000-0000-0000000000a1 active, 00000000-0000-0000-0000-0000000000b1 removed
+bob after removal: 0
+bob grants left: 0
+guard, person: ok
+guard, the project's own secret key: ok
+psql: ERROR:  EdgeKnow tokens are for signed-in people only
+psql: ERROR:  EdgeKnow tokens are for signed-in people only
+central-only tables left: 0
+profile columns: id, email, name, avatar_url, created_at

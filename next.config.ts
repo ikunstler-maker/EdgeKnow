@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
       { source: "/settings/access", destination: "/", permanent: false },
     ];
   },
+  // The team database migrations are read at run time by the server (path C).
+  outputFileTracingIncludes: {
+    "/**": ["./supabase/team/migrations/*.sql"],
+  },
   turbopack: {
     rules: {
       "*.css": {
