@@ -27,6 +27,7 @@ import type { CommentThread, MentionPerson, PeopleNames } from "@/lib/comments";
 import type { PageNode } from "@/lib/pages";
 import { getMentionCandidates } from "@/app/comment-actions";
 import { useOptionalPages } from "@/components/pages/pages-provider";
+import { Popover } from "@/components/ui/popover";
 import { ChipPeopleContext } from "./chips";
 import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
@@ -441,7 +442,7 @@ export default function PageEditor({
             hasHeadings={headings.length > 0}
           />
           {placement === "right" && tab === "toc" && headings.length > 0 ? (
-            <div className="sticky top-12 max-h-[calc(100dvh-6rem)] overflow-y-auto">
+            <div className="sticky top-16 max-h-[calc(100dvh-8rem)] overflow-y-auto">
               <TableOfContents headings={headings} variant="embedded" />
             </div>
           ) : (
@@ -486,37 +487,65 @@ function RightPanelHeader({
   commentCount: number;
   hasHeadings: boolean;
 }) {
+  const [settings, setSettings] = useState<HTMLElement | null>(null);
   const tabs = placement === "right" && hasHeadings;
   const tabClass = (active: boolean) =>
-    `min-h-8 flex-1 rounded px-2 text-sm ${active ? "bg-background font-medium shadow-sm" : "text-muted hover:text-foreground"}`;
+    `min-h-8 rounded-full px-3 text-sm ${active ? "bg-background font-medium shadow-sm" : "text-muted hover:text-foreground"}`;
+  // A compact switch that stays on screen while scrolling, so the contents or the
+  // comments open from anywhere on the page.
   return (
-    <div className="mb-3 space-y-2">
-      {tabs ? (
-        <div role="tablist" aria-label={t.toc.panel} className="flex gap-1 rounded-md bg-surface p-1">
-          <button type="button" role="tab" aria-selected={tab === "toc"} onClick={() => onTab("toc")} className={tabClass(tab === "toc")}>
-            {t.toc.title}
-          </button>
-          <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => onTab("comments")} className={tabClass(tab === "comments")}>
-            {t.comments.column}
-            {commentCount > 0 && ` (${commentCount})`}
-          </button>
-        </div>
-      ) : (
-        <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted">{t.comments.column}</p>
-      )}
-      {hasHeadings && (
-        <label className="flex items-center gap-2 px-1 text-xs text-muted">
-          {t.toc.placementLabel}
-          <select
-            value={placement}
-            onChange={(event) => setTocPlacement(event.target.value as TocPlacement)}
-            className="min-h-8 flex-1 rounded-md border border-border bg-background px-1 text-xs text-foreground"
+    <div className="sticky top-3 z-20 mb-3 flex justify-end">
+      <div className="flex items-center gap-1 rounded-full border border-border bg-surface/95 p-1 shadow-sm backdrop-blur">
+        {tabs ? (
+          <div role="tablist" aria-label={t.toc.panel} className="flex gap-0.5">
+            <button type="button" role="tab" aria-selected={tab === "toc"} onClick={() => onTab("toc")} className={tabClass(tab === "toc")}>
+              ☰ {t.toc.title}
+            </button>
+            <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => onTab("comments")} className={tabClass(tab === "comments")}>
+              💬 {t.comments.column}
+              {commentCount > 0 && ` ${commentCount}`}
+            </button>
+          </div>
+        ) : (
+          <span className="px-3 text-sm text-muted">
+            💬 {t.comments.column}
+            {commentCount > 0 && ` ${commentCount}`}
+          </span>
+        )}
+        {hasHeadings && (
+          <button
+            type="button"
+            onClick={(event) => setSettings(settings ? null : event.currentTarget)}
+            aria-label={t.toc.placementLabel}
+            title={t.toc.placementLabel}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-background hover:text-foreground"
           >
-            <option value="right">{t.toc.placements.right}</option>
-            <option value="bottom">{t.toc.placements.bottom}</option>
-            <option value="left">{t.toc.placements.left}</option>
-          </select>
-        </label>
+            ⚙
+          </button>
+        )}
+      </div>
+      {settings && (
+        <Popover anchor={settings} onClose={() => setSettings(null)} width={240}>
+          <div role="radiogroup" aria-label={t.toc.placementLabel} className="p-1">
+            <p className="px-2 pb-1 pt-1 text-xs text-muted">{t.toc.placementLabel}</p>
+            {(["right", "bottom", "left"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={placement === value}
+                onClick={() => {
+                  setTocPlacement(value);
+                  setSettings(null);
+                }}
+                className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-surface md:min-h-9"
+              >
+                <span className="w-4 text-accent">{placement === value ? "✓" : ""}</span>
+                {t.toc.placements[value]}
+              </button>
+            ))}
+          </div>
+        </Popover>
       )}
     </div>
   );
