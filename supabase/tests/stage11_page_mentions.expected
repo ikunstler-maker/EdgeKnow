@@ -1,0 +1,6 @@
+stored: bob@mention.test
+bob sees: 1
+carol sees: 0
+alice sees others' mentions: 0
+bob after removal: 0
+psql: ERROR:  permission denied for table page_mentions

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { backupWorkspace } from "@/lib/drive/backup";
+import { backupWorkspace, snapshotWorkspace } from "@/lib/drive/backup";
 import type { DriveConnection } from "@/lib/drive/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
   const results: Record<string, unknown> = {};
   for (const connection of (data ?? []) as DriveConnection[]) {
     try {
-      results[connection.workspace_id] = await backupWorkspace(admin, connection, 200);
+      const pages = await backupWorkspace(admin, connection, 200);
+      results[connection.workspace_id] = { ...pages, snapshot: (await snapshotWorkspace(admin, connection)).saved };
     } catch {
       results[connection.workspace_id] = { error: "drive_failed" };
     }

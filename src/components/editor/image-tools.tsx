@@ -155,3 +155,24 @@ export function ImageWidthButtons() {
     </>
   );
 }
+
+// BlockNote's own preview toggle has an English label; this one is translated.
+export function PreviewToggleButton() {
+  const editor = useBlockNoteEditor();
+  const Components = useComponentsContext()!;
+  const selected = useSelectedBlocks();
+  const block = selected.length === 1 ? selected[0] : undefined;
+  const props = block?.props as { url?: unknown; showPreview?: unknown } | undefined;
+  if (!editor.isEditable || !block || typeof props?.url !== "string" || typeof props.showPreview !== "boolean") return null;
+  const label = editor.dictionary.formatting_toolbar.file_preview_toggle.tooltip;
+  return (
+    <Components.FormattingToolbar.Button
+      className="bn-button"
+      label={label}
+      mainTooltip={label}
+      icon={<span aria-hidden="true">🖼</span>}
+      isSelected={props.showPreview}
+      onClick={() => editor.updateBlock(block, { props: { showPreview: !props.showPreview } as never })}
+    />
+  );
+}

@@ -416,6 +416,7 @@ export const en: Dictionary = {
   mentions: {
     heading: "Mentions",
     empty: "Nobody has mentioned you yet.",
+    inText: "mentioned you in the page text",
     on: (page: string) => `on “${page}”`,
   },
   cover: {
@@ -497,7 +498,7 @@ export const en: Dictionary = {
     moveDone: (moved: number) => `Done: ${moved} moved.`,
     moveFailed: (failed: number) => `${failed} files couldn't be moved — try again.`,
     backupHeading: "Page backups",
-    backupIntro: "Every day, changed pages are copied to the “Page backups” folder: an exact copy (JSON) and a readable one (Markdown).",
+    backupIntro: "Every day, changed pages are copied to the “Page backups” folder: an exact copy (JSON) and a readable one (Markdown). A daily snapshot of the workspace data goes there too — members, access, comments, page tree (the last 14 are kept).",
     lastBackup: (date: string) => `Last backup: ${date}.`,
     noBackupYet: "No backups yet.",
     backupNow: "Back up now",
