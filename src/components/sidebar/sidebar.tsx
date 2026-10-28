@@ -93,6 +93,7 @@ export function Sidebar({
       </div>
 
       <div className="border-t border-border pt-2">
+        {navLink(workspacePath(workspace.shortId, "/profile"), t.profile.link, "👤")}
         {navLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
         {navLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
         {user.isPlatformAdmin && navLink("/admin", t.platform.link, "🛰️")}

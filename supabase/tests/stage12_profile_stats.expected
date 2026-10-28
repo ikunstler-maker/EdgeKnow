@@ -1,0 +1,14 @@
+alice own: {"ok": true, "comments": 0, "visibility": "private", "pages_edited": 1, "chars_written": 14, "pages_by_role": {"owner": 2}, "pages_created": 2, "chars_in_own_pages": 17}
+bob own: {"ok": true, "comments": 0, "visibility": "private", "pages_edited": 1, "chars_written": 12, "pages_by_role": {"editor": 1, "viewer": 1}, "pages_created": 0, "chars_in_own_pages": 0}
+bob sees private alice: {"ok": false, "error": "not_found"}
+alice shows: {"ok": true}
+bad value: {"ok": false, "error": "invalid_visibility"}
+bob sees shown alice: 2
+eve sees alice: {"ok": false, "error": "forbidden"}
+eve sets visibility there: {"ok": false, "error": "forbidden"}
+eve asks for alice in her own workspace: {"ok": false, "error": "not_found"}
+psql: ERROR:  permission denied for table page_contributions
+psql: ERROR:  permission denied for table page_contributions
+psql: ERROR:  permission denied for table page_contributions
+psql: ERROR:  permission denied for table workspace_members
+bob still private: private

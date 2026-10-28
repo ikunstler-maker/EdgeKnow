@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { dateLocale, t } from "@/i18n";
+import { PageStatsButton } from "./page-stats";
 
 const noop = () => () => {};
 
@@ -41,6 +42,7 @@ export function PageMeta({
       <span>
         {t.pageMeta.updated} <LocalTime iso={updatedAt} />
       </span>
+      <PageStatsButton />
     </p>
   );
 }

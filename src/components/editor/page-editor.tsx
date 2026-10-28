@@ -29,6 +29,7 @@ import type { PageNode } from "@/lib/pages";
 import { getMentionCandidates } from "@/app/comment-actions";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
+import { publishPageStats } from "@/components/pages/page-stats";
 import { ChipPeopleContext } from "./chips";
 import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
@@ -302,6 +303,10 @@ export default function PageEditor({
   const getContent = useCallback(() => editor.document as unknown[], [editor]);
   const autosave = useAutosave({ pageId, initialVersion, getContent });
   const [headings, setHeadings] = useState<Heading[]>(() => collectHeadings(editor.document));
+  useEffect(() => {
+    publishPageStats(editor.document, true);
+    return () => publishPageStats(null);
+  }, [editor]);
   // Bumped on every change so comment cards follow their fragments.
   const [layoutKey, setLayoutKey] = useState(0);
 
@@ -417,6 +422,7 @@ export default function PageEditor({
           className="ek-editor"
           onChange={() => {
             setHeadings(collectHeadings(editor.document));
+            publishPageStats(editor.document);
             setLayoutKey((n) => n + 1);
             if (editable) autosave.onChange();
           }}
