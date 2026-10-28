@@ -29,6 +29,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <Link href="/privacy" className="mt-6 inline-block text-sm text-muted underline">
           {t.privacy.linkLabel}
         </Link>
+        <Link href="/help" className="ml-4 mt-6 inline-block text-sm text-muted underline">
+          {t.help.link}
+        </Link>
         <div className="mt-6 flex justify-center">
           <PreferencesSwitch compact />
         </div>

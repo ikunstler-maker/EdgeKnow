@@ -507,6 +507,156 @@ export const en: Dictionary = {
     connectedNotice: "Google Drive connected.",
     connectErrorNotice: "Couldn't connect Google Drive. Try again and allow access to files.",
   },
+  help: {
+    link: "Help",
+    title: "Help: how to use the wiki",
+    intro: "Everything the service can do, in one place. This page is the same for every team and is always available from the sidebar (❓ Help).",
+    contents: "Help sections",
+    back: "Back to the wiki",
+    sections: [
+      {
+        id: "start",
+        title: "Getting started",
+        items: [
+          "Sign in with Google. If your email is on your team's domain, you join its workspace automatically; otherwise you need an invitation from an admin.",
+          "A workspace is a team's own private space: its pages, members, files and settings. Workspaces share no links and no search.",
+          "To switch workspaces or create a new one, use the button with the workspace name at the top of the sidebar.",
+          "The workspace home shows a greeting and “Mentions” — where you were mentioned in comments or in page text.",
+        ],
+      },
+      {
+        id: "pages",
+        title: "Pages and the page tree",
+        items: [
+          "“＋ New page” in the sidebar creates a top-level page; “+” next to a page creates a subpage.",
+          "The sidebar has sections: “Whole workspace” (pages open to everyone), “My pages” and “Shared with me”.",
+          "Drag pages in the tree to reorder or nest them. On a phone, press and hold a page. Or use the ⋯ menu → “Move to…”.",
+          "Page icon — “Add icon” above the title. Cover — “🖼 Add cover”: an image, a colour or a gradient (linear or radial, 2–4 colour stops).",
+          "Under the title you see the author and when the page was created and last updated.",
+          "A deleted page goes to the “Trash” with its subpages and stays there for 30 days; the owner can restore it or delete it for good.",
+        ],
+      },
+      {
+        id: "editor",
+        title: "The text editor",
+        items: [
+          "Press “/” on an empty line to open the menu of all blocks. Start typing a name to find one.",
+          "Select text to see the formatting toolbar: bold, italic, underline, strikethrough, code, monospace, text colour and highlight, alignment, links, clear formatting.",
+          "Headings 1–4 and “Subtitle”; any heading can be a toggle heading that hides its content.",
+          "Lists (bullet, numbered, checklist, toggle), quote, callout (info, warning, success, error — click its icon to change the style), divider.",
+          "Code block with language highlighting and a “Copy” button.",
+          "Tables: add rows and columns, a header row, cell background and text colours (row or column handle → “Colors”).",
+          "Tab / Shift+Tab nest a block or move it back out. The ⋮⋮ handle left of a block drags it or opens the block menu.",
+          "Everything saves automatically (status at the top right). If someone changed the page at the same time, a banner lets you open their version or keep yours.",
+        ],
+      },
+      {
+        id: "media",
+        title: "Images, video and links",
+        items: [
+          "Images: “/image”, drag a file in, or Ctrl+V. The image is compressed in your browser to the chosen quality (Full HD, HD or 480p) and under 1 MB before upload. Change its width: 25 / 50 / 100% or full width.",
+          "Image by link — the “By link” tab (https only). The picture is shown from the other site while it keeps it, marked with ↗.",
+          "YouTube — “/youtube”, or just paste a video or playlist link on its own line.",
+          "Link card — “/link card”: a preview, title and short description of the linked page.",
+          "Files are visible only to people with access to the page.",
+        ],
+      },
+      {
+        id: "chips",
+        title: "Chips and mentions",
+        items: [
+          "Dropdown chip — “/chip”: a coloured label with options (status, version, priority…). Click it to pick an option; “Edit options” changes names, colours and the number of options, or applies a template.",
+          "Type “@” in the text to mention a colleague (person chip) or insert a page chip. The colleague sees it under “Mentions”.",
+          "A page chip shows the page's current title; someone without access to it sees “🔒 No access”.",
+        ],
+      },
+      {
+        id: "navigation",
+        title: "Navigation, contents and search",
+        items: [
+          "The “Navigation” block (“/navigation”) shows the tree of this page's subpages or of the whole workspace (switch in the block) and lets you create a new page right there.",
+          "Page contents are built from the headings automatically. If the page has comments, the top right has a “☰ Contents | 💬 Comments” switch; ⚙ next to it shows the contents on the right, at the bottom of the page, or on the left instead of the page tree.",
+          "Search — “🔍 Search” in the sidebar or Ctrl+K. Searches page titles and text, diagram node titles and link cards, by the start of words. Search the whole workspace or the current page with its subpages, at a chosen depth.",
+        ],
+      },
+      {
+        id: "diagrams",
+        title: "Diagrams",
+        items: [
+          "“/diagram” inserts a canvas of nodes — rectangles with rounded corners.",
+          "“＋ Node” adds a node. Nodes snap to the grid and line up with the edges and centres of their neighbours (red guide line).",
+          "A selected node is set up under the canvas: title, description, fill, outline, status emoji. Corner handles resize it.",
+          "Connect nodes by dragging from a dot on a node's edge to another node. Delete a node or connection with “Delete” or the Delete key.",
+          "Several nodes: Shift+click, Shift+drag or the “Select” tool; selected nodes move together. “Hand” moves the canvas. The − / ＋ / ⤢ buttons zoom.",
+        ],
+      },
+      {
+        id: "comments",
+        title: "Comments",
+        items: [
+          "Select text → “💬 Comment” on the toolbar above it. The text is highlighted in yellow and the card appears on the right next to it (on a phone, in a bottom panel).",
+          "Mention colleagues with @ in comments. You can reply, edit and delete your own messages.",
+          "“Resolve” removes the highlight and moves the thread to the “Comment archive”. If the commented text is deleted, the thread is marked “Text deleted”.",
+          "Owners, editors and commenters can comment; viewers see comments but can't write.",
+        ],
+      },
+      {
+        id: "access",
+        title: "Page access",
+        items: [
+          "A new page is visible only to its owner. The “Share” button at the top of the page adds people as “Can edit”, “Can comment” or “Can view”, or opens the page to the whole workspace.",
+          "Subpages get their parent's access. “Restrict access” gives a subpage its own list.",
+          "The owner can transfer ownership to another member (and stays an editor). Only the owner can delete a page.",
+          "Viewers and commenters can't change the text even by going around the interface — the server checks it.",
+        ],
+      },
+      {
+        id: "workspace",
+        title: "Workspace settings (owner and admins)",
+        items: [
+          "“Members”: invitations by link, roles (owner, admin, member), removing members, handing over the pages of former members.",
+          "“Domains”: email on these domains joins the workspace automatically. You can only add your own email's domain; public ones (gmail.com etc.) aren't allowed.",
+          "“Storage”: connect your team's Google Drive — new images are stored there, existing ones can be moved, and pages and workspace data are copied daily to a backup folder. The service only sees files it created.",
+          "“Log”: who changed domains, members and settings, and when.",
+          "“General”: workspace name, sign-in link, ownership transfer, deleting the workspace (owner only).",
+        ],
+      },
+      {
+        id: "personal",
+        title: "Personal settings",
+        items: [
+          "Theme — 🖥 system, ☀️ light or 🌙 dark; interface language — UA | EN. The switches are at the bottom of the sidebar; your choice follows you to all your devices.",
+          "“Sign out” is next to your email at the bottom of the sidebar.",
+        ],
+      },
+      {
+        id: "phone",
+        title: "On a phone",
+        items: [
+          "The page menu — the ☰ button at the top or a swipe from the left edge of the screen.",
+          "To drag pages, press and hold. Contents and comments open from buttons at the bottom of the screen.",
+          "Editing, formatting, images and diagrams work just like on a computer.",
+        ],
+      },
+      {
+        id: "feedback",
+        title: "Feedback",
+        items: [
+          "The yellow round “!?” button in the bottom left corner — report a bug, suggest a change or a new feature, or ask how to do something.",
+        ],
+      },
+      {
+        id: "keys",
+        title: "Useful keys",
+        items: [
+          "/ — block menu · @ — mention a person or page · Ctrl+K — search",
+          "Ctrl+B / Ctrl+I / Ctrl+U — bold / italic / underline · Ctrl+Z — undo",
+          "Tab / Shift+Tab — nest / un-nest a block · Ctrl+Enter — send a comment",
+          "In a diagram: Shift+click — add a node to the selection · Delete — delete the selection",
+        ],
+      },
+    ],
+  },
   search: {
     button: "Search",
     title: "Search pages",

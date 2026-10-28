@@ -96,6 +96,7 @@ export function Sidebar({
         {navLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
         {navLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
         {user.isPlatformAdmin && navLink("/admin", t.platform.link, "🛰️")}
+        {navLink("/help", t.help.link, "❓")}
         <div className="mt-2">
           <PreferencesSwitch />
         </div>
