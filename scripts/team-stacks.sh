@@ -22,6 +22,6 @@ for team in ${TEAM_STACKS:-team-a team-b}; do
     node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID(),alg:'ES256',use:'sig',key_ops:['sign','verify']}]))" > supabase/signing_keys.json
   fi
   sed -i '/^\[auth\]/a signing_keys_path = "./signing_keys.json"' supabase/config.toml
-  supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta,storage-api
+  supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
   supabase status -o json > status.json
 done

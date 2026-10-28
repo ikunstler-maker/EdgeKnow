@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { registerAttachment } from "@/app/file-actions";
 import { getImageQuality, prepareImage, type ImageQuality } from "./image-compression";
 
 // How images are referenced inside documents: a storage path, never a URL
@@ -14,21 +15,19 @@ export async function uploadImage(pageId: string, file: File, quality: ImageQual
   const image = await prepareImage(file, quality);
   const supabase = createClient();
 
-  // The database checks rights, type, size and the workspace quota, and picks the path.
-  const { data, error } = await supabase.rpc("register_attachment", {
-    target_page: pageId,
-    file_type: image.type,
-    file_bytes: image.blob.size,
-    file_width: image.width,
-    file_height: image.height,
+  // The workspace's database checks rights, type, size and the quota, and picks the path.
+  const registered = await registerAttachment({
+    pageId,
+    type: image.type,
+    bytes: image.blob.size,
+    width: image.width,
+    height: image.height,
   });
-  const registered = data as { ok: boolean; error?: string; path?: string; backend?: "supabase" | "drive" } | null;
-  if (error || !registered?.ok || !registered.path) {
-    throw new UploadError(registered?.error ?? "unknown");
-  }
+  if (!registered.ok) throw new UploadError(registered.error);
 
-  if (registered.backend === "drive") {
-    // The workspace keeps its files on its Google Drive: our server puts it there.
+  if (registered.backend === "drive" || registered.backend === "team") {
+    // The file goes to the workspace's Google Drive or its team's own storage:
+    // our server puts it there (the browser never holds those keys).
     const response = await fetch(`/api/files/upload?path=${encodeURIComponent(registered.path)}`, {
       method: "POST",
       headers: { "Content-Type": image.type },

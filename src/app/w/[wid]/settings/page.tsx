@@ -120,7 +120,7 @@ export default async function WorkspaceSettingsPage({
     tab === "members" ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
   // The team's own database (path C): read with the secret key, keys never leave the server.
-  const service = tab === "team" ? createAdminClient() : null;
+  const service = tab === "team" || tab === "storage" ? createAdminClient() : null;
   const [teamRow, centralPages] = service
     ? await Promise.all([
         service
@@ -214,7 +214,10 @@ export default async function WorkspaceSettingsPage({
             ownDomain={user.email.split("@")[1] ?? ""}
           />
         )}
-        {tab === "storage" && storage?.data && (
+        {tab === "storage" && teamRow?.data && (
+          <p className="rounded-lg border border-border p-4 text-sm">{t.teamDatabase.filesInTeam}</p>
+        )}
+        {tab === "storage" && !teamRow?.data && storage?.data && (
           <StoragePanel
             workspaceId={workspace.id}
             status={storage.data as StorageStatus}
