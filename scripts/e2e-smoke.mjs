@@ -503,6 +503,70 @@ await alice.waitForSelector(".bn-editor");
 await alice.getByRole("button", { name: /Коментарі: 1/ }).click();
 check("orphaned thread shown as 'Фрагмент видалено'", (await alice.getByRole("dialog", { name: "Коментарі" }).getByText("Фрагмент видалено").count()) > 0);
 
+// --- Diagram block -----------------------------------------------------------------
+
+const diagramPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Diagram" })).data.id;
+await aliceClient.rpc("set_page_member_role", { target_page: diagramPage, member: colleagueId, new_role: "viewer" });
+const wide = await newPage(aliceCookies);
+await wide.setViewportSize({ width: 1400, height: 1000 });
+await wide.goto(`${APP}/w/${alphaShort}/p/${diagramPage}`);
+await wide.waitForSelector('.bn-editor[contenteditable="true"]');
+await wide.locator(".bn-editor").click();
+await wide.keyboard.type("/схема");
+await wide.getByRole("option", { name: /Схема/ }).first().click();
+await wide.waitForSelector(".ek-diagram .react-flow", { timeout: 20000 });
+const addNode = wide.getByRole("button", { name: /Нода/ });
+await addNode.click();
+await wide.getByLabel("Назва", { exact: true }).fill("<b>Brief</b>");
+await wide.getByLabel("Опис").fill("From the client");
+await wide.getByRole("group", { name: "Налаштування ноди" }).getByRole("button", { name: "Жовтий" }).first().click();
+await wide.getByRole("button", { name: "✅" }).click();
+await addNode.click();
+await wide.getByLabel("Назва", { exact: true }).fill("Design");
+check("two nodes on the canvas", (await wide.locator(".react-flow__node").count()) === 2);
+// The second node lands on top of the first: move it to the right, along the grid.
+const second = wide.locator(".react-flow__node").nth(1);
+const sb = await second.boundingBox();
+await wide.mouse.move(sb.x + 40, sb.y + 40);
+await wide.mouse.down();
+await wide.mouse.move(sb.x + 140, sb.y + 45, { steps: 6 });
+await wide.mouse.move(sb.x + 300, sb.y + 43, { steps: 6 });
+await wide.mouse.up();
+const firstNode = wide.locator(".react-flow__node").nth(0);
+await firstNode.hover();
+const from = await firstNode.locator(".react-flow__handle-right").boundingBox();
+await wide.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+await wide.mouse.down();
+await second.hover({ force: true });
+const to = await second.locator(".react-flow__handle-left").boundingBox();
+await wide.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+await wide.mouse.up();
+check("nodes connected", (await wide.locator(".react-flow__edge").count()) === 1);
+const diagramData = () => {
+  const block = (pageContent(diagramPage) ?? []).find((b) => b.type === "diagram");
+  return block ? JSON.parse(block.props.data || "{}") : null;
+};
+const savedDiagram = await until(() => diagramData()?.edges?.length === 1 && diagramData()?.nodes?.[1]?.title === "Design", 12000);
+const dd = diagramData();
+check("diagram saved with the page", savedDiagram, JSON.stringify(dd).slice(0, 300));
+check("node settings saved (title, description, fill, status)", dd?.nodes?.[0]?.title === "<b>Brief</b>" && dd.nodes[0].description === "From the client" && dd.nodes[0].fill === "yellow" && dd.nodes[0].emoji === "✅", JSON.stringify(dd?.nodes?.[0]));
+check("positions snap to the 16px grid", dd?.nodes?.every((n) => n.x % 16 === 0 && n.y % 16 === 0), JSON.stringify(dd?.nodes?.map((n) => [n.x, n.y])));
+check("dragged node stays aligned with its neighbour", dd?.nodes?.[0]?.y === dd?.nodes?.[1]?.y, JSON.stringify(dd?.nodes?.map((n) => n.y)));
+
+// Readers see the same diagram, can't change it, and node text is never HTML.
+await colleague.goto(`${APP}/w/${alphaShort}/p/${diagramPage}`);
+await colleague.waitForSelector(".ek-diagram .react-flow__node", { timeout: 20000 });
+check("reader sees the nodes", (await colleague.locator(".react-flow__node").count()) === 2 && (await colleague.locator(".react-flow__edge").count()) === 1);
+check("node title shown as text, not HTML", (await colleague.getByText("<b>Brief</b>").count()) > 0 && (await colleague.locator(".react-flow__node b").count()) === 0);
+check("reader has no diagram toolbar", (await colleague.getByRole("toolbar", { name: "Дії зі схемою" }).count()) === 0);
+const rb = await colleague.locator(".react-flow__node").first().boundingBox();
+await colleague.mouse.move(rb.x + 20, rb.y + 20);
+await colleague.mouse.down();
+await colleague.mouse.move(rb.x + 220, rb.y + 220, { steps: 5 });
+await colleague.mouse.up();
+const nodeLeft = async (p, i) => (await p.locator(".react-flow__node").nth(i).boundingBox()).x;
+check("reader can't move nodes", Math.round((await nodeLeft(colleague, 1)) - (await nodeLeft(colleague, 0))) === Math.round((await nodeLeft(wide, 1)) - (await nodeLeft(wide, 0))));
+
 await aliceClient.auth.signOut();
 await browser.close();
 

@@ -91,7 +91,15 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
   const lastMedia = mediaGroup ? items.findLastIndex((item) => item.group === mediaGroup) : -1;
   if (lastMedia >= 0) items.splice(lastMedia + 1, 0, youtube);
   else items.push(youtube);
-  return [...items, callout];
+  const diagram: DefaultReactSuggestionItem = {
+    title: t.editor.diagram.title,
+    subtext: t.editor.diagram.subtext,
+    aliases: t.editor.diagram.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🔷</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "diagram" }),
+  };
+  return [...items, callout, diagram];
 }
 
 export type PageEditorProps = {

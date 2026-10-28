@@ -11,6 +11,7 @@ import { codeBlockOptions } from "@blocknote/code-block";
 import { t } from "@/i18n";
 import { calloutBlock } from "./callout-block";
 import { commentStyle } from "./comment-style";
+import { diagramBlock } from "./diagram-block";
 import { youTubeBlock } from "./youtube-block";
 
 // Code blocks with a "Copy" button next to the language picker.
@@ -80,6 +81,7 @@ export const schema = BlockNoteSchema.create({
     image: lazyImage(),
     callout: calloutBlock(),
     youtube: youTubeBlock(),
+    diagram: diagramBlock(),
   },
   styleSpecs: {
     ...defaultStyleSpecs,
