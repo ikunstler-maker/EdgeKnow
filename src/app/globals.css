@@ -498,3 +498,16 @@ body {
     flex-basis: 88px;
   }
 }
+
+/* Feedback "!?" button: translucent yellow, solid on hover. */
+.ek-feedback-button {
+  background: rgba(255, 204, 0, 0.55);
+  color: #3d2f00;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: background-color 0.15s;
+}
+.ek-feedback-button:hover,
+.ek-feedback-button:focus-visible {
+  background: rgba(255, 204, 0, 0.95);
+}
