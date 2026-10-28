@@ -782,7 +782,9 @@ export const uk = {
       publishableKey: "Publishable key проєкту",
       check: "Перевірити підключення",
       checking: "Перевіряю…",
-      invalid: "Перевірте адресу (https://….supabase.co) і ключ.",
+      invalid_url: "Адреса проєкту має бути такою: https://<20 латинських літер>.supabase.co (Supabase → кнопка Connect або Project Settings → Data API → Project URL).",
+      invalid_key: "Вставте Publishable key (Supabase → Project Settings → API Keys, починається з sb_publishable_).",
+      secret_key: "Це секретний ключ (sb_secret_…) — його нікому не показують. Потрібен Publishable key (sb_publishable_…).",
       failed: "Не вдалося звернутися до проєкту.",
       steps: {
         accepted: "Проєкт приймає нашу перепустку",

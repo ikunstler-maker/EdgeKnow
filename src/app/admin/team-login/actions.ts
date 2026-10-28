@@ -7,7 +7,7 @@ import { mintTeamToken, oidcIssuer } from "@/lib/oidc";
 
 // Live check of a team's Supabase project against our sign-in (platform admin only).
 // Only *.supabase.co project addresses are called, never arbitrary hosts.
-const PROJECT_URL = /^https:\/\/[a-z0-9]{20}\.supabase\.co$/;
+const PROJECT_URL = /^https:\/\/([a-z0-9]{20})\.supabase\.co(?:\/.*)?$/;
 
 export type CheckStep = { id: "accepted" | "identity" | "guard" | "forged"; ok: boolean; detail: string };
 
@@ -40,9 +40,13 @@ async function probeToken(issuer: string, role: string, sub: string, useOurKey: 
 export async function checkTeamProject(input: { url: string; publishableKey: string }) {
   const user = await getCurrentUser();
   if (!user.isPlatformAdmin) return { ok: false as const, error: "forbidden" };
-  const url = input.url.trim().replace(/\/$/, "");
+  // A copied address may carry a path ("/rest/v1/"); only the project itself is used.
+  const ref = input.url.trim().match(PROJECT_URL)?.[1];
   const publishableKey = input.publishableKey.trim();
-  if (!PROJECT_URL.test(url) || !/^[A-Za-z0-9._-]{20,400}$/.test(publishableKey)) return { ok: false as const, error: "invalid" };
+  if (!ref) return { ok: false as const, error: "invalid_url" };
+  if (publishableKey.startsWith("sb_secret_")) return { ok: false as const, error: "secret_key" };
+  if (!/^[A-Za-z0-9._-]{20,400}$/.test(publishableKey)) return { ok: false as const, error: "invalid_key" };
+  const url = `https://${ref}.supabase.co`;
 
   const h = await headers();
   const issuer = oidcIssuer(`${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`);
