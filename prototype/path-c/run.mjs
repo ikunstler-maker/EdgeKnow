@@ -206,5 +206,6 @@ const lines = [
 ];
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
 for (const f of failed) console.log(`::error title=Path C prototype::${f.name} — ${f.detail}`);
+for (const n of results.filter((r) => r.ok === null)) console.log(`::notice title=Finding::${n.name} — ${n.detail}`);
 console.log(`::notice title=Path C prototype::${results.filter((r) => r.ok).length}/${results.filter((r) => r.ok !== null).length} checks passed`);
 process.exit(failed.length ? 1 : 0);
