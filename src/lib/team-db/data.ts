@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspace } from "@/lib/workspace";
 import { WORKSPACE_HEADER } from "./header";
-import { syncTeam, teamDatabase } from "./sync";
+import { syncTeam, teamDatabase, teamReady } from "./sync";
 
 // Where a workspace's pages, access and comments live: the central database, or
 // (path C) the team's own Supabase project. Server code asks this instead of
@@ -20,7 +20,9 @@ import { syncTeam, teamDatabase } from "./sync";
 
 const SYNC_EVERY_MS = 60_000;
 
-export type WorkspaceData = { client: SupabaseClient; workspaceId: string; location: "central" | "team" };
+// "setup": the team's project is being connected (step 1.5). The workspace has no
+// pages yet; reads come back empty and writes are refused until it is ready.
+export type WorkspaceData = { client: SupabaseClient; workspaceId: string; location: "central" | "team" | "setup" };
 
 async function requestOrigin() {
   const h = await headers();
@@ -46,6 +48,7 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
   if (db && !oidcConfigured()) throw new Error("team database registered but EDGEKNOW_OIDC_SIGNING_KEYS is not set");
   // Once a workspace has a team database, its data is never read or written centrally.
   if (!db) return { client: central, workspaceId: workspace.id, location: "central" };
+  if (!teamReady(db)) return { client: central, workspaceId: workspace.id, location: "setup" };
 
   const user = await getCurrentUser();
   const issuer = oidcIssuer(await requestOrigin());
@@ -59,7 +62,7 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
   if (joinedSince || Date.now() - lastSync > SYNC_EVERY_MS) await syncTeam(admin!, db, issuer).catch(() => {});
 
   const { token } = await mintTeamToken(issuer, user, workspace.id);
-  const client = createSupabaseClient(db.project_url, db.publishable_key, {
+  const client = createSupabaseClient(db.project_url!, db.publishable_key!, {
     accessToken: async () => token,
     global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
   });
@@ -71,11 +74,18 @@ export async function dataClient(shortId?: string): Promise<SupabaseClient> {
   return (await workspaceData(shortId))?.client ?? (await createClient());
 }
 
+// For changes: null while the team's project is still being connected.
+export async function writeClient(shortId?: string): Promise<SupabaseClient | null> {
+  const data = await workspaceData(shortId);
+  if (data?.location === "setup") return null;
+  return data?.client ?? (await createClient());
+}
+
 // After a membership change centrally (roles, domains, removal, owner, profile
 // visibility): copy it to the team database right away.
 export async function syncWorkspaceNow(workspaceId: string) {
   const admin = createAdminClient();
   if (!admin || !oidcConfigured()) return;
   const db = await teamDatabase(admin, workspaceId);
-  if (db) await syncTeam(admin, db, oidcIssuer(await requestOrigin())).catch(() => {});
+  if (db && teamReady(db)) await syncTeam(admin, db, oidcIssuer(await requestOrigin())).catch(() => {});
 }

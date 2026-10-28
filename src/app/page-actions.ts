@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import type { GrantRole, PageRole } from "@/lib/pages";
-import { dataClient } from "@/lib/team-db/data";
+import { dataClient, writeClient } from "@/lib/team-db/data";
 
 // Permission checks live in the database functions; these actions only forward
 // the call and refresh every page that shows the tree.
@@ -11,7 +11,8 @@ async function callPageRpc<T extends object = object>(
   fn: string,
   args: Record<string, unknown>,
 ): Promise<ActionResult<T>> {
-  const supabase = await dataClient();
+  const supabase = await writeClient();
+  if (!supabase) return { ok: false, error: "team_setup" };
   const { data, error } = await supabase.rpc(fn, args);
   if (error || !data) return { ok: false, error: "unknown" };
   revalidatePath("/", "layout");
