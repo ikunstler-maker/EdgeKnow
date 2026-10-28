@@ -83,7 +83,8 @@ export function TeamLoginPanel({ configured, issuer, sql }: { configured: boolea
               startTransition(async () => {
                 const result = await checkTeamProject({ url, publishableKey: key });
                 if (result.ok) setSteps(result.steps);
-                else setError(result.error === "invalid" ? tl.invalid : `${tl.failed} ${"detail" in result ? result.detail ?? "" : ""}`);
+                else if (result.error === "invalid_url" || result.error === "invalid_key" || result.error === "secret_key") setError(tl[result.error]);
+                else setError(`${tl.failed} ${"detail" in result ? result.detail ?? "" : ""}`);
               });
             }}
           >

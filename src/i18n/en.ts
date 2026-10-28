@@ -771,7 +771,9 @@ export const en: Dictionary = {
       publishableKey: "Project's publishable key",
       check: "Check connection",
       checking: "Checking…",
-      invalid: "Check the address (https://….supabase.co) and the key.",
+      invalid_url: "The project address looks like https://<20 letters>.supabase.co (Supabase → Connect button or Project Settings → Data API → Project URL).",
+      invalid_key: "Paste the Publishable key (Supabase → Project Settings → API Keys, starts with sb_publishable_).",
+      secret_key: "That's the secret key (sb_secret_…) — never share it. The Publishable key (sb_publishable_…) is needed.",
       failed: "Couldn't reach the project.",
       steps: {
         accepted: "The project accepts our token",
