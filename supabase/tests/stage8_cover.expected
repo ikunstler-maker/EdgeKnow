@@ -16,6 +16,6 @@ no access: {"ok": false, "error": "forbidden"}
 viewer: {"ok": false, "error": "forbidden"}
 viewer reads cover: image
 psql: ERROR:  permission denied for table pages
-collected: 1
+collected: 2
 cover file kept: 1
 remove: {"ok": true, "cover": null}

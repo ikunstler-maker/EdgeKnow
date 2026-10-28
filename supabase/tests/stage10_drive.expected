@@ -1,0 +1,12 @@
+before drive: supabase
+quota on supabase: {"ok": false, "error": "quota_exceeded"}
+status: {"ok": true, "to_move": 0, "limit_mb": 1, "total_files": 1}, drive null
+with drive: drive
+drive status: team@drive.test, to move 2, token shown: false
+member status: {"ok": false, "error": "forbidden"}
+psql: ERROR:  permission denied for table drive_connections
+psql: ERROR:  permission denied for table attachments
+psql: ERROR:  permission denied for table drive_connections
+psql: ERROR:  permission denied for table page_backups
+psql: ERROR:  duplicate key value violates unique constraint "drive_connections_one_active"
+tombstone: drive gfile1 true

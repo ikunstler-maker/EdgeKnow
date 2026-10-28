@@ -7,7 +7,7 @@ import { LOCALE_COOKIE, THEME_COOKIE, asLocale, asTheme } from "@/lib/preference
 const PUBLIC_PATHS = ["/login", "/auth", "/no-access", "/invite"];
 // Routes open to everyone, signed in or not (Google requires a public privacy policy;
 // the cron route checks its own secret).
-const ALWAYS_PUBLIC_PATHS = ["/privacy", "/api/cron/cleanup-files"];
+const ALWAYS_PUBLIC_PATHS = ["/privacy", "/api/cron/cleanup-files", "/api/cron/backup-pages"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
