@@ -526,7 +526,7 @@ export const en: Dictionary = {
       already_connected: "This workspace is already connected.",
       project_not_empty: "That project already has tables. Choose an empty project or create a new one.",
       no_api_keys: "The project has no new API keys (publishable / secret). Create them in Supabase → Project Settings → API Keys and press “Try again”.",
-      supabase: "Supabase refused the request. Your organization may already have 2 free projects — Supabase's limit.",
+      supabase: "Supabase refused the request. Check the EdgeKnow app's scopes in Supabase, or the limit of 2 free projects.",
       forbidden: "Only the workspace owner can connect a database.",
       not_configured: "Not available yet.",
       unknown: "Something went wrong. Please try again.",

@@ -85,7 +85,7 @@ export function TeamDatabasePanel({
   useEffect(() => {
     if (!choose || status || hasPages) return;
     void setup({ ws: workspaceId, action: "options" }).then((result) => {
-      if (!result.ok) return setError(explain(result.error));
+      if (!result.ok) return setError(`${explain(result.error)}${result.detail ? ` (${String(result.detail)})` : ""}`);
       const next = result as unknown as Options;
       setOptions(next);
       setOrganization(next.organizations[0]?.slug ?? "");
@@ -224,7 +224,7 @@ export function TeamDatabasePanel({
                 : { ws: workspaceId, action: "existing", ref: project },
             );
             setBusy(false);
-            if (!result.ok) return setError(explain(result.error));
+            if (!result.ok) return setError(`${explain(result.error)}${result.detail ? ` (${String(result.detail)})` : ""}`);
             setProgress({ step: "project" });
           }}
         >
