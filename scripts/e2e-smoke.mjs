@@ -663,12 +663,14 @@ await wide.keyboard.press("Backspace");
 check("contents/comments tabs", (await wide.getByRole("tab", { name: "Зміст" }).count()) === 1 && (await wide.getByRole("tab", { name: /Коментарі/ }).count()) === 1);
 await wide.getByRole("tab", { name: "Зміст" }).click();
 check("contents tab lists headings", (await wide.getByRole("navigation", { name: "Зміст" }).getByText("Section one").count()) > 0);
-await wide.getByLabel("Зміст:").selectOption("left");
+await wide.getByRole("button", { name: "Зміст:" }).click();
+await wide.getByRole("radio", { name: "ліворуч замість дерева" }).click();
 await wide.waitForTimeout(300);
 check("contents move to the sidebar instead of the tree", (await wide.locator("aside").getByRole("region", { name: "Зміст" }).getByText("Section one").count()) > 0 && (await wide.locator("aside").getByRole("button", { name: /Дерево сторінок/ }).count()) > 0);
 await wide.locator("aside").getByRole("button", { name: /Дерево сторінок/ }).click();
 check("tree comes back on request", (await wide.locator("aside").getByRole("tree").count()) > 0);
-await wide.getByLabel("Зміст:").selectOption("right");
+await wide.getByRole("button", { name: "Зміст:" }).click();
+await wide.getByRole("radio", { name: "праворуч (перемикач)" }).click();
 
 // A reader: chip is read-only, a page they can't open shows no title.
 await colleague.goto(`${APP}/w/${alphaShort}/p/${extrasPage}`);
