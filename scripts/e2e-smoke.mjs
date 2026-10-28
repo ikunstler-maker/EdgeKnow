@@ -61,7 +61,8 @@ async function newPage(cookies = []) {
   lastPage = page;
   page.on("dialog", (d) => d.accept().catch(() => {}));
   page.on("response", (r) => {
-    if (r.status() >= 500) problems.push(`HTTP ${r.status()} ${r.url()}`);
+    // 503 from the feedback route is expected in CI: no Google Sheet is connected there.
+    if (r.status() >= 500 && !(r.status() === 503 && r.url().endsWith("/api/feedback"))) problems.push(`HTTP ${r.status()} ${r.url()}`);
   });
   return page;
 }
