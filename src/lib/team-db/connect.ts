@@ -135,3 +135,20 @@ export async function migrateAllTeams(admin: SupabaseClient): Promise<TeamMigrat
   }
   return results;
 }
+
+let latestName: string | null | undefined;
+export function latestTeamMigration() {
+  if (latestName === undefined) latestName = loadTeamMigrations().at(-1)?.name ?? null;
+  return latestName;
+}
+
+// A team database behind the current schema (a new version of the wiki came
+// out since): bring it up to date before using it.
+export async function upgradeTeam(admin: SupabaseClient, workspaceId: string) {
+  const { data } = await admin.from("team_databases").select(SETUP_COLUMNS).eq("workspace_id", workspaceId).maybeSingle();
+  const row = data as SetupRow | null;
+  if (!row) return;
+  const migrations = loadTeamMigrations();
+  await migrateTeam(await teamExecutor(admin, row), migrations);
+  await admin.from("team_databases").update({ schema_version: migrations.at(-1)?.name ?? null, last_error: null }).eq("workspace_id", workspaceId);
+}

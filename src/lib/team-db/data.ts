@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspace } from "@/lib/workspace";
 import { WORKSPACE_HEADER } from "./header";
+import { latestTeamMigration, upgradeTeam } from "./connect";
 import { syncTeam, teamDatabase, teamReady } from "./sync";
 
 // Where a workspace's pages, access and comments live: the central database, or
@@ -49,6 +50,9 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
   // Once a workspace has a team database, its data is never read or written centrally.
   if (!db) return { client: central, workspaceId: workspace.id, location: "central" };
   if (!teamReady(db)) return { client: central, workspaceId: workspace.id, location: "setup" };
+
+  // A newer wiki may need a newer team schema; failures leave the old one working.
+  if (db.schema_version !== latestTeamMigration()) await upgradeTeam(admin!, workspace.id).catch(() => {});
 
   const user = await getCurrentUser();
   const issuer = oidcIssuer(await requestOrigin());

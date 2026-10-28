@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { backupWorkspace, snapshotWorkspace } from "@/lib/drive/backup";
 import type { DriveConnection } from "@/lib/drive/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { migrateAllTeams } from "@/lib/team-db/connect";
 
 // Daily (vercel.json): backs up changed pages of every workspace with a Drive.
 // Needs CRON_SECRET (Vercel sends it as a bearer token) and SUPABASE_SECRET_KEY.
@@ -28,5 +29,7 @@ export async function GET(request: NextRequest) {
       results[connection.workspace_id] = { error: "drive_failed" };
     }
   }
-  return NextResponse.json({ workspaces: results });
+  // Team databases (path C) get the current schema even if nobody opened them lately.
+  const teams = await migrateAllTeams(admin).catch(() => []);
+  return NextResponse.json({ workspaces: results, teams: teams.map((t) => ({ team: t.team, applied: t.applied.length, error: t.error ?? null })) });
 }
