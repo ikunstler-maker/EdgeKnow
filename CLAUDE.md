@@ -6,6 +6,15 @@
 
 ## Working agreement
 - Work strictly stage by stage (SPEC → "Етапи реалізації"): plan → owner's OK → code → verify "Готово, коли" → commit.
+- Merging PRs (owner's rule, 2026-11-09):
+  - The owner says at plan approval whether the PRs of that plan may be merged automatically. Without that, don't merge.
+  - Merge only your own PRs, only with all checks green. Never merge drafts or prototypes. After merging, tell the owner what went live.
+  - A **dangerous** merge always needs a separate explicit OK right before it, even if auto-merge was approved. Warn in plain Ukrainian what could go wrong and wait for "так, зливай" or "зроблю сама".
+  - Dangerous means any of these:
+    - migrations that change or delete existing data, or drop or rename columns or tables;
+    - changes to RLS, security functions, sign-in or access rules;
+    - moving data between databases (path C), or anything needing new secrets or environment variables;
+    - anything that is hard to roll back.
 - Only v1. Do not build v2 / "Пізніше" items, but don't block them architecturally.
 - Stack is fixed: Next.js (App Router, TS), BlockNote, Supabase (@supabase/ssr), Tailwind, browser-image-compression; React Flow only in v2.
 - The owner is not a professional developer: explain decisions briefly, in plain Ukrainian.
