@@ -799,6 +799,11 @@ await Promise.all([wide.waitForEvent("load"), wide.getByRole("radio", { name: "U
 await wide.getByRole("radio", { name: "System", exact: true }).or(wide.getByRole("radio", { name: "Системна", exact: true })).first().click();
 check("back to Ukrainian and system theme", await until(() => prefsOf("alice@alpha.test") === "system uk"), prefsOf("alice@alpha.test"));
 
+// --- Mentions with a person chip in the text --------------------------------------------
+
+await colleague.goto(`${APP}/w/${alphaShort}`);
+check("person chip in a page's text shows under 'Вас згадали'", (await colleague.getByText("згадав(-ла) вас у тексті сторінки").count()) > 0);
+
 // --- Google Drive storage (a local stand-in for Drive in CI) ---------------------------
 
 const { readdirSync, readFileSync: readFake } = await import("node:fs");
@@ -877,6 +882,9 @@ const backups = sql(`select count(*) from public.page_backups b join public.page
 check("pages backed up to Drive", Number(backups) > 0, backups);
 const backupJson = fakeFiles().map((f) => readFake(`${fakeDir}/${f}`, "utf8")).find((text) => text.includes('"title": "Alpha secret"'));
 check("backup holds the exact page content", Boolean(backupJson));
+const snapshot = fakeFiles().map((f) => readFake(`${fakeDir}/${f}`, "utf8")).find((text) => text.includes("edgeknow-workspace-snapshot/1"));
+check("workspace data snapshot saved to Drive", Boolean(snapshot) && snapshot.includes('"page_access"') && snapshot.includes('"comments"'));
+check("snapshot holds no secrets", Boolean(snapshot) && !snapshot.includes("token_encrypted") && !snapshot.includes("fake-refresh-token") && !snapshot.includes("token_hash"));
 const cronNoKey = await fetch(`${APP}/api/cron/backup-pages`);
 check("backup job needs its secret", cronNoKey.status === 401, String(cronNoKey.status));
 const cronRun = await fetch(`${APP}/api/cron/backup-pages`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });

@@ -41,7 +41,7 @@ import {
   useWide,
   type CommentsController,
 } from "./comments";
-import { ImageFilePanel, ImageWidthButtons } from "./image-tools";
+import { ImageFilePanel, ImageWidthButtons, PreviewToggleButton } from "./image-tools";
 import { schema, type EditorBlock } from "./schema";
 import { collectHeadings, scrollToBlock, TableOfContents, type Heading } from "./table-of-contents";
 import { publishSidebarToc, setTocPlacement, useTocPlacement, type TocPlacement } from "./toc-store";
@@ -346,7 +346,10 @@ export default function PageEditor({
         return (
           <FormattingToolbar>
             {[
-              ...getFormattingToolbarItems(),
+              // BlockNote's preview toggle is swapped for a translated one.
+              ...getFormattingToolbarItems().map((item) =>
+                item.key === "filePreviewButton" ? <PreviewToggleButton key="filePreviewButton" /> : item,
+              ),
               <ImageWidthButtons key="imageWidthButtons" />,
               <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />,
               <MonoButton key="monoButton" />,

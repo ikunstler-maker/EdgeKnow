@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { backupWorkspace } from "@/lib/drive/backup";
+import { backupWorkspace, snapshotWorkspace } from "@/lib/drive/backup";
 import { requireOwner } from "@/lib/drive/owner";
 import { activeConnection } from "@/lib/drive/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -13,7 +13,9 @@ export async function POST(request: NextRequest) {
   const connection = await activeConnection(admin, String(workspaceId));
   if (!connection || connection.status !== "ok") return NextResponse.json({ ok: false, error: "drive_unavailable" }, { status: 409 });
   try {
-    return NextResponse.json({ ok: true, ...(await backupWorkspace(admin, connection)) });
+    const pages = await backupWorkspace(admin, connection);
+    const snapshot = await snapshotWorkspace(admin, connection);
+    return NextResponse.json({ ok: true, ...pages, snapshot: snapshot.saved });
   } catch {
     return NextResponse.json({ ok: false, error: "drive_failed" }, { status: 502 });
   }
