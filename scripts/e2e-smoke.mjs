@@ -900,6 +900,15 @@ await wide.getByText(/Готово: перенесено/).waitFor({ timeout: 60
 const onOld = sql(`select count(*) from public.attachments a join public.drive_connections c on c.id = a.drive_connection_id where a.workspace_id = '${alphaId}' and not c.active`);
 check("files moved to the new Drive", onOld === "0", onOld);
 
+// --- Help page --------------------------------------------------------------------------
+
+const anonHelp = await fetch(`${APP}/help`);
+check("help is open without signing in", anonHelp.status === 200 && (await anonHelp.text()).includes("Довідка"), String(anonHelp.status));
+await alice.goto(`${APP}/w/${alphaShort}`);
+await alice.locator("aside").getByRole("link", { name: /Довідка/ }).click();
+await alice.waitForURL(/\/help$/);
+check("help linked from the sidebar, with every section", (await alice.locator("main section").count()) >= 14);
+
 await aliceClient.auth.signOut();
 await browser.close();
 
