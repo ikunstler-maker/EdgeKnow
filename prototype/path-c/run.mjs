@@ -101,7 +101,8 @@ check("running again changes nothing", secondRun.every((n) => n === 0), JSON.str
 const alice = randomUUID();
 const bob = randomUUID();
 async function token(jwk, sub, { role = "authenticated", expiresIn = 600 } = {}) {
-  const key = await importJWK(jwk, "ES256");
+  const { key_ops: _ops, use: _use, ...signing } = jwk;
+  const key = await importJWK(signing, "ES256");
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({ role, aal: "aal1", session_id: randomUUID() })
     .setProtectedHeader({ alg: "ES256", kid: jwk.kid, typ: "JWT" })
