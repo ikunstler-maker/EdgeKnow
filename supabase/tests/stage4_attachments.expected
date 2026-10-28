@@ -15,7 +15,7 @@ within quota: true
 over quota: {"ok": false, "error": "quota_exceeded"}
 collected: 1
 kept referenced: 1
-tombstones: 1
-page deleted -> tombstones: 2
+tombstones: 2
+page deleted -> tombstones: 3
 psql: ERROR:  permission denied for function collect_unreferenced_attachments
 psql: ERROR:  permission denied for table attachment_tombstones

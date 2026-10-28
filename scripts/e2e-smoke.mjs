@@ -313,7 +313,7 @@ check("resized to Full HD", stored[2] === "1920x1080", stored[2]);
 check("file sits in the workspace folder", stored[3]?.startsWith(sql("select id from public.workspaces where name = 'Alpha'") + "/"), stored[3]);
 check("document keeps the storage path, not a URL", JSON.stringify(pageContent(imagePage)).includes(`ek-attachment:${stored[3]}`));
 const shownSrc = await alice.locator(".bn-editor img.bn-visual-media").first().getAttribute("src");
-check("image shown through a signed URL", /\/storage\/v1\/object\/sign\//.test(shownSrc ?? ""), shownSrc?.slice(0, 80));
+check("image shown through our access-checked file route", (shownSrc ?? "").startsWith("/api/files/") && (await alice.locator(".bn-editor img.bn-visual-media").first().evaluate((img) => img.naturalWidth)) > 0, shownSrc?.slice(0, 80));
 check("image loads lazily", (await alice.locator(".bn-editor img.bn-visual-media").first().getAttribute("loading")) === "lazy");
 
 // Width steps from the toolbar.
@@ -798,6 +798,96 @@ check("new device follows the profile", (await freshDevice.evaluate(() => `${doc
 await Promise.all([wide.waitForEvent("load"), wide.getByRole("radio", { name: "UA" }).click()]);
 await wide.getByRole("radio", { name: "System", exact: true }).or(wide.getByRole("radio", { name: "Системна", exact: true })).first().click();
 check("back to Ukrainian and system theme", await until(() => prefsOf("alice@alpha.test") === "system uk"), prefsOf("alice@alpha.test"));
+
+// --- Google Drive storage (a local stand-in for Drive in CI) ---------------------------
+
+const { readdirSync, readFileSync: readFake } = await import("node:fs");
+const fakeDir = process.env.DRIVE_FAKE_DIR;
+const fakeFiles = () => {
+  try {
+    return readdirSync(fakeDir).filter((f) => !f.endsWith(".type"));
+  } catch {
+    return [];
+  }
+};
+const driveRows = () => sql(`select count(*) from public.drive_connections where workspace_id = '${alphaId}'`);
+const settingsUrl = `${APP}/w/${alphaShort}/settings?tab=storage`;
+await wide.goto(settingsUrl);
+check("storage tab shows Supabase usage", (await wide.getByText(/Зараз файли зберігаються в Supabase/).count()) > 0);
+
+// Only the owner may connect, and only through a state the server signed.
+const memberConnect = await colleague.evaluate(async (ws) => (await fetch(`/api/drive/connect?ws=${ws}`, { redirect: "manual" })).status, alphaId);
+check("a member can't start connecting Drive", memberConnect === 403, String(memberConnect));
+await wide.goto(`${APP}/api/drive/callback?code=fake-code&state=forged.state`);
+check("a forged callback connects nothing", driveRows() === "0", driveRows());
+
+await wide.goto(settingsUrl);
+await wide.getByRole("link", { name: "Підключити Google Drive" }).click();
+await wide.waitForURL(/tab=storage&drive=connected/);
+check("owner connects Google Drive", (await wide.getByText("Google Drive підключено.").count()) > 0 && driveRows() === "1");
+const storedToken = sql(`select token_encrypted from public.drive_connections where workspace_id = '${alphaId}' and active`);
+check("Drive access stored encrypted", storedToken.startsWith("v1.") && !storedToken.includes("fake-refresh-token"));
+const tokenLeak = await colleagueClient.from("drive_connections").select("token_encrypted");
+check("Drive access not readable through the API", Boolean(tokenLeak.error) || (tokenLeak.data ?? []).length === 0, JSON.stringify(tokenLeak.data ?? tokenLeak.error).slice(0, 120));
+
+// Existing files move to Drive and free their Supabase space.
+const supabaseFiles = () => sql(`select count(*) from public.attachments where workspace_id = '${alphaId}' and storage_backend = 'supabase'`);
+const before = Number(supabaseFiles());
+check("there are files to move", before > 0, String(before));
+await wide.getByRole("button", { name: "Перенести наявні файли" }).click();
+await wide.getByText(/Готово: перенесено/).waitFor({ timeout: 60000 });
+check("all files moved to Drive", supabaseFiles() === "0", supabaseFiles());
+check("moved files are on the Drive", fakeFiles().length >= before, String(fakeFiles().length));
+const leftInStorage = sql(`select count(*) from storage.objects where bucket_id = 'attachments' and name like '${alphaId}/%'`);
+check("Supabase copies removed after the move", leftInStorage === "0", leftInStorage);
+
+// Shown from Drive, only to people who can open the page.
+await alice.goto(`${APP}/w/${alphaShort}/p/${imagePage}`);
+await alice.waitForSelector(".bn-editor img.bn-visual-media");
+await alice.waitForFunction(() => document.querySelector(".bn-editor img.bn-visual-media")?.naturalWidth > 0, null, { timeout: 15000 });
+check("image now served from Drive", true);
+const drivePath = sql(`select storage_path from public.attachments where page_id = '${imagePage}' limit 1`);
+const ownStatus = await alice.evaluate(async (p) => { const r = await fetch(`/api/files/${p}`); return `${r.status} ${r.headers.get("content-type")} ${r.headers.get("x-content-type-options")}`; }, drivePath);
+check("Drive file served as an image only", ownStatus === "200 image/webp nosniff", ownStatus);
+const strangerFile = await colleague.evaluate(async (p) => (await fetch(`/api/files/${p}`)).status, drivePath);
+check("someone without access to the page gets no file", strangerFile === 404, String(strangerFile));
+const bobFile = await bob.evaluate(async (p) => (await fetch(`/api/files/${p}`)).status, drivePath);
+check("another workspace gets no file", bobFile === 404 || bobFile === 307 || bobFile === 302, String(bobFile));
+
+// New uploads go straight to Drive; the bytes must match what was registered.
+const webp = Buffer.from("UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=", "base64");
+const reg = (await aliceClient.rpc("register_attachment", { target_page: imagePage, file_type: "image/webp", file_bytes: webp.length, file_width: 1, file_height: 1 })).data;
+check("new uploads are registered for Drive", reg?.backend === "drive", JSON.stringify(reg));
+const upload = (bytes) => wide.evaluate(async ([p, b]) => (await fetch(`/api/files/upload?path=${encodeURIComponent(p)}`, { method: "POST", body: new Uint8Array(b) })).status, [reg.path, [...bytes]]);
+const fakePng = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(webp.length - 4)]);
+check("upload with the wrong kind of file refused", (await upload(fakePng)) === 400);
+check("upload of the registered image accepted", (await upload(webp)) === 200);
+check("new file stored on Drive", sql(`select storage_backend from public.attachments where storage_path = '${reg.path}'`) === "drive");
+const colleagueUpload = await colleague.evaluate(async (p) => (await fetch(`/api/files/upload?path=${encodeURIComponent(p)}`, { method: "POST", body: new Uint8Array([1, 2, 3]) })).status, reg.path);
+check("someone else can't upload into a registered path", colleagueUpload === 403, String(colleagueUpload));
+
+// Page backups.
+await wide.goto(settingsUrl);
+await wide.getByRole("button", { name: "Зробити копію зараз" }).click();
+await wide.getByText(/Скопійовано/).waitFor({ timeout: 60000 });
+const backups = sql(`select count(*) from public.page_backups b join public.pages p on p.id = b.page_id where p.workspace_id = '${alphaId}'`);
+check("pages backed up to Drive", Number(backups) > 0, backups);
+const backupJson = fakeFiles().map((f) => readFake(`${fakeDir}/${f}`, "utf8")).find((text) => text.includes('"title": "Alpha secret"'));
+check("backup holds the exact page content", Boolean(backupJson));
+const cronNoKey = await fetch(`${APP}/api/cron/backup-pages`);
+check("backup job needs its secret", cronNoKey.status === 401, String(cronNoKey.status));
+const cronRun = await fetch(`${APP}/api/cron/backup-pages`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
+check("daily backup job runs", cronRun.status === 200, String(cronRun.status));
+
+// Connecting another Drive: the old one stays until its files are moved.
+await wide.getByRole("link", { name: "Підключити інший Google Drive" }).click();
+await wide.waitForURL(/drive=connected/);
+const conns = sql(`select count(*) filter (where active) || '/' || count(*) from public.drive_connections where workspace_id = '${alphaId}'`);
+check("new Drive active, old one kept", conns === "1/2", conns);
+await wide.getByRole("button", { name: "Перенести наявні файли" }).click();
+await wide.getByText(/Готово: перенесено/).waitFor({ timeout: 60000 });
+const onOld = sql(`select count(*) from public.attachments a join public.drive_connections c on c.id = a.drive_connection_id where a.workspace_id = '${alphaId}' and not c.active`);
+check("files moved to the new Drive", onOld === "0", onOld);
 
 await aliceClient.auth.signOut();
 await browser.close();

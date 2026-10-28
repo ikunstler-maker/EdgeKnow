@@ -75,6 +75,13 @@ jobs:
         run: |
           export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
+          # Throwaway values for this run only; Google Drive is replaced by a local stand-in.
+          export SUPABASE_SECRET_KEY="$(jq -r '.SECRET_KEY // .SERVICE_ROLE_KEY' status.json)"
+          export DRIVE_TOKEN_KEY="ci-drive-token-key-$(openssl rand -hex 16)"
+          export DRIVE_FAKE_DIR="$RUNNER_TEMP/fake-drive"
+          export CRON_SECRET="ci-cron-secret"
+          echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
+          echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"
           npm run build
           nohup npm start -- -p 3000 > next.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/privacy && break; sleep 1; done

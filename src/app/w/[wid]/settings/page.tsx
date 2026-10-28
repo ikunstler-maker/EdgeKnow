@@ -4,7 +4,9 @@ import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
+import { driveConfigured } from "@/lib/drive/google-drive";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
+import { StoragePanel, type StorageStatus } from "./storage-panel";
 import {
   DomainsPanel,
   GeneralPanel,
@@ -21,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.workspace.settings} · ${t.app.name}` };
 }
 
-const TABS = ["general", "members", "domains", "log"] as const;
+const TABS = ["general", "members", "domains", "storage", "log"] as const;
 type Tab = (typeof TABS)[number];
 
 type MemberRow = {
@@ -47,7 +49,7 @@ export default async function WorkspaceSettingsPage({
   searchParams,
 }: PageProps<"/w/[wid]/settings">) {
   const { wid } = await params;
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, drive: driveParam } = await searchParams;
   const [user, workspace] = await Promise.all([getCurrentUser(), getWorkspace(wid)]);
   if (!workspace) return null;
 
@@ -69,7 +71,7 @@ export default async function WorkspaceSettingsPage({
 
   const supabase = await createClient();
   // Each query is limited by RLS to this workspace and to admins.
-  const [members, domains, invitations, log, departed] = await Promise.all([
+  const [members, domains, invitations, log, storage, departed] = await Promise.all([
     tab === "general" || tab === "members"
       ? supabase
           .from("workspace_members")
@@ -107,6 +109,7 @@ export default async function WorkspaceSettingsPage({
           .limit(100)
           .overrideTypes<LogRow[], { merge: false }>()
       : null,
+    tab === "storage" ? supabase.rpc("workspace_storage_status", { ws: workspace.id }) : null,
     // Only counts per former member: admins don't see other people's pages.
     tab === "members" ? supabase.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
@@ -182,6 +185,15 @@ export default async function WorkspaceSettingsPage({
             workspaceId={workspace.id}
             domains={domainItems}
             ownDomain={user.email.split("@")[1] ?? ""}
+          />
+        )}
+        {tab === "storage" && storage?.data && (
+          <StoragePanel
+            workspaceId={workspace.id}
+            status={storage.data as StorageStatus}
+            isOwner={workspace.role === "owner"}
+            configured={driveConfigured()}
+            notice={driveParam === "connected" ? "connected" : driveParam === "error" ? "error" : null}
           />
         )}
         {tab === "log" && (

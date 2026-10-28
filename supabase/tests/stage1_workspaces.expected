@@ -78,7 +78,7 @@ psql: ERROR:  permission denied for table platform_settings
 psql: ERROR:  permission denied for function log_workspace_action
 psql: ERROR:  permission denied for table workspaces
 psql: ERROR:  permission denied for function has_platform_access
-stats: Alpha=3m/1p,Alpha two=1m/0p,Beta=1m/0p
+stats: Drive=2m/1p,Alpha=3m/1p,Alpha two=1m/0p,Beta=1m/0p
 admin sees alpha pages: 0
 admin reads platform log: true
 open registration: {"ok": true}
@@ -98,4 +98,4 @@ alpha left: 0
 alpha pages left: 0
 alpha members left: 0
 deletion logged: 1
-workspaces now: Alpha two,Beta
+workspaces now: Drive,Alpha two,Beta
