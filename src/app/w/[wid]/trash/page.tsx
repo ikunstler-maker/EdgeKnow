@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { dateLocale, t } from "@/i18n";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { TrashList, type TrashItem } from "./trash-list";
 
@@ -32,9 +32,10 @@ function toTrashItems(rows: TrashRow[], now = Date.now()): TrashItem[] {
 }
 
 export default async function TrashPage({ params }: PageProps<"/w/[wid]/trash">) {
-  const workspace = await getWorkspace((await params).wid);
+  const { wid } = await params;
+  const workspace = await getWorkspace(wid);
   if (!workspace) return null;
-  const supabase = await createClient();
+  const supabase = await dataClient(wid);
   const { data } = await supabase
     .from("pages")
     .select("id, title, icon, deleted_at, trashed_with")

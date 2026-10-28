@@ -2,7 +2,7 @@ import Link from "next/link";
 import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { pagePath, workspacePath } from "@/lib/paths";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { NewPageButton } from "@/components/pages/new-page-button";
 
@@ -39,7 +39,7 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
   if (!workspace) return null;
 
   // Comments that mention me on pages I can still see (RLS filters the rest).
-  const supabase = await createClient();
+  const supabase = await dataClient(wid);
   const { data: mentions } = await supabase
     .from("comments")
     .select(

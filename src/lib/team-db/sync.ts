@@ -33,13 +33,20 @@ export async function syncTeam(admin: SupabaseClient, db: TeamDatabase, issuer: 
   const { data: payload, error } = await admin.rpc("team_sync_payload", { ws: db.workspace_id });
   if (error || !payload) throw new Error("sync payload unavailable");
   const secretKey = decrypt(db.secret_key_encrypted);
-  const response = await fetch(`${db.project_url}/rest/v1/rpc/team_sync`, {
-    method: "POST",
-    headers: { apikey: secretKey, Authorization: `Bearer ${secretKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ payload: { ...payload, settings: { ...payload.settings, issuer } } }),
-    signal: AbortSignal.timeout(15_000),
-    cache: "no-store",
-  });
+  const send = () =>
+    fetch(`${db.project_url}/rest/v1/rpc/team_sync`, {
+      method: "POST",
+      headers: { apikey: secretKey, Authorization: `Bearer ${secretKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ payload: { ...payload, settings: { ...payload.settings, issuer } } }),
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
+    });
+  let response = await send();
+  // Right after a migration the team's API may still be reloading its schema.
+  for (let i = 0; i < 5 && response.status === 404; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    response = await send();
+  }
   const result = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
   if (!response.ok || !result?.ok) {
     const message = `sync failed: HTTP ${response.status} ${result?.error ?? ""}`.trim();

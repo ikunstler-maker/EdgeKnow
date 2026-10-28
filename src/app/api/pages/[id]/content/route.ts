@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 
 // Saves the editor document. Rights, the trash, the size limit and the version
 // check are all enforced by public.save_page_content; this route only forwards.
@@ -15,7 +15,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     return NextResponse.json({ ok: false, error: "invalid_content" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  // The page's workspace comes from the editor (?w=<short id>); membership is checked there.
+  const supabase = await dataClient(request.nextUrl.searchParams.get("w") ?? undefined);
   const { data, error } = await supabase.rpc("save_page_content", {
     target_page: id,
     new_content: body.content,

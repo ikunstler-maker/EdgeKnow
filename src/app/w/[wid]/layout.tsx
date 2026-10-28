@@ -2,7 +2,7 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, listMyWorkspaces } from "@/lib/workspace";
 import { AppShell } from "@/components/app-shell";
 import { PagesProvider } from "@/components/pages/pages-provider";
@@ -31,7 +31,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     );
   }
 
-  const supabase = await createClient();
+  const supabase = await dataClient(wid);
   // RLS returns only this workspace's pages that the user has a role on.
   const { data } = await supabase
     .from("pages")

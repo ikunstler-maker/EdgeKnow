@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { t } from "@/i18n";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 import { getCurrentUser } from "@/lib/auth";
 import { THREAD_COLUMNS, toThread, type PeopleNames, type ThreadRow } from "@/lib/comments";
 import { canEdit, type PageRole } from "@/lib/pages";
@@ -30,9 +30,9 @@ type PageRecord = {
   author: { name: string | null; email: string } | null;
 };
 
-async function loadPage(id: string): Promise<PageRecord | null> {
+async function loadPage(wid: string, id: string): Promise<PageRecord | null> {
   if (!UUID.test(id)) return null;
-  const supabase = await createClient();
+  const supabase = await dataClient(wid);
   // RLS returns nothing for pages the user has no role on (in this workspace or
   // any other), so a foreign link looks exactly like a missing page.
   const { data } = await supabase
@@ -47,8 +47,8 @@ async function loadPage(id: string): Promise<PageRecord | null> {
 }
 
 // Threads of the page and display names of everyone who wrote or was mentioned.
-async function loadComments(pageId: string) {
-  const supabase = await createClient();
+async function loadComments(wid: string, pageId: string) {
+  const supabase = await dataClient(wid);
   const { data } = await supabase
     .from("comment_threads")
     .select(THREAD_COLUMNS)
@@ -71,7 +71,8 @@ async function loadComments(pageId: string) {
 }
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">): Promise<Metadata> {
-  const page = await loadPage((await params).id);
+  const { wid, id } = await params;
+  const page = await loadPage(wid, id);
   return { title: page ? `${page.title || t.pages.untitled} · ${t.app.name}` : t.app.name };
 }
 
@@ -79,9 +80,9 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
   const { wid, id } = await params;
   const [workspace, page, user, comments] = await Promise.all([
     getWorkspace(wid),
-    loadPage(id),
+    loadPage(wid, id),
     getCurrentUser(),
-    loadComments(id),
+    loadComments(wid, id),
   ]);
   if (!workspace) return null;
 

@@ -4,6 +4,7 @@ import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 import { driveConfigured } from "@/lib/drive/google-drive";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { StoragePanel, type StorageStatus } from "./storage-panel";
@@ -70,6 +71,7 @@ export default async function WorkspaceSettingsPage({
   }
 
   const supabase = await createClient();
+  const teamData = await dataClient(workspace.shortId);
   // Each query is limited by RLS to this workspace and to admins.
   const [members, domains, invitations, log, storage, departed] = await Promise.all([
     tab === "general" || tab === "members"
@@ -111,7 +113,7 @@ export default async function WorkspaceSettingsPage({
       : null,
     tab === "storage" ? supabase.rpc("workspace_storage_status", { ws: workspace.id }) : null,
     // Only counts per former member: admins don't see other people's pages.
-    tab === "members" ? supabase.rpc("departed_page_owners", { ws: workspace.id }) : null,
+    tab === "members" ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
   const departedData = departed?.data as
     | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number }[] }

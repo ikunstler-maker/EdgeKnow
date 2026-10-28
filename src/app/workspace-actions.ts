@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/action-result";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
+import { dataClient, syncWorkspaceNow } from "@/lib/team-db/data";
 
 // Permission checks and audit logging live in the database functions; these
 // actions forward the call and refresh the screens that show the result.
@@ -15,6 +16,8 @@ async function callWorkspaceRpc<T extends object = object>(
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(fn, args);
   if (error || !data) return { ok: false, error: "unknown" };
+  // A team database (path C) keeps a copy of the members: bring it up to date now.
+  if ((data as ActionResult).ok && typeof args.ws === "string") await syncWorkspaceNow(args.ws);
   revalidatePath("/", "layout");
   return data as ActionResult<T>;
 }
@@ -81,6 +84,11 @@ export async function setOpenRegistration(open: boolean) {
   return callWorkspaceRpc("set_open_registration", { open });
 }
 
-export async function reassignMemberPages(ws: string, fromUser: string, toUser: string) {
-  return callWorkspaceRpc("reassign_member_pages", { ws, from_user: fromUser, to_user: toUser });
+// Pages live where the workspace's data lives (possibly the team database).
+export async function reassignMemberPages(ws: string, fromUser: string, toUser: string): Promise<ActionResult> {
+  const supabase = await dataClient();
+  const { data, error } = await supabase.rpc("reassign_member_pages", { ws, from_user: fromUser, to_user: toUser });
+  if (error || !data) return { ok: false, error: "unknown" };
+  revalidatePath("/", "layout");
+  return data as ActionResult;
 }

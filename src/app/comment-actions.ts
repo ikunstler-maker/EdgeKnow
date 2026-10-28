@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import type { MarkRange, MentionPerson } from "@/lib/comments";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 
 // Rights are checked by the database functions; these actions forward the call and
 // refresh the page so every card shows the latest messages.
@@ -11,7 +11,7 @@ async function callCommentRpc<T extends object = object>(
   fn: string,
   args: Record<string, unknown>,
 ): Promise<ActionResult<T>> {
-  const supabase = await createClient();
+  const supabase = await dataClient();
   const { data, error } = await supabase.rpc(fn, args);
   if (error || !data) return { ok: false, error: "unknown" };
   revalidatePath("/", "layout");
@@ -62,7 +62,7 @@ export async function deleteComment(commentId: string) {
 }
 
 export async function getMentionCandidates(pageId: string): Promise<MentionPerson[]> {
-  const supabase = await createClient();
+  const supabase = await dataClient();
   const { data } = await supabase.rpc("mention_candidates", { target_page: pageId });
   const people = (data as { ok: boolean; people?: { user_id: string; name: string | null; email: string }[] } | null)
     ?.people;

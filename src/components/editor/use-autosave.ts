@@ -17,6 +17,12 @@ const RETRY_DELAY_MS = 5000;
 // Saves the document a moment after the last change, one request at a time.
 // Each save carries the version it was based on; the server answers "conflict"
 // when someone else saved in between, and autosave stops until the user decides.
+// The page's workspace (/w/<short id>/…) goes along, so the save reaches its database.
+function contentUrl(pageId: string) {
+  const ws = window.location.pathname.match(/^\/w\/([a-z0-9]{8})\//)?.[1];
+  return `/api/pages/${pageId}/content${ws ? `?w=${ws}` : ""}`;
+}
+
 export function useAutosave({
   pageId,
   initialVersion,
@@ -62,7 +68,7 @@ export function useAutosave({
       update("saving");
       let result: SaveResponse;
       try {
-        const response = await fetch(`/api/pages/${pageId}/content`, {
+        const response = await fetch(contentUrl(pageId), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content: getContent(), baseVersion: version.current, force }),
@@ -139,23 +145,24 @@ export function useAutosave({
   }, []);
 
   // Leaving the page inside the app: send whatever is pending.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Taken now: by the time the page is left, the address shows the next page.
+    const url = contentUrl(pageId);
+    return () => {
       if (timer.current) clearTimeout(timer.current);
       if (statusRef.current === "dirty" && !stopped.current) {
         const body = JSON.stringify({ content: getContent(), baseVersion: version.current });
         // In-app navigation keeps the request alive anyway; keepalive (64 KB cap)
         // also covers a closing tab for ordinary-sized pages.
-        void fetch(`/api/pages/${pageId}/content`, {
+        void fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
           keepalive: body.length < 60_000,
         }).catch(() => {});
       }
-    },
-    [getContent, pageId],
-  );
+    };
+  }, [getContent, pageId]);
 
   return {
     status,

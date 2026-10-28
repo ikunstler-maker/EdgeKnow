@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { dataClient } from "@/lib/team-db/data";
 
 export type ProfileStats = {
   name: string;
@@ -27,8 +27,8 @@ type Row = {
 };
 
 // Null when the person isn't in the workspace or hasn't shown their statistics.
-export async function loadProfileStats(workspaceId: string, person: string): Promise<ProfileStats | null> {
-  const supabase = await createClient();
+export async function loadProfileStats(shortId: string, workspaceId: string, person: string): Promise<ProfileStats | null> {
+  const supabase = await dataClient(shortId);
   const { data } = await supabase.rpc("profile_stats", { ws: workspaceId, person });
   const row = data as Row | null;
   if (!row?.ok) return null;

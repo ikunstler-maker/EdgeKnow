@@ -73,17 +73,24 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      # Path C: the "Team Delta" workspace keeps its data in a second, team-owned stack
+      # that trusts the app's own (throwaway) EdgeKnow signing key.
+      - name: Team database for the Team Delta workspace
+        run: |
+          keys="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
+          echo "EDGEKNOW_OIDC_SIGNING_KEYS=$keys" >> "$GITHUB_ENV"
+          drive_key="ci-drive-token-key-$(openssl rand -hex 16)"
+          echo "DRIVE_TOKEN_KEY=$drive_key" >> "$GITHUB_ENV"
+          TEAM_STACKS=team-b TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh
+          DRIVE_TOKEN_KEY="$drive_key" node --experimental-strip-types scripts/register-team.mjs status.json .team-stacks/team-b/status.json
       - name: Build and start the app against local Supabase
         run: |
           export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
           # Throwaway values for this run only; Google Drive is replaced by a local stand-in.
           export SUPABASE_SECRET_KEY="$(jq -r '.SECRET_KEY // .SERVICE_ROLE_KEY' status.json)"
-          export DRIVE_TOKEN_KEY="ci-drive-token-key-$(openssl rand -hex 16)"
           export DRIVE_FAKE_DIR="$RUNNER_TEMP/fake-drive"
           export CRON_SECRET="ci-cron-secret"
-          # A throwaway signing key for EdgeKnow's sign-in for team databases (path C).
-          export EDGEKNOW_OIDC_SIGNING_KEYS="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
           echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"
           npm run build
@@ -93,6 +100,7 @@ jobs:
         run: |
           if ! node scripts/e2e-smoke.mjs status.json http://localhost:3000; then
             echo "::error title=next.log::$(grep -iE 'error|failed' next.log | tail -n 8 | tr '\n' ' ' | cut -c1-900)"
+            echo "::error title=next.log (end)::$(tail -n 25 next.log | tr '\n' ' ' | cut -c1-1500)"
             exit 1
           fi
 

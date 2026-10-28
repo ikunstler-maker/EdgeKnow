@@ -17,7 +17,7 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
   const workspace = await getWorkspace((await params).wid);
   if (!workspace) return null;
   const user = await getCurrentUser();
-  const stats = await loadProfileStats(workspace.id, user.id);
+  const stats = await loadProfileStats(workspace.shortId, workspace.id, user.id);
   if (!stats) return null;
   const host = (await headers()).get("host") ?? "";
   const protocol = host.startsWith("localhost") ? "http" : "https";

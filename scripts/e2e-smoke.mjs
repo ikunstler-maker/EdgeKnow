@@ -24,6 +24,8 @@ const crash = async (error) => {
   const alerts = await lastPage?.locator("[role=alert]").allInnerTexts().catch(() => []);
   if (alerts?.length) console.log(`::error title=On-screen alerts::${alerts.join(" | ").slice(0, 600)}`);
   if (consoleErrors.length) console.log(`::error title=Browser console::${consoleErrors.slice(-4).join(" | ").slice(0, 900)}`);
+  const screen = await lastPage?.evaluate(() => `${location.pathname} — ${document.body.innerText.replace(/\s+/g, " ").slice(0, 500)}`).catch(() => "");
+  if (screen) console.log(`::error title=On screen::${screen}`);
   process.exit(1);
 };
 process.on("unhandledRejection", crash);
@@ -990,6 +992,45 @@ check(
 const betaId = sql("select id from public.workspaces where name = 'Beta'");
 const foreign = await tokenFor(betaId);
 check("no token for someone else's workspace", foreign.status === 403, String(foreign.status));
+
+// --- A workspace whose data lives in the team's own database (path C) ------------------------
+
+const gammaShort = sql("select short_id from public.workspaces where name = 'Team Delta'");
+const teamStatus = JSON.parse(readFileSync(".team-stacks/team-b/status.json", "utf8"));
+const teamSql = (query) => execFileSync("psql", [teamStatus.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
+const gammaTab = await newPage(aliceCookies);
+await gammaTab.goto(`${APP}/w/${gammaShort}`);
+await gammaTab.getByRole("button", { name: "Нова сторінка" }).first().click();
+await gammaTab.waitForURL(new RegExp(`/w/${gammaShort}/p/[0-9a-f-]{36}$`));
+const gammaPage = gammaTab.url().split("/p/")[1];
+await gammaTab.waitForFunction(() => document.querySelector("textarea")?.value === "");
+await gammaTab.locator("textarea").fill("Team-owned page");
+await gammaTab.locator("textarea").blur();
+await gammaTab.waitForTimeout(1500);
+await gammaTab.locator(".bn-editor").click();
+await gammaTab.keyboard.type("Stored in the team database");
+await gammaTab.waitForFunction(() => document.body.innerText.includes("Збережено"), null, { timeout: 15000 });
+await gammaTab.reload();
+await gammaTab.waitForSelector(".bn-editor");
+check(
+  "a team workspace's page survives a reload",
+  (await gammaTab.locator("textarea").inputValue()) === "Team-owned page" && (await gammaTab.getByText("Stored in the team database").count()) > 0,
+);
+const inTeam = teamSql(`select title || ' | ' || search_text from public.pages where id = '${gammaPage}'`);
+check("the page is stored in the team database", inTeam.startsWith("Team-owned page |") && inTeam.includes("Stored in the team database"), inTeam);
+const inCentral = sql(`select count(*) from public.pages where id = '${gammaPage}'`);
+check("…and not in the central one", inCentral === "0", inCentral);
+const teamMembers = teamSql("select string_agg(p.email || ' ' || m.role, ', ') from public.workspace_members m join public.profiles p on p.id = m.user_id where m.status = 'active'");
+check("the team database got the members from the central service", teamMembers === "alice@alpha.test owner", teamMembers);
+await gammaTab.keyboard.press("Control+k");
+await gammaTab.getByLabel("Шукати в назвах і тексті сторінок…").fill("team database");
+const gammaResults = gammaTab.getByRole("list", { name: "Результати пошуку" });
+await gammaResults.waitFor({ timeout: 10000 });
+check("search finds it in the team database", (await gammaResults.getByText("Team-owned page").count()) > 0);
+await gammaTab.keyboard.press("Escape");
+// Bob isn't in Team Delta: the central check stops him before any team token exists.
+await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
+check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);
 
 await aliceClient.auth.signOut();
 await browser.close();
