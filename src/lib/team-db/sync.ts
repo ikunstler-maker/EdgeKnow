@@ -1,23 +1,27 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decrypt } from "@/lib/drive/secret-box";
-import { loadTeamMigrations, migrateTeams, postgresExecutor, type TeamMigrationResult } from "./migrate";
 
 // The central side of a team database (path C): where it is, bringing its
 // schema up to date, and copying the workspace and its members into it.
 // Everything here runs on the server with the secret key.
 
+// Address and keys are missing only while a connection is being set up (step 1.5).
 export type TeamDatabase = {
   workspace_id: string;
-  project_url: string;
-  publishable_key: string;
-  secret_key_encrypted: string;
+  project_url: string | null;
+  publishable_key: string | null;
+  secret_key_encrypted: string | null;
   db_url_encrypted: string | null;
   schema_version: string | null;
   status: "pending" | "ok" | "error";
+  setup_step: "project" | "schema" | "keys" | "sync" | "sign_in" | "done" | null;
 };
 
-const COLUMNS = "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status";
+const COLUMNS = "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step";
+
+export const teamReady = (db: TeamDatabase) =>
+  Boolean(db.project_url && db.publishable_key && db.secret_key_encrypted) && (db.setup_step === null || db.setup_step === "done");
 
 export async function teamDatabase(admin: SupabaseClient, workspaceId: string): Promise<TeamDatabase | null> {
   const { data } = await admin.from("team_databases").select(COLUMNS).eq("workspace_id", workspaceId).maybeSingle();
@@ -32,6 +36,7 @@ async function record(admin: SupabaseClient, workspaceId: string, values: Record
 export async function syncTeam(admin: SupabaseClient, db: TeamDatabase, issuer: string) {
   const { data: payload, error } = await admin.rpc("team_sync_payload", { ws: db.workspace_id });
   if (error || !payload) throw new Error("sync payload unavailable");
+  if (!db.project_url || !db.secret_key_encrypted) throw new Error("team database not ready");
   const secretKey = decrypt(db.secret_key_encrypted);
   const send = () =>
     fetch(`${db.project_url}/rest/v1/rpc/team_sync`, {
@@ -54,25 +59,4 @@ export async function syncTeam(admin: SupabaseClient, db: TeamDatabase, issuer: 
     throw new Error(message);
   }
   await record(admin, db.workspace_id, { status: "ok", last_error: null, last_synced_at: new Date().toISOString() });
-}
-
-// Brings every registered team database to the current schema; one failing
-// doesn't stop the others.
-export async function migrateAllTeams(admin: SupabaseClient): Promise<TeamMigrationResult[]> {
-  const { data } = await admin.from("team_databases").select(COLUMNS).not("db_url_encrypted", "is", null);
-  const migrations = loadTeamMigrations();
-  const latest = migrations.at(-1)?.name ?? null;
-  const rows = (data ?? []) as TeamDatabase[];
-  const results = await migrateTeams(
-    rows.map((db) => ({ team: db.workspace_id, executor: () => postgresExecutor(decrypt(db.db_url_encrypted!)) })),
-    migrations,
-  );
-  for (const result of results) {
-    await record(
-      admin,
-      result.team,
-      result.error ? { status: "error", last_error: result.error } : { schema_version: latest, last_error: null },
-    );
-  }
-  return results;
 }

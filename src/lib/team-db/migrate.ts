@@ -98,3 +98,28 @@ export function postgresExecutor(connectionString: string): TeamExecutor {
     },
   };
 }
+
+// The same, through the Supabase Management API (no database password needed):
+// `query` runs SQL as the database owner and returns the last statement's rows.
+export function managementExecutor(query: (sql: string) => Promise<Record<string, unknown>[]>): TeamExecutor {
+  let ready: Promise<unknown> | null = null;
+  const prepare = () => (ready ??= query(TRACKING));
+  return {
+    async applied() {
+      await prepare();
+      const rows = await query("select name from public.edgeknow_migrations");
+      return new Set(rows.map((row) => String(row.name)));
+    },
+    async apply(migration) {
+      await prepare();
+      const name = migration.name.replace(/'/g, "''");
+      try {
+        // One request, one transaction: a failed migration leaves the database as it was.
+        await query(`begin;\n${migration.sql}\n;\ninsert into public.edgeknow_migrations (name) values ('${name}');\ncommit;`);
+      } catch (error) {
+        throw new Error(`${migration.name}: ${(error as Error).message}`);
+      }
+      await query("notify pgrst, 'reload schema'");
+    },
+  };
+}

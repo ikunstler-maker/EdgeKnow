@@ -1028,6 +1028,18 @@ const gammaResults = gammaTab.getByRole("list", { name: "Результати п
 await gammaResults.waitFor({ timeout: 10000 });
 check("search finds it in the team database", (await gammaResults.getByText("Team-owned page").count()) > 0);
 await gammaTab.keyboard.press("Escape");
+// Settings → Database: the connected project, and the wizard where nothing is connected.
+await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=team`);
+check("the database tab shows the team's project", (await gammaTab.getByText("Дані зберігаються у вашому Supabase").count()) === 1 && (await gammaTab.getByText(teamStatus.API_URL).count()) === 1);
+await gammaTab.goto(`${APP}/w/${alphaShort}/settings?tab=team`);
+check("without the Supabase app the wizard explains it isn't available", (await gammaTab.getByText("Підключення поки недоступне").count()) > 0);
+const setupAsGuest = await fetch(`${APP}/api/supabase/setup`, {
+  method: "POST",
+  headers: { cookie: bobCookies.map((c) => `${c.name}=${c.value}`).join("; "), "content-type": "application/json" },
+  body: JSON.stringify({ ws: sql("select id from public.workspaces where name = 'Team Delta'"), action: "advance" }),
+});
+check("only the owner may drive the setup", setupAsGuest.status === 403, String(setupAsGuest.status));
+
 // Bob isn't in Team Delta: the central check stops him before any team token exists.
 await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);

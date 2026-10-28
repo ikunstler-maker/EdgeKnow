@@ -8,6 +8,10 @@ import { dataClient } from "@/lib/team-db/data";
 import { driveConfigured } from "@/lib/drive/google-drive";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { StoragePanel, type StorageStatus } from "./storage-panel";
+import { TeamDatabasePanel, type TeamDatabaseStatus } from "./team-database-panel";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { oidcConfigured } from "@/lib/oidc";
+import { supabaseOAuthConfigured } from "@/lib/team-db/supabase-api";
 import {
   DomainsPanel,
   GeneralPanel,
@@ -24,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.workspace.settings} · ${t.app.name}` };
 }
 
-const TABS = ["general", "members", "domains", "storage", "log"] as const;
+const TABS = ["general", "members", "domains", "storage", "team", "log"] as const;
 type Tab = (typeof TABS)[number];
 
 type MemberRow = {
@@ -50,7 +54,7 @@ export default async function WorkspaceSettingsPage({
   searchParams,
 }: PageProps<"/w/[wid]/settings">) {
   const { wid } = await params;
-  const { tab: tabParam, drive: driveParam } = await searchParams;
+  const { tab: tabParam, drive: driveParam, supabase: supabaseParam } = await searchParams;
   const [user, workspace] = await Promise.all([getCurrentUser(), getWorkspace(wid)]);
   if (!workspace) return null;
 
@@ -115,6 +119,27 @@ export default async function WorkspaceSettingsPage({
     // Only counts per former member: admins don't see other people's pages.
     tab === "members" ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
+  // The team's own database (path C): read with the secret key, keys never leave the server.
+  const service = tab === "team" ? createAdminClient() : null;
+  const [teamRow, centralPages] = service
+    ? await Promise.all([
+        service
+          .from("team_databases")
+          .select("project_url, setup_step, last_error, schema_version, last_synced_at")
+          .eq("workspace_id", workspace.id)
+          .maybeSingle(),
+        service.from("pages").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id),
+      ])
+    : [null, null];
+  const teamStatus: TeamDatabaseStatus = teamRow?.data
+    ? {
+        projectUrl: teamRow.data.project_url,
+        step: teamRow.data.setup_step,
+        lastError: teamRow.data.last_error,
+        schemaVersion: teamRow.data.schema_version,
+        lastSyncedAt: teamRow.data.last_synced_at,
+      }
+    : null;
   const departedData = departed?.data as
     | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number }[] }
     | null
@@ -198,6 +223,19 @@ export default async function WorkspaceSettingsPage({
             notice={driveParam === "connected" ? "connected" : driveParam === "error" ? "error" : null}
           />
         )}
+        {tab === "team" &&
+          (workspace.role === "owner" ? (
+            <TeamDatabasePanel
+              workspaceId={workspace.id}
+              status={teamStatus}
+              hasPages={Boolean(centralPages?.count)}
+              configured={supabaseOAuthConfigured() && oidcConfigured()}
+              choose={supabaseParam === "choose"}
+              failed={supabaseParam === "error"}
+            />
+          ) : (
+            <p className="text-muted">{t.settings.general.ownerOnly}</p>
+          ))}
         {tab === "log" && (
           <>
             <h2 className="text-lg font-semibold">{t.settings.log.heading}</h2>

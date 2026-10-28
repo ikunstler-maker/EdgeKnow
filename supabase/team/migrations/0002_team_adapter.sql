@@ -251,7 +251,7 @@ revoke execute on function public.team_member_settings() from public, anon, auth
 -- issuer can't claim an admin role here.
 -- The issuer arrives with the first sync, so connecting a project always runs
 -- migrations and the first sync before our sign-in is added to it (step 1.5).
-create function public.edgeknow_guard()
+create or replace function public.edgeknow_guard()
 returns void
 language plpgsql
 stable
