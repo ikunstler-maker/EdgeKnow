@@ -13,6 +13,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { expandAll } from "./expanded-store";
 import { HeadingList, useActiveHeading, type Heading } from "@/components/editor/table-of-contents";
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
+import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -95,6 +96,9 @@ export function Sidebar({
         {navLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
         {navLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
         {user.isPlatformAdmin && navLink("/admin", t.platform.link, "🛰️")}
+        <div className="mt-2">
+          <PreferencesSwitch />
+        </div>
         <div className="mt-2 flex items-center gap-2 px-3">
           <span className="min-w-0 flex-1 truncate text-xs text-muted" title={user.email}>
             {user.email}

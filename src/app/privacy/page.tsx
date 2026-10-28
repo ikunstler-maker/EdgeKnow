@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { t } from "@/i18n";
 
-export const metadata: Metadata = { title: `${t.privacy.title} · ${t.app.name}` };
+// Read per request, so the title follows the interface language.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${t.privacy.title} · ${t.app.name}` };
+}
 
 export default function PrivacyPage() {
   return (

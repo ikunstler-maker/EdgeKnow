@@ -1,5 +1,5 @@
-// All Ukrainian UI strings. To add a language, create a sibling file that
-// satisfies the `Dictionary` type and register it in ./index.ts.
+// All Ukrainian UI strings. Every other language (./en.ts) has the same keys:
+// the `Dictionary` type makes a missing translation a build error.
 
 export const uk = {
   app: {
@@ -243,6 +243,19 @@ export const uk = {
       pageChip: "сторінка",
       noAccess: "Немає доступу",
       someone: "Колега",
+      presets: {
+        status: "Статус",
+        todo: "Не розпочато",
+        doing: "В роботі",
+        review: "На перевірці",
+        done: "Готово",
+        blocked: "Заблоковано",
+        version: "Версія",
+        priority: "Пріоритет",
+        low: "Низький",
+        mid: "Середній",
+        high: "Високий",
+      },
     },
     subtitle: {
       title: "Підзаголовок",
@@ -407,6 +420,34 @@ export const uk = {
     empty: "Поки ніхто вас не згадував.",
     on: (page: string) => `на сторінці «${page}»`,
   },
+  cover: {
+    add: "Додати обкладинку",
+    change: "Змінити обкладинку",
+    reposition: "Позиція",
+    position: "Зсув по вертикалі",
+    remove: "Прибрати",
+    title: "Обкладинка сторінки",
+    tabs: { image: "Зображення", color: "Колір", gradient: "Градієнт" },
+    palette: "Кольори",
+    customColor: "Свій колір",
+    apply: "Застосувати",
+    preview: "Попередній перегляд",
+    presets: "Готові градієнти",
+    preset: "Градієнт",
+    kind: "Тип градієнта",
+    kinds: { linear: "Лінійний", radial: "Радіальний" },
+    angle: "Кут",
+    stops: "Точки кольору",
+    stopColor: (n: number) => `Колір точки ${n}`,
+    stopPosition: (n: number) => `Положення точки ${n}`,
+    removeStop: "Прибрати точку",
+    addStop: "Точка кольору",
+    upload: "Завантажити зображення",
+    uploadHint: "Стискається до WebP так само, як зображення в тексті",
+    uploading: "Завантаження…",
+    byLink: "Або посилання на зображення",
+    errors: { invalid_cover: "Не вдалося зберегти обкладинку." } as Record<string, string>,
+  },
   feedback: {
     button: "Залишити відгук",
     title: "Відгук про вікі",
@@ -444,7 +485,7 @@ export const uk = {
     },
     depth: "Глибина:",
     depths: { level: "Лише цей рівень", one: "+1 рівень", two: "+2 рівні", all: "Усі рівні" },
-    depthHint: (page: boolean) => (page ? "рахуємо від цієї сторінки" : "рахуємо від верхнього рівня"),
+    depthHint: (page: boolean): string => (page ? "рахуємо від цієї сторінки" : "рахуємо від верхнього рівня"),
     hint: "Пошук іде за початком слів: «дизайн» знайде і «дизайнер».",
     searching: "Шукаємо…",
     nothing: "Нічого не знайдено.",
@@ -460,6 +501,11 @@ export const uk = {
     empty: "Додайте заголовки, і тут з'явиться зміст.",
     open: "Зміст",
     close: "Закрити зміст",
+  },
+  prefs: {
+    theme: "Тема",
+    themes: { system: "Системна", light: "Світла", dark: "Темна" },
+    language: "Мова інтерфейсу",
   },
   pageMeta: {
     author: "Автор",

@@ -8,7 +8,7 @@ import {
   CHIP_COLORS,
   CHIP_LABEL_MAX,
   CHIP_MAX_OPTIONS,
-  CHIP_PRESETS,
+  chipPresets,
   chipSetsIn,
   newOptionId,
   parseOptions,
@@ -173,7 +173,8 @@ function ChipOptionsEditor({
 }) {
   const [draftName, setDraftName] = useState(name);
   const [draft, setDraft] = useState<ChipOption[]>(options.length ? options : [{ id: newOptionId(), label: "", color: "gray" }]);
-  const sets = [...CHIP_PRESETS, ...pageSets.filter((s) => !CHIP_PRESETS.some((p) => p.name === s.name && JSON.stringify(p.options) === JSON.stringify(s.options)))];
+  const presets = chipPresets();
+  const sets = [...presets, ...pageSets.filter((s) => !presets.some((p) => p.name === s.name && JSON.stringify(p.options) === JSON.stringify(s.options)))];
   const inputClass = "min-h-9 min-w-0 rounded-md border border-border bg-background px-2 text-base md:text-sm";
   const stop = (event: React.KeyboardEvent) => event.stopPropagation();
 
@@ -195,7 +196,7 @@ function ChipOptionsEditor({
           {sets.map((set, i) => (
             <option key={i} value={i}>
               {set.name || ch.unnamedSet}
-              {i >= CHIP_PRESETS.length ? ` · ${ch.fromPage}` : ""}
+              {i >= presets.length ? ` · ${ch.fromPage}` : ""}
             </option>
           ))}
         </select>

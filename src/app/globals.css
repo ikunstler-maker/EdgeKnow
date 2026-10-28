@@ -12,8 +12,10 @@
   --comment-active: rgba(255, 196, 0, 0.7);
 }
 
+/* Dark colours: from the system setting unless the person picked a theme
+   (data-theme on <html>, see src/app/layout.tsx). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #191919;
     --foreground: #ececec;
     --muted: #9b9b9b;
@@ -24,6 +26,26 @@
     --comment: rgba(255, 212, 0, 0.22);
     --comment-active: rgba(255, 196, 0, 0.45);
   }
+}
+:root[data-theme="dark"] {
+  --background: #191919;
+  --foreground: #ececec;
+  --muted: #9b9b9b;
+  --border: #2f2f2f;
+  --surface: #222222;
+  --accent: #5b8def;
+  --danger: #e5675f;
+  --comment: rgba(255, 212, 0, 0.22);
+  --comment-active: rgba(255, 196, 0, 0.45);
+}
+:root {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -97,11 +119,15 @@ body {
 .ek-callout-success { background: #e7f6ec; border-color: #bfe5cc; }
 .ek-callout-error { background: #fdeaea; border-color: #f5c6c6; }
 @media (prefers-color-scheme: dark) {
-  .ek-callout-info { background: #1d2b3d; border-color: #2d4566; }
-  .ek-callout-warning { background: #3a2f17; border-color: #5c4a20; }
-  .ek-callout-success { background: #1a3324; border-color: #285238; }
-  .ek-callout-error { background: #3b1f1f; border-color: #5e2e2e; }
+  :root:not([data-theme="light"]) .ek-callout-info { background: #1d2b3d; border-color: #2d4566; }
+  :root:not([data-theme="light"]) .ek-callout-warning { background: #3a2f17; border-color: #5c4a20; }
+  :root:not([data-theme="light"]) .ek-callout-success { background: #1a3324; border-color: #285238; }
+  :root:not([data-theme="light"]) .ek-callout-error { background: #3b1f1f; border-color: #5e2e2e; }
 }
+:root[data-theme="dark"] .ek-callout-info { background: #1d2b3d; border-color: #2d4566; }
+:root[data-theme="dark"] .ek-callout-warning { background: #3a2f17; border-color: #5c4a20; }
+:root[data-theme="dark"] .ek-callout-success { background: #1a3324; border-color: #285238; }
+:root[data-theme="dark"] .ek-callout-error { background: #3b1f1f; border-color: #5e2e2e; }
 
 /* YouTube */
 .ek-youtube {

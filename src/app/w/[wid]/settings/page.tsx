@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +16,10 @@ import {
   type MemberItem,
 } from "./settings-panels";
 
-export const metadata: Metadata = { title: `${t.workspace.settings} · ${t.app.name}` };
+// Read per request, so the title follows the interface language.
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: `${t.workspace.settings} · ${t.app.name}` };
+}
 
 const TABS = ["general", "members", "domains", "log"] as const;
 type Tab = (typeof TABS)[number];
@@ -37,7 +40,7 @@ type LogRow = {
   actor: { email: string } | null;
 };
 
-const dateFormat = new Intl.DateTimeFormat("uk-UA", { dateStyle: "short", timeStyle: "short" });
+const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "short", timeStyle: "short" });
 
 export default async function WorkspaceSettingsPage({
   params,
@@ -134,7 +137,7 @@ export default async function WorkspaceSettingsPage({
     email: i.email,
     role: i.role,
     expiresLabel: t.settings.members.expires(
-      new Intl.DateTimeFormat("uk-UA", { dateStyle: "medium" }).format(new Date(i.expires_at)),
+      new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(i.expires_at)),
     ),
   }));
 
@@ -199,7 +202,7 @@ export default async function WorkspaceSettingsPage({
                   <tbody>
                     {log.data.map((row) => (
                       <tr key={row.id} className="border-t border-border">
-                        <td className="whitespace-nowrap px-3 py-2">{dateFormat.format(new Date(row.created_at))}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{dateFormat().format(new Date(row.created_at))}</td>
                         <td className="px-3 py-2">{row.actor?.email ?? "—"}</td>
                         <td className="px-3 py-2">
                           {t.settings.access.actions[row.action] ?? row.action}{" "}

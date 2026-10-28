@@ -25,6 +25,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import { t } from "@/i18n";
+import { useResolvedTheme } from "@/lib/use-theme";
 import {
   DESCRIPTION_MAX,
   FILLS,
@@ -176,6 +177,7 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
   const [emitted, setEmitted] = useState(data);
   const [seen, setSeen] = useState(data);
   const flow = useReactFlow();
+  const colorMode = useResolvedTheme();
   const wrapper = useRef<HTMLDivElement>(null);
 
   // Undo/redo or another tab changed the block: take the document's version.
@@ -339,6 +341,7 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
 
       <div ref={wrapper} style={{ height }} className="relative">
         <ReactFlow<BoxNode, Edge>
+          colorMode={colorMode}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}

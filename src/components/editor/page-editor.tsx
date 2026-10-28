@@ -4,7 +4,7 @@ import "@blocknote/mantine/style.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import { SuggestionMenu } from "@blocknote/core/extensions";
-import { uk as blockNoteUk } from "@blocknote/core/locales";
+import { en as blockNoteEn, uk as blockNoteUk } from "@blocknote/core/locales";
 import { syntaxHighlighter } from "@blocknote/code-block";
 import {
   BasicTextStyleButton,
@@ -20,9 +20,10 @@ import {
   type DefaultReactSuggestionItem,
 } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-import { t } from "@/i18n";
+import { currentLocale, t } from "@/i18n";
+import { useResolvedTheme } from "@/lib/use-theme";
 import { resolveAttachmentUrl, uploadImage, UploadError } from "@/lib/attachments";
-import { CHIP_PRESETS } from "@/lib/chips";
+import { chipPresets } from "@/lib/chips";
 import type { CommentThread, MentionPerson, PeopleNames } from "@/lib/comments";
 import type { PageNode } from "@/lib/pages";
 import { getMentionCandidates } from "@/app/comment-actions";
@@ -160,7 +161,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     group: t.editor.groups.special,
     icon: <span aria-hidden="true">🏷️</span>,
     onItemClick: () => {
-      const preset = CHIP_PRESETS[0];
+      const preset = chipPresets()[0];
       editor.insertInlineContent([
         { type: "chip", props: { name: preset.name, options: JSON.stringify(preset.options), value: preset.options[0].id } },
         " ",
@@ -236,16 +237,19 @@ export default function PageEditor({
   people,
 }: PageEditorProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // The editor's own menus in the interface language.
+  const editorDictionary = currentLocale() === "en" ? blockNoteEn : blockNoteUk;
+  const theme = useResolvedTheme();
   const editor = useCreateBlockNote({
     schema,
     dictionary: {
-      ...blockNoteUk,
-      placeholders: { ...blockNoteUk.placeholders, default: t.editor.placeholder },
+      ...editorDictionary,
+      placeholders: { ...editorDictionary.placeholders, default: t.editor.placeholder },
       slash_menu: {
-        ...blockNoteUk.slash_menu,
-        toggle_heading: { ...blockNoteUk.slash_menu.toggle_heading, ...t.editor.toggleHeadings[0] },
-        toggle_heading_2: { ...blockNoteUk.slash_menu.toggle_heading_2, ...t.editor.toggleHeadings[1] },
-        toggle_heading_3: { ...blockNoteUk.slash_menu.toggle_heading_3, ...t.editor.toggleHeadings[2] },
+        ...editorDictionary.slash_menu,
+        toggle_heading: { ...editorDictionary.slash_menu.toggle_heading, ...t.editor.toggleHeadings[0] },
+        toggle_heading_2: { ...editorDictionary.slash_menu.toggle_heading_2, ...t.editor.toggleHeadings[1] },
+        toggle_heading_3: { ...editorDictionary.slash_menu.toggle_heading_3, ...t.editor.toggleHeadings[2] },
       },
     },
     initialContent:
@@ -402,6 +406,7 @@ export default function PageEditor({
         <BlockNoteView
           editor={editor}
           editable={editable}
+          theme={theme}
           slashMenu={false}
           formattingToolbar={false}
           filePanel={false}
