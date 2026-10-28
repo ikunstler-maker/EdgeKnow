@@ -647,15 +647,17 @@ const chipValue = () => JSON.stringify(pageContent(extrasPage)).includes('"value
 check("dropdown chip switch saved", await until(chipValue, 10000));
 
 // The slash menu offers the new blocks.
-await wide.locator(".bn-inline-content", { hasText: "Section one" }).click();
-await wide.keyboard.press("End");
+// The caret goes to the end of the line by clicking its right edge.
+const lineBox = await wide.locator(".bn-inline-content", { hasText: "Body" }).first().boundingBox();
+await wide.mouse.click(lineBox.x + lineBox.width - 2, lineBox.y + lineBox.height / 2);
 await wide.keyboard.press("Enter");
 await wide.keyboard.type("/");
 await wide.waitForSelector(".bn-suggestion-menu-item");
-const menu = (await wide.locator(".bn-suggestion-menu-item").allInnerTexts()).map((x) => x.split("\n")[0]);
+const menu = (await wide.locator(".bn-suggestion-menu-item").allInnerTexts()).join("\n");
 const wanted = ["Заголовок 4", "Згортаний заголовок 4", "Підзаголовок", "Навігація", "Картка посилання", "Чіп-перемикач"];
 check("slash menu has the new items", wanted.every((w) => menu.includes(w)), wanted.filter((w) => !menu.includes(w)).join(", "));
 await wide.keyboard.press("Escape");
+await wide.keyboard.press("Backspace");
 
 // Right column on a page with comments: contents/comments switch and placement.
 check("contents/comments tabs", (await wide.getByRole("tab", { name: "Зміст" }).count()) === 1 && (await wide.getByRole("tab", { name: /Коментарі/ }).count()) === 1);
