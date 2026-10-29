@@ -130,6 +130,12 @@ check("page author recorded", author === "alice@alpha.test", String(author));
 
 const bobWorkspaces = await rest(bob, "workspaces?select=name");
 check("bob lists only his workspace", JSON.stringify(bobWorkspaces.json) === JSON.stringify([{ name: "Beta" }]), JSON.stringify(bobWorkspaces.json));
+// A group in alpha with alice in it and a role on the page: none of it may show to bob.
+const alphaGroup = (await rpc(alice, "create_workspace_group", { ws: alpha.id, new_name: "Alpha team" })).json?.id;
+const aliceIdForGroup = (await rest(alice, "profiles?email=eq.alice@alpha.test&select=id")).json?.[0]?.id;
+await rpc(alice, "set_workspace_group_member", { ws: alpha.id, target_group: alphaGroup, member: aliceIdForGroup, included: true });
+const groupGrant = await rpc(alice, "set_page_group_role", { target_page: page.id, target_group: alphaGroup, new_role: "viewer" });
+check("alice makes a group and gives it a role on her page", Boolean(alphaGroup) && groupGrant.json?.ok === true, JSON.stringify(groupGrant.json));
 const bobReads = {
   "all pages": "pages?select=id,title",
   "alpha page by id": `pages?id=eq.${page.id}&select=id,title`,
@@ -139,6 +145,9 @@ const bobReads = {
   "alpha invitations": `invitations?workspace_id=eq.${alpha.id}&select=email`,
   "alpha audit log": `audit_log?workspace_id=eq.${alpha.id}&select=action`,
   "alice profile": "profiles?email=eq.alice@alpha.test&select=email",
+  "alpha groups": `workspace_groups?workspace_id=eq.${alpha.id}&select=name`,
+  "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
+  "alpha group grants": `page_group_access?workspace_id=eq.${alpha.id}&select=role`,
 };
 for (const [name, path] of Object.entries(bobReads)) {
   const res = await rest(bob, path);
@@ -153,6 +162,8 @@ const bobActions = {
   "ask to prove a domain for alpha": ["request_workspace_domain", { ws: alpha.id, new_domain: "beta.test" }],
   "confirm a domain as platform admin": ["platform_confirm_domain", { ws: alpha.id, target_domain: "beta.test" }],
   "turn the email way back on": ["set_email_domain_proof", { allowed: true }],
+  "create a group in alpha": ["create_workspace_group", { ws: alpha.id, new_name: "Intruders" }],
+  "give a group a role on alpha's page": ["set_page_group_role", { target_page: page.id, target_group: "00000000-0000-0000-0000-000000000000", new_role: "editor" }],
   "trash alpha page": ["trash_page", { target_page: page.id }],
   "delete alpha": ["delete_workspace", { ws: alpha.id, confirm_name: "Alpha" }],
   "rename alpha": ["rename_workspace", { ws: alpha.id, new_name: "Mine" }],
@@ -177,6 +188,8 @@ const writes = [
   ["POST", "/rest/v1/pages", { workspace_id: alpha.id, owner_id: "00000000-0000-0000-0000-000000000000", title: "x" }],
   ["PATCH", "/rest/v1/platform_settings?id=eq.true", { open_registration: true }],
   ["POST", "/rest/v1/workspace_domain_claims", { workspace_id: alpha.id, domain: "evil.test" }],
+  ["POST", "/rest/v1/workspace_groups", { workspace_id: alpha.id, name: "Direct" }],
+  ["POST", "/rest/v1/page_group_access", { workspace_id: alpha.id, page_id: page.id, group_id: "00000000-0000-0000-0000-000000000000", role: "editor" }],
   ["PATCH", "/rest/v1/workspace_domains?domain=eq.alpha.test", { method: "dns" }],
 ];
 for (const [method, path, body] of writes) {
@@ -186,8 +199,10 @@ for (const [method, path, body] of writes) {
 const titleAfter = (await rest(alice, `pages?id=eq.${page.id}&select=title`)).json?.[0]?.title;
 check("alpha page unchanged after bob's attempts", titleAfter === "Alpha secret", String(titleAfter));
 const logged = sql(`select count(*) from public.audit_log where workspace_id = '${alpha.id}' and action = 'access_denied'`);
-// Workspace management attempts (invite, add and ask for a domain, delete, rename) are logged; page actions are not.
-check("bob's attempts are in alpha's audit log", Number(logged) === 5, `${logged} entries`);
+// Workspace management attempts (invite, add and ask for a domain, create a group, delete, rename) are logged; page actions are not.
+check("bob's attempts are in alpha's audit log", Number(logged) === 6, `${logged} entries`);
+// The group was only for these checks; later tests see alpha's page as before.
+await rpc(alice, "delete_workspace_group", { ws: alpha.id, target_group: alphaGroup });
 
 // --- Page access inside a workspace (stage 5) --------------------------------
 

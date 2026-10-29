@@ -7,6 +7,7 @@ import type { ActionResult } from "@/lib/action-result";
 import type { GrantRole } from "@/lib/pages";
 import {
   getPageSharing,
+  setPageGroupRole,
   setPageInherit,
   setPageMemberRole,
   setPageWorkspaceRole,
@@ -45,6 +46,8 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
   const [newMember, setNewMember] = useState("");
   const [newRole, setNewRole] = useState<GrantRole>("viewer");
   const [newOwner, setNewOwner] = useState("");
+  const [newGroup, setNewGroup] = useState("");
+  const [newGroupRole, setNewGroupRole] = useState<GrantRole>("viewer");
 
   const show = useCallback((result: ActionResult<PageSharing>) => {
     if (result.ok) setSharing(result);
@@ -76,6 +79,10 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
   const isOwner = sharing?.my_role === "owner";
   const listed = new Set(sharing?.entries.filter((e) => e.own).map((e) => e.user_id));
   const addable = sharing?.members.filter((m) => !listed.has(m.user_id)) ?? [];
+  const groupsListed = new Set(sharing?.groups.filter((g) => g.own).map((g) => g.group_id));
+  const addableGroups = sharing?.all_groups.filter((g) => !groupsListed.has(g.group_id)) ?? [];
+  // Only once the workspace has groups: small teams see the dialog as before.
+  const showGroups = Boolean(sharing && (sharing.groups.length || sharing.all_groups.length));
 
   return createPortal(
     <div
@@ -195,6 +202,92 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
                   </li>
                 ))}
               </ul>
+
+              {showGroups && (
+                <div className="space-y-2 border-t border-border pt-4 text-sm">
+                  <p className="font-medium">{t.share.groups}</p>
+                  {isOwner && (
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={newGroup}
+                        onChange={(event) => setNewGroup(event.target.value)}
+                        aria-label={t.share.group}
+                        className={`${selectClass} min-w-0 flex-1`}
+                      >
+                        <option value="">{addableGroups.length ? t.share.chooseGroup : t.share.noGroupToAdd}</option>
+                        {addableGroups.map((g) => (
+                          <option key={g.group_id} value={g.group_id}>
+                            {t.share.groupLabel(g.name, g.members)}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={newGroupRole}
+                        onChange={(event) => setNewGroupRole(event.target.value as GrantRole)}
+                        aria-label={t.share.groupRole}
+                        className={selectClass}
+                      >
+                        {GRANT_ROLES.map((role) => (
+                          <option key={role} value={role}>
+                            {t.share.roles[role]}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!newGroup || pending}
+                        onClick={() => {
+                          const group = newGroup;
+                          setNewGroup("");
+                          run(() => setPageGroupRole(pageId, group, newGroupRole));
+                        }}
+                        className={buttonClass}
+                      >
+                        {t.share.add}
+                      </button>
+                    </div>
+                  )}
+                  <ul className="space-y-1" aria-label={t.share.groups}>
+                    {sharing.groups.map((group) => (
+                      <li key={group.group_id} className="flex min-h-11 flex-wrap items-center gap-2">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">👥 {t.share.groupLabel(group.name, group.members)}</span>
+                          {group.inherited_from && (
+                            <span className="block truncate text-xs text-muted">
+                              {group.inherited_title !== null
+                                ? t.share.inheritedFrom(group.inherited_title || t.pages.untitled)
+                                : t.share.inheritedFromParent}
+                              {" · "}
+                              {t.share.roles[group.role]}
+                            </span>
+                          )}
+                        </span>
+                        {isOwner && group.own ? (
+                          <select
+                            value={group.own_role ?? group.role}
+                            disabled={pending}
+                            aria-label={t.share.roleOf(group.name)}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              run(() => setPageGroupRole(pageId, group.group_id, value === "" ? null : (value as GrantRole)));
+                            }}
+                            className={selectClass}
+                          >
+                            {GRANT_ROLES.map((role) => (
+                              <option key={role} value={role}>
+                                {t.share.roles[role]}
+                              </option>
+                            ))}
+                            <option value="">{t.share.remove}</option>
+                          </select>
+                        ) : (
+                          !group.inherited_from && <span className="text-muted">{t.share.roles[group.role]}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4 text-sm">
                 <span className="min-w-0 flex-1">

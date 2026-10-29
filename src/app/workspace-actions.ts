@@ -54,6 +54,23 @@ export async function removeDomain(ws: string, domain: string) {
   return callWorkspaceRpc("remove_workspace_domain", { ws, target_domain: domain });
 }
 
+// Groups of people: changes are copied to a team's own database right away (callWorkspaceRpc).
+export async function createGroup(ws: string, name: string) {
+  return callWorkspaceRpc("create_workspace_group", { ws, new_name: name });
+}
+
+export async function renameGroup(ws: string, groupId: string, name: string) {
+  return callWorkspaceRpc("rename_workspace_group", { ws, target_group: groupId, new_name: name });
+}
+
+export async function deleteGroup(ws: string, groupId: string) {
+  return callWorkspaceRpc("delete_workspace_group", { ws, target_group: groupId });
+}
+
+export async function setGroupMember(ws: string, groupId: string, userId: string, included: boolean) {
+  return callWorkspaceRpc("set_workspace_group_member", { ws, target_group: groupId, member: userId, included });
+}
+
 export async function inviteMember(ws: string, email: string, role: string) {
   return callWorkspaceRpc<{ token: string }>("invite_member", {
     ws,

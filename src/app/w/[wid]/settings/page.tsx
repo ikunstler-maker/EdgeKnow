@@ -8,6 +8,7 @@ import { dataClient } from "@/lib/team-db/data";
 import { driveConfigured } from "@/lib/drive/google-drive";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { StoragePanel, type StorageStatus } from "./storage-panel";
+import { GroupsPanel, type GroupItem } from "./groups-panel";
 import { TeamDatabasePanel, type TeamDatabaseStatus } from "./team-database-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { oidcConfigured } from "@/lib/oidc";
@@ -29,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.workspace.settings} · ${t.app.name}` };
 }
 
-const TABS = ["general", "members", "domains", "storage", "team", "log"] as const;
+const TABS = ["general", "members", "groups", "domains", "storage", "team", "log"] as const;
 type Tab = (typeof TABS)[number];
 
 type MemberRow = {
@@ -80,7 +81,7 @@ export default async function WorkspaceSettingsPage({
   const teamData = await dataClient(workspace.shortId);
   // Each query is limited by RLS to this workspace and to admins.
   const [members, domains, invitations, log, storage, departed] = await Promise.all([
-    tab === "general" || tab === "members"
+    tab === "general" || tab === "members" || tab === "groups"
       ? supabase
           .from("workspace_members")
           .select("user_id, role, joined_via, profile:profiles!workspace_members_user_id_fkey(name, email)")
@@ -173,6 +174,21 @@ export default async function WorkspaceSettingsPage({
     method: d.method,
     dnsMissingSince: d.dns_missing_since,
   }));
+  // Groups of people, with who is in each.
+  const groupRows =
+    tab === "groups"
+      ? await supabase
+          .from("workspace_groups")
+          .select("id, name, members:workspace_group_members(user_id)")
+          .eq("workspace_id", workspace.id)
+          .order("name")
+          .overrideTypes<{ id: string; name: string; members: { user_id: string }[] }[], { merge: false }>()
+      : null;
+  const groupItems: GroupItem[] = (groupRows?.data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    memberIds: row.members.map((m) => m.user_id),
+  }));
   // Domains asked for and waiting for their DNS record (step: domains through DNS).
   const [claimRows, platformSettings] =
     tab === "domains"
@@ -235,6 +251,13 @@ export default async function WorkspaceSettingsPage({
             members={memberItems}
             invitations={invitationItems}
             departed={departedItems}
+          />
+        )}
+        {tab === "groups" && (
+          <GroupsPanel
+            workspaceId={workspace.id}
+            groups={groupItems}
+            people={memberItems.map((m) => ({ userId: m.userId, name: m.name, email: m.email }))}
           />
         )}
         {tab === "domains" && (

@@ -39,6 +39,15 @@ const STAGES: Stage[] = [
   { name: "page tree", table: "pages", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
   { name: "access", table: "page_access", columns: "id, workspace_id, page_id, user_id, role, granted_by, created_at", order: "id", onConflict: "id" },
   {
+    // The groups themselves come with the member sync (they live centrally).
+    name: "group access",
+    table: "page_group_access",
+    columns: "workspace_id, page_id, group_id, role, granted_by, created_at",
+    order: "page_id,group_id",
+    onConflict: "page_id,group_id",
+    replace: true,
+  },
+  {
     name: "threads",
     table: "comment_threads",
     columns: "id, workspace_id, page_id, quoted_text, status, created_by, created_at, resolved_by, resolved_at",
@@ -72,7 +81,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
