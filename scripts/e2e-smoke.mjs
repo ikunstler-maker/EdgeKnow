@@ -1189,6 +1189,62 @@ check("the database tab shows the move", (await echoTab.getByText(/Перене�
 const cancelDone = await setupAs(aliceCookieHeader, { action: "cancel" });
 check("a finished move can't be cancelled from the wizard", cancelDone.error === "not_cancellable", JSON.stringify(cancelDone));
 
+// --- And back to the EdgeKnow server (step 1.7c) ------------------------------------------------
+// Changes made in the team database since the move must come back; a page that
+// only the old central copy still has must go; a file missing centrally is copied back.
+const echoNewContent = [{ id: "e3", type: "paragraph", props: {}, content: [{ type: "text", text: "Edited in the team database", styles: {} }], children: [] }];
+const teamSave = await fetch(`${APP}/api/pages/${echoChapter}/content?w=${echoShort}`, {
+  method: "POST",
+  headers: { cookie: aliceCookieHeader, "content-type": "application/json" },
+  body: JSON.stringify({ content: echoNewContent, baseVersion: Number(moveSql(`select version from public.pages where id = '${echoChapter}'`)) }),
+}).then((r) => r.json());
+const aliceIdForEcho = sql("select id from public.profiles where email = 'alice@alpha.test'");
+const echoAppendix = moveSql(`insert into public.pages (workspace_id, owner_id, created_by, title) values ('${echoId}', '${aliceIdForEcho}', '${aliceIdForEcho}', 'Echo appendix') returning id`).split("\n")[0];
+const echoStale = sql(`insert into public.pages (workspace_id, owner_id, created_by, title) values ('${echoId}', '${aliceIdForEcho}', '${aliceIdForEcho}', 'Echo stale') returning id`).split("\n")[0];
+const centralSecret = status.SECRET_KEY ?? status.SERVICE_ROLE_KEY;
+const removedCentrally = await fetch(`${API}/storage/v1/object/attachments`, {
+  method: "DELETE",
+  headers: { apikey: centralSecret, Authorization: `Bearer ${centralSecret}`, "content-type": "application/json" },
+  body: JSON.stringify({ prefixes: [echoFile.path] }),
+});
+check("(test setup) the central copy of the file is removed", removedCentrally.ok && sql(`select count(*) from storage.objects where bucket_id = 'attachments' and name = '${echoFile.path}'`) === "0", String(removedCentrally.status));
+check("a change saved in the team database", teamSave.ok === true && moveSql(`select content::text like '%Edited in the team database%' from public.pages where id = '${echoChapter}'`) === "t", JSON.stringify(teamSave));
+
+const startReturn = await setupAs(aliceCookieHeader, { action: "return" });
+check("the owner starts moving back", startReturn.ok === true && sql(`select return_step from public.team_databases where workspace_id = '${echoId}'`) === "copy", JSON.stringify(startReturn));
+await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
+await echoTab.getByText("Edited in the team database").first().waitFor({ timeout: 15000 }).catch(() => {});
+check("while moving back, the workspace is view-only and shows the team's data", (await echoTab.getByText("Workspace повертається на сервер EdgeKnow").count()) === 1 && (await echoTab.getByText("Edited in the team database").count()) > 0);
+const refusedBack = await fetch(`${APP}/api/pages/${echoChapter}/content?w=${echoShort}`, {
+  method: "POST",
+  headers: { cookie: aliceCookieHeader, "content-type": "application/json" },
+  body: JSON.stringify({ content: [], baseVersion: Number(moveSql(`select version from public.pages where id = '${echoChapter}'`)) }),
+});
+check("…and refuses changes", refusedBack.status === 409, String(refusedBack.status));
+const backSteps = [];
+for (let i = 0; i < 20; i++) {
+  const result = await setupAs(aliceCookieHeader, { action: "advance" });
+  backSteps.push(`${result.step}${result.error ? `!${result.error}` : ""}`);
+  if (result.step === "done" || result.error) break;
+}
+check("moving back copies, checks and switches", backSteps.at(-1) === "done" && backSteps.includes("verify"), backSteps.join(" "));
+check("…the registry entry is gone", sql(`select count(*) from public.team_databases where workspace_id = '${echoId}'`) === "0");
+check("…the team's change is in the central database", sql(`select content::text like '%Edited in the team database%' from public.pages where id = '${echoChapter}'`) === "t");
+check("…the page made in the team came back, the stale one went", sql(`select count(*) from public.pages where id = '${echoAppendix}'`) === "1" && sql(`select count(*) from public.pages where id = '${echoStale}'`) === "0");
+check("…the tree, comments and the file too", sql(`select parent_id from public.pages where id = '${echoChapter}'`) === echoHandbook && sql(`select count(*) from public.comments where workspace_id = '${echoId}'`) === "2" && sql(`select count(*) from storage.objects where bucket_id = 'attachments' and name = '${echoFile.path}'`) === "1");
+check("…and the team database was left as it was", moveSql(`select count(*) from public.pages where workspace_id = '${echoId}'`) === "3");
+await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
+await echoTab.getByText("Edited in the team database").first().waitFor({ timeout: 15000 }).catch(() => {});
+check("after moving back the page opens from the EdgeKnow server", (await echoTab.getByText("Edited in the team database").count()) > 0 && (await echoTab.getByText("Workspace повертається").count()) === 0);
+const backFile = await fetch(`${APP}/api/files/${echoFile.path}`, { headers: { cookie: aliceCookieHeader } });
+check("…with its image from the central storage", backFile.ok && Buffer.from(await backFile.arrayBuffer()).equals(tinyPng) && backFile.url.startsWith(API), `${backFile.status} ${backFile.url}`);
+const savedCentrally = await fetch(`${APP}/api/pages/${echoChapter}/content?w=${echoShort}`, {
+  method: "POST",
+  headers: { cookie: aliceCookieHeader, "content-type": "application/json" },
+  body: JSON.stringify({ content: echoNewContent, baseVersion: Number(sql(`select version from public.pages where id = '${echoChapter}'`)) }),
+}).then((r) => r.json());
+check("…and saves there again", savedCentrally.ok === true, JSON.stringify(savedCentrally));
+
 // Bob isn't in Team Delta: the central check stops him before any team token exists.
 await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);

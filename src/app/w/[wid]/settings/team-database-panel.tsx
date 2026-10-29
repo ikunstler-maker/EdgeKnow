@@ -11,6 +11,8 @@ export type TeamDatabaseStatus = {
   // When the workspace's existing pages were moved in, and how many.
   movedAt: string | null;
   movedPages: number | null;
+  // Moving back to the central database (step 1.7c).
+  returnStep: "copy" | "verify" | null;
   schemaVersion: string | null;
   lastSyncedAt: string | null;
 } | null;
@@ -70,6 +72,7 @@ export function TeamDatabasePanel({
   const [project, setProject] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [progress, setProgress] = useState<{
     step: string;
     waiting?: string;
@@ -119,6 +122,10 @@ export function TeamDatabasePanel({
     return () => clearTimeout(timer);
   }, [progress, advance]);
 
+  if (status?.returnStep || (status && returning)) {
+    return <ReturnPanel workspaceId={workspaceId} initial={status.returnStep ?? "copy"} initialError={status.lastError} />;
+  }
+
   if (status?.step === "done" || (status && status.step === null)) {
     return (
       <section className="flex flex-col gap-2 rounded-lg border border-border p-4">
@@ -142,6 +149,29 @@ export function TeamDatabasePanel({
         {status.lastError && (
           <p className="text-sm text-red-600">{status.lastError}</p>
         )}
+        <div className="mt-2 flex flex-col gap-1 border-t border-border pt-3">
+          <p className="text-sm text-muted">{td.returnIntro}</p>
+          <button
+            type="button"
+            disabled={busy}
+            className="min-h-11 self-start rounded-lg border border-border px-4 text-sm hover:bg-surface"
+            onClick={async () => {
+              if (!window.confirm(td.returnConfirm)) return;
+              setBusy(true);
+              const result = await setup({ ws: workspaceId, action: "return" });
+              setBusy(false);
+              if (!result.ok) return setError(explain(result.error));
+              setReturning(true);
+            }}
+          >
+            {td.returnButton}
+          </button>
+          {error && (
+            <p role="alert" className="text-sm text-red-600">
+              {error}
+            </p>
+          )}
+        </div>
       </section>
     );
   }
@@ -360,6 +390,86 @@ export function TeamDatabasePanel({
           </button>
         </form>
       )}
+    </section>
+  );
+}
+
+// Moving the workspace back to the EdgeKnow server: copy, check, switch.
+function ReturnPanel({ workspaceId, initial, initialError }: { workspaceId: string; initial: "copy" | "verify"; initialError: string | null }) {
+  const td = t.teamDatabase;
+  const router = useRouter();
+  const [progress, setProgress] = useState<{ step: string; error?: string; copying?: string }>({
+    step: initial,
+    error: initialError ?? undefined,
+  });
+  const [busy, setBusy] = useState(false);
+  const explain = (code?: string) =>
+    code && code in td.errors ? td.errors[code as keyof typeof td.errors] : (code ?? td.errors.unknown);
+
+  useEffect(() => {
+    if (progress.step === "done" || progress.error) return;
+    const timer = setTimeout(async () => {
+      const result = await setup({ ws: workspaceId, action: "advance" });
+      setProgress({
+        step: String(result.step ?? progress.step),
+        error: result.ok ? (result.error as string | undefined) : (result.error ?? "unknown"),
+        copying: result.copying as string | undefined,
+      });
+      if (result.step === "done") router.refresh();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [progress, workspaceId, router]);
+
+  if (progress.step === "done") {
+    return (
+      <section role="status" className="flex flex-col gap-2 rounded-lg border border-border p-4">
+        <h2 className="font-semibold">✅ {td.returnedTitle}</h2>
+        <p className="text-sm">{td.returned}</p>
+      </section>
+    );
+  }
+  const steps = ["copy", "verify"] as const;
+  const current = steps.indexOf(progress.step as (typeof steps)[number]);
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-border p-4" aria-live="polite">
+      <h2 className="font-semibold">{td.returningTitle}</h2>
+      <p className="text-sm text-muted">{td.returningReadOnly}</p>
+      <ol className="flex flex-col gap-1 text-sm">
+        {steps.map((step, index) => (
+          <li key={step}>
+            {index < current ? "✅" : index === current ? (progress.error ? "❌" : "⏳") : "▫️"} {td.returnSteps[step]}
+            {index === current && progress.copying && !progress.error && <span className="text-muted"> — {progress.copying}</span>}
+          </li>
+        ))}
+      </ol>
+      {progress.error && (
+        <>
+          <p role="alert" className="text-sm text-red-600">
+            {explain(progress.error)}
+          </p>
+          <button
+            type="button"
+            className="min-h-11 self-start rounded-lg border border-border px-4 text-sm hover:bg-surface"
+            onClick={() => setProgress({ step: progress.step })}
+          >
+            {td.retry}
+          </button>
+        </>
+      )}
+      <button
+        type="button"
+        disabled={busy}
+        className="min-h-11 self-start rounded-lg px-4 text-sm text-muted underline hover:text-foreground"
+        onClick={async () => {
+          if (!window.confirm(td.returnCancelConfirm)) return;
+          setBusy(true);
+          await setup({ ws: workspaceId, action: "cancel" });
+          setBusy(false);
+          window.location.reload();
+        }}
+      >
+        {td.returnCancel}
+      </button>
     </section>
   );
 }

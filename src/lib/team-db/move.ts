@@ -2,13 +2,13 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Moving a workspace's existing data into its team's own database (path C,
-// step 1.7b). Runs as two setup steps, a little at a time (each call of the
-// setup has under a minute):
+// step 1.7b), and back to the central database (1.7c, "in" and "back" below).
+// Runs as two steps, a little at a time (each call has under a minute):
 //   copy   — table by table, in portions; every portion is an "insert or
 //            overwrite", so a repeated or interrupted portion is harmless;
 //   verify — row counts of every table and every page's title and contents must
 //            match exactly; otherwise nothing switches.
-// The central rows are only read, never changed.
+// The side copied from is only read, never changed.
 
 const BATCH = 200;
 const FILE_BATCH = 20;
@@ -76,15 +76,47 @@ const COUNTED = ["pages", "page_access", "comment_threads", "comments", "attachm
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
-// One portion of the copy. `team` is the team database with its secret key.
-export async function copyPortion(admin: SupabaseClient, team: SupabaseClient, ws: string, progress: CopyProgress | null): Promise<{ result: CopyResult; next: CopyProgress | null }> {
+export type Direction = "in" | "back";
+
+// One portion of the copy: "in" from the central database (`admin`) into the
+// team database (`team`, with its secret key), "back" the other way.
+export async function copyPortion(
+  admin: SupabaseClient,
+  team: SupabaseClient,
+  ws: string,
+  progress: CopyProgress | null,
+  direction: Direction = "in",
+  // Moving back: when the workspace moved in (its log entries from then on are new).
+  movedAt: string | null = null,
+): Promise<{ result: CopyResult; next: CopyProgress | null }> {
+  const [from, to] = direction === "in" ? [admin, team] : [team, admin];
   const at = progress ?? { stage: -1, offset: 0 };
 
-  // First: the people all that data points to, then the (recent) workspace log.
   if (at.stage === -1) {
-    // A repeated move: whatever is gone centrally since (trash emptied overnight)
-    // goes in the team database too, so the counts can match.
-    await prune(admin, team, ws);
+    // Whatever is gone on the side copied from (trash emptied overnight, a
+    // page deleted in the team) goes on the other side too, so the counts can match.
+    await prune(from, to, ws);
+    if (direction === "back") {
+      // People live centrally anyway; only the log entries written in the team
+      // since the move, each once (a repeated copy skips what is already back).
+      let teamLog = team.from("audit_log").select("workspace_id, actor_id, action, details, created_at").eq("workspace_id", ws).order("created_at").limit(5000);
+      let centralLog = admin.from("audit_log").select("actor_id, action, created_at").eq("workspace_id", ws).limit(10000);
+      if (movedAt) {
+        teamLog = teamLog.gt("created_at", movedAt);
+        centralLog = centralLog.gt("created_at", movedAt);
+      }
+      const [{ data: entries, error: readError }, { data: present }] = await Promise.all([teamLog, centralLog]);
+      if (readError) throw new Error(`log: ${readError.message}`);
+      const key = (row: Record<string, unknown>) => `${Date.parse(String(row.created_at))}|${row.action}|${row.actor_id}`;
+      const already = new Set((present ?? []).map(key));
+      const log = (entries ?? []).filter((row) => !already.has(key(row)));
+      if (log.length) {
+        const { error: logError } = await admin.from("audit_log").insert(log);
+        if (logError) throw new Error(`log: ${logError.message}`);
+      }
+      return { result: { done: false, stage: "log", copied: log.length }, next: { stage: 0, offset: 0 } };
+    }
+    // Moving in: the people all that data points to, then the (recent) workspace log.
     const { data: people, error } = await admin.rpc("team_move_people", { ws });
     if (error) throw new Error(`people: ${error.message}`);
     const rows = (people ?? []) as Record<string, unknown>[];
@@ -112,10 +144,10 @@ export async function copyPortion(admin: SupabaseClient, team: SupabaseClient, w
   if (!stage) return { result: { done: true, stage: "done", copied: 0 }, next: null };
   const size = stage.files ? FILE_BATCH : BATCH;
   if (stage.replace && at.offset === 0) {
-    const { error: clearError } = await team.from(stage.table).delete().eq("workspace_id", ws);
+    const { error: clearError } = await to.from(stage.table).delete().eq("workspace_id", ws);
     if (clearError) throw new Error(`${stage.name}: ${clearError.message}`);
   }
-  const { data, error } = await admin
+  const { data, error } = await from
     .from(stage.table)
     .select(stage.columns)
     .eq("workspace_id", ws)
@@ -130,12 +162,12 @@ export async function copyPortion(admin: SupabaseClient, team: SupabaseClient, w
     if (stage.merge) {
       // Parents are all in place now; only pages that have one need the update.
       for (const row of rows.filter((r) => r.parent_id)) {
-        const { error: updateError } = await team.from("pages").update({ parent_id: row.parent_id }).eq("id", row.id as string);
+        const { error: updateError } = await to.from("pages").update({ parent_id: row.parent_id }).eq("id", row.id as string);
         if (updateError) throw new Error(`${stage.name}: ${updateError.message}`);
       }
     } else {
-      if (stage.files) await copyFiles(admin, team, rows);
-      const { error: insertError } = await team.from(stage.table).upsert(rows, { onConflict: stage.onConflict });
+      if (stage.files) await copyFiles(from, to, rows);
+      const { error: insertError } = await to.from(stage.table).upsert(rows, { onConflict: stage.onConflict });
       if (insertError) throw new Error(`${stage.name}: ${insertError.message}`);
     }
   }
@@ -157,30 +189,41 @@ async function idsOf(client: SupabaseClient, table: string, ws: string) {
   }
 }
 
-async function prune(admin: SupabaseClient, team: SupabaseClient, ws: string) {
+async function prune(from: SupabaseClient, to: SupabaseClient, ws: string) {
   for (const table of BY_ID) {
-    const there = await idsOf(team, table, ws);
+    const there = await idsOf(to, table, ws);
     if (!there.size) continue;
-    const central = await idsOf(admin, table, ws);
-    const extra = [...there].filter((id) => !central.has(id));
+    const kept = await idsOf(from, table, ws);
+    // Never empty the other side because the source came back empty (a wrong or
+    // reset project): that is stopped, not copied.
+    if (table === "pages" && !kept.size) throw new Error("source_empty");
+    const extra = [...there].filter((id) => !kept.has(id));
+    // A page that is still there but now under another parent mustn't go with
+    // its old one (deleting a page takes its subpages); the tree is copied again anyway.
+    if (table === "pages") {
+      for (let i = 0; i < extra.length; i += 100) {
+        const { error } = await to.from("pages").update({ parent_id: null }).eq("workspace_id", ws).in("parent_id", extra.slice(i, i + 100));
+        if (error) throw new Error(`pages: ${error.message}`);
+      }
+    }
     for (let i = 0; i < extra.length; i += 100) {
-      const { error } = await team.from(table).delete().in("id", extra.slice(i, i + 100));
+      const { error } = await to.from(table).delete().in("id", extra.slice(i, i + 100));
       if (error) throw new Error(`${table}: ${error.message}`);
     }
   }
 }
 
-// Files kept in the central Supabase Storage go to the team's storage under the
-// same path (files on Google Drive stay where they are).
-async function copyFiles(admin: SupabaseClient, team: SupabaseClient, rows: Record<string, unknown>[]) {
+// Files kept in Supabase Storage go to the other side's storage under the same
+// path (files on Google Drive stay where they are).
+async function copyFiles(from: SupabaseClient, to: SupabaseClient, rows: Record<string, unknown>[]) {
   for (const row of rows.filter((r) => r.storage_backend === "supabase")) {
     const path = row.storage_path as string;
-    const { data: there } = await team.storage.from("attachments").exists(path);
+    const { data: there } = await to.storage.from("attachments").exists(path);
     if (there) continue;
-    const { data: file, error } = await admin.storage.from("attachments").download(path);
-    // A file that is already gone centrally (deleted, never uploaded) has nothing to copy.
+    const { data: file, error } = await from.storage.from("attachments").download(path);
+    // A file that is already gone at the source (deleted, never uploaded) has nothing to copy.
     if (error || !file) continue;
-    const { error: uploadError } = await team.storage
+    const { error: uploadError } = await to.storage
       .from("attachments")
       .upload(path, new Uint8Array(await file.arrayBuffer()), { contentType: row.mime_type as string, upsert: true });
     if (uploadError) throw new Error(`file ${path}: ${uploadError.message}`);
@@ -211,7 +254,9 @@ async function allPages(client: SupabaseClient, ws: string) {
 }
 
 // Both databases store page contents as jsonb, so equal contents print equally.
-export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws: string): Promise<VerifyReport> {
+// Files must be on the side copied to.
+export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws: string, direction: Direction = "in"): Promise<VerifyReport> {
+  const [from, to] = direction === "in" ? [admin, team] : [team, admin];
   const counts: VerifyReport["counts"] = {};
   for (const table of COUNTED) counts[table] = { central: await countOf(admin, table, ws), team: await countOf(team, table, ws) };
   const [central, copied] = await Promise.all([allPages(admin, ws), allPages(team, ws)]);
@@ -219,11 +264,11 @@ export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws
   const mismatchedPages = central.filter((row) => byId.get(row.id as string) !== JSON.stringify(row)).map((row) => row.id as string);
 
   const missingFiles: string[] = [];
-  const { data: files } = await admin.from("attachments").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
+  const { data: files } = await from.from("attachments").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
   for (const file of files ?? []) {
-    const { data: centrally } = await admin.storage.from("attachments").exists(file.storage_path);
-    if (!centrally) continue;
-    const { data: there } = await team.storage.from("attachments").exists(file.storage_path);
+    const { data: atSource } = await from.storage.from("attachments").exists(file.storage_path);
+    if (!atSource) continue;
+    const { data: there } = await to.storage.from("attachments").exists(file.storage_path);
     if (!there) missingFiles.push(file.storage_path);
   }
 

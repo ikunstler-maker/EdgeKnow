@@ -16,9 +16,11 @@ export type TeamDatabase = {
   schema_version: string | null;
   status: "pending" | "ok" | "error";
   setup_step: "project" | "schema" | "keys" | "sync" | "copy" | "verify" | "sign_in" | "done" | null;
+  // Set while the workspace is moving back to the central database (step 1.7c).
+  return_step: "copy" | "verify" | null;
 };
 
-const COLUMNS = "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step";
+const COLUMNS = "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step, return_step";
 
 export const teamReady = (db: TeamDatabase) =>
   Boolean(db.project_url && db.publishable_key && db.secret_key_encrypted) && (db.setup_step === null || db.setup_step === "done");

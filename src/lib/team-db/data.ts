@@ -23,8 +23,9 @@ const SYNC_EVERY_MS = 60_000;
 
 // "setup": the team's project is being connected (step 1.5) and the workspace's
 // existing data copied into it (1.7b). Reads stay central and writes are refused
-// until it is ready.
-export type WorkspaceData = { client: SupabaseClient; workspaceId: string; location: "central" | "team" | "setup" };
+// until it is ready. "returning": the other way (1.7c); reads come from the team
+// database and writes are refused until the workspace is central again.
+export type WorkspaceData = { client: SupabaseClient; workspaceId: string; location: "central" | "team" | "setup" | "returning" };
 
 async function requestOrigin() {
   const h = await headers();
@@ -71,7 +72,7 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
     accessToken: async () => token,
     global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
   });
-  return { client, workspaceId: workspace.id, location: "team" };
+  return { client, workspaceId: workspace.id, location: db.return_step ? "returning" : "team" };
 });
 
 // For code that only has a page or thread id: the request's workspace, or the central database.
@@ -82,7 +83,7 @@ export async function dataClient(shortId?: string): Promise<SupabaseClient> {
 // For changes: null while the team's project is still being connected.
 export async function writeClient(shortId?: string): Promise<SupabaseClient | null> {
   const data = await workspaceData(shortId);
-  if (data?.location === "setup") return null;
+  if (data?.location === "setup" || data?.location === "returning") return null;
   return data?.client ?? (await createClient());
 }
 

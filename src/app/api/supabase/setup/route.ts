@@ -4,7 +4,7 @@ import { requireOwner } from "@/lib/drive/owner";
 import { encrypt } from "@/lib/drive/secret-box";
 import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { advanceSetup, SETUP_COLUMNS, type SetupRow } from "@/lib/team-db/connect";
+import { advanceReturn, advanceSetup, SETUP_COLUMNS, type SetupRow } from "@/lib/team-db/connect";
 import { clearConnectSession, readConnectSession, saveConnectSession } from "@/lib/team-db/connect-session";
 import { refreshTokens, supabaseApi } from "@/lib/team-db/supabase-api";
 
@@ -12,7 +12,9 @@ import { refreshTokens, supabaseApi } from "@/lib/team-db/supabase-api";
 //   { action: "create", organization, region, move? } — a new project in their organization;
 //   { action: "existing", ref, move? } — an empty project they already have;
 //     (move: true for a workspace that already has pages: they are copied in, step 1.7b);
-//   { action: "cancel" } — stop before it is done (the central data was never touched);
+//   { action: "cancel" } — stop before it is done (the central data was never touched),
+//     or stop moving back (the workspace stays in the team database);
+//   { action: "return" } — move a connected workspace back to the central database (1.7c);
 //   { action: "advance" } — the next setup step (the page asks every few seconds);
 //   { action: "options" } — the owner's organizations and projects to choose from.
 export const maxDuration = 60;
@@ -31,12 +33,28 @@ export async function POST(request: NextRequest) {
 
   if (body.action === "advance") {
     if (!existing) return NextResponse.json({ ok: false, error: "not_started" }, { status: 400 });
+    if ((existing as SetupRow).return_step) return NextResponse.json({ ok: true, ...(await advanceReturn(admin, existing as SetupRow, owner.userId)) });
     return NextResponse.json({ ok: true, ...(await advanceSetup(admin, existing as SetupRow, issuer)) });
   }
 
-  if (body.action === "cancel") {
-    // Once done the workspace's data lives in the team database; going back is a separate step.
+  if (body.action === "return") {
     const row = existing as SetupRow | null;
+    if (!row || (row.setup_step !== null && row.setup_step !== "done")) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 409 });
+    if (!row.return_step) {
+      await admin.from("team_databases").update({ return_step: "copy", return_progress: null, return_report: null, last_error: null }).eq("workspace_id", ws);
+      await admin.from("audit_log").insert({ workspace_id: ws, actor_id: owner.userId, action: "team_database_return_started", details: { project: row.project_ref } });
+    }
+    return NextResponse.json({ ok: true, step: row.return_step ?? "copy" });
+  }
+
+  if (body.action === "cancel") {
+    const row = existing as SetupRow | null;
+    if (row?.return_step) {
+      // The team database was only read: the workspace simply stays there.
+      await admin.from("team_databases").update({ return_step: null, return_progress: null, last_error: null }).eq("workspace_id", ws);
+      return NextResponse.json({ ok: true });
+    }
+    // Once done the workspace's data lives in the team database; going back is "return".
     if (!row || row.setup_step === null || row.setup_step === "done") {
       return NextResponse.json({ ok: false, error: "not_cancellable" }, { status: 409 });
     }
