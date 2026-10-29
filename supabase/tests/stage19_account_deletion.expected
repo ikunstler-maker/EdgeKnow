@@ -1,0 +1,9 @@
+owner can't go: {"ok": false, "error": "owns_workspaces", "workspaces": ["Leaving"]}
+pete: {"ok": true}
+page now owned by: olga@leave.test
+invitations left: 0
+profile left: 0
+membership left: 0
+comment kept, author: former member
+unknown person: {"ok": false, "error": "not_found"}
+psql: ERROR:  permission denied for function account_deletion_cleanup

@@ -14,6 +14,7 @@ const LIMITS = {
   team_token: [240, 60],
   setup: [240, 60],
   domain_check: [30, 3600],
+  export: [5, 3600],
 } as const;
 
 export type LimitKind = keyof typeof LIMITS;

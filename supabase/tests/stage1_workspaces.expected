@@ -78,7 +78,7 @@ psql: ERROR:  permission denied for table platform_settings
 psql: ERROR:  permission denied for function log_workspace_action
 psql: ERROR:  permission denied for table workspaces
 psql: ERROR:  permission denied for function has_platform_access
-stats: Drive=2m/1p,Mentions=3m/1p,Other mentions=1m/0p,Stats=2m/2p,Other stats=1m/0p,Sync=2m/0p,Other sync=1m/0p,Move=2m/0p,Other move=1m/0p,Squat=2m/0p,Real=2m/0p,Platform=1m/0p,Groups=2m/0p,Other groups=1m/0p,Admin own=1m/0p,Frank team=2m/0p,Frank 2=1m/0p,Frank 3=1m/0p,Frank 4=1m/0p,Frank 5=1m/0p,Alpha=3m/1p,Alpha two=1m/0p,Beta=1m/0p
+stats: Drive=2m/1p,Mentions=3m/1p,Other mentions=1m/0p,Stats=2m/2p,Other stats=1m/0p,Sync=2m/0p,Other sync=1m/0p,Move=2m/0p,Other move=1m/0p,Squat=2m/0p,Real=2m/0p,Platform=1m/0p,Groups=2m/0p,Other groups=1m/0p,Admin own=1m/0p,Frank team=2m/0p,Frank 2=1m/0p,Frank 3=1m/0p,Frank 4=1m/0p,Frank 5=1m/0p,Leaving=1m/0p,Alpha=3m/1p,Alpha two=1m/0p,Beta=1m/0p
 admin sees alpha pages: 0
 admin reads platform log: true
 open registration: {"ok": true}
@@ -98,4 +98,4 @@ alpha left: 0
 alpha pages left: 0
 alpha members left: 0
 deletion logged: 1
-workspaces now: Drive,Mentions,Other mentions,Stats,Other stats,Sync,Other sync,Move,Other move,Squat,Real,Platform,Groups,Other groups,Admin own,Frank team,Frank 2,Frank 3,Frank 4,Frank 5,Alpha two,Beta
+workspaces now: Drive,Mentions,Other mentions,Stats,Other stats,Sync,Other sync,Move,Other move,Squat,Real,Platform,Groups,Other groups,Admin own,Frank team,Frank 2,Frank 3,Frank 4,Frank 5,Leaving,Alpha two,Beta
