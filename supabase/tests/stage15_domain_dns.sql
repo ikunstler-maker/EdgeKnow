@@ -93,4 +93,4 @@ select public.request_workspace_domain(:'real', 'dns.test');
 reset role;
 \set ON_ERROR_STOP 1
 
-update public.platform_settings set open_registration = false, email_domain_proof = true;
+update public.platform_settings set open_registration = false, email_domain_proof = true, require_team_database = false;
