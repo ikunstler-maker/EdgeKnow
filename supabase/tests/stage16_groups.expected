@@ -1,0 +1,36 @@
+bob creates a group: {"ok": false, "error": "forbidden"}
+same name again: {"ok": false, "error": "group_exists"}
+empty name: {"ok": false, "error": "invalid_name"}
+add bob: {"ok": true}
+add dave (not a member): {"ok": false, "error": "not_a_member"}
+another workspace's group here: {"ok": false, "error": "not_found"}
+bob before: none
+give the group editor: {"ok": true}
+a group of another workspace: {"ok": false, "error": "not_found"}
+bad role: {"ok": false, "error": "invalid_role"}
+owner sees: Marketing=editor own:true, choices: Marketing (1)
+bob on the page: editor, on the subpage: editor
+bob sees pages: 2
+bob gives roles himself: {"ok": false, "error": "forbidden"}
+bob sees no choice of groups: 0
+carol (not in the group): none
+carol reads the group list: 1
+carol reads grants of a page she can't see: 0
+dave reads the groups: 0
+dave reads who is in them: 0
+break inheritance: {"ok": true}
+group grant copied: editor
+remove bob from the group: {"ok": true}
+bob after: none, none
+remove carol from the workspace: true
+carol's group places left: 0
+payload: 1 group, 1 member
+rename: {"ok": true}
+rename someone else's: {"ok": false, "error": "not_found"}
+delete: {"ok": true}
+grants left: 0
+logged: group_created, group_renamed, group_deleted
+psql: ERROR:  permission denied for table workspace_groups
+psql: ERROR:  permission denied for table page_group_access
+psql: ERROR:  permission denied for function create_workspace_group
+psql: ERROR:  group and grant must be in the same workspace

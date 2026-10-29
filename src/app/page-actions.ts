@@ -70,6 +70,19 @@ export type PageSharing = {
   inherited_workspace_role: GrantRole | null;
   entries: SharingEntry[];
   members: SharingPerson[];
+  // Groups with a role on this page, and (for the owner) all groups to choose from.
+  groups: SharingGroup[];
+  all_groups: { group_id: string; name: string; members: number }[];
+};
+export type SharingGroup = {
+  group_id: string;
+  name: string;
+  members: number;
+  role: GrantRole;
+  own: boolean;
+  own_role: GrantRole | null;
+  inherited_from: string | null;
+  inherited_title: string | null;
 };
 
 export async function getPageSharing(id: string): Promise<ActionResult<PageSharing>> {
@@ -81,6 +94,10 @@ export async function getPageSharing(id: string): Promise<ActionResult<PageShari
 
 export async function setPageMemberRole(id: string, userId: string, role: GrantRole | null) {
   return callPageRpc("set_page_member_role", { target_page: id, member: userId, new_role: role });
+}
+
+export async function setPageGroupRole(id: string, groupId: string, role: GrantRole | null) {
+  return callPageRpc("set_page_group_role", { target_page: id, target_group: groupId, new_role: role });
 }
 
 export async function setPageWorkspaceRole(id: string, role: GrantRole | null) {

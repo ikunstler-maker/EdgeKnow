@@ -1,0 +1,10 @@
+sync with a group: true
+give the group viewer: {"ok": true}
+groups to choose: Editors
+bob: viewer, viewer
+carol: none
+psql: ERROR:  permission denied for table workspace_groups
+psql: ERROR:  permission denied for table workspace_group_members
+sync without it: true
+grants left: 0
+bob after: none

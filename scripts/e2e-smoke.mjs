@@ -1055,6 +1055,37 @@ const betaId = sql("select id from public.workspaces where name = 'Beta'");
 const foreign = await tokenFor(betaId);
 check("no token for someone else's workspace", foreign.status === 403, String(foreign.status));
 
+// --- Groups of people ---------------------------------------------------------------------------
+{
+  const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");
+  const groupPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "For reviewers" })).data.id;
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=groups`);
+  await alice.getByLabel("Назва нової групи").fill("Reviewers");
+  await alice.getByRole("button", { name: "Створити групу" }).click();
+  const card = alice.locator('[data-group="Reviewers"]');
+  await card.waitFor({ timeout: 15000 });
+  await card.getByLabel("Додати людину в групу «Reviewers»").selectOption({ label: await card.locator("option", { hasText: "colleague@alpha.test" }).first().innerText() });
+  await card.getByText("учасників: 1").waitFor({ timeout: 15000 }).catch(() => {});
+  check("the admin makes a group and adds a colleague", sql(`select count(*) from public.workspace_group_members gm join public.workspace_groups g on g.id = gm.group_id where g.name = 'Reviewers' and g.workspace_id = '${alphaId}'`) === "1");
+  check("…who can't see the page yet", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === null);
+  await alice.goto(`${APP}/w/${alphaShort}/p/${groupPage}`);
+  await alice.getByRole("button", { name: "Поділитися" }).click();
+  const dialog = alice.getByRole("dialog", { name: "Доступ до сторінки" });
+  await dialog.getByLabel("Група", { exact: true }).waitFor({ timeout: 15000 });
+  await dialog.getByLabel("Група", { exact: true }).selectOption({ label: "Reviewers · 1 особа" });
+  await dialog.getByLabel("Роль групи").selectOption("commenter");
+  await dialog.getByRole("button", { name: "Додати" }).nth(1).click();
+  await dialog.getByText("👥 Reviewers · 1 особа").waitFor({ timeout: 15000 }).catch(() => {});
+  check("the page owner gives the group a role in the share dialog", (await dialog.getByText("👥 Reviewers · 1 особа").count()) === 1);
+  check("…and the colleague in the group gets it", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === "commenter");
+  await alice.keyboard.press("Escape");
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=groups`);
+  await alice.locator('[data-group="Reviewers"]').getByRole("button", { name: /з групи «Reviewers»/ }).click();
+  await alice.locator('[data-group="Reviewers"]').getByText("учасників: 0").waitFor({ timeout: 15000 }).catch(() => {});
+  check("out of the group, the access is gone", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === null);
+  await colleagueClient.auth.signOut();
+}
+
 // --- A workspace whose data lives in the team's own database (path C) ------------------------
 
 const gammaShort = sql("select short_id from public.workspaces where name = 'Team Delta'");
@@ -1171,6 +1202,13 @@ check("only the owner may drive the setup", setupAsGuest.status === 403, String(
   check("…and its page text appears nowhere in the central pages or log", !leaked.length, leaked.join(", "));
   check("…while the team database has them", teamSql(`select count(*) from public.pages where workspace_id = '${ws}'`) !== "0");
 }
+
+// Groups of a team workspace are copied into its database with the members.
+await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=groups`);
+await gammaTab.getByLabel("Назва нової групи").fill("Delta group");
+await gammaTab.getByRole("button", { name: "Створити групу" }).click();
+await gammaTab.locator('[data-group="Delta group"]').waitFor({ timeout: 15000 });
+check("a team workspace's group reaches its own database", teamSql("select count(*) from public.workspace_groups where name = 'Delta group'") === "1");
 
 // --- How the team database is doing (step 1.5b) ------------------------------------------------
 const deltaId = sql("select id from public.workspaces where name = 'Team Delta'");
