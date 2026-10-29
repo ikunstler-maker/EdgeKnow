@@ -1122,6 +1122,7 @@ check("Team Echo starts with pages, access, comments, a file and a mention", !ec
 execFileSync("psql", [status.DB_URL, "-v", "ON_ERROR_STOP=1", "-f", ".team-stacks/team-c/register.sql"]);
 const echoTab = await newPage(aliceCookies);
 await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
+await echoTab.getByText("Moved with care").first().waitFor({ timeout: 15000 }).catch(() => {});
 check("while moving, the workspace says it is view-only", (await echoTab.getByText("Workspace переноситься у власну базу команди").count()) === 1);
 check("…and still shows its pages from the central database", (await echoTab.getByText("Moved with care").count()) > 0);
 const aliceCookieHeader = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");
@@ -1156,9 +1157,9 @@ sql(`update public.team_databases set setup_step = 'done', status = 'ok' where w
 await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
 await echoTab.getByText("Moved with care").first().waitFor({ timeout: 15000 }).catch(() => {});
 check("after the move the page opens from the team database", (await echoTab.getByText("Moved with care").count()) > 0 && (await echoTab.getByText("Workspace переноситься у власну базу команди").count()) === 0);
-const movedImage = echoTab.locator(".bn-editor img.bn-visual-media").first();
-await echoTab.waitForFunction((el) => el?.complete && el.naturalWidth > 0, await movedImage.elementHandle({ timeout: 15000 }).catch(() => null), { timeout: 15000 }).catch(() => {});
-check("…with its image from the team's storage", (await movedImage.evaluate((img) => img.naturalWidth).catch(() => 0)) > 0);
+const movedFile = await fetch(`${APP}/api/files/${echoFile.path}`, { headers: { cookie: aliceCookieHeader } });
+const movedBytes = Buffer.from(await movedFile.arrayBuffer());
+check("…with its image from the team's storage", movedFile.ok && movedBytes.equals(tinyPng) && movedFile.url.startsWith(moveStatus.API_URL), `${movedFile.status} ${movedFile.url} ${movedBytes.length}`);
 await echoTab.goto(`${APP}/w/${echoShort}/settings?tab=team`);
 check("the database tab shows the move", (await echoTab.getByText(/Перенесено .*сторінок — 2/).count()) === 1);
 const cancelDone = await setupAs(aliceCookieHeader, { action: "cancel" });
