@@ -183,6 +183,24 @@ await alice.waitForURL(/\/w\/[a-z0-9]{8}$/);
 check("new workspace opens", (await alice.getByRole("button", { name: "Перемкнути workspace" }).innerText()).includes("Gamma"));
 check("new workspace has an empty tree", (await alice.locator("aside").getByText("Alpha secret").count()) === 0);
 
+// First steps on a new workspace, and the example pages to start from.
+const onboarding = alice.locator("[data-onboarding]");
+check("a new workspace shows its owner the first steps", (await onboarding.getByText("Перші кроки").count()) === 1 && (await onboarding.getByRole("link", { name: "Запросити колег" }).count()) === 1);
+await onboarding.getByRole("button", { name: "Додати приклади сторінок" }).click();
+await alice.locator("aside").getByText("Ласкаво просимо").waitFor({ timeout: 20000 }).catch(() => {});
+const gammaId = sql("select id from public.workspaces where name = 'Gamma'");
+check(
+  "…the example pages are added, with their text",
+  sql(`select string_agg(title, ',' order by title) from public.pages where workspace_id = '${gammaId}'`) === "Ласкаво просимо,Наша команда,Як писати сторінки" &&
+    sql(`select count(*) from public.pages where workspace_id = '${gammaId}' and content::text like '%Для чого ця вікі%'`) === "1",
+  sql(`select string_agg(title, ',') from public.pages where workspace_id = '${gammaId}'`),
+);
+check("…and the first-page step is ticked", (await onboarding.getByText("Створити першу сторінку").evaluate((el) => getComputedStyle(el).textDecorationLine).catch(() => "")) === "line-through");
+await onboarding.getByRole("button", { name: "Сховати" }).click();
+await alice.reload();
+check("…hidden, they stay hidden", (await alice.locator("[data-onboarding]").count()) === 0);
+sql(`delete from public.pages where workspace_id = '${gammaId}'`);
+
 // Bob can't open Alpha in the browser either.
 const { cookies: bobCookies } = await sessionCookies("bob@beta.test");
 const bob = await newPage(bobCookies);

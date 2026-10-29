@@ -60,6 +60,57 @@ export const en: Dictionary = {
     empty: "You have no pages yet. Start with the first one.",
     settingsLink: "Workspace settings",
   },
+  onboarding: {
+    heading: "First steps",
+    progress: (done: number, total: number) => `${done} of ${total} done`,
+    hide: "Hide",
+    steps: {
+      database: { title: "Connect your own database", hint: "Your pages will live in your free Supabase. A few minutes with hints." },
+      page: { title: "Make the first page", hint: "The “＋ New page” button on the left or above. Press “/” in the text to add a heading, list, table or image." },
+      people: { title: "Invite colleagues", hint: "Settings → “Members”: an invitation link for any email, as editor or viewer." },
+      drive: { title: "Connect Google Drive (optional)", hint: "Images go to the team's Drive, and every page is copied there daily." },
+      help: { title: "Read the help", hint: "Everything in short: blocks, access, comments, groups, domains." },
+    },
+    examplesHint: "Not sure where to start? Add three example pages — change or delete them as you like.",
+    addExamples: "Add example pages",
+    adding: "Adding…",
+    examples: [
+      {
+        title: "Welcome",
+        icon: "👋",
+        lines: [
+          { kind: "h2", text: "What this wiki is for" },
+          { kind: "p", text: "The team keeps everything worth knowing here: rules, how-tos, decisions and contacts. One page, one topic." },
+          { kind: "h2", text: "Where to start" },
+          { kind: "bullet", text: "Read “How to write pages”." },
+          { kind: "bullet", text: "Fill in “Our team”." },
+          { kind: "bullet", text: "Invite colleagues in Settings → “Members”." },
+        ],
+      },
+      {
+        title: "How to write pages",
+        icon: "✍️",
+        lines: [
+          { kind: "p", text: "Press “/” on an empty line for the block menu: headings, lists, tables, images, videos, callouts." },
+          { kind: "p", text: "Select text to make it bold, add a link or a comment." },
+          { kind: "p", text: "Make subpages with the “+” next to a page on the left; set access with “Share”." },
+          { kind: "todo", text: "Try adding your first to-do list here." },
+        ],
+      },
+      {
+        title: "Our team",
+        icon: "👥",
+        lines: [
+          { kind: "h2", text: "Who we are" },
+          { kind: "p", text: "A few sentences about the team and its purpose." },
+          { kind: "h2", text: "Contacts" },
+          { kind: "bullet", text: "Name — role — how to reach them" },
+          { kind: "h2", text: "Agreements" },
+          { kind: "bullet", text: "Where we talk and how fast we answer." },
+        ],
+      },
+    ],
+  },
   workspace: {
     frozenTitle: (name: string) => `The workspace “${name}” is frozen`,
     frozen: "The platform admin has closed access to this workspace for now. Nothing was deleted. Ask the workspace owner or the platform admin for more.",

@@ -5,6 +5,9 @@ import { pagePath, workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { NewPageButton } from "@/components/pages/new-page-button";
+import { Onboarding, type OnboardingStep } from "@/components/onboarding";
+import { createClient } from "@/lib/supabase/server";
+import { workspaceData } from "@/lib/team-db/data";
 
 type MentionRow = {
   id: string;
@@ -82,6 +85,35 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 20);
 
+  // First steps (owner and admins) while the workspace is still new.
+  let steps: OnboardingStep[] | null = null;
+  let canAddExamples = false;
+  if (isWorkspaceAdmin(workspace)) {
+    const central = await createClient();
+    const data = await workspaceData(wid);
+    const [{ count: pageCount }, { count: memberCount }, { data: storage }, { data: centralAllowed }] = await Promise.all([
+      supabase.from("pages").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).is("deleted_at", null),
+      central.from("workspace_members").select("user_id", { count: "exact", head: true }).eq("workspace_id", workspace.id).eq("status", "active"),
+      central.rpc("workspace_storage_status", { ws: workspace.id }),
+      central.rpc("central_pages_allowed", { ws: workspace.id }),
+    ]);
+    const pages = pageCount ?? 0;
+    if (pages < 5) {
+      const needsDatabase = data?.location === "central" && !centralAllowed;
+      const settings = (tab: string) => workspacePath(workspace.shortId, `/settings?tab=${tab}`);
+      steps = [
+        ...(data?.location !== "central" || needsDatabase
+          ? [{ key: "database" as const, done: data?.location === "team", href: settings("team") }]
+          : []),
+        { key: "page", done: pages > 0, href: workspacePath(workspace.shortId) },
+        { key: "people", done: (memberCount ?? 0) > 1, href: settings("members") },
+        { key: "drive", done: Boolean((storage as { drive: unknown } | null)?.drive), href: settings("storage") },
+        { key: "help", done: false, href: "/help" },
+      ];
+      canAddExamples = pages === 0 && !needsDatabase && (data?.location === "central" || data?.location === "team");
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <p className="text-sm text-muted">{workspace.name}</p>
@@ -98,6 +130,8 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
           </Link>
         )}
       </div>
+
+      {steps && <Onboarding workspaceId={workspace.id} shortId={workspace.shortId} steps={steps} canAddExamples={canAddExamples} />}
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">{t.mentions.heading}</h2>
