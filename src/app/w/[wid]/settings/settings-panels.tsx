@@ -18,6 +18,7 @@ import {
   setMemberRole,
   transferOwnership,
 } from "@/app/workspace-actions";
+import { cancelDomainRequest, requestDomain, verifyDomain } from "@/app/domain-actions";
 
 const s = t.settings;
 
@@ -28,7 +29,14 @@ export type MemberItem = {
   role: "owner" | "admin" | "member";
   joinedVia: "creator" | "domain" | "invite";
 };
-export type DomainItem = { domain: string; isActive: boolean };
+export type DomainItem = {
+  domain: string;
+  isActive: boolean;
+  method: "legacy" | "email" | "dns" | "admin";
+  dnsMissingSince: string | null;
+};
+// A domain asked for and waiting for its DNS record.
+export type ClaimItem = { domain: string; token: string; checkedAt: string | null; lastError: string | null };
 export type InvitationItem = { id: string; email: string; role: string; expiresLabel: string };
 export type DepartedOwner = { userId: string; name: string | null; email: string; pages: number };
 
@@ -382,45 +390,59 @@ function DepartedRow({
 export function DomainsPanel({
   workspaceId,
   domains,
+  claims,
+  emailWay,
   ownDomain,
 }: {
   workspaceId: string;
   domains: DomainItem[];
+  claims: ClaimItem[];
+  emailWay: boolean;
   ownDomain: string;
 }) {
   const { pending, run, errorLine } = useAction();
   const [domain, setDomain] = useState(ownDomain);
+  const d = s.domains;
+  const normalized = domain.trim().toLowerCase();
+  // The old instant way only for one's own email domain, and only while the platform allows it.
+  const instant = emailWay && normalized === ownDomain;
 
   return (
     <section>
-      <h2 className="text-lg font-semibold">{s.domains.heading}</h2>
-      <p className="mt-1 text-sm text-muted">{s.domains.intro}</p>
+      <h2 className="text-lg font-semibold">{d.heading}</h2>
+      <p className="mt-1 text-sm text-muted">{d.intro}</p>
       {domains.length === 0 ? (
         <p className="mt-3 text-muted">{s.access.empty}</p>
       ) : (
         <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
-          {domains.map((d) => (
-            <li key={d.domain} className="flex flex-wrap items-center gap-2 px-3 py-2">
+          {domains.map((item) => (
+            <li key={item.domain} className="flex flex-wrap items-center gap-2 px-3 py-2" data-domain={item.domain}>
               <span className="min-w-0 flex-1">
-                <span className="font-mono">{d.domain}</span>{" "}
-                <span className={d.isActive ? "text-sm text-accent" : "text-sm text-muted"}>
-                  · {d.isActive ? s.access.active : s.access.inactive}
+                <span className="font-mono">{item.domain}</span>{" "}
+                <span className={item.isActive ? "text-sm text-accent" : "text-sm text-muted"}>
+                  · {item.isActive ? s.access.active : s.access.inactive}
                 </span>
+                <span className="block text-xs text-muted">{d.methods[item.method]}</span>
+                {item.dnsMissingSince && (
+                  <span role="alert" className="block text-xs text-danger">
+                    {d.recordMissing(new Date(item.dnsMissingSince).toLocaleDateString())}
+                  </span>
+                )}
               </span>
               <button
                 type="button"
                 disabled={pending}
                 className={buttonClass}
-                onClick={() => run(() => setDomainActive(workspaceId, d.domain, !d.isActive))}
+                onClick={() => run(() => setDomainActive(workspaceId, item.domain, !item.isActive))}
               >
-                {d.isActive ? s.access.disable : s.access.enable}
+                {item.isActive ? s.access.disable : s.access.enable}
               </button>
               <button
                 type="button"
                 disabled={pending}
                 className={`${buttonClass} text-danger`}
                 onClick={() => {
-                  if (confirm(s.access.confirmRemove(d.domain))) run(() => removeDomain(workspaceId, d.domain));
+                  if (confirm(s.access.confirmRemove(item.domain))) run(() => removeDomain(workspaceId, item.domain));
                 }}
               >
                 {s.access.remove}
@@ -429,11 +451,54 @@ export function DomainsPanel({
           ))}
         </ul>
       )}
+
+      {claims.map((claim) => (
+        <div key={claim.domain} className="mt-4 rounded-lg border border-border p-3 text-sm" data-domain-request={claim.domain}>
+          <p className="font-medium">
+            {d.waitingTitle} <span className="font-mono">{claim.domain}</span>
+          </p>
+          <p className="mt-1 text-muted">{d.howTo}</p>
+          <dl className="mt-2 grid gap-1">
+            <dt className="text-muted">{d.recordType}</dt>
+            <dd className="font-mono">TXT</dd>
+            <dt className="text-muted">{d.recordHost}</dt>
+            <dd>
+              <CopyField value={`_edgeknow.${claim.domain}`} />
+              <span className="text-xs text-muted">{d.recordHostHint}</span>
+            </dd>
+            <dt className="text-muted">{d.recordValueLabel}</dt>
+            <dd>
+              <CopyField value={`edgeknow-verify=${claim.token}`} />
+            </dd>
+          </dl>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-muted">{d.whereTitle}</summary>
+            <ul className="mt-1 list-disc pl-5 text-muted">
+              {d.where.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </details>
+          <p className="mt-2 text-xs text-muted">{d.waitHint}</p>
+          {claim.lastError === "record_not_found" && claim.checkedAt && (
+            <p className="mt-1 text-xs text-danger">{d.notFoundYet(new Date(claim.checkedAt).toLocaleString())}</p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" disabled={pending} className={primaryClass} onClick={() => run(() => verifyDomain(workspaceId, claim.domain))}>
+              {d.check}
+            </button>
+            <button type="button" disabled={pending} className={buttonClass} onClick={() => run(() => cancelDomainRequest(workspaceId, claim.domain))}>
+              {d.cancelRequest}
+            </button>
+          </div>
+        </div>
+      ))}
+
       <form
         className="mt-4 flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          run(() => addDomain(workspaceId, domain));
+          run(() => (instant ? addDomain(workspaceId, normalized) : requestDomain(workspaceId, normalized)));
         }}
       >
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
@@ -443,15 +508,15 @@ export function DomainsPanel({
             onChange={(e) => setDomain(e.target.value)}
             required
             spellCheck={false}
-            placeholder={s.domains.addPlaceholder}
+            placeholder={d.addPlaceholder}
             className={`${inputClass} font-mono`}
           />
         </label>
         <button type="submit" disabled={pending} className={primaryClass}>
-          {s.access.addButton}
+          {instant ? s.access.addButton : d.requestButton}
         </button>
       </form>
-      <p className="mt-2 text-xs text-muted">{s.domains.rule(ownDomain)}</p>
+      <p className="mt-2 text-xs text-muted">{emailWay ? d.rule(ownDomain) : d.ruleDnsOnly}</p>
       {errorLine}
     </section>
   );

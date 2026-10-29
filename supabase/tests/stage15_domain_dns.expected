@@ -1,0 +1,27 @@
+instant add: {"ok": true}
+bob in squat: true
+request: {"ok": true, "domain": "dns.test", "record": "_edgeknow.dns.test"}, value looks right: true
+request again keeps the value: true
+public domain: {"ok": false, "error": "public_domain"}
+carol sees her request: 1
+non-member request: {"ok": false, "error": "forbidden"}
+mallory sees requests: 0
+mallory, platform list: null
+mallory, platform confirm: {"ok": false, "error": "forbidden"}
+confirm: {"ok": true}
+domain now: Real dns
+requests left: 0
+squat told: 1
+bob in squat now: false
+bob in real: true
+mallory asks back: {"ok": false, "error": "domain_taken"}
+confirm over a proven one: {"ok": false, "error": "domain_taken"}
+platform list: Real owner-dns.test
+platform confirm: {"ok": true}
+by hand: admin
+instant way after opening: false
+mallory switches the email way: {"ok": false, "error": "forbidden"}
+instant add now: {"ok": false, "error": "dns_required"}
+psql: ERROR:  permission denied for function confirm_workspace_domain
+psql: ERROR:  permission denied for table workspace_domain_claims
+psql: ERROR:  permission denied for function request_workspace_domain

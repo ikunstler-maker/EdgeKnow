@@ -3,7 +3,7 @@
 //
 // Usage: node scripts/e2e-smoke.mjs status.json http://localhost:3000
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createServerClient } from "@supabase/ssr";
 import { chromium } from "playwright";
@@ -136,6 +136,44 @@ sql("update public.profiles set is_platform_admin = true where email = 'alice@al
 await alice.reload();
 check("admin page lists all workspaces", (await alice.getByRole("cell", { name: /Alpha/ }).count()) > 0 && (await alice.getByRole("cell", { name: /Beta/ }).count()) > 0);
 check("admin page shows no page titles", (await alice.getByText("Alpha secret").count()) === 0);
+
+// --- Domains proven through DNS ---------------------------------------------------------------
+// The server reads DNS from DNS_FAKE_FILE in CI; writing it is "adding the record".
+const fakeDns = process.env.DNS_FAKE_FILE;
+const publishDns = (records) => writeFileSync(fakeDns, JSON.stringify(records));
+publishDns({});
+await alice.goto(`${APP}/w/${alphaShort}/settings?tab=domains`);
+await alice.getByLabel("Новий домен").fill("alpha-corp.test");
+await alice.getByRole("button", { name: "Підтвердити через DNS" }).click();
+const request = alice.locator('[data-domain-request="alpha-corp.test"]');
+await request.waitFor({ timeout: 15000 });
+const txtValue = await request.locator("input[readonly]").nth(1).inputValue();
+check("asking for another domain shows the TXT record to add", (await request.locator("input[readonly]").first().inputValue()) === "_edgeknow.alpha-corp.test" && /^edgeknow-verify=[0-9a-f]{32}$/.test(txtValue), txtValue);
+await request.getByRole("button", { name: "Перевірити" }).click();
+await alice.getByText("Запису в DNS ще не видно").first().waitFor({ timeout: 15000 }).catch(() => {});
+check("…without the record it isn't confirmed", (await alice.getByText("Запису в DNS ще не видно").count()) > 0 && sql("select count(*) from public.workspace_domains where domain = 'alpha-corp.test'") === "0");
+publishDns({ "_edgeknow.alpha-corp.test": ["v=something-else", txtValue] });
+await request.getByRole("button", { name: "Перевірити" }).click();
+await alice.locator('[data-domain="alpha-corp.test"]').waitFor({ timeout: 15000 }).catch(() => {});
+check("…with the record it is confirmed", sql("select method from public.workspace_domains where domain = 'alpha-corp.test'") === "dns" && (await alice.locator('[data-domain="alpha-corp.test"]').getByText("Підтверджено через DNS").count()) === 1);
+// The platform admin confirms a request by hand.
+await alice.getByLabel("Новий домен").fill("alpha-manual.test");
+await alice.getByRole("button", { name: "Підтвердити через DNS" }).click();
+await alice.locator('[data-domain-request="alpha-manual.test"]').waitFor({ timeout: 15000 });
+await alice.goto(`${APP}/admin`);
+check("the platform panel lists the request", (await alice.getByText("alpha-manual.test").count()) === 1);
+await alice.getByRole("button", { name: "Підтвердити вручну" }).click();
+await alice.waitForTimeout(1500);
+check("…and confirms it by hand", sql("select method from public.workspace_domains where domain = 'alpha-manual.test'") === "admin");
+// The switch for the instant email way.
+await alice.locator("section", { has: alice.getByRole("heading", { name: "Домени команд" }) }).getByRole("button", { name: "Вимкнути" }).click();
+await alice.waitForTimeout(1500);
+check("the platform admin turns the email way off", sql("select email_domain_proof from public.platform_settings") === "f");
+await alice.goto(`${APP}/w/${alphaShort}/settings?tab=domains`);
+await alice.getByLabel("Новий домен").fill("alpha.test");
+check("…then even one's own domain needs DNS", (await alice.getByRole("button", { name: "Підтвердити через DNS" }).count()) === 1);
+sql("update public.platform_settings set email_domain_proof = true");
+sql("delete from public.workspace_domains where domain in ('alpha-corp.test', 'alpha-manual.test')");
 
 // New workspace from the switcher.
 await alice.goto(`${APP}/new`);

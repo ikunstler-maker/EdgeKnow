@@ -224,3 +224,6 @@ select 'alpha pages left: ' || count(*) from public.pages where workspace_id = :
 select 'alpha members left: ' || count(*) from public.workspace_members where workspace_id = :'alpha';
 select 'deletion logged: ' || count(*) from public.audit_log where workspace_id is null and action = 'workspace_deleted';
 select 'workspaces now: ' || string_agg(name, ',' order by created_at) from public.workspaces;
+
+-- Opening registration ended the instant (email) way of adding domains; later tests use it.
+update public.platform_settings set email_domain_proof = true;

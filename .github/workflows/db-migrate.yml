@@ -88,9 +88,12 @@ jobs:
         run: |
           export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
-          # Throwaway values for this run only; Google Drive is replaced by a local stand-in.
+          # Throwaway values for this run only; Google Drive and DNS are replaced by local stand-ins.
           export SUPABASE_SECRET_KEY="$(jq -r '.SECRET_KEY // .SERVICE_ROLE_KEY' status.json)"
           export DRIVE_FAKE_DIR="$RUNNER_TEMP/fake-drive"
+          export DNS_FAKE_FILE="$RUNNER_TEMP/fake-dns.json"
+          echo '{}' > "$DNS_FAKE_FILE"
+          echo "DNS_FAKE_FILE=$DNS_FAKE_FILE" >> "$GITHUB_ENV"
           export CRON_SECRET="ci-cron-secret"
           echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"

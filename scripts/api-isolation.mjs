@@ -150,6 +150,9 @@ const bobActions = {
   "create page in alpha": ["create_page", { ws: alpha.id, parent: null, new_title: "x" }],
   "invite himself to alpha": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "admin" }],
   "add domain to alpha": ["add_workspace_domain", { ws: alpha.id, new_domain: "beta.test" }],
+  "ask to prove a domain for alpha": ["request_workspace_domain", { ws: alpha.id, new_domain: "beta.test" }],
+  "confirm a domain as platform admin": ["platform_confirm_domain", { ws: alpha.id, target_domain: "beta.test" }],
+  "turn the email way back on": ["set_email_domain_proof", { allowed: true }],
   "trash alpha page": ["trash_page", { target_page: page.id }],
   "delete alpha": ["delete_workspace", { ws: alpha.id, confirm_name: "Alpha" }],
   "rename alpha": ["rename_workspace", { ws: alpha.id, new_name: "Mine" }],
@@ -158,6 +161,9 @@ for (const [name, [fn, body]] of Object.entries(bobActions)) {
   const res = await rpc(bob, fn, body);
   check(`bob is refused: ${name}`, denied(res), `HTTP ${res.status} ${JSON.stringify(res.json)}`);
 }
+// Only the EdgeKnow server (secret key), after looking up DNS, may confirm a domain.
+const selfConfirm = await rpc(bob, "confirm_workspace_domain", { ws: alpha.id, target_domain: "alpha.test", how: "dns", actor: null });
+check("bob can't call the server-only domain confirmation", selfConfirm.status >= 400, `HTTP ${selfConfirm.status} ${JSON.stringify(selfConfirm.json)}`);
 const role = await rpc(bob, "effective_role", { target_page: page.id });
 check("bob has no role on alpha page", role.json === null, JSON.stringify(role.json));
 const stats = await rpc(bob, "platform_workspaces");
@@ -170,6 +176,8 @@ const writes = [
   ["POST", "/rest/v1/workspace_members", { workspace_id: alpha.id, user_id: "00000000-0000-0000-0000-000000000000", joined_via: "invite" }],
   ["POST", "/rest/v1/pages", { workspace_id: alpha.id, owner_id: "00000000-0000-0000-0000-000000000000", title: "x" }],
   ["PATCH", "/rest/v1/platform_settings?id=eq.true", { open_registration: true }],
+  ["POST", "/rest/v1/workspace_domain_claims", { workspace_id: alpha.id, domain: "evil.test" }],
+  ["PATCH", "/rest/v1/workspace_domains?domain=eq.alpha.test", { method: "dns" }],
 ];
 for (const [method, path, body] of writes) {
   const res = await http(method, path, { token: bob, body });
@@ -178,8 +186,8 @@ for (const [method, path, body] of writes) {
 const titleAfter = (await rest(alice, `pages?id=eq.${page.id}&select=title`)).json?.[0]?.title;
 check("alpha page unchanged after bob's attempts", titleAfter === "Alpha secret", String(titleAfter));
 const logged = sql(`select count(*) from public.audit_log where workspace_id = '${alpha.id}' and action = 'access_denied'`);
-// Workspace management attempts (invite, add domain, delete, rename) are logged; page actions are not.
-check("bob's attempts are in alpha's audit log", Number(logged) === 4, `${logged} entries`);
+// Workspace management attempts (invite, add and ask for a domain, delete, rename) are logged; page actions are not.
+check("bob's attempts are in alpha's audit log", Number(logged) === 5, `${logged} entries`);
 
 // --- Page access inside a workspace (stage 5) --------------------------------
 
