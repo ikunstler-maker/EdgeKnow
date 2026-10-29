@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
-import { isExternalImageUrl, resolveAttachmentUrl, uploadImage, UploadError } from "@/lib/attachments";
+import { directImageUrl, isExternalImageUrl, resolveAttachmentUrl, uploadImage, UploadError } from "@/lib/attachments";
 import { COVER_COLORS, GRADIENT_PRESETS, gradientCss, parseCover, type Cover, type GradientStop } from "@/lib/cover";
 import { ImageError } from "@/lib/image-compression";
 import { setPageCover } from "@/app/page-actions";
@@ -353,7 +353,8 @@ function ImageTab({ pageId, onPick }: { pageId: string; onPick: (cover: Cover) =
         className="space-y-2"
         onSubmit={(event) => {
           event.preventDefault();
-          const value = link.trim();
+          const value = directImageUrl(link);
+          if (value === "drive_folder") return setError(t.editor.image.errors.drive_folder);
           if (!isExternalImageUrl(value) || /["'<>()\\\s]/.test(value)) return setError(t.editor.image.errors.link_https);
           onPick({ type: "image", url: value, y: 50 });
         }}

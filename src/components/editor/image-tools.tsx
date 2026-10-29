@@ -10,7 +10,7 @@ import {
   type FilePanelProps,
 } from "@blocknote/react";
 import { t } from "@/i18n";
-import { isExternalImageUrl } from "@/lib/attachments";
+import { directImageUrl, isDriveImageUrl, isExternalImageUrl } from "@/lib/attachments";
 import { getImageQuality, IMAGE_QUALITIES, setImageQuality, type ImageQuality } from "@/lib/image-compression";
 
 // The image panel: upload (with the quality choice) or a link to an image elsewhere.
@@ -43,20 +43,22 @@ function ImageLinkTab({ blockId }: { blockId: string }) {
   const [checking, setChecking] = useState(false);
 
   const submit = () => {
-    const value = url.trim();
+    const value = directImageUrl(url);
+    if (value === "drive_folder") return setError(t.editor.image.errors.drive_folder);
     if (!isExternalImageUrl(value)) return setError(t.editor.image.errors.link_https);
+    const fromDrive = isDriveImageUrl(value);
     setChecking(true);
     // Make sure it really is a picture before putting it on the page.
     const probe = new Image();
     probe.onload = () => {
       setChecking(false);
       if (!editor.getBlock(blockId)) return;
-      const name = decodeURIComponent(new URL(value).pathname.split("/").pop() ?? "").replace(/\.[^.]+$/, "");
+      const name = fromDrive ? "" : decodeURIComponent(new URL(value).pathname.split("/").pop() ?? "").replace(/\.[^.]+$/, "");
       editor.updateBlock(blockId, { props: { url: value, name } as never });
     };
     probe.onerror = () => {
       setChecking(false);
-      setError(t.editor.image.errors.link_unreachable);
+      setError(fromDrive ? t.editor.image.errors.drive_private : t.editor.image.errors.link_unreachable);
     };
     probe.referrerPolicy = "no-referrer";
     probe.src = value;
@@ -91,6 +93,7 @@ function ImageLinkTab({ blockId }: { blockId: string }) {
         {t.editor.image.insertLink}
       </button>
       <p className="text-xs text-muted">{t.editor.image.linkHint}</p>
+      <p className="text-xs text-muted">{t.editor.image.driveHint}</p>
     </form>
   );
 }

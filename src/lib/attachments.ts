@@ -44,6 +44,25 @@ export async function uploadImage(pageId: string, file: File, quality: ImageQual
   return { url: `${ATTACHMENT_SCHEME}${registered.path}`, width: image.width };
 }
 
+// A Google Drive "Share" link points to Drive's viewer page, not to the picture:
+// it becomes a direct image link (the file must be shared with "Anyone with the
+// link"). Folders can't be shown; anything else is returned unchanged.
+export function directImageUrl(url: string): string | "drive_folder" {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return url.trim();
+  }
+  if (!/^(drive|docs)\.google\.com$/.test(parsed.hostname)) return url.trim();
+  if (/\/(drive\/)?(u\/\d+\/)?folders\//.test(parsed.pathname)) return "drive_folder";
+  const id = parsed.pathname.match(/\/file\/(?:u\/\d+\/)?d\/([\w-]{10,})/)?.[1] ?? parsed.searchParams.get("id");
+  if (!id || !/^[\w-]{10,}$/.test(id)) return url.trim();
+  return `https://drive.google.com/thumbnail?id=${id}&sz=w2000`;
+}
+
+export const isDriveImageUrl = (url: string) => url.startsWith("https://drive.google.com/thumbnail?id=");
+
 // Images by link: shown straight from the other site while it keeps them, https only.
 export function isExternalImageUrl(url: string): boolean {
   try {
