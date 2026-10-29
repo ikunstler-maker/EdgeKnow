@@ -41,6 +41,7 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000017b1';
 select 'gina while frozen: ' || public.is_workspace_member(:'ws') || ', pages seen: ' || (select count(*) from public.pages where workspace_id = :'ws');
 select 'gina is told: ' || (public.frozen_workspace_notice(:'wsshort') - 'frozen_at')::text;
 select 'gina can''t write: ' || public.create_page(:'ws', null, 'During')::text;
+select 'gina still uses the platform: ' || public.has_platform_access();
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000017e1';
 select 'a stranger is told nothing: ' || coalesce(public.frozen_workspace_notice(:'wsshort')::text, 'null');
 select 'platform list: ' || (select (data_location is null) || ' ' || central_allowed || ' ' || (frozen_at is not null) || ' ' || frozen_reason from public.platform_workspaces() where id = :'ws');

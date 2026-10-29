@@ -48,6 +48,28 @@ as $$
   and not exists (select 1 from public.workspaces w where w.id = ws and w.frozen_at is not null);
 $$;
 
+-- A member of a frozen workspace still uses the platform (and sees why that one is closed).
+create or replace function public.has_platform_access()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.current_email() is not null and (
+    exists (
+      select 1 from public.workspace_members m
+      where m.user_id = auth.uid() and public.is_workspace_member(m.workspace_id)
+    )
+    or exists (
+      select 1 from public.workspace_members m
+      join public.workspaces w on w.id = m.workspace_id
+      where m.user_id = auth.uid() and m.status = 'active' and w.frozen_at is not null
+    )
+    or (select open_registration from public.platform_settings)
+  );
+$$;
+
 -- For a member of a frozen workspace: its name and the reason (nothing else).
 create function public.frozen_workspace_notice(ws_short_id text)
 returns jsonb

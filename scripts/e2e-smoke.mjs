@@ -1084,7 +1084,7 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.reload();
   await alice.locator('[data-section="own-database"]').getByRole("button", { name: "Вимкнути" }).click();
   await alice.waitForTimeout(1500);
-  check("…the existing workspaces were never affected", sql("select count(*) from public.workspaces where not central_allowed and name <> 'Bob fresh'") === "0");
+  check("…and turns it off again", sql("select require_team_database from public.platform_settings") === "f");
 }
 
 // --- Groups of people ---------------------------------------------------------------------------

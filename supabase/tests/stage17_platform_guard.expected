@@ -11,6 +11,7 @@ admin freezes: {"ok": true}
 gina while frozen: false, pages seen: 0
 gina is told: {"name": "Frank team", "reason": "Spam reported"}
 gina can't write: {"ok": false, "error": "forbidden"}
+gina still uses the platform: true
 a stranger is told nothing: null
 platform list: true true true Spam reported
 unfreeze: {"ok": true}

@@ -124,6 +124,21 @@ $function$
 
 ;
 
+create or replace function public.has_platform_access()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.current_email() is not null and (
+    exists (
+      select 1 from public.workspace_members m
+      where m.user_id = auth.uid() and public.is_workspace_member(m.workspace_id)
+    )
+    or (select open_registration from public.platform_settings)
+  );
+$$;
 drop function public.platform_workspaces();
 CREATE FUNCTION public.platform_workspaces()
  RETURNS TABLE(id uuid, short_id text, name text, owner_email text, members bigint, pages bigint, storage_bytes bigint, storage_limit_mb integer, created_at timestamp with time zone)
