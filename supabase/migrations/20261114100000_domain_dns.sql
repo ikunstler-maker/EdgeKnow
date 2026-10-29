@@ -229,7 +229,9 @@ begin
   update public.platform_settings
   set open_registration = open,
       email_domain_proof = case when open then false else email_domain_proof end,
-      updated_at = now(), updated_by = auth.uid();
+      updated_at = now(), updated_by = auth.uid()
+  -- The single settings row (Supabase refuses an UPDATE without WHERE).
+  where id;
   perform public.log_workspace_action(null,
     case when open then 'registration_opened' else 'registration_closed' end, '{}'::jsonb);
   return jsonb_build_object('ok', true);
@@ -249,7 +251,7 @@ begin
       jsonb_build_object('attempted', 'set_email_domain_proof'));
     return public.ws_error('forbidden');
   end if;
-  update public.platform_settings set email_domain_proof = allowed, updated_at = now(), updated_by = auth.uid();
+  update public.platform_settings set email_domain_proof = allowed, updated_at = now(), updated_by = auth.uid() where id;
   perform public.log_workspace_action(null,
     case when allowed then 'email_domains_allowed' else 'email_domains_ended' end, '{}'::jsonb);
   return jsonb_build_object('ok', true);

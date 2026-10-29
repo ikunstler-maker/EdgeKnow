@@ -13,7 +13,8 @@ begin
     return public.ws_error('forbidden');
   end if;
   update public.platform_settings
-  set open_registration = open, updated_at = now(), updated_by = auth.uid();
+  set open_registration = open, updated_at = now(), updated_by = auth.uid()
+  where id;
   perform public.log_workspace_action(null,
     case when open then 'registration_opened' else 'registration_closed' end, '{}'::jsonb);
   return jsonb_build_object('ok', true);
