@@ -125,7 +125,7 @@ export default async function WorkspaceSettingsPage({
     ? await Promise.all([
         service
           .from("team_databases")
-          .select("project_url, setup_step, last_error, schema_version, last_synced_at")
+          .select("project_url, setup_step, last_error, schema_version, last_synced_at, moved_at, move_report")
           .eq("workspace_id", workspace.id)
           .maybeSingle(),
         service.from("pages").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id),
@@ -138,6 +138,8 @@ export default async function WorkspaceSettingsPage({
         lastError: teamRow.data.last_error,
         schemaVersion: teamRow.data.schema_version,
         lastSyncedAt: teamRow.data.last_synced_at,
+        movedAt: teamRow.data.moved_at,
+        movedPages: (teamRow.data.move_report as { counts?: { pages?: { team: number } } } | null)?.counts?.pages?.team ?? null,
       }
     : null;
   const departedData = departed?.data as

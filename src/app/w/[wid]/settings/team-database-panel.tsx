@@ -6,8 +6,11 @@ import { t } from "@/i18n";
 
 export type TeamDatabaseStatus = {
   projectUrl: string | null;
-  step: "project" | "schema" | "keys" | "sync" | "sign_in" | "done" | null;
+  step: "project" | "schema" | "keys" | "sync" | "copy" | "verify" | "sign_in" | "done" | null;
   lastError: string | null;
+  // When the workspace's existing pages were moved in, and how many.
+  movedAt: string | null;
+  movedPages: number | null;
   schemaVersion: string | null;
   lastSyncedAt: string | null;
 } | null;
@@ -17,7 +20,7 @@ type Options = {
   projects: { ref: string; name: string; region: string; status: string }[];
 };
 
-const STEPS = ["project", "schema", "keys", "sync", "sign_in"] as const;
+const STEPS = ["project", "schema", "keys", "sync", "copy", "verify", "sign_in"] as const;
 const REGIONS = [
   "eu-central-1",
   "eu-west-1",
@@ -71,6 +74,7 @@ export function TeamDatabasePanel({
     step: string;
     waiting?: string;
     error?: string;
+    copying?: string;
   } | null>(
     status && status.step && status.step !== "done"
       ? { step: status.step, error: status.lastError ?? undefined }
@@ -83,7 +87,7 @@ export function TeamDatabasePanel({
       : td.errors.unknown;
 
   useEffect(() => {
-    if (!choose || status || hasPages) return;
+    if (!choose || status) return;
     void setup({ ws: workspaceId, action: "options" }).then((result) => {
       if (!result.ok) return setError(`${explain(result.error)}${result.detail ? ` (${String(result.detail)})` : ""}`);
       const next = result as unknown as Options;
@@ -91,7 +95,7 @@ export function TeamDatabasePanel({
       setOrganization(next.organizations[0]?.slug ?? "");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [choose, status, hasPages, workspaceId]);
+  }, [choose, status, workspaceId]);
 
   // While setting up: one step every few seconds until done.
   const advance = useCallback(async () => {
@@ -100,6 +104,7 @@ export function TeamDatabasePanel({
       step: String(result.step ?? progress?.step ?? "project"),
       waiting: result.waiting as string | undefined,
       error: result.error as string | undefined,
+      copying: result.copying as string | undefined,
     });
     if (result.step === "done") router.refresh();
     return result;
@@ -129,6 +134,11 @@ export function TeamDatabasePanel({
           {status.lastSyncedAt &&
             `${td.lastSync}: ${new Date(status.lastSyncedAt).toLocaleString()}`}
         </p>
+        {status.movedAt && (
+          <p className="text-sm text-muted">
+            {td.moved(new Date(status.movedAt).toLocaleString(), status.movedPages ?? 0)}
+          </p>
+        )}
         {status.lastError && (
           <p className="text-sm text-red-600">{status.lastError}</p>
         )}
@@ -144,6 +154,7 @@ export function TeamDatabasePanel({
         aria-live="polite"
       >
         <h2 className="font-semibold">{td.settingUp}</h2>
+        {hasPages && <p className="text-sm text-muted">{td.movingReadOnly}</p>}
         <ol className="flex flex-col gap-1 text-sm">
           {STEPS.map((step, index) => (
             <li key={step}>
@@ -155,6 +166,9 @@ export function TeamDatabasePanel({
                     : "⏳"
                   : "▫️"}{" "}
               {td.steps[step]}
+              {index === current && progress.copying && !progress.error && (
+                <span className="text-muted"> — {progress.copying}</span>
+              )}
               {index === current && progress.waiting && (
                 <span className="text-muted">
                   {" "}
@@ -178,6 +192,24 @@ export function TeamDatabasePanel({
             </button>
           </>
         )}
+        {progress.step !== "done" && (
+          <button
+            type="button"
+            disabled={busy}
+            className="min-h-11 self-start rounded-lg px-4 text-sm text-muted underline hover:text-foreground"
+            onClick={async () => {
+              if (!window.confirm(td.cancelConfirm)) return;
+              setBusy(true);
+              const result = await setup({ ws: workspaceId, action: "cancel" });
+              setBusy(false);
+              if (!result.ok) return setProgress({ ...progress, error: result.error });
+              setProgress(null);
+              router.refresh();
+            }}
+          >
+            {td.cancel}
+          </button>
+        )}
       </section>
     );
   }
@@ -193,10 +225,18 @@ export function TeamDatabasePanel({
       </ul>
       {!configured ? (
         <p className="text-sm text-muted">{td.notConfigured}</p>
-      ) : hasPages ? (
-        <p className="text-sm text-muted">{td.hasPages}</p>
       ) : !choose ? (
         <>
+          {hasPages && (
+            <div className="flex flex-col gap-1 rounded-md bg-surface p-3 text-sm">
+              <p className="font-medium">{td.moveTitle}</p>
+              <ul className="list-disc pl-5 text-muted">
+                {td.movePoints.map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {failed && (
             <p role="alert" className="text-sm text-red-600">
               {td.oauthFailed}
@@ -206,7 +246,7 @@ export function TeamDatabasePanel({
             href={`/api/supabase/connect?ws=${workspaceId}`}
             className="inline-flex min-h-11 items-center self-start rounded-lg bg-accent px-4 text-sm font-medium text-white hover:opacity-90"
           >
-            {td.connect}
+            {hasPages ? td.move : td.connect}
           </a>
         </>
       ) : !options ? (
@@ -220,8 +260,8 @@ export function TeamDatabasePanel({
             setError(null);
             const result = await setup(
               mode === "create"
-                ? { ws: workspaceId, action: "create", organization, region }
-                : { ws: workspaceId, action: "existing", ref: project },
+                ? { ws: workspaceId, action: "create", organization, region, move: hasPages }
+                : { ws: workspaceId, action: "existing", ref: project, move: hasPages },
             );
             setBusy(false);
             if (!result.ok) return setError(`${explain(result.error)}${result.detail ? ` (${String(result.detail)})` : ""}`);
@@ -316,7 +356,7 @@ export function TeamDatabasePanel({
             }
             className="min-h-11 self-start rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-60"
           >
-            {busy ? td.starting : td.start}
+            {busy ? td.starting : hasPages ? td.startMove : td.start}
           </button>
         </form>
       )}

@@ -74,15 +74,16 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       # Path C: the "Team Delta" workspace keeps its data in a second, team-owned stack
-      # that trusts the app's own (throwaway) EdgeKnow signing key.
+      # that trusts the app's own (throwaway) EdgeKnow signing key; "Team Echo" is
+      # moved into a third one during the test.
       - name: Team database for the Team Delta workspace
         run: |
           keys="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
           echo "EDGEKNOW_OIDC_SIGNING_KEYS=$keys" >> "$GITHUB_ENV"
           drive_key="ci-drive-token-key-$(openssl rand -hex 16)"
           echo "DRIVE_TOKEN_KEY=$drive_key" >> "$GITHUB_ENV"
-          TEAM_STACKS=team-b TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh
-          DRIVE_TOKEN_KEY="$drive_key" node --experimental-strip-types scripts/register-team.mjs status.json .team-stacks/team-b/status.json
+          TEAM_STACKS="team-b team-c" TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh
+          DRIVE_TOKEN_KEY="$drive_key" node --experimental-strip-types scripts/register-team.mjs status.json .team-stacks/team-b/status.json .team-stacks/team-c/status.json
       - name: Build and start the app against local Supabase
         run: |
           export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"

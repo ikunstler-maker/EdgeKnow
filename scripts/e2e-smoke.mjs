@@ -1092,6 +1092,79 @@ const setupAsGuest = await fetch(`${APP}/api/supabase/setup`, {
 });
 check("only the owner may drive the setup", setupAsGuest.status === 403, String(setupAsGuest.status));
 
+// --- Moving a workspace that has pages into its team's own database (step 1.7b) ---
+// "Team Echo" fills up centrally first; register.sql then connects it to the
+// third stack at the "sync" step, as if the wizard had got that far.
+const echoId = sql("select id from public.workspaces where name = 'Team Echo'");
+const echoShort = sql(`select short_id from public.workspaces where id = '${echoId}'`);
+const moveStatus = JSON.parse(readFileSync(".team-stacks/team-c/status.json", "utf8"));
+const moveSql = (query) => execFileSync("psql", [moveStatus.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
+const echoHandbook = (await aliceClient.rpc("create_page", { ws: echoId, parent: null, new_title: "Echo handbook" })).data.id;
+const echoChapter = (await aliceClient.rpc("create_page", { ws: echoId, parent: echoHandbook, new_title: "Echo chapter" })).data.id;
+await aliceClient.rpc("set_page_member_role", { target_page: echoChapter, member: colleagueId, new_role: "editor" });
+const tinyPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+const echoFile = (await aliceClient.rpc("register_attachment", { target_page: echoChapter, file_type: "image/png", file_bytes: tinyPng.length, file_width: 1, file_height: 1 })).data;
+const echoUpload = await aliceClient.storage.from("attachments").upload(echoFile.path, new Blob([tinyPng], { type: "image/png" }));
+await aliceClient.rpc("save_page_content", {
+  target_page: echoChapter,
+  base_version: 1,
+  new_content: [
+    { id: "e1", type: "paragraph", props: {}, content: [{ type: "text", text: "Moved with care ", styles: {} }, { type: "personChip", props: { userId: colleagueId, label: "Colleague" } }], children: [] },
+    { id: "e2", type: "image", props: { url: `/api/files/${echoFile.path}`, name: "dot.png", previewWidth: 100 }, children: [] },
+  ],
+});
+const echoThread = (await aliceClient.rpc("create_comment_thread", { target_page: echoChapter, quoted: "Moved", body: "Is everything here?", mention_ids: [] })).data;
+await aliceClient.rpc("reply_to_thread", { target_thread: echoThread.id, body: "Yes", mention_ids: [] });
+const echoCounts = (where = "workspace_id") => ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"].map((table) => `${table}=${sql(`select count(*) from public.${table} where ${where} = '${echoId}'`)}`).join(" ");
+const centralBefore = echoCounts();
+check("Team Echo starts with pages, access, comments, a file and a mention", !echoUpload.error && /pages=2 page_access=[1-9].*comments=2 attachments=1 page_mentions=1/.test(centralBefore), `${centralBefore} ${echoUpload.error?.message ?? ""}`);
+
+execFileSync("psql", [status.DB_URL, "-v", "ON_ERROR_STOP=1", "-f", ".team-stacks/team-c/register.sql"]);
+const echoTab = await newPage(aliceCookies);
+await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
+await echoTab.getByText("Moved with care").first().waitFor({ timeout: 15000 }).catch(() => {});
+check("while moving, the workspace says it is view-only", (await echoTab.getByText("Workspace переноситься у власну базу команди").count()) === 1);
+check("…and still shows its pages from the central database", (await echoTab.getByText("Moved with care").count()) > 0);
+const aliceCookieHeader = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+const refusedSave = await fetch(`${APP}/api/pages/${echoChapter}/content?w=${echoShort}`, {
+  method: "POST",
+  headers: { cookie: aliceCookieHeader, "content-type": "application/json" },
+  body: JSON.stringify({ content: [], baseVersion: Number(sql(`select version from public.pages where id = '${echoChapter}'`)) }),
+});
+check("…and refuses changes", refusedSave.status >= 400 && sql(`select jsonb_array_length(content) from public.pages where id = '${echoChapter}'`) === "2", String(refusedSave.status));
+
+const setupAs = (cookie, body) =>
+  fetch(`${APP}/api/supabase/setup`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ ws: echoId, ...body }) }).then((r) => r.json());
+const moveSteps = [];
+for (let i = 0; i < 20; i++) {
+  const result = await setupAs(aliceCookieHeader, { action: "advance" });
+  moveSteps.push(`${result.step}${result.error ? `!${result.error}` : ""}`);
+  if (result.step === "sign_in" || result.error) break;
+}
+// "sign_in" needs Supabase's Management API, which CI doesn't have; the stack already trusts our key.
+check("the setup copies the data and checks it", moveSteps.at(-1) === "sign_in" && moveSteps.includes("verify"), moveSteps.join(" "));
+const report = JSON.parse(sql(`select coalesce(move_report, '{}')::text from public.team_databases where workspace_id = '${echoId}'`));
+check("…the check found every row and page", report.ok === true && !report.mismatchedPages?.length && !report.missingFiles?.length, JSON.stringify(report));
+const teamCounts = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"].map((table) => `${table}=${moveSql(`select count(*) from public.${table} where workspace_id = '${echoId}'`)}`).join(" ");
+check("the team database has the same rows", teamCounts === centralBefore, `${teamCounts} vs ${centralBefore}`);
+check("…the page tree, contents and comment author", moveSql(`select parent_id from public.pages where id = '${echoChapter}'`) === echoHandbook && moveSql(`select content::text from public.pages where id = '${echoChapter}'`) === sql(`select content::text from public.pages where id = '${echoChapter}'`) && moveSql(`select count(*) from public.comments c join public.profiles p on p.id = c.author_id where c.workspace_id = '${echoId}' and p.email = 'alice@alpha.test'`) === "2");
+check("…and the file in its own storage", moveSql(`select count(*) from storage.objects where bucket_id = 'attachments' and name = '${echoFile.path}'`) === "1");
+check("the central copy is left as it was", echoCounts() === centralBefore, echoCounts());
+const cancelLater = await setupAs(bobCookies.map((c) => `${c.name}=${c.value}`).join("; "), { action: "cancel" });
+check("only the owner can cancel a move", cancelLater.ok === false && sql(`select count(*) from public.team_databases where workspace_id = '${echoId}'`) === "1");
+
+sql(`update public.team_databases set setup_step = 'done', status = 'ok' where workspace_id = '${echoId}'`);
+await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
+await echoTab.getByText("Moved with care").first().waitFor({ timeout: 15000 }).catch(() => {});
+check("after the move the page opens from the team database", (await echoTab.getByText("Moved with care").count()) > 0 && (await echoTab.getByText("Workspace переноситься у власну базу команди").count()) === 0);
+const movedFile = await fetch(`${APP}/api/files/${echoFile.path}`, { headers: { cookie: aliceCookieHeader } });
+const movedBytes = Buffer.from(await movedFile.arrayBuffer());
+check("…with its image from the team's storage", movedFile.ok && movedBytes.equals(tinyPng) && movedFile.url.startsWith(moveStatus.API_URL), `${movedFile.status} ${movedFile.url} ${movedBytes.length}`);
+await echoTab.goto(`${APP}/w/${echoShort}/settings?tab=team`);
+check("the database tab shows the move", (await echoTab.getByText(/Перенесено .*сторінок — 2/).count()) === 1);
+const cancelDone = await setupAs(aliceCookieHeader, { action: "cancel" });
+check("a finished move can't be cancelled from the wizard", cancelDone.error === "not_cancellable", JSON.stringify(cancelDone));
+
 // Bob isn't in Team Delta: the central check stops him before any team token exists.
 await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);

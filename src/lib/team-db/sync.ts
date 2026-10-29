@@ -15,7 +15,7 @@ export type TeamDatabase = {
   db_url_encrypted: string | null;
   schema_version: string | null;
   status: "pending" | "ok" | "error";
-  setup_step: "project" | "schema" | "keys" | "sync" | "sign_in" | "done" | null;
+  setup_step: "project" | "schema" | "keys" | "sync" | "copy" | "verify" | "sign_in" | "done" | null;
 };
 
 const COLUMNS = "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step";
