@@ -33,13 +33,22 @@ export async function GET(request: NextRequest) {
 
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
-  const { data: tombstones, error } = await rows
+  const { data: found, error } = await rows
     .from("attachment_tombstones")
     .select("storage_path, storage_backend, drive_connection_id, drive_file_id")
     .order("created_at")
     .limit(500);
   if (error) return null;
-  if (!tombstones.length) return 0;
+  if (!found.length) return 0;
+  // A path that has a record again (a workspace moved back and forth) keeps its file.
+  const { data: inUse, error: inUseError } = await rows
+    .from("attachments")
+    .select("storage_path")
+    .in("storage_path", found.map((row) => row.storage_path as string));
+  if (inUseError) return null;
+  const used = new Set((inUse ?? []).map((row) => row.storage_path as string));
+  if (used.size) await rows.from("attachment_tombstones").delete().in("storage_path", [...used]);
+  const tombstones = found.filter((row) => !used.has(row.storage_path as string));
 
   const done: string[] = [];
   const onSupabase = tombstones.filter((row) => row.storage_backend !== "drive").map((row) => row.storage_path as string);

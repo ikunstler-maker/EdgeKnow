@@ -38,7 +38,7 @@ export const teamAdmin = teamStorage;
 export async function readyTeams(admin: SupabaseClient): Promise<TeamDatabase[]> {
   const { data } = await admin
     .from("team_databases")
-    .select("workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step");
+    .select("workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, setup_step, return_step");
   return ((data ?? []) as TeamDatabase[]).filter(teamReady);
 }
 

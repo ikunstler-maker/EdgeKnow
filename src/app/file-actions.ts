@@ -17,7 +17,7 @@ export async function registerAttachment(input: {
   height: number;
 }): Promise<RegisteredAttachment> {
   const data = await workspaceData();
-  if (data?.location === "setup") return { ok: false, error: "team_setup" };
+  if (data?.location === "setup" || data?.location === "returning") return { ok: false, error: "team_setup" };
   const supabase = data?.client;
   if (!supabase) return { ok: false, error: "forbidden" };
   const { data: result, error } = await supabase.rpc("register_attachment", {

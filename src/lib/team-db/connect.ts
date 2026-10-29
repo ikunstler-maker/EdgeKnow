@@ -16,10 +16,11 @@ export type SetupRow = TeamDatabase & {
   management_token_encrypted: string | null;
   last_error: string | null;
   setup_progress: CopyProgress | null;
+  return_progress: CopyProgress | null;
 };
 
 export const SETUP_COLUMNS =
-  "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, project_ref, management_token_encrypted, setup_step, last_error, setup_progress";
+  "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, project_ref, management_token_encrypted, setup_step, last_error, setup_progress, return_step, return_progress";
 
 // One call of the setup may run for a minute; the copy stops well before that.
 const COPY_BUDGET_MS = 35_000;
@@ -133,6 +134,53 @@ export async function advanceSetup(admin: SupabaseClient, row: SetupRow, issuer:
       return { step: "done" };
     }
     return { step };
+  } catch (error) {
+    const message = String((error as Error)?.message ?? error).slice(0, 300);
+    await save({ last_error: message });
+    return { step, error: message };
+  }
+}
+
+// Moving the workspace back to the central database (step 1.7c), one call at a
+// time like the setup. The team database is only read; the registry row goes
+// only after everything matched, and the workspace is central again.
+export type ReturnProgress = { step: "copy" | "verify" | "done"; error?: string; copying?: string };
+
+export async function advanceReturn(admin: SupabaseClient, row: SetupRow, actor: string): Promise<ReturnProgress> {
+  const save = (values: Record<string, unknown>) => admin.from("team_databases").update(values).eq("workspace_id", row.workspace_id);
+  const step = row.return_step;
+  if (!step) return { step: "done" };
+  try {
+    const team = teamClient(row);
+    if (step === "copy") {
+      const { data: moved } = await admin.from("team_databases").select("moved_at").eq("workspace_id", row.workspace_id).single();
+      const movedAt = (moved?.moved_at as string | null) ?? null;
+      const started = Date.now();
+      let progress = row.return_progress;
+      let stage = "";
+      do {
+        const { result, next } = await copyPortion(admin, team, row.workspace_id, progress, "back", movedAt);
+        stage = result.stage;
+        progress = next;
+        await save(next ? { return_progress: next, last_error: null } : { return_step: "verify", return_progress: null, last_error: null });
+        if (!next) return { step: "verify" };
+      } while (Date.now() - started < COPY_BUDGET_MS);
+      return { step, copying: stage };
+    }
+    const report = await verifyMove(admin, team, row.workspace_id, "back");
+    if (!report.ok) {
+      await save({ return_report: report, return_step: "copy", return_progress: null, last_error: "verify_failed" });
+      return { step, error: "verify_failed" };
+    }
+    // From here on the workspace is read and written centrally again.
+    await admin.from("team_databases").delete().eq("workspace_id", row.workspace_id);
+    await admin.from("audit_log").insert({
+      workspace_id: row.workspace_id,
+      actor_id: actor,
+      action: "team_database_returned",
+      details: { project: row.project_ref, pages: report.counts.pages?.team ?? 0 },
+    });
+    return { step: "done" };
   } catch (error) {
     const message = String((error as Error)?.message ?? error).slice(0, 300);
     await save({ last_error: message });

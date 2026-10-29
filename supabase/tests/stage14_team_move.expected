@@ -2,6 +2,8 @@ people: alice@move.test, bob@move.test
 fields: avatar_url, created_at, email, id, name
 unknown workspace: []
 step: verify true
+return: copy
 psql: ERROR:  new row for relation "team_databases" violates check constraint "team_databases_setup_step_check"
+psql: ERROR:  new row for relation "team_databases" violates check constraint "team_databases_return_step_check"
 psql: ERROR:  permission denied for function team_move_people
 psql: ERROR:  permission denied for function team_move_people

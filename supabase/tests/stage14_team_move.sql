@@ -35,9 +35,12 @@ select 'unknown workspace: ' || public.team_move_people(gen_random_uuid())::text
 insert into public.team_databases (workspace_id, project_ref, setup_step, setup_progress) values (:'ws', 'abcdefghijklmnopqrst', 'copy', '{"stage": 2, "offset": 200}');
 update public.team_databases set setup_step = 'verify', move_report = '{"ok": true}', moved_at = now() where workspace_id = :'ws';
 select 'step: ' || setup_step || ' ' || (moved_at is not null) from public.team_databases where workspace_id = :'ws';
+update public.team_databases set setup_step = 'done', return_step = 'copy', return_progress = '{"stage": 0, "offset": 0}' where workspace_id = :'ws';
+select 'return: ' || return_step from public.team_databases where workspace_id = :'ws';
 
 \set ON_ERROR_STOP 0
 update public.team_databases set setup_step = 'moving' where workspace_id = :'ws';
+update public.team_databases set return_step = 'sideways' where workspace_id = :'ws';
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000014a1';
 select public.team_move_people(:'ws');

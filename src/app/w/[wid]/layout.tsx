@@ -46,9 +46,9 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)}>
       <AppShell user={user} workspaces={workspaces}>
         {/* Moving into the team's own database (path C): changes wait until it is done. */}
-        {data!.location === "setup" && (
+        {(data!.location === "setup" || data!.location === "returning") && (
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">
-            {t.workspace.movingBanner}
+            {data!.location === "setup" ? t.workspace.movingBanner : t.workspace.returningBanner}
           </p>
         )}
         {children}
