@@ -1253,6 +1253,46 @@ check("only the owner may drive the setup", setupAsGuest.status === 403, String(
   check("…while the team database has them", teamSql(`select count(*) from public.pages where workspace_id = '${ws}'`) !== "0");
 }
 
+// --- My data: download it, and delete the account ---------------------------------------------
+{
+  const signup = await fetch(`${API}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: ANON, "content-type": "application/json" },
+    body: JSON.stringify({ email: "leaver@alpha.test", password: "Test-password-1!" }),
+  });
+  const { cookies: leaverCookies, client: leaverClient } = await sessionCookies("leaver@alpha.test");
+  await leaverClient.rpc("join_workspaces");
+  const leaverId = sql("select id from public.profiles where email = 'leaver@alpha.test'");
+  const deltaWs = sql("select id from public.workspaces where name = 'Team Delta'");
+  sql(`insert into public.workspace_members (workspace_id, user_id, role, joined_via) values ('${deltaWs}', '${leaverId}', 'member', 'invite')`);
+  const leaverPage = (await leaverClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Leaver notes" })).data.id;
+  await leaverClient.rpc("create_comment_thread", { target_page: leaverPage, quoted: "x", body: "Leaver was here", mention_ids: [] });
+  const leaver = await newPage(leaverCookies);
+  await leaver.goto(`${APP}/w/${gammaShort}`);
+  await leaver.getByRole("button", { name: "Нова сторінка" }).first().click();
+  await leaver.waitForURL(new RegExp(`/w/${gammaShort}/p/[0-9a-f-]{36}$`));
+  const leaverTeamPage = leaver.url().split("/p/")[1];
+  check("(setup) someone with pages centrally and in a team database", signup.ok && Boolean(leaverPage) && teamSql(`select owner_id from public.pages where id = '${leaverTeamPage}'`) === leaverId, `${signup.status}`);
+  const cookie = leaverCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const exported = await fetch(`${APP}/api/me/export`, { headers: { cookie } });
+  const file = await exported.json().catch(() => ({}));
+  const titles = (file.workspaces ?? []).flatMap((w) => w.pages.map((p) => p.title));
+  check("“download my data” gives a file with their pages and comments, from both databases", exported.ok && file.profile?.email === "leaver@alpha.test" && titles.includes("Leaver notes") && titles.includes("") && file.workspaces.some((w) => w.comments.some((c) => c.body === "Leaver was here")), JSON.stringify(titles));
+  const wrong = await fetch(`${APP}/api/me/delete`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ confirm: "someone@else.test" }) });
+  check("deleting needs one's own email typed", wrong.status === 400 && sql(`select count(*) from public.profiles where id = '${leaverId}'`) === "1");
+  await leaver.goto(`${APP}/w/${alphaShort}/profile`);
+  await leaver.getByRole("button", { name: "Видалити мій акаунт…" }).click();
+  await leaver.getByLabel(/Щоб підтвердити, введіть свою пошту/).fill("leaver@alpha.test");
+  await leaver.getByRole("button", { name: "Видалити назавжди" }).click();
+  await leaver.waitForURL(/\/login/, { timeout: 20000 }).catch(() => {});
+  check("the account is deleted", sql(`select count(*) from auth.users where id = '${leaverId}'`) === "0" && sql(`select count(*) from public.profiles where id = '${leaverId}'`) === "0");
+  check("…its pages stay with the team, owned by the workspace owner", sql(`select p.email from public.pages g join public.profiles p on p.id = g.owner_id where g.id = '${leaverPage}'`) === "alice@alpha.test" && teamSql(`select owner_id from public.pages where id = '${leaverTeamPage}'`) === sql("select id from public.profiles where email = 'alice@alpha.test'"));
+  check("…its comments stay without a name", sql("select coalesce(author_id::text, 'none') from public.comments where body = 'Leaver was here'") === "none");
+  check("…and the team database forgot the person", teamSql(`select count(*) from public.profiles where id = '${leaverId}'`) === "0");
+  const owner = await fetch(`${APP}/api/me/delete`, { method: "POST", headers: { cookie: aliceCookies.map((c) => `${c.name}=${c.value}`).join("; "), "content-type": "application/json" }, body: JSON.stringify({ confirm: "alice@alpha.test" }) }).then((r) => r.json());
+  check("an owner of workspaces is asked to hand them over first", owner.error === "owns_workspaces" && owner.workspaces.includes("Alpha"), JSON.stringify(owner));
+}
+
 // Groups of a team workspace are copied into its database with the members.
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=groups`);
 await gammaTab.getByLabel("Назва нової групи").fill("Delta group");

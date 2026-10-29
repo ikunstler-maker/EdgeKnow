@@ -23,7 +23,7 @@ export const en: Dictionary = {
   privacy: {
     linkLabel: "Privacy policy",
     title: "Privacy policy",
-    updated: "Updated: 28 October 2026",
+    updated: "Updated: 18 November 2026",
     sections: [
       {
         heading: "What this service is",
@@ -43,7 +43,7 @@ export const en: Dictionary = {
       },
       {
         heading: "Deleting data",
-        body: "You can leave a workspace at any time in its settings. To delete your account completely, contact your workspace administrator. A workspace owner can delete it together with all its data.",
+        body: "You can leave a workspace at any time in its settings. “My profile” → “My data”: download everything the service knows about you in one file, or delete your account for good. Pages you made stay with the team, and comments stay without your name. A workspace owner can delete it together with all its data.",
       },
     ],
   },
@@ -880,6 +880,28 @@ export const en: Dictionary = {
     updated: "Updated",
   },
   profile: {
+    myData: {
+      heading: "My data",
+      exportIntro: "One file with everything EdgeKnow knows about you: profile, workspace memberships, your pages, comments, statistics and actions.",
+      export: "Download my data",
+      delete: "Delete my account…",
+      deleteTitle: "Delete the account for good",
+      deletePoints: [
+        "Your profile, memberships, own access and statistics go — on the EdgeKnow server and in team databases.",
+        "Pages you made stay with the team: they move to the workspace owner.",
+        "Your comments and history entries stay, without your name (“former member”).",
+        "This can't be undone. You can download your data first.",
+      ],
+      confirmLabel: (email: string) => `To confirm, type your email (${email}):`,
+      deleteForever: "Delete for good",
+      deleting: "Deleting…",
+      ownsWorkspaces: (names: string) => `You own the workspace: ${names}. First hand it over to another member (Settings → “Members”) or delete it.`,
+      errors: {
+        confirm_mismatch: "The email doesn't match.",
+        team_unreachable: "One of your teams' databases is unreachable right now, so nothing was deleted. Try again later.",
+        rate_limited: "Too many tries. Wait an hour.",
+      },
+    },
     link: "My profile",
     title: "My profile",
     othersTitle: "Profile",
