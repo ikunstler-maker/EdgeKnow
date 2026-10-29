@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { oidcConfigured } from "@/lib/oidc";
 import { supabaseOAuthConfigured } from "@/lib/team-db/supabase-api";
 import {
+  type ClaimItem,
   DomainsPanel,
   GeneralPanel,
   LeaveButton,
@@ -37,7 +38,8 @@ type MemberRow = {
   joined_via: MemberItem["joinedVia"];
   profile: { name: string | null; email: string } | null;
 };
-type DomainRow = { domain: string; is_active: boolean };
+type DomainRow = { domain: string; is_active: boolean; method: DomainItem["method"]; dns_missing_since: string | null };
+type ClaimRow = { domain: string; token: string; checked_at: string | null; last_error: string | null };
 type InvitationRow = { id: string; email: string; role: string; expires_at: string };
 type LogRow = {
   id: number;
@@ -90,7 +92,7 @@ export default async function WorkspaceSettingsPage({
     tab === "domains"
       ? supabase
           .from("workspace_domains")
-          .select("domain, is_active")
+          .select("domain, is_active, method, dns_missing_since")
           .eq("workspace_id", workspace.id)
           .order("added_at")
           .overrideTypes<DomainRow[], { merge: false }>()
@@ -168,6 +170,27 @@ export default async function WorkspaceSettingsPage({
   const domainItems: DomainItem[] = (domains?.data ?? []).map((d) => ({
     domain: d.domain,
     isActive: d.is_active,
+    method: d.method,
+    dnsMissingSince: d.dns_missing_since,
+  }));
+  // Domains asked for and waiting for their DNS record (step: domains through DNS).
+  const [claimRows, platformSettings] =
+    tab === "domains"
+      ? await Promise.all([
+          supabase
+            .from("workspace_domain_claims")
+            .select("domain, token, checked_at, last_error")
+            .eq("workspace_id", workspace.id)
+            .order("requested_at")
+            .overrideTypes<ClaimRow[], { merge: false }>(),
+          supabase.from("platform_settings").select("email_domain_proof").maybeSingle(),
+        ])
+      : [null, null];
+  const claimItems: ClaimItem[] = (claimRows?.data ?? []).map((c) => ({
+    domain: c.domain,
+    token: c.token,
+    checkedAt: c.checked_at,
+    lastError: c.last_error,
   }));
   const invitationItems: InvitationItem[] = (invitations?.data ?? []).map((i) => ({
     id: i.id,
@@ -218,6 +241,8 @@ export default async function WorkspaceSettingsPage({
           <DomainsPanel
             workspaceId={workspace.id}
             domains={domainItems}
+            claims={claimItems}
+            emailWay={Boolean(platformSettings?.data?.email_domain_proof)}
             ownDomain={user.email.split("@")[1] ?? ""}
           />
         )}

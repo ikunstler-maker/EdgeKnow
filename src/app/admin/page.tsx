@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { teamCheckSql } from "@/lib/oidc-guard";
 import { RegistrationToggle } from "./registration-toggle";
+import { DomainRequests, type DomainRequest } from "./domain-requests";
 import { TeamLoginPanel } from "./team-login/team-login-panel";
 
 // Read per request, so the title follows the interface language.
@@ -51,9 +52,10 @@ export default async function PlatformAdminPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: stats }, { data: settings }] = await Promise.all([
+  const [{ data: stats }, { data: settings }, { data: domainRequests }] = await Promise.all([
     supabase.rpc("platform_workspaces"),
-    supabase.from("platform_settings").select("open_registration").maybeSingle(),
+    supabase.from("platform_settings").select("open_registration, email_domain_proof").maybeSingle(),
+    supabase.rpc("platform_domain_requests"),
   ]);
   const c = t.platform.columns;
   const h = await headers();
@@ -69,6 +71,8 @@ export default async function PlatformAdminPage() {
         <h2 className="font-semibold">{t.platform.registrationHeading}</h2>
         <RegistrationToggle open={Boolean(settings?.open_registration)} />
       </section>
+
+      <DomainRequests requests={(domainRequests ?? []) as DomainRequest[]} emailWay={Boolean(settings?.email_domain_proof)} />
 
       <TeamLoginPanel configured={oidcConfigured()} issuer={issuer} sql={teamCheckSql(issuer)} />
 

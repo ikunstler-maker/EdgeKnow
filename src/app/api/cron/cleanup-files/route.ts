@@ -5,8 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readyTeams, teamAdmin } from "@/lib/team-db/files";
 import { checkAllTeams } from "@/lib/team-db/health";
+import { recheckDomains } from "@/lib/domain-dns";
 
-// Daily (vercel.json): checks every team database (step 1.5b) and deletes files whose attachment record is gone — removed
+// Daily (vercel.json): checks every team database (step 1.5b) and DNS-proven domains, and deletes files whose attachment record is gone — removed
 // from their page, page deleted forever, or workspace deleted — from Supabase
 // Storage or from the workspace's Google Drive — centrally and in every team
 // database (path C). Needs two Vercel environment
@@ -31,7 +32,9 @@ export async function GET(request: NextRequest) {
   }
   // And how every team database is doing; sleeping ones are woken up before anyone needs them.
   const health = await checkAllTeams(admin);
-  return NextResponse.json({ removed: central + teams, health });
+  // Domains proven through DNS: is the record still there (weekly per domain)?
+  const domains = await recheckDomains(admin);
+  return NextResponse.json({ removed: central + teams, health, domains });
 }
 
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
