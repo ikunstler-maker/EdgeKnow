@@ -1116,6 +1116,32 @@ const setupAsGuest = await fetch(`${APP}/api/supabase/setup`, {
 });
 check("only the owner may drive the setup", setupAsGuest.status === 403, String(setupAsGuest.status));
 
+// --- How the team database is doing (step 1.5b) ------------------------------------------------
+const deltaId = sql("select id from public.workspaces where name = 'Team Delta'");
+const deltaCookie = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+const checkDelta = () =>
+  fetch(`${APP}/api/supabase/setup`, { method: "POST", headers: { cookie: deltaCookie, "content-type": "application/json" }, body: JSON.stringify({ ws: deltaId, action: "health" }) }).then((r) => r.json());
+const healthy = await checkDelta();
+check("the health check finds the team database well and measures it", healthy.health === "ok" && healthy.databaseBytes > 0, JSON.stringify(healthy));
+await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=team`);
+check("…and the database tab shows it", (await gammaTab.getByText("✅ База працює.").count()) === 1 && (await gammaTab.getByText(/Зайнято: база — [0-9.]+ МБ з 500 МБ/).count()) === 1);
+const realKey = sql(`select secret_key_encrypted from public.team_databases where workspace_id = '${deltaId}'`);
+sql(`update public.team_databases set secret_key_encrypted = '${readFileSync(".team-stacks/team-b/bogus-key.txt", "utf8").trim()}' where workspace_id = '${deltaId}'`);
+const revoked = await checkDelta();
+check("a key the project no longer knows is reported", revoked.health === "revoked", JSON.stringify(revoked));
+await gammaTab.goto(`${APP}/w/${gammaShort}`);
+check("…to the team as a banner, with the way to the settings for the owner", (await gammaTab.getByText("EdgeKnow більше не має доступу до бази даних команди").count()) === 1 && (await gammaTab.getByRole("link", { name: "Відкрити «База даних»" }).count()) === 1);
+sql(`update public.team_databases set secret_key_encrypted = '${realKey}' where workspace_id = '${deltaId}'`);
+const realUrl = sql(`select project_url from public.team_databases where workspace_id = '${deltaId}'`);
+sql(`update public.team_databases set project_url = 'http://127.0.0.1:9' where workspace_id = '${deltaId}'`);
+await gammaTab.goto(`${APP}/w/${gammaShort}`);
+check("a database that doesn't answer is shown as such", (await gammaTab.getByText("База даних команди зараз не відповідає").count()) === 1 && sql(`select health from public.team_databases where workspace_id = '${deltaId}'`) === "unreachable");
+sql(`update public.team_databases set project_url = '${realUrl}' where workspace_id = '${deltaId}'`);
+await gammaTab.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
+check("once it answers again the banner goes and the pages are back", (await gammaTab.getByText("База даних команди зараз не відповідає").count()) === 0 && (await gammaTab.getByText("Team-owned page").count()) > 0 && sql(`select health from public.team_databases where workspace_id = '${deltaId}'`) === "ok");
+const healthAsGuest = await fetch(`${APP}/api/supabase/setup`, { method: "POST", headers: { cookie: bobCookies.map((c) => `${c.name}=${c.value}`).join("; "), "content-type": "application/json" }, body: JSON.stringify({ ws: deltaId, action: "health" }) });
+check("only the owner may run the check", healthAsGuest.status === 403, String(healthAsGuest.status));
+
 // --- Moving a workspace that has pages into its team's own database (step 1.7b) ---
 // "Team Echo" fills up centrally first; register.sql then connects it to the
 // third stack at the "sync" step, as if the wizard had got that far.

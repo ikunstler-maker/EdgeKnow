@@ -3,9 +3,11 @@ import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
 import { workspaceData } from "@/lib/team-db/data";
+import { checkWorkspaceHealth } from "@/lib/team-db/health";
 import { getWorkspace, listMyWorkspaces } from "@/lib/workspace";
 import { AppShell } from "@/components/app-shell";
 import { PagesProvider } from "@/components/pages/pages-provider";
+import { TeamHealthBanner } from "@/components/team-health-banner";
 
 export default async function WorkspaceLayout({ children, params }: LayoutProps<"/w/[wid]">) {
   const { wid } = await params;
@@ -34,13 +36,24 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
   const data = await workspaceData(wid);
   const supabase = data!.client;
   // RLS returns only this workspace's pages that the user has a role on.
-  const { data: pages } = await supabase
+  const { data: pages, error } = await supabase
     .from("pages")
     .select(PAGE_TREE_COLUMNS)
     .eq("workspace_id", workspace.id)
     .is("deleted_at", null)
     .order("position")
     .overrideTypes<PageRow[], { merge: false }>();
+
+  // The team's own database (path C): if it couldn't be read, or wasn't well at
+  // the last check, look again now (this also wakes a sleeping one up).
+  let health = data!.health ?? null;
+  if (data!.location === "team" && (error || (health && health !== "ok" && health !== "almost_full"))) {
+    health = (await checkWorkspaceHealth(workspace.id))?.health ?? health;
+    // The project itself answers, but not to people's sign-ins: EdgeKnow's sign-in was removed there.
+    if (error && (!health || health === "ok" || health === "almost_full")) health = error.code?.startsWith("PGRST3") ? "revoked" : "unreachable";
+  }
+  const showHealth =
+    health && health !== "ok" && (health !== "almost_full" || workspace.role === "owner" || workspace.role === "admin") ? health : null;
 
   return (
     <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)}>
@@ -50,6 +63,9 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">
             {data!.location === "setup" ? t.workspace.movingBanner : t.workspace.returningBanner}
           </p>
+        )}
+        {showHealth && (
+          <TeamHealthBanner health={showHealth} isOwner={workspace.role === "owner"} settingsHref={`/w/${wid}/settings?tab=team`} />
         )}
         {children}
       </AppShell>

@@ -13,6 +13,11 @@ export type TeamDatabaseStatus = {
   movedPages: number | null;
   // Moving back to the central database (step 1.7c).
   returnStep: "copy" | "verify" | null;
+  // The last check (step 1.5b).
+  health: "ok" | "waking" | "unreachable" | "revoked" | "almost_full" | "full" | null;
+  healthCheckedAt: string | null;
+  databaseBytes: number | null;
+  storageBytes: number | null;
   schemaVersion: string | null;
   lastSyncedAt: string | null;
 } | null;
@@ -141,6 +146,7 @@ export function TeamDatabasePanel({
           {status.lastSyncedAt &&
             `${td.lastSync}: ${new Date(status.lastSyncedAt).toLocaleString()}`}
         </p>
+        <HealthLine workspaceId={workspaceId} status={status} />
         {status.movedAt && (
           <p className="text-sm text-muted">
             {td.moved(new Date(status.movedAt).toLocaleString(), status.movedPages ?? 0)}
@@ -471,5 +477,52 @@ function ReturnPanel({ workspaceId, initial, initialError }: { workspaceId: stri
         {td.returnCancel}
       </button>
     </section>
+  );
+}
+
+const MB = 1024 * 1024;
+// Supabase's free plan, as in src/lib/team-db/health.ts.
+const FREE_DATABASE_MB = 500;
+const FREE_STORAGE_MB = 1024;
+
+function HealthLine({ workspaceId, status }: { workspaceId: string; status: NonNullable<TeamDatabaseStatus> }) {
+  const td = t.teamDatabase;
+  const router = useRouter();
+  const [checking, setChecking] = useState(false);
+  const health = status.health;
+  return (
+    <div className="flex flex-col gap-1 text-sm" data-team-health={health ?? "unknown"}>
+      <p>
+        {health ? td.health[health] : td.healthUnknown}
+        {status.healthCheckedAt && (
+          <span className="text-muted"> ({td.healthChecked(new Date(status.healthCheckedAt).toLocaleString())})</span>
+        )}
+      </p>
+      {status.databaseBytes !== null && (
+        <p className="text-muted">
+          {td.usage(
+            (status.databaseBytes / MB).toFixed(1),
+            FREE_DATABASE_MB,
+            ((status.storageBytes ?? 0) / MB).toFixed(1),
+            FREE_STORAGE_MB,
+          )}
+        </p>
+      )}
+      {(health === "almost_full" || health === "full") && <p className="text-muted">{td.fullAdvice}</p>}
+      {health === "revoked" && <p className="text-muted">{td.revokedAdvice}</p>}
+      <button
+        type="button"
+        disabled={checking}
+        className="min-h-11 self-start rounded-lg border border-border px-4 text-sm hover:bg-surface disabled:opacity-60"
+        onClick={async () => {
+          setChecking(true);
+          await setup({ ws: workspaceId, action: "health" });
+          setChecking(false);
+          router.refresh();
+        }}
+      >
+        {checking ? td.checking : td.checkNow}
+      </button>
+    </div>
   );
 }
