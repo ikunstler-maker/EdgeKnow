@@ -1117,6 +1117,23 @@ const setupAsGuest = await fetch(`${APP}/api/supabase/setup`, {
 });
 check("only the owner may drive the setup", setupAsGuest.status === 403, String(setupAsGuest.status));
 
+// --- Step 1.8: after all of the above, the central database holds nothing of Team Delta's content ---
+{
+  const ws = sql("select id from public.workspaces where name = 'Team Delta'");
+  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+  const teamPages = teamSql(`select coalesce(string_agg(quote_literal(id::text), ','), 'null') from public.pages where workspace_id = '${ws}'`);
+  const central = [
+    ...tables.map((table) => `${table}=${sql(`select count(*) from public.${table} where workspace_id = '${ws}'`)}`),
+    `page_backups=${sql(`select count(*) from public.page_backups where page_id::text in (${teamPages})`)}`,
+  ];
+  check("the central database has no pages, comments, access or files of a team workspace", central.every((c) => c.endsWith("=0")), central.join(" "));
+  check("…and no file of it in the central storage", sql(`select count(*) from storage.objects where name like '${ws}/%'`) === "0");
+  const words = ["Team-owned page", "Stored in the team database"];
+  const leaked = words.filter((w) => sql(`select count(*) from public.pages where title ilike '%${w}%' or content::text ilike '%${w}%'`) !== "0" || sql(`select count(*) from public.audit_log where details::text ilike '%${w}%'`) !== "0");
+  check("…and its page text appears nowhere in the central pages or log", !leaked.length, leaked.join(", "));
+  check("…while the team database has them", teamSql(`select count(*) from public.pages where workspace_id = '${ws}'`) !== "0");
+}
+
 // --- How the team database is doing (step 1.5b) ------------------------------------------------
 const deltaId = sql("select id from public.workspaces where name = 'Team Delta'");
 const deltaCookie = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");
