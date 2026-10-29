@@ -1201,7 +1201,13 @@ const teamSave = await fetch(`${APP}/api/pages/${echoChapter}/content?w=${echoSh
 const aliceIdForEcho = sql("select id from public.profiles where email = 'alice@alpha.test'");
 const echoAppendix = moveSql(`insert into public.pages (workspace_id, owner_id, created_by, title) values ('${echoId}', '${aliceIdForEcho}', '${aliceIdForEcho}', 'Echo appendix') returning id`).split("\n")[0];
 const echoStale = sql(`insert into public.pages (workspace_id, owner_id, created_by, title) values ('${echoId}', '${aliceIdForEcho}', '${aliceIdForEcho}', 'Echo stale') returning id`).split("\n")[0];
-sql(`delete from storage.objects where bucket_id = 'attachments' and name = '${echoFile.path}'`);
+const centralSecret = status.SECRET_KEY ?? status.SERVICE_ROLE_KEY;
+const removedCentrally = await fetch(`${API}/storage/v1/object/attachments`, {
+  method: "DELETE",
+  headers: { apikey: centralSecret, Authorization: `Bearer ${centralSecret}`, "content-type": "application/json" },
+  body: JSON.stringify({ prefixes: [echoFile.path] }),
+});
+check("(test setup) the central copy of the file is removed", removedCentrally.ok && sql(`select count(*) from storage.objects where bucket_id = 'attachments' and name = '${echoFile.path}'`) === "0", String(removedCentrally.status));
 check("a change saved in the team database", teamSave.ok === true && moveSql(`select content::text like '%Edited in the team database%' from public.pages where id = '${echoChapter}'`) === "t", JSON.stringify(teamSave));
 
 const startReturn = await setupAs(aliceCookieHeader, { action: "return" });
