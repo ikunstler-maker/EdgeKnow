@@ -1070,7 +1070,8 @@ check("an image of a team workspace lands in the team's own storage", teamFile[1
 check("…and not in the central database or storage", sql(`select count(*) from public.attachments where page_id = '${gammaPage}'`) === "0" && sql(`select count(*) from storage.objects where name like '${sql("select id from public.workspaces where name = 'Team Delta'")}/%'`) === "0");
 check("the team image is shown", (await teamImage.evaluate((img) => img.naturalWidth)) > 0);
 const teamSchema = sql("select coalesce(schema_version, '-') from public.team_databases t join public.workspaces w on w.id = t.workspace_id where w.name = 'Team Delta'");
-check("the team database was brought to the current schema", teamSchema === "0003_attachments_bucket", teamSchema);
+const latestTeamSchema = readdirSync("supabase/team/migrations").filter((f) => f.endsWith(".sql")).sort().at(-1).replace(/\.sql$/, "");
+check("the team database was brought to the current schema", teamSchema === latestTeamSchema, `${teamSchema} vs ${latestTeamSchema}`);
 
 // Google Drive for a team workspace: files and daily copies go there, records stay in the team database.
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=storage`);
