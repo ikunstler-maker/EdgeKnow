@@ -201,6 +201,8 @@ check("alpha page unchanged after bob's attempts", titleAfter === "Alpha secret"
 const logged = sql(`select count(*) from public.audit_log where workspace_id = '${alpha.id}' and action = 'access_denied'`);
 // Workspace management attempts (invite, add and ask for a domain, create a group, delete, rename) are logged; page actions are not.
 check("bob's attempts are in alpha's audit log", Number(logged) === 6, `${logged} entries`);
+// The group was only for these checks; later tests see alpha's page as before.
+await rpc(alice, "delete_workspace_group", { ws: alpha.id, target_group: alphaGroup });
 
 // --- Page access inside a workspace (stage 5) --------------------------------
 
