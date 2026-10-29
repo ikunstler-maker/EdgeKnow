@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { hasRecord } from "@/lib/domain-dns";
+import { overLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { syncWorkspaceNow } from "@/lib/team-db/data";
@@ -44,6 +45,7 @@ export async function verifyDomain(ws: string, domain: string): Promise<ActionRe
   const userId = claims?.claims?.sub;
   const admin = createAdminClient();
   if (!userId || (role !== "owner" && role !== "admin") || !admin) return { ok: false, error: "forbidden" };
+  if (await overLimit(supabase, "domain_check")) return { ok: false, error: "rate_limited" };
   const { data: claim } = await admin
     .from("workspace_domain_claims")
     .select("token")

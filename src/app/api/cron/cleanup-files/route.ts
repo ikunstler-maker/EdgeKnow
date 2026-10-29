@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
   }
   // And how every team database is doing; sleeping ones are woken up before anyone needs them.
   const health = await checkAllTeams(admin);
+  // Rate limit counters older than a day are no longer needed.
+  await admin.from("rate_limits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
   // Domains proven through DNS: is the record still there (weekly per domain)?
   const domains = await recheckDomains(admin);
   return NextResponse.json({ removed: central + teams, health, domains });

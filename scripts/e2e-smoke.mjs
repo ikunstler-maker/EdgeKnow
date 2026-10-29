@@ -1401,6 +1401,17 @@ check("…and saves there again", savedCentrally.ok === true, JSON.stringify(sav
 await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);
 
+// Rate limits: past 30 link previews a minute the server stops doing the work.
+{
+  const cookie = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const statuses = [];
+  // Up to 70 calls: a minute boundary in the middle starts the count again.
+  while (statuses.length < 70 && statuses.at(-1) !== 429) {
+    statuses.push((await fetch(`${APP}/api/link-preview?url=not-a-link`, { headers: { cookie } })).status);
+  }
+  check("too many link previews in a minute are refused", statuses.at(-1) === 429 && statuses.length > 25 && statuses.slice(0, -1).every((s) => s === 400), statuses.join(","));
+}
+
 await aliceClient.auth.signOut();
 await browser.close();
 

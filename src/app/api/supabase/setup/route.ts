@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireOwner } from "@/lib/drive/owner";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { encrypt } from "@/lib/drive/secret-box";
 import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
   const owner = await requireOwner(ws);
   const admin = createAdminClient();
   if (!owner || !admin) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  if (await overLimit(owner.supabase, "setup")) return tooManyRequests();
   if (!oidcConfigured()) return NextResponse.json({ ok: false, error: "not_configured" }, { status: 503 });
   const issuer = oidcIssuer(request.nextUrl.origin);
   const { data: existing } = await admin.from("team_databases").select(SETUP_COLUMNS).eq("workspace_id", ws).maybeSingle();

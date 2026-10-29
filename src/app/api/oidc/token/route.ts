@@ -1,4 +1,5 @@
 import { mintTeamToken, oidcConfigured, oidcIssuer } from "@/lib/oidc";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     ? await supabase.from("profiles").select("id, email").eq("id", userId).maybeSingle()
     : { data: null };
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (await overLimit(supabase, "team_token")) return tooManyRequests();
   const body = (await request.json().catch(() => ({}))) as { workspace?: unknown };
   const workspace = typeof body.workspace === "string" ? body.workspace : undefined;
   if (workspace !== undefined) {

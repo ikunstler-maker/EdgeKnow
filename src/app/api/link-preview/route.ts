@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkUrl, fetchLinkPreview, type LinkPreview } from "@/lib/link-preview";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export type { LinkPreview };
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (await overLimit(supabase, "preview")) return tooManyRequests();
 
   const raw = request.nextUrl.searchParams.get("url") ?? "";
   if (!checkUrl(raw)) return NextResponse.json({ error: "invalid_url" }, { status: 400 });

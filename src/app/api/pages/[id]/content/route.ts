@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 import { writeClient } from "@/lib/team-db/data";
 
 // Saves the editor document. Rights, the trash, the size limit and the version
@@ -14,6 +16,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   if (!Array.isArray(body.content) || typeof body.baseVersion !== "number") {
     return NextResponse.json({ ok: false, error: "invalid_content" }, { status: 400 });
   }
+
+  if (await overLimit(await createClient(), "save")) return tooManyRequests();
 
   // The page's workspace comes from the editor (?w=<short id>); membership is checked there.
   const supabase = await writeClient(request.nextUrl.searchParams.get("w") ?? undefined);
