@@ -1055,6 +1055,38 @@ const betaId = sql("select id from public.workspaces where name = 'Beta'");
 const foreign = await tokenFor(betaId);
 check("no token for someone else's workspace", foreign.status === 403, String(foreign.status));
 
+// --- Freezing a workspace, "own database first", the central database size -------------------------
+{
+  const betaShort = sql(`select short_id from public.workspaces where id = '${betaId}'`);
+  const frozen = await aliceClient.rpc("platform_freeze_workspace", { ws: betaId, frozen: true, reason: "E2E freeze check" });
+  await bob.goto(`${APP}/w/${betaShort}`);
+  check("a frozen workspace tells its members why", frozen.data?.ok === true && (await bob.getByText("Workspace «Beta» заморожено").count()) === 1 && (await bob.getByText("E2E freeze check").count()) === 1);
+  await alice.goto(`${APP}/admin`);
+  const betaRow = alice.locator("tr", { has: alice.getByRole("link", { name: "Beta", exact: true }) });
+  check("…the platform panel shows it frozen", (await betaRow.getByText("❄️ E2E freeze check").count()) === 1);
+  check("…and the size of the central database", (await alice.locator("[data-central-usage]").getByText(/Центральна база зараз: [0-9.]+ МБ з 500 МБ/).count()) === 1);
+  await betaRow.getByRole("button", { name: "Розморозити" }).click();
+  await alice.waitForTimeout(1500);
+  await bob.goto(`${APP}/w/${betaShort}`);
+  check("…and unfrozen it opens again", sql(`select frozen_at is null from public.workspaces where id = '${betaId}'`) === "t" && (await bob.getByText("заморожено").count()) === 0);
+
+  await alice.locator('[data-section="own-database"]').getByRole("button", { name: "Увімкнути" }).click();
+  await alice.waitForTimeout(1500);
+  check("the platform admin turns on \"own database first\"", sql("select require_team_database from public.platform_settings") === "t");
+  await bob.goto(`${APP}/new`);
+  await bob.getByLabel("Назва").fill("Bob fresh");
+  await bob.getByRole("button", { name: "Створити" }).click();
+  await bob.waitForURL(/\/w\/[a-z0-9]{8}$/);
+  check("a new workspace asks its owner to connect a database first", (await bob.getByText("Щоб створювати сторінки, підключіть власну безкоштовну базу Supabase").count()) === 1 && (await bob.getByRole("link", { name: "Підключити базу" }).count()) === 1);
+  await bob.getByRole("button", { name: "Нова сторінка" }).first().click();
+  await bob.getByText("Спершу підключіть власну базу даних").first().waitFor({ timeout: 10000 }).catch(() => {});
+  check("…and makes no pages until then", sql("select count(*) from public.pages p join public.workspaces w on w.id = p.workspace_id where w.name = 'Bob fresh'") === "0" && (await bob.getByText("Спершу підключіть власну базу даних").count()) > 0);
+  await alice.reload();
+  await alice.locator('[data-section="own-database"]').getByRole("button", { name: "Вимкнути" }).click();
+  await alice.waitForTimeout(1500);
+  check("…and turns it off again", sql("select require_team_database from public.platform_settings") === "f");
+}
+
 // --- Groups of people ---------------------------------------------------------------------------
 {
   const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");

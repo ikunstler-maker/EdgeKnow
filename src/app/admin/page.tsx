@@ -9,6 +9,7 @@ import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { teamCheckSql } from "@/lib/oidc-guard";
 import { RegistrationToggle } from "./registration-toggle";
 import { DomainRequests, type DomainRequest } from "./domain-requests";
+import { OwnDatabaseFirst, WorkspaceControls } from "./platform-controls";
 import { TeamLoginPanel } from "./team-login/team-login-panel";
 
 // Read per request, so the title follows the interface language.
@@ -26,6 +27,10 @@ type WorkspaceStats = {
   storage_bytes: number;
   storage_limit_mb: number;
   created_at: string;
+  data_location: "team" | "setup" | null;
+  central_allowed: boolean;
+  frozen_at: string | null;
+  frozen_reason: string | null;
 };
 
 const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" });
@@ -52,11 +57,13 @@ export default async function PlatformAdminPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: stats }, { data: settings }, { data: domainRequests }] = await Promise.all([
+  const [{ data: stats }, { data: settings }, { data: domainRequests }, { data: size }] = await Promise.all([
     supabase.rpc("platform_workspaces"),
-    supabase.from("platform_settings").select("open_registration, email_domain_proof").maybeSingle(),
+    supabase.from("platform_settings").select("open_registration, email_domain_proof, require_team_database").maybeSingle(),
     supabase.rpc("platform_domain_requests"),
+    supabase.rpc("platform_database_size"),
   ]);
+  const centralSize = size as { database_bytes: number; storage_bytes: number } | null;
   const c = t.platform.columns;
   const h = await headers();
   const issuer = oidcIssuer(`${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`);
@@ -72,12 +79,18 @@ export default async function PlatformAdminPage() {
         <RegistrationToggle open={Boolean(settings?.open_registration)} />
       </section>
 
+      <OwnDatabaseFirst
+        required={Boolean(settings?.require_team_database)}
+        databaseMb={centralSize ? centralSize.database_bytes / 1048576 : null}
+        storageMb={centralSize ? centralSize.storage_bytes / 1048576 : null}
+      />
+
       <DomainRequests requests={(domainRequests ?? []) as DomainRequest[]} emailWay={Boolean(settings?.email_domain_proof)} />
 
       <TeamLoginPanel configured={oidcConfigured()} issuer={issuer} sql={teamCheckSql(issuer)} />
 
       <div className="mt-8 overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[960px] text-left text-sm">
           <thead className="bg-surface text-muted">
             <tr>
               <th className="px-3 py-2 font-medium">{c.name}</th>
@@ -86,6 +99,8 @@ export default async function PlatformAdminPage() {
               <th className="px-3 py-2 text-right font-medium">{c.pages}</th>
               <th className="px-3 py-2 text-right font-medium">{c.storage}</th>
               <th className="px-3 py-2 font-medium">{c.created}</th>
+              <th className="px-3 py-2 font-medium">{c.data}</th>
+              <th className="px-3 py-2 font-medium">{c.actions}</th>
             </tr>
           </thead>
           <tbody>
@@ -104,6 +119,13 @@ export default async function PlatformAdminPage() {
                   {mb(w.storage_bytes)} / {w.storage_limit_mb} МБ
                 </td>
                 <td className="whitespace-nowrap px-3 py-2">{dateFormat().format(new Date(w.created_at))}</td>
+                <td className="px-3 py-2">
+                  {w.data_location === "team" ? c.inTeam : w.data_location === "setup" ? c.connecting : w.central_allowed ? c.central : c.noDatabase}
+                  {w.frozen_at && <span className="block text-xs text-danger">❄️ {w.frozen_reason || c.frozen}</span>}
+                </td>
+                <td className="px-3 py-2">
+                  <WorkspaceControls id={w.id} name={w.name} centralAllowed={w.central_allowed} frozen={Boolean(w.frozen_at)} />
+                </td>
               </tr>
             ))}
           </tbody>

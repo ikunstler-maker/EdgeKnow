@@ -226,4 +226,4 @@ select 'deletion logged: ' || count(*) from public.audit_log where workspace_id 
 select 'workspaces now: ' || string_agg(name, ',' order by created_at) from public.workspaces;
 
 -- Opening registration ended the instant (email) way of adding domains; later tests use it.
-update public.platform_settings set email_domain_proof = true;
+update public.platform_settings set email_domain_proof = true, require_team_database = false;

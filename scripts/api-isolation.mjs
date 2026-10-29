@@ -163,6 +163,9 @@ const bobActions = {
   "confirm a domain as platform admin": ["platform_confirm_domain", { ws: alpha.id, target_domain: "beta.test" }],
   "turn the email way back on": ["set_email_domain_proof", { allowed: true }],
   "create a group in alpha": ["create_workspace_group", { ws: alpha.id, new_name: "Intruders" }],
+  "freeze alpha": ["platform_freeze_workspace", { ws: alpha.id, frozen: true, reason: "mine" }],
+  "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
+  "switch \"own database first\"": ["set_require_team_database", { required: false }],
   "give a group a role on alpha's page": ["set_page_group_role", { target_page: page.id, target_group: "00000000-0000-0000-0000-000000000000", new_role: "editor" }],
   "trash alpha page": ["trash_page", { target_page: page.id }],
   "delete alpha": ["delete_workspace", { ws: alpha.id, confirm_name: "Alpha" }],
@@ -177,6 +180,8 @@ const selfConfirm = await rpc(bob, "confirm_workspace_domain", { ws: alpha.id, t
 check("bob can't call the server-only domain confirmation", selfConfirm.status >= 400, `HTTP ${selfConfirm.status} ${JSON.stringify(selfConfirm.json)}`);
 const role = await rpc(bob, "effective_role", { target_page: page.id });
 check("bob has no role on alpha page", role.json === null, JSON.stringify(role.json));
+const centralSize = await rpc(bob, "platform_database_size");
+check("bob (not platform admin) doesn't see the central database size", centralSize.json === null, JSON.stringify(centralSize.json));
 const stats = await rpc(bob, "platform_workspaces");
 check("bob (not platform admin) gets no statistics", Array.isArray(stats.json) && stats.json.length === 0, JSON.stringify(stats.json));
 
@@ -187,6 +192,7 @@ const writes = [
   ["POST", "/rest/v1/workspace_members", { workspace_id: alpha.id, user_id: "00000000-0000-0000-0000-000000000000", joined_via: "invite" }],
   ["POST", "/rest/v1/pages", { workspace_id: alpha.id, owner_id: "00000000-0000-0000-0000-000000000000", title: "x" }],
   ["PATCH", "/rest/v1/platform_settings?id=eq.true", { open_registration: true }],
+  ["PATCH", `/rest/v1/workspaces?id=eq.${alpha.id}`, { frozen_at: null, central_allowed: true }],
   ["POST", "/rest/v1/workspace_domain_claims", { workspace_id: alpha.id, domain: "evil.test" }],
   ["POST", "/rest/v1/workspace_groups", { workspace_id: alpha.id, name: "Direct" }],
   ["POST", "/rest/v1/page_group_access", { workspace_id: alpha.id, page_id: page.id, group_id: "00000000-0000-0000-0000-000000000000", role: "editor" }],

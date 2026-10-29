@@ -1,0 +1,24 @@
+admin turns it on: {"ok": true}
+admin's workspace keeps the central database: true
+frank turns it off: {"ok": false, "error": "forbidden"}
+frank's first page: {"ok": false, "error": "team_database_required"}
+frank allows himself: {"ok": false, "error": "forbidden"}
+admin allows it: {"ok": true}
+frank's page after: true
+gina is a member: true
+frank freezes: {"ok": false, "error": "forbidden"}
+admin freezes: {"ok": true}
+gina while frozen: false, pages seen: 0
+gina is told: {"name": "Frank team", "reason": "Spam reported"}
+gina can't write: {"ok": false, "error": "forbidden"}
+gina still uses the platform: true
+a stranger is told nothing: null
+platform list: true true true Spam reported
+unfreeze: {"ok": true}
+gina after: true
+frank makes more: ok, ok, ok, ok, too_many_today
+frank sees the size: null
+admin sees the size: true
+after opening: true
+psql: ERROR:  permission denied for function platform_freeze_workspace
+psql: ERROR:  permission denied for table workspaces
