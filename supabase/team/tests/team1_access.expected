@@ -27,3 +27,6 @@ psql: ERROR:  EdgeKnow tokens are for signed-in people only
 psql: ERROR:  EdgeKnow tokens are for signed-in people only
 central-only tables left: 0
 profile columns: id, email, name, avatar_url, created_at
+size keys: database_bytes, storage_bytes, database > 0: true
+psql: ERROR:  permission denied for function edgeknow_database_size
+psql: ERROR:  permission denied for function edgeknow_database_size

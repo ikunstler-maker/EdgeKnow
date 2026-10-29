@@ -35,6 +35,8 @@ const ws = sql(`insert into public.workspaces (name, owner_id, created_by) value
 sql(`insert into public.workspace_members (workspace_id, user_id, role, joined_via) values ('${ws}', '${alice}', 'owner', 'creator')`);
 sql(`insert into public.team_databases (workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, status)
      values ('${ws}', ${quote(team.API_URL)}, ${quote(team.PUBLISHABLE_KEY ?? team.ANON_KEY)}, ${quote(encrypt(team.SECRET_KEY ?? team.SERVICE_ROLE_KEY))}, ${quote(encrypt(team.DB_URL))}, 'ok')`);
+// For the health check test (step 1.5b): a key the team's project doesn't know.
+writeFileSync(`${dirname(process.argv[3])}/bogus-key.txt`, encrypt("sb_secret_not-a-real-key-000000000000"));
 console.log(`Team Delta ${sql(`select short_id from public.workspaces where id = '${ws}'`)} → ${team.API_URL} (${result.applied.length} migrations)`);
 
 if (process.argv[4]) {

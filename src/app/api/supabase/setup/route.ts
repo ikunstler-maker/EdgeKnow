@@ -5,6 +5,7 @@ import { encrypt } from "@/lib/drive/secret-box";
 import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { advanceReturn, advanceSetup, SETUP_COLUMNS, type SetupRow } from "@/lib/team-db/connect";
+import { checkWorkspaceHealth } from "@/lib/team-db/health";
 import { clearConnectSession, readConnectSession, saveConnectSession } from "@/lib/team-db/connect-session";
 import { refreshTokens, supabaseApi } from "@/lib/team-db/supabase-api";
 
@@ -15,6 +16,7 @@ import { refreshTokens, supabaseApi } from "@/lib/team-db/supabase-api";
 //   { action: "cancel" } — stop before it is done (the central data was never touched),
 //     or stop moving back (the workspace stays in the team database);
 //   { action: "return" } — move a connected workspace back to the central database (1.7c);
+//   { action: "health" } — check the connected database now (1.5b);
 //   { action: "advance" } — the next setup step (the page asks every few seconds);
 //   { action: "options" } — the owner's organizations and projects to choose from.
 export const maxDuration = 60;
@@ -35,6 +37,12 @@ export async function POST(request: NextRequest) {
     if (!existing) return NextResponse.json({ ok: false, error: "not_started" }, { status: 400 });
     if ((existing as SetupRow).return_step) return NextResponse.json({ ok: true, ...(await advanceReturn(admin, existing as SetupRow, owner.userId)) });
     return NextResponse.json({ ok: true, ...(await advanceSetup(admin, existing as SetupRow, issuer)) });
+  }
+
+  if (body.action === "health") {
+    const report = existing ? await checkWorkspaceHealth(ws) : null;
+    if (!report) return NextResponse.json({ ok: false, error: "not_connected" }, { status: 409 });
+    return NextResponse.json({ ok: true, ...report });
   }
 
   if (body.action === "return") {

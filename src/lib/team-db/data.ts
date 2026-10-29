@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspace } from "@/lib/workspace";
 import { WORKSPACE_HEADER } from "./header";
 import { latestTeamMigration, upgradeTeam } from "./connect";
-import { syncTeam, teamDatabase, teamReady } from "./sync";
+import { syncTeam, teamDatabase, teamReady, type TeamDatabase } from "./sync";
 
 // Where a workspace's pages, access and comments live: the central database, or
 // (path C) the team's own Supabase project. Server code asks this instead of
@@ -25,7 +25,13 @@ const SYNC_EVERY_MS = 60_000;
 // existing data copied into it (1.7b). Reads stay central and writes are refused
 // until it is ready. "returning": the other way (1.7c); reads come from the team
 // database and writes are refused until the workspace is central again.
-export type WorkspaceData = { client: SupabaseClient; workspaceId: string; location: "central" | "team" | "setup" | "returning" };
+export type WorkspaceData = {
+  client: SupabaseClient;
+  workspaceId: string;
+  location: "central" | "team" | "setup" | "returning";
+  // How the team database was at its last check (team workspaces only).
+  health?: TeamDatabase["health"];
+};
 
 async function requestOrigin() {
   const h = await headers();
@@ -72,7 +78,7 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
     accessToken: async () => token,
     global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
   });
-  return { client, workspaceId: workspace.id, location: db.return_step ? "returning" : "team" };
+  return { client, workspaceId: workspace.id, location: db.return_step ? "returning" : "team", health: db.health };
 });
 
 // For code that only has a page or thread id: the request's workspace, or the central database.

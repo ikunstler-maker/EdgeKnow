@@ -111,3 +111,16 @@ select 'central-only tables left: ' || count(*) from pg_tables where schemaname 
   and tablename in ('platform_settings', 'invitations', 'workspace_domains', 'drive_connections', 'workspace_data_backups', 'public_email_domains');
 select 'profile columns: ' || string_agg(column_name, ', ' order by ordinal_position) from information_schema.columns
   where table_schema = 'public' and table_name = 'profiles';
+
+-- How full the project is: for the secret key only.
+set role service_role;
+select 'size keys: ' || string_agg(k, ', ' order by k) || ', database > 0: ' || ((public.edgeknow_database_size() ->> 'database_bytes')::bigint > 0)
+  from jsonb_object_keys(public.edgeknow_database_size()) k;
+reset role;
+\set ON_ERROR_STOP 0
+set role authenticated;
+select public.edgeknow_database_size();
+set role anon;
+select public.edgeknow_database_size();
+reset role;
+\set ON_ERROR_STOP 1
