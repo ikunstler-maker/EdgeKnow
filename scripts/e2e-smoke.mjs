@@ -337,6 +337,30 @@ check("SVG refused", svg.data?.error === "unsupported_type", JSON.stringify(svg.
 const bigUpload = await aliceClient.storage.from("attachments").upload(`${stored[3]}.big.webp`, new Blob([new Uint8Array(3 * 1024 * 1024)], { type: "image/webp" }));
 check("storage refuses unregistered / oversized uploads", Boolean(bigUpload.error), bigUpload.error?.message);
 
+// Image by link: a Google Drive "Share" link is turned into a direct image link.
+const linkPage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "Image links" })).data.id;
+await alice.goto(`${APP}/w/${alphaShort}/p/${linkPage}`);
+await alice.waitForSelector(".bn-editor");
+await alice.locator(".bn-editor").click();
+await alice.keyboard.type("/зображення");
+await alice.getByRole("option", { name: /Зображення/ }).first().waitFor();
+await alice.keyboard.press("Enter");
+await alice.getByRole("tab", { name: "За посиланням" }).click();
+check("the link tab says Google Drive links work", (await alice.getByText("Можна й з Google Drive").count()) === 1);
+const linkField = alice.getByLabel("Посилання на зображення");
+await linkField.fill("https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp");
+await alice.getByRole("button", { name: "Вставити" }).click();
+check("a Drive folder link is explained", (await alice.getByText("Це посилання на папку Google Drive").count()) === 1);
+const driveRequests = [];
+alice.on("request", (request) => request.url().startsWith("https://drive.google.com/thumbnail?id=") && driveRequests.push(request.url()));
+await linkField.fill("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/view?usp=sharing");
+await alice.getByRole("button", { name: "Вставити" }).click();
+// The made-up file doesn't exist, so Drive refuses it and the hint about sharing shows.
+await alice.getByText("Google Drive не показує цей файл").waitFor({ timeout: 20000 }).catch(() => {});
+check("a Drive file link asks Drive for the image itself", driveRequests.some((u) => u.includes("id=1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789")), driveRequests.join(" "));
+check("…and explains sharing when Drive won't show it", (await alice.getByText("Google Drive не показує цей файл").count()) === 1);
+await alice.keyboard.press("Escape");
+
 // Security headers and the video info route.
 const headers = (await alice.goto(`${APP}/w/${alphaShort}/p/${docPage}`)).headers();
 check("only YouTube may be framed (CSP)", (headers["content-security-policy"] ?? "").includes("frame-src https://www.youtube-nocookie.com"), headers["content-security-policy"]);
