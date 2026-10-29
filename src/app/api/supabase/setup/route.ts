@@ -9,8 +9,10 @@ import { clearConnectSession, readConnectSession, saveConnectSession } from "@/l
 import { refreshTokens, supabaseApi } from "@/lib/team-db/supabase-api";
 
 // Step 3 of connecting the team's own Supabase (owner only):
-//   { action: "create", organization, region } — a new project in their organization;
-//   { action: "existing", ref } — an empty project they already have;
+//   { action: "create", organization, region, move? } — a new project in their organization;
+//   { action: "existing", ref, move? } — an empty project they already have;
+//     (move: true for a workspace that already has pages: they are copied in, step 1.7b);
+//   { action: "cancel" } — stop before it is done (the central data was never touched);
 //   { action: "advance" } — the next setup step (the page asks every few seconds);
 //   { action: "options" } — the owner's organizations and projects to choose from.
 export const maxDuration = 60;
@@ -32,11 +34,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ...(await advanceSetup(admin, existing as SetupRow, issuer)) });
   }
 
-  // Starting: only for a workspace whose data isn't anywhere yet (moving existing
-  // pages is step 1.7).
+  if (body.action === "cancel") {
+    // Once done the workspace's data lives in the team database; going back is a separate step.
+    const row = existing as SetupRow | null;
+    if (!row || row.setup_step === null || row.setup_step === "done") {
+      return NextResponse.json({ ok: false, error: "not_cancellable" }, { status: 409 });
+    }
+    await admin.from("team_databases").delete().eq("workspace_id", ws);
+    await admin.from("audit_log").insert({ workspace_id: ws, actor_id: owner.userId, action: "team_database_cancelled", details: { project: row.project_ref } });
+    return NextResponse.json({ ok: true });
+  }
+
+  // Starting. A workspace with pages only when the owner chose to move them.
   if (existing) return NextResponse.json({ ok: false, error: "already_connected" }, { status: 409 });
   const { count } = await admin.from("pages").select("id", { count: "exact", head: true }).eq("workspace_id", ws);
-  if (count) return NextResponse.json({ ok: false, error: "has_pages" }, { status: 409 });
+  if (count && body.move !== true) return NextResponse.json({ ok: false, error: "has_pages" }, { status: 409 });
   const session = await readConnectSession(ws, owner.userId);
   if (!session) return NextResponse.json({ ok: false, error: "session_expired" }, { status: 401 });
 
@@ -87,7 +99,7 @@ export async function POST(request: NextRequest) {
       connected_by: owner.userId,
     });
     if (error) return NextResponse.json({ ok: false, error: "already_connected" }, { status: 409 });
-    await admin.from("audit_log").insert({ workspace_id: ws, actor_id: owner.userId, action: "team_database_connected", details: { project: ref } });
+    await admin.from("audit_log").insert({ workspace_id: ws, actor_id: owner.userId, action: count ? "team_database_move_started" : "team_database_connected", details: { project: ref } });
     await clearConnectSession();
     return NextResponse.json({ ok: true, step: "project" });
   } catch (error) {

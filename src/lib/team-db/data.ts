@@ -21,8 +21,9 @@ import { syncTeam, teamDatabase, teamReady } from "./sync";
 
 const SYNC_EVERY_MS = 60_000;
 
-// "setup": the team's project is being connected (step 1.5). The workspace has no
-// pages yet; reads come back empty and writes are refused until it is ready.
+// "setup": the team's project is being connected (step 1.5) and the workspace's
+// existing data copied into it (1.7b). Reads stay central and writes are refused
+// until it is ready.
 export type WorkspaceData = { client: SupabaseClient; workspaceId: string; location: "central" | "team" | "setup" };
 
 async function requestOrigin() {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
-import { dataClient } from "@/lib/team-db/data";
+import { workspaceData } from "@/lib/team-db/data";
 import { getWorkspace, listMyWorkspaces } from "@/lib/workspace";
 import { AppShell } from "@/components/app-shell";
 import { PagesProvider } from "@/components/pages/pages-provider";
@@ -31,9 +31,10 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     );
   }
 
-  const supabase = await dataClient(wid);
+  const data = await workspaceData(wid);
+  const supabase = data!.client;
   // RLS returns only this workspace's pages that the user has a role on.
-  const { data } = await supabase
+  const { data: pages } = await supabase
     .from("pages")
     .select(PAGE_TREE_COLUMNS)
     .eq("workspace_id", workspace.id)
@@ -42,8 +43,14 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     .overrideTypes<PageRow[], { merge: false }>();
 
   return (
-    <PagesProvider workspace={workspace} pages={(data ?? []).map(toPageNode)}>
+    <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)}>
       <AppShell user={user} workspaces={workspaces}>
+        {/* Moving into the team's own database (path C): changes wait until it is done. */}
+        {data!.location === "setup" && (
+          <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">
+            {t.workspace.movingBanner}
+          </p>
+        )}
         {children}
       </AppShell>
     </PagesProvider>

@@ -1,8 +1,9 @@
 import "server-only";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "@/lib/drive/secret-box";
 import { loadTeamMigrations, managementExecutor, migrateTeam, migrateTeams, postgresExecutor, type TeamExecutor, type TeamMigrationResult } from "./migrate";
 import { supabaseApi, refreshTokens, SupabaseApiError } from "./supabase-api";
+import { copyPortion, verifyMove, type CopyProgress } from "./move";
 import { syncTeam, type TeamDatabase } from "./sync";
 
 // Setting up a team's Supabase project, one step per call (path C, step 1.5).
@@ -13,12 +14,15 @@ import { syncTeam, type TeamDatabase } from "./sync";
 export type SetupRow = TeamDatabase & {
   project_ref: string | null;
   management_token_encrypted: string | null;
-  setup_step: "project" | "schema" | "keys" | "sync" | "sign_in" | "done" | null;
   last_error: string | null;
+  setup_progress: CopyProgress | null;
 };
 
 export const SETUP_COLUMNS =
-  "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, project_ref, management_token_encrypted, setup_step, last_error";
+  "workspace_id, project_url, publishable_key, secret_key_encrypted, db_url_encrypted, schema_version, status, project_ref, management_token_encrypted, setup_step, last_error, setup_progress";
+
+// One call of the setup may run for a minute; the copy stops well before that.
+const COPY_BUDGET_MS = 35_000;
 
 // A fresh Management API token; Supabase rotates the refresh token, so it is stored again.
 export async function managementToken(admin: SupabaseClient, row: Pick<SetupRow, "workspace_id" | "management_token_encrypted">) {
@@ -30,6 +34,12 @@ export async function managementToken(admin: SupabaseClient, row: Pick<SetupRow,
 
 // How migrations reach a team database: the Management API when the team
 // connected through Supabase, a connection string otherwise.
+// The team database with its secret key, on our server only.
+function teamClient(row: SetupRow) {
+  if (!row.project_url || !row.secret_key_encrypted) throw new Error("team database not ready");
+  return createSupabaseClient(row.project_url, decrypt(row.secret_key_encrypted), { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
 export async function teamExecutor(admin: SupabaseClient, row: SetupRow): Promise<TeamExecutor> {
   if (row.management_token_encrypted && row.project_ref) {
     const api = supabaseApi(await managementToken(admin, row));
@@ -40,7 +50,7 @@ export async function teamExecutor(admin: SupabaseClient, row: SetupRow): Promis
   throw new Error("no way to reach the team database");
 }
 
-export type SetupProgress = { step: NonNullable<SetupRow["setup_step"]>; waiting?: string; error?: string };
+export type SetupProgress = { step: NonNullable<SetupRow["setup_step"]>; waiting?: string; error?: string; copying?: string };
 
 export async function advanceSetup(admin: SupabaseClient, row: SetupRow, issuer: string): Promise<SetupProgress> {
   const save = (values: Record<string, unknown>) => admin.from("team_databases").update(values).eq("workspace_id", row.workspace_id);
@@ -82,7 +92,35 @@ export async function advanceSetup(admin: SupabaseClient, row: SetupRow, issuer:
     if (step === "sync") {
       // Members and our issuer go in before the project starts trusting our tokens.
       await syncTeam(admin, row, issuer);
-      await save({ setup_step: "sign_in" });
+      await save({ setup_step: "copy", setup_progress: null });
+      return { step: "copy" };
+    }
+    // The workspace's existing pages, comments and files (step 1.7b; nothing to
+    // copy for a new workspace). Until "done" the wiki keeps reading them
+    // centrally and refuses changes.
+    if (step === "copy") {
+      const team = teamClient(row);
+      const started = Date.now();
+      let progress = row.setup_progress;
+      let stage = "";
+      do {
+        const { result, next } = await copyPortion(admin, team, row.workspace_id, progress);
+        stage = result.stage;
+        progress = next;
+        // Saved after every portion: a call cut short continues from here.
+        await save(next ? { setup_progress: next, last_error: null } : { setup_step: "verify", setup_progress: null, last_error: null });
+        if (!next) return { step: "verify" };
+      } while (Date.now() - started < COPY_BUDGET_MS);
+      return { step, copying: stage };
+    }
+    if (step === "verify") {
+      const report = await verifyMove(admin, teamClient(row), row.workspace_id);
+      if (!report.ok) {
+        // "Try again" copies everything once more before checking again.
+        await save({ move_report: report, setup_step: "copy", setup_progress: null, last_error: "verify_failed" });
+        return { step, error: "verify_failed" };
+      }
+      await save({ move_report: report, moved_at: new Date().toISOString(), setup_step: "sign_in", last_error: null });
       return { step: "sign_in" };
     }
     if (step === "sign_in") {

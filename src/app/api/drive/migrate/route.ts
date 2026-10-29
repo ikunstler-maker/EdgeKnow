@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
   const owner = await requireOwner(String(workspaceId ?? ""));
   const admin = createAdminClient();
   if (!owner || !admin) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  // Not while the workspace is moving into its team's own database (path C): the copy would go stale.
+  const { data: team } = await admin.from("team_databases").select("setup_step").eq("workspace_id", String(workspaceId)).maybeSingle();
+  if (team && team.setup_step !== null && team.setup_step !== "done") return NextResponse.json({ ok: false, error: "team_setup" }, { status: 409 });
   const connection = await activeConnection(admin, String(workspaceId));
   if (!connection || connection.status !== "ok") return NextResponse.json({ ok: false, error: "drive_unavailable" }, { status: 409 });
 

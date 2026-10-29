@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/action-result";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
-import { dataClient, syncWorkspaceNow } from "@/lib/team-db/data";
+import { syncWorkspaceNow, writeClient } from "@/lib/team-db/data";
 
 // Permission checks and audit logging live in the database functions; these
 // actions forward the call and refresh the screens that show the result.
@@ -86,7 +86,8 @@ export async function setOpenRegistration(open: boolean) {
 
 // Pages live where the workspace's data lives (possibly the team database).
 export async function reassignMemberPages(ws: string, fromUser: string, toUser: string): Promise<ActionResult> {
-  const supabase = await dataClient();
+  const supabase = await writeClient();
+  if (!supabase) return { ok: false, error: "team_setup" };
   const { data, error } = await supabase.rpc("reassign_member_pages", { ws, from_user: fromUser, to_user: toUser });
   if (error || !data) return { ok: false, error: "unknown" };
   revalidatePath("/", "layout");

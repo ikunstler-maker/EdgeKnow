@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Two local Supabase stacks standing in for two teams' own projects (path C):
-# "team-a" on the usual ports, "team-b" on 55xxx, each with its own ES256 signing
+# "team-a" on the usual ports, "team-b" on 55xxx ("team-c", for moving a
+# workspace in, on 56xxx), each with its own ES256 signing
 # key (written to work/<team>/supabase/signing_keys.json) so tests can mint tokens
 # the way the central service does.
 set -euo pipefail
@@ -12,9 +13,12 @@ for team in ${TEAM_STACKS:-team-a team-b}; do
   rm -rf "$work/$team" && mkdir -p "$work/$team" && cd "$work/$team"
   supabase init --force </dev/null >/dev/null
   sed -i "s/^project_id = .*/project_id = \"edgeknow-$team\"/" supabase/config.toml
-  if [ "$team" = team-b ]; then
-    sed -i -E 's/^(\s*(shadow_)?port = )54([0-9]{3})/\155\3/' supabase/config.toml
-    sed -i -E 's#127\.0\.0\.1:54([0-9]{3})#127.0.0.1:55\1#g' supabase/config.toml
+  prefix=""
+  [ "$team" = team-b ] && prefix=55
+  [ "$team" = team-c ] && prefix=56
+  if [ -n "$prefix" ]; then
+    sed -i -E "s/^(\s*(shadow_)?port = )54([0-9]{3})/\1$prefix\3/" supabase/config.toml
+    sed -i -E "s#127\.0\.0\.1:54([0-9]{3})#127.0.0.1:$prefix\1#g" supabase/config.toml
   fi
   if [ -n "${TEAM_SIGNING_KEYS:-}" ]; then
     node -e "console.log(JSON.stringify(JSON.parse(process.env.TEAM_SIGNING_KEYS).map(k=>({...k,alg:'ES256',use:'sig',key_ops:['sign','verify']}))))" > supabase/signing_keys.json
