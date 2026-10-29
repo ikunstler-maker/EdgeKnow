@@ -1,0 +1,10 @@
+hank, three of three: true,true,true
+hank, the fourth: false
+hank, another kind: true
+bad kind: false
+silly limits: false,false
+ivy is counted on her own: true
+counters: 3
+psql: ERROR:  permission denied for table rate_limits
+psql: ERROR:  permission denied for table rate_limits
+psql: ERROR:  permission denied for function hit_rate_limit

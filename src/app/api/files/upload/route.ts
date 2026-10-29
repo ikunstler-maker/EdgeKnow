@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ATTACHMENT_COLUMNS, activeConnection, putOnDrive, type AttachmentRow } from "@/lib/drive/storage";
 import { ATTACHMENT_PATH, looksLike } from "@/lib/drive/file-checks";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { TEAM_BUCKET, teamAdmin, teamDataFor, teamOfPath, teamStorage } from "@/lib/team-db/files";
 
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims?.sub;
   if (!userId) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (await overLimit(supabase, "upload")) return tooManyRequests();
 
   const team = await teamOfPath(path);
   const rows = team ? await teamDataFor(team.shortId) : supabase;

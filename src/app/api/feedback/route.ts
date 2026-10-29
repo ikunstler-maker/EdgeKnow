@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { FEEDBACK_MAX, FEEDBACK_TYPES, type FeedbackType } from "@/lib/feedback";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 // Sends a feedback row to the owner's Google Sheet through a Google Apps Script
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
   if (!claims?.sub) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (await overLimit(supabase, "feedback")) return tooManyRequests();
 
   let body: { type?: unknown; text?: unknown; page?: unknown };
   try {

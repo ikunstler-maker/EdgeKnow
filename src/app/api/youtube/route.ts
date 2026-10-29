@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
+import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 export type YouTubeInfo = { title: string | null; author: string | null; thumbnail: string | null };
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (await overLimit(supabase, "youtube")) return tooManyRequests();
 
   const ref = parseYouTubeUrl(request.nextUrl.searchParams.get("url") ?? "");
   if (!ref) return NextResponse.json({ error: "not_youtube" }, { status: 400 });

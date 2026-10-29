@@ -141,6 +141,7 @@ export const en: Dictionary = {
       cancel: "Cancel",
     },
     errors: {
+      rate_limited: "Too many requests in a short time. Wait a minute and try again.",
       team_database_required: "Connect your own database first: Settings → “Database”.",
       team_setup: "The workspace is moving between databases — changes aren't saved. Wait a few minutes.",
       forbidden: "You don't have permission for this.",
@@ -1079,6 +1080,7 @@ export const en: Dictionary = {
       heading: "Change log",
     },
     errors: {
+      rate_limited: "Too many requests in a short time. Wait a minute and try again.",
       group_exists: "A group with this name already exists.",
       forbidden: "Not allowed. The attempt was logged.",
       invalid_name: "The name must be 1 to 80 characters.",
