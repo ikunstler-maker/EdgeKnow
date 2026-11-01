@@ -822,7 +822,8 @@ check("contents/comments switch stays on screen while scrolling", pill !== null 
 
 // --- Feedback ------------------------------------------------------------------------
 
-await wide.getByRole("button", { name: "Залишити відгук" }).click();
+// The lure sways all the time, so the click does not wait for it to stand still.
+await wide.getByRole("button", { name: "Залишити відгук" }).click({ force: true });
 const feedback = wide.getByRole("dialog", { name: "Відгук про вікі" });
 await feedback.getByLabel("Що це?").selectOption("bug");
 await feedback.getByLabel("Опис").fill("Smoke test feedback");
