@@ -136,6 +136,10 @@ const aliceIdForGroup = (await rest(alice, "profiles?email=eq.alice@alpha.test&s
 await rpc(alice, "set_workspace_group_member", { ws: alpha.id, target_group: alphaGroup, member: aliceIdForGroup, included: true });
 const groupGrant = await rpc(alice, "set_page_group_role", { target_page: page.id, target_group: alphaGroup, new_role: "viewer" });
 check("alice makes a group and gives it a role on her page", Boolean(alphaGroup) && groupGrant.json?.ok === true, JSON.stringify(groupGrant.json));
+// A task project in alpha with a task: none of it may show to bob either.
+const alphaProject = (await rpc(alice, "create_task_project", { ws: alpha.id, new_name: "Secret tasks", new_key: "SEC", new_icon: null, status_names: null })).json;
+const alphaTask = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha secret task" } })).json;
+check("alice makes a task project and a task", alphaProject?.ok === true && alphaTask?.key === "SEC-1", JSON.stringify([alphaProject, alphaTask]));
 const bobReads = {
   "all pages": "pages?select=id,title",
   "alpha page by id": `pages?id=eq.${page.id}&select=id,title`,
@@ -146,6 +150,9 @@ const bobReads = {
   "alpha audit log": `audit_log?workspace_id=eq.${alpha.id}&select=action`,
   "alice profile": "profiles?email=eq.alice@alpha.test&select=email",
   "alpha groups": `workspace_groups?workspace_id=eq.${alpha.id}&select=name`,
+  "alpha task projects": `task_projects?workspace_id=eq.${alpha.id}&select=name`,
+  "alpha tasks": `tasks?workspace_id=eq.${alpha.id}&select=title`,
+  "alpha task history": `task_events?workspace_id=eq.${alpha.id}&select=field`,
   "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
   "alpha group grants": `page_group_access?workspace_id=eq.${alpha.id}&select=role`,
 };
@@ -164,6 +171,11 @@ const bobActions = {
   "turn the email way back on": ["set_email_domain_proof", { allowed: true }],
   "create a group in alpha": ["create_workspace_group", { ws: alpha.id, new_name: "Intruders" }],
   "freeze alpha": ["platform_freeze_workspace", { ws: alpha.id, frozen: true, reason: "mine" }],
+  "make a task project in alpha": ["create_task_project", { ws: alpha.id, new_name: "Mine", new_key: "MINE", new_icon: null, status_names: null }],
+  "add a task to alpha's project": ["create_task", { target_project: alphaProject?.id, fields: { title: "hacked" } }],
+  "change alpha's task": ["update_task", { target_task: alphaTask?.id, changes: { title: "hacked" } }],
+  "comment on alpha's task": ["add_task_comment", { target_task: alphaTask?.id, body: "hi", mention_ids: [] }],
+  "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
   "switch \"own database first\"": ["set_require_team_database", { required: false }],
   "give a group a role on alpha's page": ["set_page_group_role", { target_page: page.id, target_group: "00000000-0000-0000-0000-000000000000", new_role: "editor" }],
@@ -195,6 +207,8 @@ const writes = [
   ["PATCH", `/rest/v1/workspaces?id=eq.${alpha.id}`, { frozen_at: null, central_allowed: true }],
   ["POST", "/rest/v1/workspace_domain_claims", { workspace_id: alpha.id, domain: "evil.test" }],
   ["POST", "/rest/v1/workspace_groups", { workspace_id: alpha.id, name: "Direct" }],
+  ["POST", "/rest/v1/tasks", { workspace_id: alpha.id, project_id: alphaProject?.id, number: 99, title: "direct" }],
+  ["PATCH", `/rest/v1/tasks?id=eq.${alphaTask?.id}`, { title: "direct" }],
   ["POST", "/rest/v1/page_group_access", { workspace_id: alpha.id, page_id: page.id, group_id: "00000000-0000-0000-0000-000000000000", role: "editor" }],
   ["PATCH", "/rest/v1/workspace_domains?domain=eq.alpha.test", { method: "dns" }],
 ];

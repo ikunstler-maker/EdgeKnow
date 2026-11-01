@@ -2,6 +2,7 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
+import type { ProjectSummary } from "@/lib/tasks";
 import { workspaceData } from "@/lib/team-db/data";
 import { checkWorkspaceHealth } from "@/lib/team-db/health";
 import { createClient } from "@/lib/supabase/server";
@@ -60,6 +61,14 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     .is("deleted_at", null)
     .order("position")
     .overrideTypes<PageRow[], { merge: false }>();
+  // Task projects open to this person (RLS), for the sidebar.
+  const { data: projects } = await supabase
+    .from("task_projects")
+    .select("id, key, name, icon")
+    .eq("workspace_id", workspace.id)
+    .is("archived_at", null)
+    .order("name")
+    .overrideTypes<ProjectSummary[], { merge: false }>();
 
   // The team's own database (path C): if it couldn't be read, or wasn't well at
   // the last check, look again now (this also wakes a sleeping one up).
@@ -77,7 +86,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
 
   return (
     <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)}>
-      <AppShell user={user} workspaces={workspaces}>
+      <AppShell user={user} workspaces={workspaces} projects={projects ?? []}>
         {/* Moving into the team's own database (path C): changes wait until it is done. */}
         {(data!.location === "setup" || data!.location === "returning") && (
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">

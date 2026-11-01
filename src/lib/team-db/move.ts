@@ -21,8 +21,8 @@ type Stage = {
   columns: string;
   order: string;
   onConflict: string;
-  // Pages go in twice: first without their parent (so a child never comes before
-  // its parent), then with it.
+  // Pages and tasks go in twice: first without their parent (so a child never
+  // comes before its parent), then with it.
   flatten?: boolean;
   merge?: boolean;
   files?: boolean;
@@ -30,6 +30,9 @@ type Stage = {
   // so far), so its own rows are cleared first and the central ones taken as they are.
   replace?: boolean;
 };
+
+const TASK_COLUMNS =
+  "id, workspace_id, project_id, number, title, description, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, updated_by, done_at, deleted_at, deleted_by";
 
 const PAGE_COLUMNS =
   "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover";
@@ -78,10 +81,48 @@ const STAGES: Stage[] = [
     order: "page_id,user_id",
     onConflict: "page_id,user_id",
   },
+  // Tasks (stage 2a): projects, their columns and access, tasks (flat, then the
+  // tree of subtasks), comments, and the history (the target writes its own
+  // while tasks arrive, so the source's replaces it).
+  {
+    name: "task projects",
+    table: "task_projects",
+    columns: "id, workspace_id, key, name, icon, workspace_role, sprints, next_number, created_by, created_at, archived_at",
+    order: "id",
+    onConflict: "id",
+  },
+  { name: "task columns", table: "task_statuses", columns: "id, project_id, workspace_id, name, category, position, wip_limit, created_at", order: "id", onConflict: "id" },
+  {
+    name: "project access",
+    table: "task_project_access",
+    columns: "project_id, workspace_id, user_id, role, granted_by, created_at",
+    order: "project_id,user_id",
+    onConflict: "project_id,user_id",
+    replace: true,
+  },
+  {
+    name: "project group access",
+    table: "task_project_group_access",
+    columns: "project_id, workspace_id, group_id, role, granted_by, created_at",
+    order: "project_id,group_id",
+    onConflict: "project_id,group_id",
+    replace: true,
+  },
+  { name: "tasks", table: "tasks", columns: TASK_COLUMNS, order: "id", onConflict: "id", flatten: true },
+  { name: "task tree", table: "tasks", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
+  { name: "task comments", table: "task_comments", columns: "id, workspace_id, task_id, author_id, body, mentions, created_at, edited_at", order: "id", onConflict: "id" },
+  {
+    name: "task history",
+    table: "task_events",
+    columns: "id, workspace_id, task_id, actor_id, field, old_value, new_value, created_at",
+    order: "id",
+    onConflict: "id",
+    replace: true,
+  },
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["task_projects", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -171,7 +212,7 @@ export async function copyPortion(
     if (stage.merge) {
       // Parents are all in place now; only pages that have one need the update.
       for (const row of rows.filter((r) => r.parent_id)) {
-        const { error: updateError } = await to.from("pages").update({ parent_id: row.parent_id }).eq("id", row.id as string);
+        const { error: updateError } = await to.from(stage.table).update({ parent_id: row.parent_id }).eq("id", row.id as string);
         if (updateError) throw new Error(`${stage.name}: ${updateError.message}`);
       }
     } else {
@@ -186,7 +227,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["comments", "comment_threads", "attachments", "page_access", "pages"];
+const BY_ID = ["comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "tasks", "task_statuses", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();

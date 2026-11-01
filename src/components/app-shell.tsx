@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import type { WorkspaceSummary } from "@/lib/workspace";
+import type { ProjectSummary } from "@/lib/tasks";
 import { usePages } from "@/components/pages/pages-provider";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
@@ -15,10 +16,12 @@ import { AnglerGame } from "@/components/angler/angler-game";
 export function AppShell({
   user,
   workspaces,
+  projects,
   children,
 }: {
   user: CurrentUser;
   workspaces: WorkspaceSummary[];
+  projects: ProjectSummary[];
   children: ReactNode;
 }) {
   const { workspace } = usePages();
@@ -75,7 +78,7 @@ export function AppShell({
     <AppearanceProvider initial={{ showMascot: user.showMascot, lure: user.lure }}>
     <div className="flex min-h-dvh flex-1">
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-border bg-surface/60 md:block">
-        <Sidebar user={user} workspaces={workspaces} />
+        <Sidebar user={user} workspaces={workspaces} projects={projects} />
       </aside>
 
       {drawerOpen && (
@@ -85,7 +88,7 @@ export function AppShell({
             aria-label={t.sidebar.pagesHeading}
             className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-background shadow-xl"
           >
-            <Sidebar user={user} workspaces={workspaces} onNavigate={close} />
+            <Sidebar user={user} workspaces={workspaces} projects={projects} onNavigate={close} />
           </aside>
         </div>
       )}
