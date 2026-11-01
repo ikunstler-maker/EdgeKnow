@@ -295,6 +295,7 @@ function TreeRow({
             href={pagePath(workspace.shortId, page.id)}
             onClick={onNavigate}
             draggable={false}
+            data-angler-here={current ? "" : undefined}
             className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-sm"
           >
             <span className="shrink-0">{page.icon ?? "📄"}</span>

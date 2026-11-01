@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { t } from "@/i18n";
 import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
+import { FeedbackLink } from "@/components/feedback/feedback-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.help.link} · ${t.app.name}` };
@@ -23,6 +24,9 @@ export default function HelpPage() {
       </div>
       <h1 className="text-3xl font-bold">❓ {h.title}</h1>
       <p className="mt-3 text-muted">{h.intro}</p>
+      <div className="mt-4">
+        <FeedbackLink />
+      </div>
 
       <nav aria-label={h.contents} className="mt-8 rounded-lg border border-border bg-surface p-4">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{h.contents}</p>

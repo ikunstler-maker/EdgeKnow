@@ -5,22 +5,57 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
 import { FEEDBACK_MAX, FEEDBACK_TYPES, type FeedbackType } from "@/lib/feedback";
+import { useAppearance } from "@/components/angler/appearance";
 
 const f = t.feedback;
 
-// A translucent yellow "!?" button in the corner; the form goes to the owner's sheet.
+// Anything on the site can open the form, e.g. the help page while the lure is hidden.
+export const OPEN_FEEDBACK_EVENT = "ek-open-feedback";
+
+// The feedback button is the angler's lure: a glowing orb on a thin curved rod
+// rising from the bottom edge, gently swaying. It can be subdued (translucent
+// white) or hidden in Profile → Appearance; the form goes to the owner's sheet.
 export function FeedbackButton() {
+  const { appearance } = useAppearance();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_FEEDBACK_EVENT, show);
+    return () => window.removeEventListener(OPEN_FEEDBACK_EVENT, show);
+  }, []);
+  return (
+    <>
+      {appearance.lure !== "hidden" && (
+        <div
+          className={`ek-lure pointer-events-none fixed bottom-0 left-3 z-30 h-28 w-14 md:left-[16.75rem] ${
+            appearance.lure === "subtle" ? "ek-lure-subtle" : ""
+          }`}
+          data-lure={appearance.lure}
+        >
+          <svg viewBox="0 0 56 112" className="absolute inset-0 h-full w-full" aria-hidden="true">
+            <path className="ek-lure-rod" d="M30 112 C 34 88, 14 70, 26 40 C 28 34, 28 30, 28 24" fill="none" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={f.button}
+            title={f.button}
+            className="ek-lure-orb pointer-events-auto absolute left-1/2 top-1 h-10 w-10 -translate-x-1/2 rounded-full"
+          />
+        </div>
+      )}
+      {open && <FeedbackDialog onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+// The same form from places without the lure (the help page).
+export function FeedbackLink() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={f.button}
-        title={f.button}
-        className="ek-feedback-button fixed bottom-4 left-4 z-30 flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg md:left-[17rem]"
-      >
-        !?
+      <button type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-lg border border-border px-4 text-sm hover:bg-surface">
+        {f.button}
       </button>
       {open && <FeedbackDialog onClose={() => setOpen(false)} />}
     </>

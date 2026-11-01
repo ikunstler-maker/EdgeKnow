@@ -8,6 +8,7 @@ import { getWorkspace } from "@/lib/workspace";
 import { ProfileView } from "./profile-view";
 import { VisibilitySwitch } from "./visibility-switch";
 import { MyData } from "./my-data";
+import { AppearanceSettings } from "@/components/angler/appearance-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.profile.title} · ${t.app.name}` };
@@ -30,6 +31,7 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
       <p className="mt-2 text-muted">{t.profile.intro(stats.name, workspace.name)}</p>
       <VisibilitySwitch workspaceId={workspace.id} initial={stats.visibility} shareUrl={shareUrl} />
       <ProfileView stats={stats} />
+      <AppearanceSettings />
       <MyData email={user.email} />
     </main>
   );

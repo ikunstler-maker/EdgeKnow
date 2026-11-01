@@ -1105,6 +1105,54 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("…and turns it off again", sql("select require_team_database from public.platform_settings") === "f");
 }
 
+// --- The angler fish, its lure and the "Depth" game ----------------------------------------------
+{
+  await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
+  const fish = alice.locator("[data-angler]").first();
+  await fish.waitFor({ timeout: 15000 });
+  await alice.waitForTimeout(900);
+  const beside = async () => {
+    const [f, h] = await Promise.all([fish.boundingBox(), alice.locator("aside [data-angler-here]").first().boundingBox()]);
+    return Boolean(f && h && Math.abs(f.y + f.height / 2 - (h.y + h.height / 2)) < 8 && f.x + f.width <= h.x + 30);
+  };
+  check("the angler fish sits to the left of the current page in the tree", await beside());
+  await alice.goto(`${APP}/w/${alphaShort}/trash`);
+  await alice.waitForTimeout(900);
+  check("…and of the trash link when that is where you are", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Кошик") && (await beside()));
+  check("the lure replaces the old feedback button", (await alice.locator('[data-lure="bright"]').getByRole("button", { name: "Залишити відгук" }).count()) === 1);
+  for (let i = 0; i < 3; i++) await fish.click();
+  await alice.waitForTimeout(300);
+  check("a few clicks on the fish don't open the game", (await alice.locator("[data-depth-game]").count()) === 0);
+  await alice.waitForTimeout(2100);
+  for (let i = 0; i < 5; i++) await fish.click({ delay: 20 });
+  await alice.locator("[data-depth-game]").waitFor({ timeout: 10000 }).catch(() => {});
+  check("five quick clicks on the fish open “Depth”", (await alice.locator("[data-depth-game]").getByText("Глибина: 0 м").count()) === 1);
+  await alice.mouse.move(300, 300);
+  await alice.keyboard.press("Escape");
+  check("…and Esc leaves it", (await alice.locator("[data-depth-game]").count()) === 0);
+
+  await alice.goto(`${APP}/w/${alphaShort}/profile`);
+  const look = alice.locator("[data-appearance]");
+  await look.getByLabel("Показувати рибу-вудильника").uncheck();
+  await alice.waitForTimeout(300);
+  check("hiding the fish takes it away at once", (await alice.locator("[data-angler]").count()) === 0);
+  await look.getByLabel("Приглушена (напівпрозора біла)").check();
+  await alice.waitForTimeout(1500);
+  check("…the subdued lure is translucent white", (await alice.locator('[data-lure="subtle"]').count()) === 1 && sql("select show_mascot || ' ' || lure from public.profiles where email = 'alice@alpha.test'") === "false subtle");
+  await alice.reload();
+  check("…and both are remembered", (await alice.locator("[data-angler]").count()) === 0 && (await alice.locator('[data-lure="subtle"]').count()) === 1);
+  await look.getByLabel("Сховати").check();
+  await alice.waitForTimeout(300);
+  check("a hidden lure leaves no button, but the help page still takes feedback", (await alice.locator("[data-lure]").count()) === 0);
+  await alice.goto(`${APP}/help`);
+  check("…“Leave feedback” on the help page", (await alice.getByRole("button", { name: "Залишити відгук" }).count()) === 1);
+  await alice.goto(`${APP}/w/${alphaShort}/profile`);
+  await look.getByLabel("Показувати рибу-вудильника").check();
+  await look.getByLabel("Яскрава").check();
+  await alice.waitForTimeout(1500);
+  check("…turned back on", sql("select show_mascot || ' ' || lure from public.profiles where email = 'alice@alpha.test'") === "true bright");
+}
+
 // --- Groups of people ---------------------------------------------------------------------------
 {
   const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");
