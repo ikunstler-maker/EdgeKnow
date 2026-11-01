@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
@@ -17,6 +17,8 @@ import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { AnglerGuide } from "@/components/angler/angler-guide";
+import { useAppearance } from "@/components/angler/appearance";
 
 export function currentPageId(pathname: string): string | null {
   return pathname.match(/^\/w\/[a-z0-9]{8}\/p\/([0-9a-f-]{36})/)?.[1] ?? null;
@@ -36,6 +38,8 @@ export function Sidebar({
   const currentId = currentPageId(pathname);
   // A page with comments may ask to show its contents here instead of the tree.
   const sidebarToc = useSidebarToc();
+  const navRef = useRef<HTMLElement>(null);
+  const { appearance } = useAppearance();
 
   // Open the branches leading to the page being viewed.
   useEffect(() => {
@@ -47,6 +51,7 @@ export function Sidebar({
     <Link
       href={href}
       onClick={onNavigate}
+      data-angler-here={pathname === href ? "" : undefined}
       className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm hover:bg-surface md:min-h-9 ${
         pathname === href ? "bg-surface font-medium" : ""
       }`}
@@ -57,7 +62,13 @@ export function Sidebar({
   );
 
   return (
-    <nav className="flex h-full flex-col gap-2 p-2" aria-label={t.sidebar.pagesHeading}>
+    <nav
+      ref={navRef}
+      data-angler-on={appearance.showMascot ? "" : undefined}
+      className="relative flex h-full flex-col gap-2 p-2"
+      aria-label={t.sidebar.pagesHeading}
+    >
+      <AnglerGuide containerRef={navRef} />
       <WorkspaceSwitcher workspaces={workspaces} onNavigate={onNavigate} />
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
@@ -75,7 +86,7 @@ export function Sidebar({
         {t.sidebar.newPage}
       </button>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
         {sidebarToc && (
           <button
             type="button"

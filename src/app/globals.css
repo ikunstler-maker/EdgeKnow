@@ -526,14 +526,97 @@ body {
 }
 
 /* Feedback "!?" button: translucent yellow, solid on hover. */
-.ek-feedback-button {
-  background: rgba(255, 204, 0, 0.55);
-  color: #3d2f00;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  transition: background-color 0.15s;
+/* The angler fish (sidebar) and its lure (the feedback button). */
+[data-angler-on] [data-angler-here] {
+  padding-left: 28px;
 }
-.ek-feedback-button:hover,
-.ek-feedback-button:focus-visible {
-  background: rgba(255, 204, 0, 0.95);
+[data-angler-here] {
+  transition: padding-left 0.35s ease;
+}
+.ek-angler-guide {
+  transition: transform 0.6s cubic-bezier(0.45, 0.05, 0.25, 1);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+.ek-angler-bob {
+  animation: ek-angler-bob 3.2s ease-in-out infinite;
+}
+.ek-angler-tail {
+  transform-origin: 11px 18px;
+  transform-box: view-box;
+  animation: ek-angler-tail 1.4s ease-in-out infinite;
+}
+.ek-angler-swimming .ek-angler-tail {
+  animation-duration: 0.35s;
+}
+.ek-angler-eye {
+  transform-origin: 25px 15px;
+  transform-box: view-box;
+  animation: ek-angler-blink 5.5s infinite;
+}
+.ek-angler-glow {
+  animation: ek-lure-pulse 2.6s ease-in-out infinite;
+  transform-origin: 34.5px 3.5px;
+  transform-box: view-box;
+}
+@keyframes ek-angler-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+@keyframes ek-angler-tail {
+  0%, 100% { transform: rotate(-9deg); }
+  50% { transform: rotate(9deg); }
+}
+@keyframes ek-angler-blink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+@keyframes ek-lure-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50% { opacity: 0.55; transform: scale(1.15); }
+}
+
+.ek-lure {
+  transform-origin: 30px 112px;
+  animation: ek-lure-sway 7s ease-in-out infinite;
+}
+.ek-lure-rod {
+  stroke: color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+.ek-lure-orb {
+  background: radial-gradient(circle at 40% 38%, #fffdf0 0%, #ffe08a 30%, #ffb36b 58%, #ff7fae 85%);
+  box-shadow: 0 0 14px 5px rgba(255, 196, 110, 0.55), 0 0 36px 12px rgba(255, 140, 180, 0.25);
+  animation: ek-lure-glow 2.8s ease-in-out infinite;
+  transition: transform 0.15s;
+}
+.ek-lure-orb:hover,
+.ek-lure-orb:focus-visible {
+  transform: translateX(-50%) scale(1.1);
+}
+/* Subdued: translucent white; a hairline edge keeps it visible on a light page. */
+.ek-lure-subtle .ek-lure-rod {
+  stroke: color-mix(in srgb, var(--foreground) 22%, transparent);
+}
+.ek-lure-subtle .ek-lure-orb {
+  background: radial-gradient(circle at 40% 38%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.45) 70%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 16%, transparent), 0 0 10px 3px rgba(255, 255, 255, 0.25);
+  opacity: 0.6;
+  animation: none;
+}
+@keyframes ek-lure-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes ek-lure-glow {
+  0%, 100% { box-shadow: 0 0 12px 4px rgba(255, 196, 110, 0.5), 0 0 30px 10px rgba(255, 140, 180, 0.2); }
+  50% { box-shadow: 0 0 18px 7px rgba(255, 196, 110, 0.7), 0 0 44px 16px rgba(255, 140, 180, 0.32); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ek-angler-bob, .ek-angler-tail, .ek-angler-eye, .ek-angler-glow, .ek-lure, .ek-lure-orb {
+    animation: none;
+  }
+  .ek-angler-guide, [data-angler-here] {
+    transition: none;
+  }
 }

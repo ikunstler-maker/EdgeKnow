@@ -1,0 +1,7 @@
+defaults: true bright
+hide the fish: {"ok": true}
+subdued lure: {"ok": true}
+bad mode: {"ok": false, "error": "invalid"}
+quinn: false subtle
+rosa untouched: true bright
+psql: ERROR:  permission denied for function set_my_appearance

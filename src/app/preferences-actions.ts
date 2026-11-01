@@ -26,3 +26,13 @@ export async function savePreferences(input: { theme?: string; locale?: string }
   revalidatePath("/", "layout");
   return { ok: true as const };
 }
+
+// The angler fish and its lure (Profile → Appearance); saved to the profile only.
+export async function saveAppearance(input: { showMascot?: boolean; lure?: string }) {
+  const lure = input.lure === undefined ? null : ["bright", "subtle", "hidden"].includes(input.lure) ? input.lure : undefined;
+  if (lure === undefined) return { ok: false as const, error: "invalid" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_my_appearance", { new_show_mascot: input.showMascot ?? null, new_lure: lure });
+  if (error || !data?.ok) return { ok: false as const, error: "unknown" };
+  return { ok: true as const };
+}

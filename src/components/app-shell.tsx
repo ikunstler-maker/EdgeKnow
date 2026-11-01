@@ -7,6 +7,8 @@ import type { WorkspaceSummary } from "@/lib/workspace";
 import { usePages } from "@/components/pages/pages-provider";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { AppearanceProvider } from "@/components/angler/appearance";
+import { AnglerGame } from "@/components/angler/angler-game";
 
 // Desktop: the sidebar is always on the left. Phone: it lives in a drawer opened
 // with ☰ or a swipe from the left edge of the screen.
@@ -70,6 +72,7 @@ export function AppShell({
   const close = () => setDrawerOpen(false);
 
   return (
+    <AppearanceProvider initial={{ showMascot: user.showMascot, lure: user.lure }}>
     <div className="flex min-h-dvh flex-1">
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 border-r border-border bg-surface/60 md:block">
         <Sidebar user={user} workspaces={workspaces} />
@@ -106,6 +109,8 @@ export function AppShell({
         {children}
       </div>
       <FeedbackButton />
+      <AnglerGame />
     </div>
+    </AppearanceProvider>
   );
 }
