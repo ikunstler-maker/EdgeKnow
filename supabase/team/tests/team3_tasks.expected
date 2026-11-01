@@ -1,0 +1,6 @@
+sync: true
+bob makes a project: forbidden
+bob's task: TT-1
+carol (not a member) sees: 0
+sync without bob: true
+bob after: 0 tasks, makes one: forbidden

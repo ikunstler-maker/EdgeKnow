@@ -1,0 +1,41 @@
+bob makes a project: {"ok": false, "error": "forbidden"}
+project: MKT
+same key again: {"ok": false, "error": "key_taken"}
+bad key: {"ok": false, "error": "invalid_key"}
+columns: Зробити/todo, В роботі/doing, Готово/done
+bob's task: MKT-1
+carol's task: MKT-2
+empty title: {"ok": false, "error": "invalid_title"}
+move and assign: {"ok": true}
+assign someone from elsewhere: {"ok": false, "error": "not_a_member"}
+a column of another project: {"ok": false, "error": "invalid_status"}
+its own parent: {"ok": false, "error": "invalid_parent"}
+done: {"ok": true}
+done at set: true
+history: created, assignee_id, due_date, status_id, status_id
+dave sees: 0 projects, 0 tasks, 0 events
+dave makes a task: {"ok": false, "error": "forbidden"}
+viewer edits: {"ok": false, "error": "forbidden"}
+viewer comments: {"ok": false, "error": "forbidden"}
+mentions kept: 00000000-0000-0000-0000-0000000021c1
+carol edits bob's comment: {"ok": false, "error": "forbidden"}
+bob edits his own: {"ok": true}
+bob made editor: {"ok": true}
+dave given a role: {"ok": false, "error": "not_a_member"}
+bob edits again: {"ok": true}
+bob manages access: {"ok": false, "error": "forbidden"}
+carol, closed project: none, tasks seen: 0
+writers may view: {"ok": true}
+carol through the group: viewer, tasks seen: 2
+delete: {"ok": true}
+edit a deleted task: {"ok": false, "error": "forbidden"}
+restore: {"ok": true}
+remove bob: true
+bob's project access left: 0
+people for a move: 3
+psql: ERROR:  permission denied for table tasks
+psql: ERROR:  permission denied for table tasks
+psql: ERROR:  permission denied for table task_events
+psql: ERROR:  permission denied for function task_project_role_of
+psql: ERROR:  permission denied for function create_task
+psql: ERROR:  task data and project must be in the same workspace

@@ -39,6 +39,10 @@ export async function exportMyData(userId: string) {
         db.from("pages").select("id, title, icon, content, created_at, updated_at, deleted_at").eq("workspace_id", m.workspace_id).or(`owner_id.eq.${userId},created_by.eq.${userId}`),
       ),
       comments: await rows(db.from("comments").select("id, body, created_at, edited_at, thread_id").eq("workspace_id", m.workspace_id).eq("author_id", userId)),
+      tasks: await rows(
+        db.from("tasks").select("project_id, number, title, description, type, priority, due_date, created_at, updated_at").eq("workspace_id", m.workspace_id).or(`reporter_id.eq.${userId},assignee_id.eq.${userId}`),
+      ),
+      task_comments: await rows(db.from("task_comments").select("id, task_id, body, created_at, edited_at").eq("workspace_id", m.workspace_id).eq("author_id", userId)),
       statistics: await rows(db.from("page_contributions").select("page_id, chars_added, chars_removed, saves, last_saved_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
     });
   }

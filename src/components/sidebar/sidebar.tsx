@@ -8,6 +8,7 @@ import type { CurrentUser } from "@/lib/auth";
 import { ancestorsOf } from "@/lib/pages";
 import { workspacePath } from "@/lib/paths";
 import type { WorkspaceSummary } from "@/lib/workspace";
+import type { ProjectSummary } from "@/lib/tasks";
 import { usePages } from "@/components/pages/pages-provider";
 import { SignOutButton } from "@/components/sign-out-button";
 import { expandAll } from "./expanded-store";
@@ -27,10 +28,12 @@ export function currentPageId(pathname: string): string | null {
 export function Sidebar({
   user,
   workspaces,
+  projects,
   onNavigate,
 }: {
   user: CurrentUser;
   workspaces: WorkspaceSummary[];
+  projects: ProjectSummary[];
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -101,6 +104,7 @@ export function Sidebar({
         ) : (
           <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
         )}
+        <TaskProjects projects={projects} pathname={pathname} onNavigate={onNavigate} />
       </div>
 
       <div className="border-t border-border pt-2">
@@ -129,6 +133,44 @@ function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: (
     <section aria-label={t.toc.title}>
       <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
       <HeadingList headings={headings} active={active} onPick={onPick} />
+    </section>
+  );
+}
+
+// Task projects (stage 2a): the section heading opens all projects; the current one is marked for the fish.
+function TaskProjects({ projects, pathname, onNavigate }: { projects: ProjectSummary[]; pathname: string; onNavigate?: () => void }) {
+  const { workspace } = usePages();
+  const base = workspacePath(workspace.shortId, "/tasks");
+  return (
+    <section aria-label={t.tasks.section} className="mb-2">
+      <Link
+        href={base}
+        onClick={onNavigate}
+        data-angler-here={pathname === base ? "" : undefined}
+        className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground"
+      >
+        {t.tasks.section}
+      </Link>
+      <ul>
+        {projects.map((project) => {
+          const href = `${base}/${project.key}`;
+          const here = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <li key={project.id}>
+              <Link
+                href={href}
+                onClick={onNavigate}
+                data-angler-here={here ? "" : undefined}
+                className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm hover:bg-surface md:min-h-9 ${here ? "bg-surface font-medium" : ""}`}
+              >
+                <span className="shrink-0">{project.icon ?? "📋"}</span>
+                <span className="truncate">{project.name}</span>
+                <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

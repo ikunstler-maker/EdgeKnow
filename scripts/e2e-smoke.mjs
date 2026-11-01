@@ -1154,6 +1154,68 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("…turned back on", sql("select show_mascot || ' ' || lure from public.profiles where email = 'alice@alpha.test'") === "true bright");
 }
 
+// --- Tasks (stage 2a, step Z1) -------------------------------------------------------------------
+{
+  const { cookies: colleagueTaskCookies, client: colleagueTasks } = await sessionCookies("colleague@alpha.test");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+  const form = alice.getByRole("form", { name: "Новий проєкт" });
+  await form.getByLabel("Назва проєкту").fill("Маркетинг");
+  check("the project key is suggested from its name", (await form.getByLabel(/Ключ/).inputValue()) === "MAR");
+  await form.getByRole("button", { name: "Створити" }).click();
+  await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks/MAR$`), { timeout: 15000 });
+  check("an admin makes a project and lands on it", (await alice.getByRole("heading", { name: /Маркетинг/ }).count()) === 1);
+  check("…it is in the sidebar, with the fish beside it", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Маркетинг"));
+  const quick = alice.getByLabel("Нова задача");
+  await quick.fill("Draw the logo");
+  await quick.press("Enter");
+  await alice.locator('[data-task="MAR-1"]').waitFor({ timeout: 15000 });
+  await quick.fill("Write the brief");
+  await quick.press("Enter");
+  await alice.locator('[data-task="MAR-2"]').waitFor({ timeout: 15000 });
+  check("tasks are made from one line and get MAR-1, MAR-2", (await alice.locator("[data-task]").count()) === 2);
+  await alice.getByLabel("Пошук за назвою чи ключем").fill("logo");
+  check("the search filters the list", (await alice.locator("[data-task]").count()) === 1);
+  await alice.getByLabel("Пошук за назвою чи ключем").fill("");
+
+  await alice.locator('[data-task="MAR-1"]').getByRole("link").click();
+  await alice.waitForURL(new RegExp(`/tasks/MAR/1$`));
+  const colleagueId2 = sql("select id from public.profiles where email = 'colleague@alpha.test'");
+  await alice.getByLabel("Статус").selectOption({ label: "В роботі" });
+  await alice.waitForTimeout(800);
+  await alice.getByLabel("Виконавець").selectOption(colleagueId2);
+  await alice.waitForTimeout(800);
+  await alice.getByLabel("Пріоритет").selectOption("high");
+  await alice.waitForTimeout(800);
+  const taskRow = () => sql("select s.category || ' ' || coalesce(t.assignee_id::text, '-') || ' ' || t.priority from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
+  check("the task's fields change in place", taskRow() === `doing ${colleagueId2} high`, taskRow());
+  await alice.locator("[data-task-description] .bn-editor").click();
+  await alice.keyboard.type("Logo in three colours");
+  await alice.getByText("Збережено").last().waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(2500);
+  check("…the description saves by itself", sql("select description::text like '%Logo in three colours%' from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1") === "t");
+  await alice.getByLabel("Напишіть коментар…").fill("Please use the new palette");
+  await alice.getByRole("button", { name: "Надіслати" }).click();
+  await alice.locator("[data-task-comment]").first().waitFor({ timeout: 15000 });
+  await alice.reload();
+  check("…comments show, and the history tells who changed what", (await alice.getByText("Please use the new palette").count()) === 1 && (await alice.getByText(/змінив\(-ла\) статус/).count()) === 1 && (await alice.getByText(/змінив\(-ла\) виконавця/).count()) === 1);
+
+  // Everyone in the workspace edits by default; the project can make them viewers.
+  const made = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "From a colleague" } });
+  check("a member makes tasks in the project", made.data?.key === "MAR-3", JSON.stringify(made.data));
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("button", { name: "⚙️ Доступ і налаштування" }).click();
+  const dialog = alice.getByRole("dialog", { name: /Доступ до проєкту/ });
+  await dialog.getByRole("combobox").first().selectOption("viewer");
+  await alice.waitForTimeout(1500);
+  const colleagueTab = await newPage(colleagueTaskCookies);
+  await colleagueTab.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  check("…until the project lets the workspace only view", (await colleagueTab.getByText("У цьому проєкті у вас лише перегляд.").count()) === 1 && (await colleagueTab.getByLabel("Нова задача").count()) === 0);
+  const refused = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "Not now" } });
+  check("…and the database refuses their new tasks", refused.data?.error === "forbidden", JSON.stringify(refused.data));
+  await colleagueTab.close();
+  await colleagueTasks.auth.signOut();
+}
+
 // --- Groups of people ---------------------------------------------------------------------------
 {
   const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");
@@ -1285,10 +1347,20 @@ const setupAsGuest = await fetch(`${APP}/api/supabase/setup`, {
 });
 check("only the owner may drive the setup", setupAsGuest.status === 403, String(setupAsGuest.status));
 
+// Tasks of a team workspace live in its own database.
+await gammaTab.goto(`${APP}/w/${gammaShort}/tasks`);
+await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByLabel("Назва проєкту").fill("Delta tasks");
+await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByRole("button", { name: "Створити" }).click();
+await gammaTab.waitForURL(/\/tasks\/DT$/, { timeout: 15000 });
+await gammaTab.getByLabel("Нова задача").fill("Team-owned task");
+await gammaTab.getByLabel("Нова задача").press("Enter");
+await gammaTab.locator('[data-task="DT-1"]').waitFor({ timeout: 15000 });
+check("a team workspace's tasks are in its own database, not centrally", teamSql("select count(*) from public.tasks where title = 'Team-owned task'") === "1" && sql("select count(*) from public.tasks where title = 'Team-owned task'") === "0");
+
 // --- Step 1.8: after all of the above, the central database holds nothing of Team Delta's content ---
 {
   const ws = sql("select id from public.workspaces where name = 'Team Delta'");
-  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_comments", "task_events"];
   const teamPages = teamSql(`select coalesce(string_agg(quote_literal(id::text), ','), 'null') from public.pages where workspace_id = '${ws}'`);
   const central = [
     ...tables.map((table) => `${table}=${sql(`select count(*) from public.${table} where workspace_id = '${ws}'`)}`),
