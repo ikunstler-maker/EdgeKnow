@@ -198,6 +198,8 @@ check(
 check("…and the first-page step is ticked", (await onboarding.getByText("Створити першу сторінку").evaluate((el) => getComputedStyle(el).textDecorationLine).catch(() => "")) === "line-through");
 await onboarding.getByRole("button", { name: "Сховати" }).click();
 await alice.reload();
+// The card may show for a moment until the page has read this browser's choice.
+await alice.locator("[data-onboarding]").waitFor({ state: "detached", timeout: 5000 }).catch(() => {});
 check("…hidden, they stay hidden", (await alice.locator("[data-onboarding]").count()) === 0);
 sql(`delete from public.pages where workspace_id = '${gammaId}'`);
 
