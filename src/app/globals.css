@@ -578,39 +578,44 @@ body {
 }
 
 .ek-lure {
-  transform-origin: 30px 112px;
+  transform-origin: 22px 64px;
   animation: ek-lure-sway 7s ease-in-out infinite;
 }
 .ek-lure-rod {
-  stroke: color-mix(in srgb, var(--foreground) 45%, transparent);
+  stroke: color-mix(in srgb, var(--foreground) 30%, transparent);
 }
+/* Small and calm, so it never competes with the text. */
 .ek-lure-orb {
-  background: radial-gradient(circle at 40% 38%, #fffdf0 0%, #ffe08a 30%, #ffb36b 58%, #ff7fae 85%);
-  box-shadow: 0 0 14px 5px rgba(255, 196, 110, 0.55), 0 0 36px 12px rgba(255, 140, 180, 0.25);
-  animation: ek-lure-glow 2.8s ease-in-out infinite;
-  transition: transform 0.15s;
+  color: rgba(90, 55, 0, 0.75);
+  background: radial-gradient(circle at 40% 38%, #fff8e1 0%, #ffe3a3 45%, #f6b98a 100%);
+  box-shadow: 0 0 6px 1px rgba(255, 196, 110, 0.3);
+  opacity: 0.8;
+  animation: ek-lure-glow 3.2s ease-in-out infinite;
+  transition: transform 0.15s, opacity 0.15s;
 }
 .ek-lure-orb:hover,
 .ek-lure-orb:focus-visible {
-  transform: translateX(-50%) scale(1.1);
+  opacity: 1;
+  transform: translateX(-50%) scale(1.08);
 }
 /* Subdued: translucent white; a hairline edge keeps it visible on a light page. */
 .ek-lure-subtle .ek-lure-rod {
-  stroke: color-mix(in srgb, var(--foreground) 22%, transparent);
+  stroke: color-mix(in srgb, var(--foreground) 18%, transparent);
 }
 .ek-lure-subtle .ek-lure-orb {
-  background: radial-gradient(circle at 40% 38%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.45) 70%);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 16%, transparent), 0 0 10px 3px rgba(255, 255, 255, 0.25);
-  opacity: 0.6;
+  color: color-mix(in srgb, var(--foreground) 55%, transparent);
+  background: radial-gradient(circle at 40% 38%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.4) 70%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--foreground) 16%, transparent);
+  opacity: 0.55;
   animation: none;
 }
 @keyframes ek-lure-sway {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
 }
 @keyframes ek-lure-glow {
-  0%, 100% { box-shadow: 0 0 12px 4px rgba(255, 196, 110, 0.5), 0 0 30px 10px rgba(255, 140, 180, 0.2); }
-  50% { box-shadow: 0 0 18px 7px rgba(255, 196, 110, 0.7), 0 0 44px 16px rgba(255, 140, 180, 0.32); }
+  0%, 100% { box-shadow: 0 0 5px 1px rgba(255, 196, 110, 0.25); }
+  50% { box-shadow: 0 0 9px 2px rgba(255, 196, 110, 0.4); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ek-angler-bob, .ek-angler-tail, .ek-angler-eye, .ek-angler-glow, .ek-lure, .ek-lure-orb {

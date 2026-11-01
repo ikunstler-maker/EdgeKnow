@@ -27,21 +27,23 @@ export function FeedbackButton() {
     <>
       {appearance.lure !== "hidden" && (
         <div
-          className={`ek-lure pointer-events-none fixed bottom-0 left-3 z-30 h-28 w-14 md:left-[16.75rem] ${
+          className={`ek-lure pointer-events-none fixed bottom-0 left-3 z-30 h-16 w-10 md:left-[16.75rem] ${
             appearance.lure === "subtle" ? "ek-lure-subtle" : ""
           }`}
           data-lure={appearance.lure}
         >
-          <svg viewBox="0 0 56 112" className="absolute inset-0 h-full w-full" aria-hidden="true">
-            <path className="ek-lure-rod" d="M30 112 C 34 88, 14 70, 26 40 C 28 34, 28 30, 28 24" fill="none" strokeWidth="1.6" strokeLinecap="round" />
+          <svg viewBox="0 0 40 64" className="absolute inset-0 h-full w-full" aria-hidden="true">
+            <path className="ek-lure-rod" d="M22 64 C 25 52, 14 44, 19 32 C 20 29, 20 27, 20 24" fill="none" strokeWidth="1.4" strokeLinecap="round" />
           </svg>
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label={f.button}
             title={f.button}
-            className="ek-lure-orb pointer-events-auto absolute left-1/2 top-1 h-10 w-10 -translate-x-1/2 rounded-full"
-          />
+            className="ek-lure-orb pointer-events-auto absolute left-1/2 top-0 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full text-[11px] font-bold leading-none"
+          >
+            !?
+          </button>
         </div>
       )}
       {open && <FeedbackDialog onClose={() => setOpen(false)} />}
