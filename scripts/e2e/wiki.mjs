@@ -156,7 +156,7 @@ check("signed-out visitor goes to the workspace login link", anon.url().includes
 
 // --- Stage 3: the editor ------------------------------------------------------
 
-const fixture = JSON.parse(readFileSync(new URL("./fixtures/all-blocks.json", import.meta.url), "utf8"));
+const fixture = JSON.parse(readFileSync(new URL("../fixtures/all-blocks.json", import.meta.url), "utf8"));
 
 // Types and erases a character at the end so the unchanged document gets saved.
 async function nudge(page) {
