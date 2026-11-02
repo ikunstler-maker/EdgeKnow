@@ -17,6 +17,12 @@ export const sql = (query) => execFileSync("psql", [status.DB_URL, "-Atc", query
 
 // Cut by characters, never inside an emoji (half of one breaks GitHub's log).
 export const clip = (text, length) => Array.from(String(text ?? "")).slice(0, length).join("").replace(/[\uD800-\uDFFF]/g, "");
+// GitHub's runner can't write some emoji into its own log: annotations ("::…") carry none.
+const print = console.log.bind(console);
+console.log = (...args) => {
+  const line = args.map(String).join(" ");
+  print(line.startsWith("::") ? line.replace(/[\u{10000}-\u{10FFFF}\uD800-\uDFFF\uFE0F\u200D]/gu, "") : line);
+};
 export const results = [];
 // A crash (timeout, missing element) is reported as an annotation with the last passed step.
 export const consoleErrors = [];
