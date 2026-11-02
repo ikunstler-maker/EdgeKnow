@@ -27,6 +27,7 @@ import {
   TASK_TYPES,
   TYPE_ICONS,
   personLabel,
+  progressOf,
   taskKey,
   type Person,
   type StatusCategory,
@@ -54,6 +55,7 @@ export function TaskBoard({
   tasks: initialTasks,
   members,
   fields,
+  blocked: blockedList,
   me,
   canEdit,
   isOwner,
@@ -64,6 +66,7 @@ export function TaskBoard({
   tasks: TaskRow[];
   members: Person[];
   fields: TaskField[];
+  blocked: string[];
   me: string;
   canEdit: boolean;
   isOwner: boolean;
@@ -90,6 +93,8 @@ export function TaskBoard({
   );
   const personOf = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const labels = useMemo(() => [...new Set(tasks.flatMap((task) => task.labels))].sort(), [tasks]);
+  const progress = useMemo(() => progressOf(tasks, statuses), [tasks, statuses]);
+  const blocked = useMemo(() => new Set(blockedList), [blockedList]);
   const shown = applyFilters(tasks, filters, { me, projectKey: project.key, statuses });
   const ordered = [...shown].sort((a, b) => a.position - b.position || a.number - b.number);
 
@@ -200,6 +205,8 @@ export function TaskBoard({
                         fields={cardFields}
                         customFields={fields.filter((f) => cardFields.has(f.id))}
                         personOf={personOf}
+                        progress={progress.get(task.id)}
+                        blocked={blocked.has(task.id)}
                         canEdit={canEdit}
                       />
                     )}
@@ -362,6 +369,8 @@ function BoardCard({
   fields,
   customFields,
   personOf,
+  progress,
+  blocked,
   canEdit,
 }: {
   task: TaskRow;
@@ -371,6 +380,8 @@ function BoardCard({
   fields: Set<string>;
   customFields: TaskField[];
   personOf: Map<string, Person>;
+  progress?: { done: number; total: number };
+  blocked: boolean;
   canEdit: boolean;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canEdit });
@@ -390,6 +401,11 @@ function BoardCard({
         {fields.has("type") && <span title={k.types[task.type]}>{TYPE_ICONS[task.type]}</span>}
         {fields.has("key") && <span className="font-mono">{key}</span>}
         <span className="flex-1" />
+        {blocked && status.category !== "done" && (
+          <span title={k.hierarchy.blocked} aria-label={k.hierarchy.blockedShort} className="text-danger" data-card-blocked>
+            🔒
+          </span>
+        )}
         {fields.has("priority") && <span title={k.priorities[task.priority]}>{PRIORITY_ICONS[task.priority]}</span>}
       </div>
       <Link href={href} className={`mt-1 block font-medium hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
@@ -433,6 +449,11 @@ function BoardCard({
         {fields.has("due") && task.due_date && <span className={overdue ? "font-medium text-danger" : ""}>📅 {shortDate(task.due_date)}</span>}
         {fields.has("start") && task.start_date && <span>▶ {shortDate(task.start_date)}</span>}
         {fields.has("estimate") && task.estimate !== null && <span>⏱ {task.estimate}</span>}
+        {progress && (fields.has("subtasks") || task.type === "epic") && (
+          <span title={k.hierarchy.progress(progress.done, progress.total)} data-card-progress className={progress.done === progress.total ? "text-emerald-600 dark:text-emerald-400" : ""}>
+            ☑ {progress.done}/{progress.total}
+          </span>
+        )}
         {fields.has("created") && <span title={k.fields.created}>＋ {shortDate(task.created_at)}</span>}
         {fields.has("updated") && <span title={k.fields.updated}>✎ {shortDate(task.updated_at)}</span>}
         {fields.has("reporter") && reporter && <span title={k.fields.reporter}>✍ {personLabel(reporter)}</span>}

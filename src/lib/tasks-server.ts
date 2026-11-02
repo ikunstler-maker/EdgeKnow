@@ -1,7 +1,8 @@
 import "server-only";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, type Workspace } from "@/lib/workspace";
-import type { Person, ProjectRole, TaskField, TaskStatus } from "@/lib/tasks";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { blockedTasks, type LinkedTask, type Person, type ProjectRole, type TaskField, type TaskLink, type TaskStatus } from "@/lib/tasks";
 
 // A project by its key, with what every task screen needs: columns, the
 // person's role and the workspace's members (for assignees). Reads go to
@@ -54,3 +55,37 @@ export async function loadProject(shortId: string, key: string): Promise<Project
 
 export const canEdit = (role: ProjectRole) => role === "owner" || role === "editor";
 export const canComment = (role: ProjectRole) => role !== "viewer";
+
+type OtherTask = { id: string; number: number; title: string; done_at: string | null; deleted_at: string | null; project: { key: string } | null };
+
+// Tasks by id as the reader may see them; hidden ones come back without key and title.
+export async function linkedTasks(db: SupabaseClient, ids: string[]): Promise<Map<string, LinkedTask>> {
+  const result = new Map<string, LinkedTask>(ids.map((id) => [id, { id, key: null, title: null, done: null, deleted: false }]));
+  if (!ids.length) return result;
+  const { data } = await db
+    .from("tasks")
+    .select("id, number, title, done_at, deleted_at, project:task_projects(key)")
+    .in("id", ids)
+    .overrideTypes<OtherTask[], { merge: false }>();
+  for (const task of data ?? []) {
+    result.set(task.id, {
+      id: task.id,
+      key: task.project ? `${task.project.key}-${task.number}` : null,
+      title: task.title,
+      done: task.done_at !== null,
+      deleted: task.deleted_at !== null,
+    });
+  }
+  return result;
+}
+
+// "Blocks" links of the workspace and which of the given tasks are blocked now.
+// Tasks in hand (`known`: id → done) need no second read.
+export async function blockedIn(db: SupabaseClient, workspaceId: string, known: Map<string, boolean>) {
+  const { data } = await db.from("task_links").select("id, source_id, target_id, kind").eq("workspace_id", workspaceId).eq("kind", "blocks");
+  const links = ((data ?? []) as TaskLink[]).filter((l) => known.has(l.target_id));
+  const others = [...new Set(links.map((l) => l.source_id).filter((id) => !known.has(id)))];
+  const done = new Map(known);
+  for (const [id, task] of await linkedTasks(db, others)) if (task.done !== null) done.set(id, task.done || task.deleted);
+  return blockedTasks(links, done);
+}

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { workspacePath } from "@/lib/paths";
 import { t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
-import { canEdit, loadProject } from "@/lib/tasks-server";
+import { blockedIn, canEdit, loadProject } from "@/lib/tasks-server";
 import { TASK_COLUMNS, type TaskRow } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
@@ -35,6 +35,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     .is("deleted_at", null)
     .order("number", { ascending: false })
     .overrideTypes<TaskRow[], { merge: false }>();
+  // Which tasks are blocked by an unfinished one (step Z3).
+  const doneStatuses = new Set(view.statuses.filter((s) => s.category === "done").map((s) => s.id));
+  const blocked = [...(await blockedIn(db, view.workspace.id, new Map((tasks ?? []).map((task) => [task.id, doneStatuses.has(task.status_id)]))))];
 
   // What the access dialog shows (only for those who manage the project).
   let access: ProjectAccess | null = null;
@@ -89,6 +92,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           tasks={tasks ?? []}
           members={view.members}
           fields={view.fields}
+          blocked={blocked}
           me={user.id}
           canEdit={canEdit(view.role)}
           isOwner={view.role === "owner"}
@@ -101,6 +105,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           tasks={tasks ?? []}
           members={view.members}
           fields={view.fields}
+          blocked={blocked}
           me={user.id}
           canEdit={canEdit(view.role)}
         />
