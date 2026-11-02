@@ -29,7 +29,7 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000028b1';
 select public.create_service_object(:'ws', 'nodes', 'mindmap', 'Plan', '{"nodes": [{"id": "r", "text": "Launch"}, {"id": "a", "parent": "r", "text": "Design"}]}') as made \gset
 select 'bob makes a map: ' || (:'made'::jsonb ->> 'ok');
 select (:'made'::jsonb ->> 'id') as map \gset
-select 'not a service yet: ' || public.create_service_object(:'ws', 'boards', 'board', 'x', '{}')::text;
+select 'not a service yet: ' || public.create_service_object(:'ws', 'sheets', 'sheet', 'x', '{}')::text;
 select 'unknown kind: ' || public.create_service_object(:'ws', 'nodes', 'pie', 'x', '{}')::text;
 select 'title too long: ' || public.create_service_object(:'ws', 'nodes', 'mindmap', repeat('x', 201), '{}')::text;
 select 'text for search: ' || search_text from public.service_objects where id = :'map';

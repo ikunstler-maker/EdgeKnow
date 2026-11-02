@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 !.env.example
 .team-stacks/
+
+# Board fonts, copied at build time (scripts/copy-excalidraw-assets.mjs)
+/public/excalidraw-assets/

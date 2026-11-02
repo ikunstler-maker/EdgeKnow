@@ -1,0 +1,16 @@
+bob makes a board: true
+a board of another kind: {"ok": false, "error": "invalid"}
+a map is still a map: true
+text for search (deleted text left out): Went well Sprint 12
+save: 2
+stale save: {"ok": false, "error": "conflict", "version": 2}
+after: Retro 12 / Went better
+the guest sees boards: 0
+the guest makes a board: {"ok": false, "error": "forbidden"}
+bob shares it with the guest: true
+now she edits it: true
+outsider sees: 0
+outsider makes one in the workspace: {"ok": false, "error": "forbidden"}
+outsider saves: {"ok": false, "error": "forbidden"}
+to the bin: true
+forever: true
