@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { t } from "@/i18n";
@@ -17,12 +17,18 @@ export function FilesSettingsButton({ shortId, workspaceId, project, teamStorage
   const params = useSearchParams();
   // Back from connecting a Drive: open again.
   const [open, setOpen] = useState(params.get("files") === "1");
+  // The dialog lives in document.body: only in the browser.
+  const inBrowser = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={`inline-flex items-center ${buttonClass}`}>
         {s.button}
       </button>
-      {open && <FilesDialog shortId={shortId} workspaceId={workspaceId} project={project} teamStorage={teamStorage} onClose={() => setOpen(false)} />}
+      {open && inBrowser && <FilesDialog shortId={shortId} workspaceId={workspaceId} project={project} teamStorage={teamStorage} onClose={() => setOpen(false)} />}
     </>
   );
 }
