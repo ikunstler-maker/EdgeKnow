@@ -22,9 +22,12 @@ on:
       - ".github/workflows/db-migrate.yml"
   workflow_dispatch:
 
+# Tests of different branches run side by side (each on its own throwaway
+# machines); a newer push to the same pull request replaces its older run.
+# Only applying migrations to production waits in one line (the migrate job).
 concurrency:
-  group: db-migrate
-  cancel-in-progress: false
+  group: db-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -144,6 +147,9 @@ jobs:
 
   migrate:
     needs: [test, api, team]
+    concurrency:
+      group: db-migrate-production
+      cancel-in-progress: false
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     env:
