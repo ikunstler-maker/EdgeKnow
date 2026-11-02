@@ -3,6 +3,7 @@ import { t } from "@/i18n";
 import { pagePath, workspacePath } from "@/lib/paths";
 import { SERVICES } from "@/lib/services";
 import { NewPageButton } from "@/components/pages/new-page-button";
+import { NewNodeMapButton } from "@/components/nodes/node-list-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const s = t.services;
@@ -13,7 +14,7 @@ type RecentTask = { number: number; title: string; project: { key: string } | nu
 // The start page: a tile per service with what was used last; services still
 // being built show as "Soon", so they can be seen (and tried) as they appear.
 export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: SupabaseClient; workspaceId: string; shortId: string; userId: string }) {
-  const [{ data: pages }, { data: tasks }, { count: myOpen }] = await Promise.all([
+  const [{ data: pages }, { data: tasks }, { count: myOpen }, { data: maps }] = await Promise.all([
     db.from("pages").select("id, title, icon").eq("workspace_id", workspaceId).is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
     db
       .from("tasks")
@@ -24,9 +25,11 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
       .limit(3)
       .overrideTypes<RecentTask[], { merge: false }>(),
     db.from("tasks").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("assignee_id", userId).is("deleted_at", null).is("done_at", null),
+    db.from("service_objects").select("id, title, kind").eq("workspace_id", workspaceId).eq("service", "nodes").is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
   ]);
   const recent: Record<string, { href: string; label: string }[]> = {
     wiki: ((pages ?? []) as RecentPage[]).map((p) => ({ href: pagePath(shortId, p.id), label: `${p.icon ?? "📄"} ${p.title || t.pages.untitled}` })),
+    nodes: ((maps ?? []) as { id: string; title: string; kind: string }[]).map((m) => ({ href: workspacePath(shortId, `/nodes/${m.id}`), label: `${m.kind === "flow" ? "🔀" : "🧠"} ${m.title || t.nodes.untitled}` })),
     tasks: (tasks ?? []).flatMap((task) =>
       task.project ? [{ href: workspacePath(shortId, `/tasks/${task.project.key}/${task.number}`), label: `${task.project.key}-${task.number} ${task.title}` }] : [],
     ),
@@ -83,6 +86,15 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
                   <div className="mt-auto flex flex-wrap gap-2 pt-3">
                     {service.key === "wiki" ? (
                       <NewPageButton />
+                    ) : service.key === "nodes" ? (
+                      <>
+                        <NewNodeMapButton shortId={shortId} />
+                        {href && (
+                          <Link href={href} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9">
+                            {s.open}
+                          </Link>
+                        )}
+                      </>
                     ) : (
                       href && (
                         <Link href={href} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9">

@@ -77,7 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [wiki, tasks, team]
+        part: [wiki, tasks, nodes, team]
     name: e2e (${{ matrix.part }})
     steps:
       - uses: actions/checkout@v6

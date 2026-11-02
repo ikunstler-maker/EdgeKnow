@@ -28,7 +28,8 @@ export function ServiceSwitcher({ shortId, pathname, onNavigate }: { shortId: st
           );
         }
         const href = service.key === "wiki" ? home : workspacePath(shortId, service.path);
-        const here = service.key === "tasks" ? inTasks : !inTasks && pathname.includes("/p/");
+        const inService = (key: string) => pathname.startsWith(workspacePath(shortId, `/${key}`));
+        const here = service.key === "wiki" ? !inTasks && pathname.includes("/p/") : inService(service.path.slice(1));
         return (
           <Link key={service.key} href={href} onClick={onNavigate} title={item.name} aria-label={item.name} aria-current={here ? "page" : undefined} className={`${cell} ${here ? "bg-surface" : "hover:bg-surface"}`}>
             {service.icon}

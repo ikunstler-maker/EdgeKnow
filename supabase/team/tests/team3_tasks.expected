@@ -13,3 +13,5 @@ team files to the team storage: true
 carol sees files: 0, attaches: forbidden
 team mention: 1
 carol sees team mentions: 0
+team map saved: 2
+carol sees team maps: 0, saves: forbidden

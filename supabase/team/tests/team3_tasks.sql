@@ -88,3 +88,14 @@ set role authenticated;
 :as_carol;
 select 'carol sees team mentions: ' || count(*) from public.task_page_links;
 reset role;
+
+-- Node space objects in the team database.
+set role authenticated;
+:as_alice;
+select public.create_service_object(:'ws', 'nodes', 'mindmap', 'Team map', '{"nodes": [{"id": "r", "text": "Team"}]}') ->> 'id' as team_map \gset
+select 'team map saved: ' || (public.save_service_object(:'team_map', 'Team map 2', null, 1) ->> 'version');
+reset role;
+set role authenticated;
+:as_carol;
+select 'carol sees team maps: ' || count(*) || ', saves: ' || (public.save_service_object(:'team_map', 'x', null, 2) ->> 'error') from public.service_objects;
+reset role;

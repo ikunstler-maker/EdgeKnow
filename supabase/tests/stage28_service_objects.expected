@@ -1,0 +1,32 @@
+bob makes a map: true
+not a service yet: {"ok": false, "error": "invalid"}
+unknown kind: {"ok": false, "error": "invalid"}
+title too long: {"ok": false, "error": "title_too_long"}
+text for search: Launch Design
+save: {"ok": true, "version": 2}
+stale save: {"ok": false, "error": "conflict", "version": 2}
+after: Launch plan / Launch Budget / v2
+dave (workspace editor) saves: true
+dave can't manage access: {"ok": false, "error": "forbidden"}
+bob makes it private: true
+dave sees: 0
+dave saves: {"ok": false, "error": "forbidden"}
+alice (owner of the workspace) sees: 1
+bob gives dave view: true
+to an outsider: {"ok": false, "error": "not_a_member"}
+dave the viewer sees: 1, saves: forbidden, trashes: forbidden
+bob gives the group edit: true
+dave through the group saves: true
+outsider sees: 0
+outsider sees access: 0
+outsider makes one in the workspace: {"ok": false, "error": "forbidden"}
+outsider saves: {"ok": false, "error": "forbidden"}
+outsider trashes: {"ok": false, "error": "forbidden"}
+alice removes dave: true
+dave's own access gone: 0
+forever before the bin: {"ok": false, "error": "forbidden"}
+to the bin: true
+saving in the bin: {"ok": false, "error": "forbidden"}
+forever: true
+gone: 0
+direct writes refused: false false
