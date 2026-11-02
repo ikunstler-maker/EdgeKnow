@@ -13,6 +13,7 @@ import { t } from "@/i18n";
 import { calloutBlock } from "./callout-block";
 import { dropdownChip, pageChip, personChip } from "./chips";
 import { taskChip, tasksBlock } from "./task-blocks";
+import { nodeMapBlock } from "./node-map-block";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
 import { linkCardBlock } from "./link-card-block";
@@ -103,6 +104,7 @@ export const schema = BlockNoteSchema.create({
     linkCard: linkCardBlock(),
     navigation: navigationBlock(),
     tasks: tasksBlock(),
+    nodeMap: nodeMapBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

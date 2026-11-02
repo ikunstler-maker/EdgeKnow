@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { APP, alice, alphaShort, check, colleague, finish, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, check, colleague, finish, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
 const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
@@ -116,5 +116,46 @@ await alice.locator("[data-flow]").getByLabel("Форма").selectOption("diamon
 const flowSaved = () => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = 'Order flow'), 'null'::jsonb)::text`));
 check("a new diagram gets a box in the shape chosen", await until(() => flowSaved()?.nodes?.[0]?.shape === "diamond" && flowSaved()?.nodes?.[0]?.title === "Is it paid?", 15000), JSON.stringify(flowSaved()));
 check("…and its text is found by search", await until(() => sql("select search_text from public.service_objects where title = 'Order flow'").includes("Is it paid?"), 10000));
+
+// Step Н3: maps on wiki pages — live, folding and renaming in place; search finds them.
+const orderId = sql("select id from public.service_objects where title = 'Order flow'");
+const notesPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Map notes" })).data.id;
+const notesSaved = await aliceClient.rpc("save_page_content", {
+  target_page: notesPage,
+  new_content: [
+    { id: "m1", type: "nodeMap", props: { objectId: mapId }, children: [] },
+    { id: "m2", type: "nodeMap", props: { objectId: orderId }, children: [] },
+  ],
+  base_version: 1,
+});
+check("(setup) a page with a map and a diagram", notesSaved.data?.ok === true, JSON.stringify(notesSaved.data));
+await alice.goto(`${APP}/w/${alphaShort}/p/${notesPage}`);
+const embed = alice.locator('[data-node-embed="Launch map"]');
+await embed.locator('[data-map-node="Launch"]').waitFor({ timeout: 20000 });
+check("a map shows on the page, and a diagram too", (await alice.locator('[data-node-embed="Order flow"] .react-flow__node').count()) === 1);
+await embed.getByRole("button", { name: /Показати всю карту/ }).click();
+await alice.waitForTimeout(400);
+await embed.locator('[data-map-node="Team"]').dblclick();
+await alice.keyboard.press("Control+A");
+await alice.keyboard.type("People");
+await alice.keyboard.press("Enter");
+check("…a node is renamed right on the page and the map saves it", await until(() => texts("Launch map").includes("People") && !texts("Launch map").includes("Team"), 15000), JSON.stringify(texts("Launch map")));
+sql(`update public.service_objects set data = jsonb_set(data, '{nodes,0,text}', '"Launch 2"'), version = version + 1 where id = '${mapId}'`);
+await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
+await embed.locator('[data-map-node="Launch 2"]').waitFor({ timeout: 20000 }).catch(() => {});
+check("…a change made elsewhere shows up without editing the page", (await embed.locator('[data-map-node="Launch 2"]').count()) === 1);
+
+await alice.getByRole("button", { name: /Пошук/ }).first().click();
+await alice.getByRole("button", { name: "🧠 Карти" }).click();
+await alice.getByLabel(/Шукати в назвах/).fill("Budget");
+await alice.locator("[data-map-results]").getByText("Launch map").waitFor({ timeout: 15000 }).catch(() => {});
+check("search “Maps” finds a map by the text of its nodes", (await alice.locator("[data-map-results]").getByText("Launch map").count()) === 1);
+await alice.keyboard.press("Escape");
+
+sql(`update public.service_objects set workspace_role = null where id = '${orderId}'`);
+sql(`update public.pages set workspace_role = 'viewer' where id = '${notesPage}'`);
+await colleague.goto(`${APP}/w/${alphaShort}/p/${notesPage}`);
+await colleague.getByText("Немає доступу до цієї карти.").waitFor({ timeout: 20000 }).catch(() => {});
+check("someone without access to a map sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї карти.").count()) === 1 && (await colleague.getByText("Order flow").count()) === 0 && (await colleague.locator('[data-node-embed="Launch map"] [data-map-node]').count()) > 0);
 
 await finish("nodes");

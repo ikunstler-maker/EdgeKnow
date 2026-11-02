@@ -104,9 +104,10 @@ function EditField({ text, x, y, root, onCommit }: { text: string; x: number; y:
   );
 }
 
-type CanvasProps = { shortId: string; map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void };
+// compact: inside a wiki page — fold branches and rename nodes only, a smaller canvas.
+type CanvasProps = { shortId: string; map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void; compact?: boolean };
 
-function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps) {
+function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = false }: CanvasProps) {
   const router = useRouter();
   const [pasting, setPasting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -159,8 +160,8 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
       const current = latest.nodes.find((node) => node.id === id);
       const clean = text.trim().slice(0, 500);
       const next = current && current.text !== clean ? updateNode(latest, id, { text: clean }) : latest;
-      if (then === "child") return grow(addChild(next, id));
-      if (then === "sibling") return grow(addSibling(next, id));
+      if (then === "child" && !compact) return grow(addChild(next, id));
+      if (then === "sibling" && !compact) return grow(addSibling(next, id));
       if (next !== latest) change(next);
       wrapper.current?.focus();
     },
@@ -230,6 +231,13 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
       return callbacks.toggle(node.id);
     }
     if (!editable) return;
+    if (compact) {
+      if (e.key === "F2") {
+        e.preventDefault();
+        edit(node.id);
+      }
+      return;
+    }
     if (e.key === "Tab") {
       e.preventDefault();
       return grow(addChild(map, node.id));
@@ -253,7 +261,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
   return (
     <div className="mt-3 flex flex-1 flex-col gap-2">
       <div role="toolbar" aria-label={n.toolbar} className="flex flex-wrap items-center gap-1" data-map-toolbar>
-        {editable && (
+        {editable && !compact && (
           <>
             <button type="button" title={n.addChildHint} onClick={() => grow(addChild(map, node.id))} className={tool}>
               {n.addChild}
@@ -266,10 +274,15 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
             </button>
           </>
         )}
+        {editable && compact && (
+          <button type="button" aria-label={n.edit} title={n.edit} onClick={() => edit(node.id)} className={tool}>
+            ✏️
+          </button>
+        )}
         <button type="button" disabled={!childrenOf(map, node.id).length} aria-label={node.collapsed ? n.expand : n.collapse} title={node.collapsed ? n.expand : n.collapse} onClick={() => callbacks.toggle(node.id)} className={tool}>
           {node.collapsed ? "⊞" : "⊟"}
         </button>
-        {editable && (
+        {editable && !compact && (
           <>
             <select
               value={node.color ?? "default"}
@@ -301,6 +314,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
         <button type="button" onClick={() => flow.fitView({ duration: 200, padding: 0.2 })} className={tool}>
           ⤢ {n.fit}
         </button>
+        {!compact && (<>
         <button
           type="button"
           onClick={async () => {
@@ -327,7 +341,8 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
         >
           🔀 {n.toFlow}
         </button>
-        <span className="hidden text-xs text-muted lg:inline">{editable ? n.keys : ""}</span>
+        </>)}
+        <span className="hidden text-xs text-muted lg:inline">{editable ? (compact ? n.keysCompact : n.keys) : ""}</span>
       </div>
       {notice && (
         <p role="status" className="text-sm text-muted">
@@ -374,7 +389,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps
         onKeyDown={onKey}
         aria-label={t.nodes.kinds.mindmap}
         data-mind-map
-        className="relative h-[65vh] min-h-80 overflow-hidden rounded-xl border border-border outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className={`relative ${compact ? "h-96" : "h-[65vh] min-h-80"} overflow-hidden rounded-xl border border-border outline-none focus-visible:ring-2 focus-visible:ring-accent`}
       >
         <CallbacksContext value={callbacks}>
         <ReactFlow
