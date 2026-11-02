@@ -1,7 +1,7 @@
 import "server-only";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, type Workspace } from "@/lib/workspace";
-import type { Person, ProjectRole, TaskStatus } from "@/lib/tasks";
+import type { Person, ProjectRole, TaskField, TaskStatus } from "@/lib/tasks";
 
 // A project by its key, with what every task screen needs: columns, the
 // person's role and the workspace's members (for assignees). Reads go to
@@ -10,6 +10,7 @@ export type ProjectView = {
   workspace: Workspace;
   project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean };
   statuses: TaskStatus[];
+  fields: TaskField[];
   role: ProjectRole;
   members: Person[];
 };
@@ -25,7 +26,7 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     .eq("key", key.toUpperCase())
     .maybeSingle();
   if (!project) return null;
-  const [{ data: statuses }, { data: role }, { data: members }] = await Promise.all([
+  const [{ data: statuses }, { data: role }, { data: members }, { data: fields }] = await Promise.all([
     db.from("task_statuses").select("id, name, category, position, wip_limit").eq("project_id", project.id).order("position"),
     db.rpc("task_project_role", { target_project: project.id }),
     db
@@ -34,12 +35,14 @@ export async function loadProject(shortId: string, key: string): Promise<Project
       .eq("workspace_id", workspace.id)
       .eq("status", "active")
       .overrideTypes<{ user_id: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
+    db.from("task_fields").select("id, name, kind, options, required, task_types, position").eq("project_id", project.id).order("position"),
   ]);
   if (!role) return null;
   return {
     workspace,
     project,
     statuses: (statuses ?? []) as TaskStatus[],
+    fields: (fields ?? []) as TaskField[],
     role: role as ProjectRole,
     members: (members ?? [])
       .filter((m) => m.profile)

@@ -11,10 +11,13 @@ import {
   TASK_TYPES,
   TYPE_ICONS,
   personLabel,
+  fieldApplies,
   type Person,
+  type TaskField,
   type TaskRow,
   type TaskStatus,
 } from "@/lib/tasks";
+import { FieldValue } from "./field-value";
 import { addTaskComment, deleteTask, editTaskComment, updateTask } from "@/app/task-actions";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
@@ -31,6 +34,7 @@ export function TaskDetail({
   taskKey,
   task,
   statuses,
+  fields,
   members,
   comments,
   events,
@@ -42,6 +46,7 @@ export function TaskDetail({
   taskKey: string;
   task: TaskRow & { description: unknown; deleted_at: string | null };
   statuses: TaskStatus[];
+  fields: TaskField[];
   members: Person[];
   comments: TaskComment[];
   events: TaskEvent[];
@@ -266,6 +271,22 @@ export function TaskDetail({
             className={inputClass}
           />
         </Field>
+        {fields.some((field) => fieldApplies(field, task.type)) && (
+          <div className="space-y-3 border-t border-border pt-3" aria-label={k.customFields.heading} role="group">
+            {fields
+              .filter((field) => fieldApplies(field, task.type))
+              .map((field) => (
+                <FieldValue
+                  key={field.id}
+                  field={field}
+                  value={task.custom?.[field.id]}
+                  members={members}
+                  disabled={!canEdit || pending}
+                  onChange={(value) => change({ custom: { [field.id]: value } })}
+                />
+              ))}
+          </div>
+        )}
         <dl className="space-y-1 border-t border-border pt-3 text-xs text-muted">
           <div>
             <dt className="inline">{k.fields.reporter}: </dt>

@@ -32,10 +32,27 @@ export type TaskRow = {
   created_at: string;
   updated_at: string;
   done_at: string | null;
+  // The project's own fields: {"<field id>": value}.
+  custom: Record<string, unknown>;
 };
 
+export type FieldKind = "text" | "longtext" | "number" | "select" | "multiselect" | "checkbox" | "toggle" | "date" | "color" | "url" | "person";
+export const FIELD_KINDS: FieldKind[] = ["text", "longtext", "number", "select", "multiselect", "checkbox", "toggle", "date", "color", "url", "person"];
+export type FieldOption = { id: string; label: string; color?: string | null };
+export type TaskField = {
+  id: string;
+  name: string;
+  kind: FieldKind;
+  options: FieldOption[];
+  required: boolean;
+  task_types: TaskType[] | null;
+  position: number;
+};
+export const fieldApplies = (field: TaskField, type: TaskType) => !field.task_types || field.task_types.includes(type);
+export const isEmptyValue = (value: unknown) => value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+
 export const TASK_COLUMNS =
-  "id, number, title, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, done_at";
+  "id, number, title, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, done_at, custom";
 
 export const PROJECT_KEY = /^[A-Z][A-Z0-9]{1,9}$/;
 
