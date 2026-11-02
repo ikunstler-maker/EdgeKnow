@@ -56,7 +56,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+    <main className={`mx-auto w-full flex-1 px-4 py-8 ${mode === "board" ? "max-w-none" : "max-w-7xl"}`} data-project-main>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex-1 text-2xl font-semibold">
           {view.project.icon ?? "📋"} {view.project.name} <span className="font-mono text-base text-muted">{view.project.key}</span>

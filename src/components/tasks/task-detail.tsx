@@ -153,7 +153,7 @@ export function TaskDetail({
 
         <h2 className="mt-6 text-sm font-medium text-muted">{k.description}</h2>
         <div className="mt-2 -mx-3">
-          <TaskDescription taskId={task.id} initial={task.description} editable={canEdit} />
+          <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={canEdit} />
         </div>
 
         <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} />
