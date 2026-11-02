@@ -156,7 +156,17 @@ await alice.keyboard.press("Escape");
 sql(`update public.service_objects set workspace_role = null where id = '${orderId}'`);
 sql(`update public.pages set workspace_role = 'viewer' where id = '${notesPage}'`);
 await colleague.goto(`${APP}/w/${alphaShort}/p/${notesPage}`);
-await colleague.getByText("Немає доступу до цієї карти.").waitFor({ timeout: 20000 }).catch(() => {});
-check("someone without access to a map sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї карти.").count()) === 1 && (await colleague.getByText("Order flow").count()) === 0 && (await colleague.locator('[data-node-embed="Launch map"] [data-map-node]').count()) > 0);
+const untilShown = async (locator, ms = 20000) => {
+  for (let i = 0; i < ms / 250; i++) {
+    if ((await locator.count()) > 0) return true;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return false;
+};
+const hidden = await untilShown(colleague.getByText("Немає доступу до цієї карти."));
+const shownMap = await untilShown(colleague.locator('[data-node-embed="Launch map"] [data-map-node]'));
+const screen = (await colleague.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 300);
+check("someone without access to a map sees “no access” on the page, not its name", hidden && (await colleague.getByText("Order flow").count()) === 0, screen);
+check("…while a map they may view shows as usual", shownMap, screen);
 
 await finish("nodes");
