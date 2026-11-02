@@ -19,15 +19,15 @@ async function call<T extends object = object>(shortId: string | undefined, fn: 
   return data as ActionResult<T>;
 }
 
-export async function createNodeMap(shortId: string, kind: "mindmap" | "flow") {
+export async function createNodeMap(shortId: string, kind: "mindmap" | "flow", data?: unknown, title?: string) {
   const workspace = await getWorkspace(shortId);
   if (!workspace) return { ok: false, error: "forbidden" } as ActionResult<{ id: string }>;
   return call<{ id: string }>(shortId, "create_service_object", {
     ws: workspace.id,
     target_service: "nodes",
     new_kind: kind,
-    new_title: "",
-    new_data: newMap(t.nodes.centralTopic),
+    new_title: (title ?? "").slice(0, 200),
+    new_data: data ?? (kind === "flow" ? { nodes: [], edges: [] } : newMap(t.nodes.centralTopic)),
   });
 }
 

@@ -8,7 +8,7 @@ import { createNodeMap, deleteNodeMapForever, trashNodeMap } from "@/app/node-ac
 
 const buttonClass = "inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
 
-export function NewNodeMapButton({ shortId }: { shortId: string }) {
+export function NewNodeMapButton({ shortId, kind = "mindmap" }: { shortId: string; kind?: "mindmap" | "flow" }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -19,14 +19,14 @@ export function NewNodeMapButton({ shortId }: { shortId: string }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            const made = await createNodeMap(shortId, "mindmap");
+            const made = await createNodeMap(shortId, kind);
             if (!made.ok) return setError(t.nodes.errors[made.error] ?? t.common.unknownError);
             router.push(workspacePath(shortId, `/nodes/${made.id}`));
           })
         }
-        className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9"
+        className={`inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-medium disabled:opacity-60 md:min-h-9 ${kind === "flow" ? "border border-border hover:bg-surface" : "bg-accent text-white"}`}
       >
-        {t.nodes.newMap}
+        {kind === "flow" ? t.nodes.newFlow : t.nodes.newMap}
       </button>
       {error && (
         <p role="alert" className="w-full text-sm text-danger">

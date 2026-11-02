@@ -46,12 +46,18 @@ import {
   type FillName,
   type Guides,
   type StrokeName,
+  type Shape,
+  EDGE_LABEL_MAX,
+  FLOW_MAX_EDGES,
+  FLOW_MAX_NODES,
+  MAX_NODES,
+  SHAPES,
 } from "@/lib/diagram";
 
 const d = t.editor.diagram;
 const SAVE_DELAY_MS = 400;
 
-type BoxData = { title: string; description: string; fill: FillName; stroke: StrokeName; emoji: string };
+type BoxData = { title: string; description: string; fill: FillName; stroke: StrokeName; emoji: string; shape: Shape };
 type BoxNode = Node<BoxData, "box">;
 
 const edgeDefaults = {
@@ -59,6 +65,23 @@ const edgeDefaults = {
   markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: STROKES.gray },
   style: { stroke: STROKES.gray, strokeWidth: 1.5 },
 } satisfies Partial<Edge>;
+
+// An arrow as React Flow draws it: its label and dashes come from the saved edge.
+function edgeView(e: Diagram["edges"][number]): Edge {
+  return {
+    ...edgeDefaults,
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    sourceHandle: e.sourceHandle,
+    targetHandle: e.targetHandle,
+    label: e.label || undefined,
+    labelBgPadding: [4, 2],
+    labelBgBorderRadius: 4,
+    data: { label: e.label, dashed: e.dashed },
+    style: { ...edgeDefaults.style, strokeDasharray: e.dashed ? "6 4" : undefined },
+  };
+}
 
 function toFlow(diagram: Diagram): { nodes: BoxNode[]; edges: Edge[] } {
   return {
@@ -68,9 +91,9 @@ function toFlow(diagram: Diagram): { nodes: BoxNode[]; edges: Edge[] } {
       position: { x: n.x, y: n.y },
       width: n.width,
       height: n.height,
-      data: { title: n.title, description: n.description, fill: n.fill, stroke: n.stroke, emoji: n.emoji },
+      data: { title: n.title, description: n.description, fill: n.fill, stroke: n.stroke, emoji: n.emoji, shape: n.shape },
     })),
-    edges: diagram.edges.map((e) => ({ ...edgeDefaults, ...e })),
+    edges: diagram.edges.map(edgeView),
   };
 }
 
@@ -90,6 +113,8 @@ function fromFlow(nodes: BoxNode[], edges: Edge[]): Diagram {
       target: e.target,
       sourceHandle: e.sourceHandle ?? null,
       targetHandle: e.targetHandle ?? null,
+      label: String((e.data as { label?: string } | undefined)?.label ?? ""),
+      dashed: Boolean((e.data as { dashed?: boolean } | undefined)?.dashed),
     })),
   };
 }
@@ -108,7 +133,8 @@ function BoxNodeView({ data, selected, isConnectable }: NodeProps<BoxNode>) {
         handleClassName="ek-diagram-resize-handle"
       />
       <div
-        className="ek-diagram-node"
+        className={`ek-diagram-node ek-shape-${data.shape ?? "round"}`}
+        data-shape={data.shape ?? "round"}
         style={{
           background: FILLS[data.fill],
           borderColor: selected ? "var(--accent)" : STROKES[data.stroke],
@@ -151,6 +177,8 @@ function GuideLines({ guides }: { guides: Guides }) {
 }
 
 export type DiagramCanvasProps = {
+  // Node space: a whole screen, more nodes, no height picker.
+  large?: boolean;
   data: string;
   height: number;
   editable: boolean;
@@ -166,8 +194,9 @@ export default function DiagramCanvas(props: DiagramCanvasProps) {
   );
 }
 
-function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCanvasProps) {
-  const initial = useMemo(() => toFlow(parseDiagram(data)), [data]);
+function Canvas({ data, height, editable, onChange, onHeightChange, large }: DiagramCanvasProps) {
+  const limits = large ? { nodes: FLOW_MAX_NODES, edges: FLOW_MAX_EDGES } : undefined;
+  const initial = useMemo(() => toFlow(parseDiagram(data, limits)), [data]); // eslint-disable-line react-hooks/exhaustive-deps
   const [nodes, setNodes] = useState<BoxNode[]>(initial.nodes);
   const [edges, setEdges] = useState<Edge[]>(initial.edges);
   const [guides, setGuides] = useState<Guides>({ vertical: null, horizontal: null });
@@ -256,12 +285,26 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
   const selected = selectedNodes.length === 1 ? selectedNodes[0] : null;
   const selectedEdges = edges.filter((e) => e.selected);
 
+  const selectedEdge = selectedEdges.length === 1 && !selectedNodes.length ? selectedEdges[0] : null;
+  const updateEdge = (patch: { label?: string; dashed?: boolean }) => {
+    if (!selectedEdge) return;
+    setEdges((current) =>
+      current.map((e) => {
+        if (e.id !== selectedEdge.id) return e;
+        const now = { label: String((e.data as { label?: string })?.label ?? ""), dashed: Boolean((e.data as { dashed?: boolean })?.dashed), ...patch };
+        return { ...edgeView({ id: e.id, source: e.source, target: e.target, sourceHandle: e.sourceHandle ?? null, targetHandle: e.targetHandle ?? null, ...now }), selected: true };
+      }),
+    );
+  };
+
   const updateSelected = (patch: Partial<BoxData>) => {
     if (!selected) return;
     setNodes((current) => current.map((n) => (n.id === selected.id ? { ...n, data: { ...n.data, ...patch } } : n)));
   };
 
+  const maxNodes = large ? FLOW_MAX_NODES : MAX_NODES;
   const addNode = () => {
+    if (nodes.length >= maxNodes) return;
     // In the middle of what's on screen.
     const rect = wrapper.current?.getBoundingClientRect();
     const center = rect
@@ -322,7 +365,7 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
             {d.delete}
           </button>
           <span className="flex-1" />
-          <label className="flex items-center gap-1 text-xs text-muted">
+          {!large && <label className="flex items-center gap-1 text-xs text-muted">
             {d.height}
             <select
               value={height}
@@ -335,7 +378,7 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
                 </option>
               ))}
             </select>
-          </label>
+          </label>}
         </div>
       )}
 
@@ -405,7 +448,15 @@ function Canvas({ data, height, editable, onChange, onHeightChange }: DiagramCan
       {editable && selectedNodes.length > 1 && (
         <div className="border-t border-border px-3 py-2 text-xs text-muted">{d.selected(selectedNodes.length)}</div>
       )}
-      {editable && !selectedNodes.length && selectedEdges.length > 0 && (
+      {editable && selectedEdge && (
+        <EdgeSettings
+          key={selectedEdge.id}
+          label={String((selectedEdge.data as { label?: string } | undefined)?.label ?? "")}
+          dashed={Boolean((selectedEdge.data as { dashed?: boolean } | undefined)?.dashed)}
+          onChange={updateEdge}
+        />
+      )}
+      {editable && !selectedNodes.length && selectedEdges.length > 1 && (
         <div className="border-t border-border px-3 py-2 text-xs text-muted">{d.edgeSelected}</div>
       )}
       {editable && !selectedNodes.length && !selectedEdges.length && nodes.length > 0 && (
@@ -473,6 +524,16 @@ function NodeSettings({ data, onChange }: { data: BoxData; onChange: (patch: Par
         </label>
       </div>
       <div className="space-y-3">
+        <label className="block text-xs text-muted">
+          {d.shape}
+          <select value={data.shape ?? "round"} onChange={(event) => onChange({ shape: event.target.value as Shape })} className={`${inputClass} mt-1`}>
+            {SHAPES.map((shape) => (
+              <option key={shape} value={shape}>
+                {d.shapes[shape]}
+              </option>
+            ))}
+          </select>
+        </label>
         <Swatches label={d.fill} colors={FILLS} value={data.fill} onPick={(fill) => onChange({ fill })} />
         <Swatches label={d.stroke} colors={STROKES} value={data.stroke} onPick={(stroke) => onChange({ stroke })} ring />
         <fieldset className="flex flex-wrap items-center gap-1">
@@ -501,6 +562,25 @@ function NodeSettings({ data, onChange }: { data: BoxData; onChange: (patch: Par
           />
         </fieldset>
       </div>
+    </div>
+  );
+}
+
+function EdgeSettings({ label, dashed, onChange }: { label: string; dashed: boolean; onChange: (patch: { label?: string; dashed?: boolean }) => void }) {
+  return (
+    <div className="flex flex-wrap items-end gap-3 border-t border-border p-3" role="group" aria-label={d.edgeSettings}>
+      <label className="block min-w-0 flex-1 text-xs text-muted">
+        {d.edgeLabel}
+        <input
+          defaultValue={label}
+          maxLength={EDGE_LABEL_MAX}
+          onChange={(event) => onChange({ label: event.target.value })}
+          className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-base md:text-sm"
+        />
+      </label>
+      <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9">
+        <input type="checkbox" checked={dashed} onChange={(event) => onChange({ dashed: event.target.checked })} /> {d.dashed}
+      </label>
     </div>
   );
 }

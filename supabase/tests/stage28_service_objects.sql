@@ -80,4 +80,9 @@ select 'forever: ' || (public.delete_service_object_forever(:'map') ->> 'ok');
 reset role;
 select 'gone: ' || count(*) from public.service_objects where id = :'map';
 select 'direct writes refused: ' || has_table_privilege('authenticated', 'public.service_objects', 'insert') || ' ' || has_table_privilege('authenticated', 'public.service_object_access', 'insert');
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000028b1';
+select public.create_service_object(:'ws', 'nodes', 'flow', 'Flow', '{"nodes": [{"id": "a", "title": "Start", "description": "Begin here"}, {"id": "b", "title": "Done"}], "edges": [{"id": "e", "source": "a", "target": "b", "label": "then"}]}') ->> 'id' as flow \gset
+select 'a diagram''s text for search: ' || search_text from public.service_objects where id = :'flow';
+reset role;
 delete from public.workspaces where name in ('Nodes', 'Other nodes');

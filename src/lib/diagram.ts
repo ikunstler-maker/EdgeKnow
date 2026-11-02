@@ -42,6 +42,14 @@ export const STATUS_EMOJI = ["", "✅", "🟡", "🔴", "⏳", "🚧", "❗", "�
 
 export const HEIGHTS = { s: 320, m: 480, l: 640 } as const;
 
+// Shapes of a node: flowchart shapes and simple wireframe pieces (node space, step Н2).
+export const SHAPES = ["round", "rect", "diamond", "ellipse", "note", "button", "input", "card"] as const;
+export type Shape = (typeof SHAPES)[number];
+export const EDGE_LABEL_MAX = 60;
+// A diagram of the node space holds more than a diagram on a page.
+export const FLOW_MAX_NODES = 1000;
+export const FLOW_MAX_EDGES = 2000;
+
 export type DiagramNode = {
   id: string;
   x: number;
@@ -53,6 +61,7 @@ export type DiagramNode = {
   fill: FillName;
   stroke: StrokeName;
   emoji: string;
+  shape: Shape;
 };
 
 export type DiagramEdge = {
@@ -61,6 +70,8 @@ export type DiagramEdge = {
   target: string;
   sourceHandle: string | null;
   targetHandle: string | null;
+  label: string;
+  dashed: boolean;
 };
 
 export type Diagram = { nodes: DiagramNode[]; edges: DiagramEdge[] };
@@ -77,7 +88,7 @@ export function newId(prefix: string) {
   return `${prefix}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function parseDiagram(data: string): Diagram {
+export function parseDiagram(data: string, limits: { nodes: number; edges: number } = { nodes: MAX_NODES, edges: MAX_EDGES }): Diagram {
   let raw: { nodes?: unknown; edges?: unknown } = {};
   try {
     raw = data ? JSON.parse(data) : {};
@@ -86,7 +97,7 @@ export function parseDiagram(data: string): Diagram {
   }
   const nodes: DiagramNode[] = [];
   const ids = new Set<string>();
-  for (const item of Array.isArray(raw.nodes) ? raw.nodes.slice(0, MAX_NODES) : []) {
+  for (const item of Array.isArray(raw.nodes) ? raw.nodes.slice(0, limits.nodes) : []) {
     const n = item as Record<string, unknown>;
     const id = typeof n.id === "string" && ID.test(n.id) && !ids.has(n.id) ? n.id : null;
     if (!id) continue;
@@ -102,11 +113,12 @@ export function parseDiagram(data: string): Diagram {
       fill: typeof n.fill === "string" && n.fill in FILLS ? (n.fill as FillName) : "white",
       stroke: typeof n.stroke === "string" && n.stroke in STROKES ? (n.stroke as StrokeName) : "gray",
       emoji: text(n.emoji, 8),
+      shape: SHAPES.includes(n.shape as Shape) ? (n.shape as Shape) : "round",
     });
   }
   const edges: DiagramEdge[] = [];
   const edgeIds = new Set<string>();
-  for (const item of Array.isArray(raw.edges) ? raw.edges.slice(0, MAX_EDGES) : []) {
+  for (const item of Array.isArray(raw.edges) ? raw.edges.slice(0, limits.edges) : []) {
     const e = item as Record<string, unknown>;
     if (typeof e.id !== "string" || !ID.test(e.id) || edgeIds.has(e.id)) continue;
     if (typeof e.source !== "string" || typeof e.target !== "string" || !ids.has(e.source) || !ids.has(e.target)) continue;
@@ -117,6 +129,8 @@ export function parseDiagram(data: string): Diagram {
       target: e.target,
       sourceHandle: typeof e.sourceHandle === "string" && HANDLES.has(e.sourceHandle) ? e.sourceHandle : null,
       targetHandle: typeof e.targetHandle === "string" && HANDLES.has(e.targetHandle) ? e.targetHandle : null,
+      label: text(e.label, EDGE_LABEL_MAX),
+      dashed: e.dashed === true,
     });
   }
   return { nodes, edges };
@@ -138,6 +152,7 @@ export function makeNode(x: number, y: number): DiagramNode {
     fill: "white",
     stroke: "gray",
     emoji: "",
+    shape: "round",
   };
 }
 

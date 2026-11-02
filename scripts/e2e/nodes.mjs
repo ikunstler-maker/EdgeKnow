@@ -85,4 +85,36 @@ await alice.goto(`${APP}/w/${alphaShort}/nodes?bin=1`);
 await alice.locator('[data-node-map="Launch map"]').getByRole("button", { name: "Відновити" }).click();
 check("…and comes back", await until(() => sql(`select deleted_at is null from public.service_objects where id = '${mapId}'`) === "t", 10000));
 
+// Step Н2: branches from a pasted list, the map as a diagram, and diagrams of their own.
+await alice.goto(mapUrl);
+await alice.locator('[data-map-node="Launch"]').waitFor({ timeout: 15000 });
+await alice.locator("[data-map-toolbar]").getByRole("button", { name: /Зі списку/ }).click();
+await alice.getByRole("form", { name: "Гілки зі списку" }).getByRole("textbox").fill("- Budget\n  - Q1\n- Team");
+await alice.getByRole("button", { name: "Додати гілки" }).click();
+check("a pasted list becomes branches, indents as sub-branches", await until(() => {
+  const nodes = mapData("Launch map")?.nodes ?? [];
+  const budget = nodes.find((node) => node.text === "Budget");
+  return Boolean(budget) && nodes.find((node) => node.text === "Q1")?.parent === budget.id && nodes.some((node) => node.text === "Team");
+}, 15000), JSON.stringify(texts("Launch map")));
+await alice.waitForTimeout(1500);
+const mapNodes = mapData("Launch map").nodes.length;
+await alice.locator("[data-map-toolbar]").getByRole("button", { name: /У схему/ }).click();
+await alice.waitForURL((url) => url.pathname.includes("/nodes/") && !url.pathname.endsWith(mapId), { timeout: 15000 });
+await alice.locator("[data-flow] .react-flow__node").first().waitFor({ timeout: 15000 });
+const flowId = alice.url().split("/nodes/")[1];
+const flowShape = JSON.parse(sql(`select data::text from public.service_objects where id = '${flowId}'`));
+check("…and the map turns into a diagram with the same boxes and lines", sql(`select kind from public.service_objects where id = '${flowId}'`) === "flow" && flowShape.nodes.length === mapNodes && flowShape.edges.length === mapNodes - 1, `${flowShape.nodes.length}/${flowShape.edges.length} of ${mapNodes}`);
+
+await alice.goto(`${APP}/w/${alphaShort}/nodes`);
+await alice.getByRole("button", { name: "＋ Схема" }).click();
+await alice.waitForURL(new RegExp(`/w/${alphaShort}/nodes/[0-9a-f-]{36}$`), { timeout: 15000 });
+await alice.getByLabel("Назва карти").fill("Order flow");
+await alice.locator("[data-flow]").getByRole("button", { name: /Нода/ }).click();
+await alice.locator("[data-flow] .react-flow__node").first().waitFor({ timeout: 15000 });
+await alice.locator("[data-flow]").getByLabel("Назва", { exact: true }).fill("Is it paid?");
+await alice.locator("[data-flow]").getByLabel("Форма").selectOption("diamond");
+const flowSaved = () => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = 'Order flow'), 'null'::jsonb)::text`));
+check("a new diagram gets a box in the shape chosen", await until(() => flowSaved()?.nodes?.[0]?.shape === "diamond" && flowSaved()?.nodes?.[0]?.title === "Is it paid?", 15000), JSON.stringify(flowSaved()));
+check("…and its text is found by search", await until(() => sql("select search_text from public.service_objects where title = 'Order flow'").includes("Is it paid?"), 10000));
+
 await finish("nodes");
