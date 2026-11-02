@@ -4,7 +4,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { pagePath, workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
-import { NewPageButton } from "@/components/pages/new-page-button";
 import { ServiceTiles } from "@/components/services/service-tiles";
 import { Onboarding, type OnboardingStep } from "@/components/onboarding";
 import { createClient } from "@/lib/supabase/server";
@@ -116,25 +115,28 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <p className="text-sm text-muted">{workspace.name}</p>
-      <h1 className="text-3xl font-semibold">{t.home.greeting(user.name ?? user.email)}</h1>
-      <p className="mt-3 text-muted">{t.home.intro}</p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <NewPageButton />
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:py-10">
+      {/* The start page is a launcher: services first, then what needs attention. */}
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm text-muted">{workspace.name}</p>
+          <h1 className="text-2xl font-semibold md:text-3xl">{t.home.greeting(user.name ?? user.email)}</h1>
+        </div>
         {isWorkspaceAdmin(workspace) && (
           <Link
             href={workspacePath(workspace.shortId, "/settings")}
-            className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 py-2 hover:bg-surface"
+            aria-label={t.home.settingsLink}
+            title={t.home.settingsLink}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border text-lg hover:bg-surface"
           >
-            {t.home.settingsLink}
+            ⚙️
           </Link>
         )}
       </div>
 
-      {steps && <Onboarding workspaceId={workspace.id} shortId={workspace.shortId} steps={steps} canAddExamples={canAddExamples} />}
-
       <ServiceTiles db={supabase} workspaceId={workspace.id} shortId={workspace.shortId} userId={user.id} />
+
+      {steps && <Onboarding workspaceId={workspace.id} shortId={workspace.shortId} steps={steps} canAddExamples={canAddExamples} />}
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">{t.mentions.heading}</h2>

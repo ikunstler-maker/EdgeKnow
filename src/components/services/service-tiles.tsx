@@ -2,8 +2,6 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { pagePath, workspacePath } from "@/lib/paths";
 import { SERVICES } from "@/lib/services";
-import { NewPageButton } from "@/components/pages/new-page-button";
-import { NewNodeMapButton } from "@/components/nodes/node-list-actions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const s = t.services;
@@ -35,77 +33,56 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
     ),
   };
 
+  // Where a tile leads: the wiki to its latest page (or the start), the others to their section.
+  const hrefOf = (key: string, path: string | null) =>
+    key === "wiki" ? (recent.wiki[0]?.href ?? null) : path !== null ? workspacePath(shortId, path) : null;
+
   return (
-    <section className="mt-8" aria-label={s.heading}>
-      <h2 className="text-lg font-semibold">{s.heading}</h2>
-      <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <section className="mt-6" aria-label={s.heading}>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {SERVICES.map((service) => {
           const item = s.items[service.key];
-          const href = service.path !== null && service.key !== "wiki" ? workspacePath(shortId, service.path) : null;
+          const href = service.ready ? hrefOf(service.key, service.path) : null;
+          const extra = service.key === "tasks" ? s.myOpenTasks(myOpen ?? 0) : null;
           return (
             <li
               key={service.key}
               data-service={service.key}
-              className={`flex flex-col rounded-xl border p-4 ${service.ready ? "border-border bg-background" : "border-dashed border-border bg-surface/50"}`}
+              className={`relative flex min-h-32 flex-col rounded-2xl border p-4 transition ${
+                service.ready ? "border-border bg-background hover:border-accent hover:shadow-md" : "border-dashed border-border bg-surface/50"
+              }`}
             >
-              <div className="flex items-start gap-3">
-                <span className="text-3xl" aria-hidden="true">
-                  {service.icon}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold">
-                    {href ? (
-                      <Link href={href} className="hover:underline">
-                        {item.name}
-                      </Link>
-                    ) : (
-                      item.name
-                    )}
-                    {!service.ready && <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 align-middle text-xs font-medium text-accent">{s.soon}</span>}
-                  </h3>
-                  <p className="text-sm text-muted">{item.about}</p>
-                </div>
-              </div>
-              {service.ready ? (
-                <div className="mt-3 flex flex-1 flex-col">
-                  {service.key === "tasks" && <p className="text-xs text-muted">{s.myOpenTasks(myOpen ?? 0)}</p>}
-                  <p className="mt-1 text-xs font-medium text-muted">{s.recent}</p>
+              <span className="text-4xl" aria-hidden="true">
+                {service.icon}
+              </span>
+              <h2 className="mt-2 font-semibold leading-tight">
+                {href ? (
+                  // The whole tile opens the service; recent items stay their own links.
+                  <Link href={href} className="after:absolute after:inset-0 after:rounded-2xl">
+                    {item.name}
+                  </Link>
+                ) : (
+                  item.name
+                )}
+              </h2>
+              {!service.ready ? (
+                <span className="mt-1 self-start rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">{s.soon}</span>
+              ) : (
+                <>
+                  <p className="mt-1 hidden text-sm text-muted sm:block">{item.about}</p>
+                  {extra && <p className="mt-1 text-xs text-muted">{extra}</p>}
                   {recent[service.key]?.length ? (
-                    <ul className="mt-1 space-y-0.5 text-sm">
+                    <ul className="relative z-10 mt-2 hidden space-y-0.5 text-sm md:block" aria-label={`${item.name}: ${s.recent}`}>
                       {recent[service.key].map((r) => (
                         <li key={r.href}>
-                          <Link href={r.href} className="block truncate rounded px-1 hover:bg-surface">
+                          <Link href={r.href} className="block truncate rounded px-1 text-muted hover:bg-surface hover:text-foreground">
                             {r.label}
                           </Link>
                         </li>
                       ))}
                     </ul>
-                  ) : (
-                    <p className="mt-1 text-sm text-muted">{s.nothingYet}</p>
-                  )}
-                  <div className="mt-auto flex flex-wrap gap-2 pt-3">
-                    {service.key === "wiki" ? (
-                      <NewPageButton />
-                    ) : service.key === "nodes" ? (
-                      <>
-                        <NewNodeMapButton shortId={shortId} />
-                        {href && (
-                          <Link href={href} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9">
-                            {s.open}
-                          </Link>
-                        )}
-                      </>
-                    ) : (
-                      href && (
-                        <Link href={href} className="inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9">
-                          {s.open}
-                        </Link>
-                      )
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 text-xs text-muted">{s.soonHint}</p>
+                  ) : null}
+                </>
               )}
             </li>
           );
