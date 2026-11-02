@@ -49,7 +49,7 @@ export type TaskField = {
   position: number;
 };
 // What a board card can show; the project's own fields join by id.
-export const CARD_FIELDS = ["key", "type", "priority", "assignee", "reporter", "labels", "due", "start", "created", "updated", "estimate"] as const;
+export const CARD_FIELDS = ["key", "type", "priority", "assignee", "reporter", "labels", "due", "start", "created", "updated", "estimate", "subtasks"] as const;
 export type CardField = (typeof CARD_FIELDS)[number];
 
 export const fieldApplies = (field: TaskField, type: TaskType) => !field.task_types || field.task_types.includes(type);
@@ -85,4 +85,57 @@ export function suggestKey(name: string) {
   const key = words.length > 1 ? words.map((w) => w[0]).join("") : (words[0] ?? "").slice(0, 3);
   const clean = key.replace(/^[0-9]+/, "").slice(0, 10);
   return clean.length >= 2 ? clean : `${clean}T`.padEnd(2, "T");
+}
+
+// Step Z3: links between tasks ("source blocks / relates to / duplicates target").
+export type LinkKind = "blocks" | "relates" | "duplicates";
+export type TaskLink = { id: string; source_id: string; target_id: string; kind: LinkKind };
+// A task of a link as the reader may see it (null fields: no access).
+export type LinkedTask = { id: string; key: string | null; title: string | null; done: boolean | null; deleted: boolean };
+
+// How many children (subtasks, or tasks of an epic) are done, per parent.
+export function progressOf(tasks: Pick<TaskRow, "parent_id" | "status_id">[], statuses: TaskStatus[]) {
+  const done = new Set(statuses.filter((s) => s.category === "done").map((s) => s.id));
+  const progress = new Map<string, { done: number; total: number }>();
+  for (const task of tasks) {
+    if (!task.parent_id) continue;
+    const entry = progress.get(task.parent_id) ?? { done: 0, total: 0 };
+    entry.total += 1;
+    if (done.has(task.status_id)) entry.done += 1;
+    progress.set(task.parent_id, entry);
+  }
+  return progress;
+}
+
+// Tasks blocked by an unfinished task. A blocker the reader can't see counts as unfinished.
+// `blockerDone`: id → done (true/false; a deleted blocker counts as done); missing ids are hidden tasks.
+export function blockedTasks(links: TaskLink[], blockerDone: Map<string, boolean>) {
+  const blocked = new Set<string>();
+  for (const link of links) {
+    if (link.kind !== "blocks") continue;
+    if (blockerDone.get(link.source_id) !== true) blocked.add(link.target_id);
+  }
+  return blocked;
+}
+
+// The unchecked items of a BlockNote checklist (in any depth of the description).
+export function openChecklistItems(description: unknown): string[] {
+  const items: string[] = [];
+  const walk = (blocks: unknown) => {
+    if (!Array.isArray(blocks)) return;
+    for (const block of blocks as { type?: string; props?: { checked?: boolean }; content?: unknown; children?: unknown }[]) {
+      if (block?.type === "checkListItem" && !block.props?.checked) {
+        const text = Array.isArray(block.content)
+          ? (block.content as { type?: string; text?: string; content?: { text?: string }[] }[])
+              .map((c) => c.text ?? (Array.isArray(c.content) ? c.content.map((x) => x.text ?? "").join("") : ""))
+              .join("")
+              .trim()
+          : "";
+        if (text) items.push(text.slice(0, 300));
+      }
+      walk(block?.children);
+    }
+  };
+  walk(description);
+  return items;
 }

@@ -1,0 +1,39 @@
+subtask under the epic: true
+b under a: true
+the epic under b (a loop): {"ok": false, "error": "invalid_parent"}
+a under itself: {"ok": false, "error": "invalid_parent"}
+parent from a hidden project: {"ok": false, "error": "invalid_parent"}
+a blocks b: true
+b blocks a too: {"ok": false, "error": "link_exists"}
+a relates to b: true
+to itself: {"ok": false, "error": "invalid"}
+unknown kind: {"ok": false, "error": "invalid"}
+to a hidden task: {"ok": false, "error": "task_not_found"}
+from a hidden task: {"ok": false, "error": "forbidden"}
+alice: the secret blocks a: true
+bob sees links: 3
+bob sees the secret task: 0
+history of a: link:blocks,link:blocks,link:relates
+outsider sees links: 0
+outsider links: {"ok": false, "error": "forbidden"}
+outsider unlinks: {"ok": false, "error": "forbidden"}
+bob unlinks relates: true
+bulk priority: {"ok": true, "changed": 2}
+bulk with a hidden task: forbidden
+a is still: high
+bulk unknown change: {"ok": false, "error": "invalid"}
+bulk add label: true
+bulk add it again: true
+labels: A=ui,B=ui
+bulk remove label: true
+b labels: none
+bulk under epic: 1
+bulk epic into a loop: invalid_parent
+too many: {"ok": false, "error": "invalid"}
+bulk delete: 2
+deleted: 2
+link to a deleted task: {"ok": false, "error": "task_not_found"}
+viewer links: {"ok": false, "error": "forbidden"}
+viewer unlinks: {"ok": false, "error": "forbidden"}
+viewer bulk: forbidden
+direct write refused: false

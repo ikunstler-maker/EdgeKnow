@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { workspacePath } from "@/lib/paths";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
@@ -18,6 +20,7 @@ import {
   type TaskStatus,
 } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
+import { BlockedNotice, ParentPicker, Subtasks, TaskLinks, type ProjectTask, type TaskLinkView } from "./task-relations";
 import { addTaskComment, deleteTask, editTaskComment, updateTask } from "@/app/task-actions";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
@@ -32,6 +35,10 @@ const when = (value: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyl
 // One task: the title, its fields on the side, the description, comments and history.
 export function TaskDetail({
   taskKey,
+  shortId,
+  project,
+  projectTasks,
+  links,
   task,
   statuses,
   fields,
@@ -44,6 +51,10 @@ export function TaskDetail({
   isOwner,
 }: {
   taskKey: string;
+  shortId: string;
+  project: { id: string; key: string };
+  projectTasks: ProjectTask[];
+  links: TaskLinkView[];
   task: TaskRow & { description: unknown; deleted_at: string | null };
   statuses: TaskStatus[];
   fields: TaskField[];
@@ -60,6 +71,7 @@ export function TaskDetail({
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const parent = projectTasks.find((other) => other.id === task.parent_id);
   const personOf = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const who = (id: string | null) => personLabel(personOf.get(id ?? "")) || k.someone;
 
@@ -96,6 +108,14 @@ export function TaskDetail({
     <div className="mt-4 grid gap-8 lg:grid-cols-[1fr_16rem]">
       <div className="min-w-0">
         <p className="font-mono text-sm text-muted">
+          {parent && (
+            <>
+              <Link href={workspacePath(shortId, `/tasks/${project.key}/${parent.number}`)} className="hover:text-foreground hover:underline" data-parent-link>
+                {TYPE_ICONS[parent.type]} {project.key}-{parent.number}
+              </Link>
+              {" / "}
+            </>
+          )}
           {TYPE_ICONS[task.type]} {taskKey}
         </p>
         {canEdit ? (
@@ -124,11 +144,15 @@ export function TaskDetail({
             {error}
           </p>
         )}
+        <BlockedNotice links={links} />
 
         <h2 className="mt-6 text-sm font-medium text-muted">{k.description}</h2>
         <div className="mt-2 -mx-3">
           <TaskDescription taskId={task.id} initial={task.description} editable={canEdit} />
         </div>
+
+        <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} />
+        <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={canEdit} />
 
         <h2 className="mt-8 text-sm font-medium text-muted">{k.comments}</h2>
         <ul className="mt-2 space-y-3" aria-label={k.comments}>
@@ -239,6 +263,7 @@ export function TaskDetail({
             ))}
           </select>
         </Field>
+        <ParentPicker task={task} tasks={projectTasks} canEdit={canEdit} projectKey={project.key} />
         <Field label={k.fields.labels}>
           <input
             defaultValue={task.labels.join(", ")}

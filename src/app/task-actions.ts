@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { t } from "@/i18n";
 import { dataClient, writeClient } from "@/lib/team-db/data";
+import { openChecklistItems, parseTaskKey } from "@/lib/tasks";
 
 // Tasks: every check (roles, fields, the workspace) is in the database
 // functions; these forward the call to wherever the workspace keeps its data.
@@ -95,4 +96,48 @@ export async function saveTaskDescription(taskId: string, description: unknown):
 export async function projectRole(projectId: string): Promise<string | null> {
   const { data } = await (await dataClient()).rpc("task_project_role", { target_project: projectId });
   return (data as string | null) ?? null;
+}
+
+// Step Z3: links, bulk changes, checklist → subtasks.
+
+// Link this task with another one by its key ("MKT-12"). "blocked_by" turns the link round.
+export async function addTaskLink(taskId: string, otherKey: string, kind: "blocks" | "blocked_by" | "relates" | "duplicates") {
+  const parsed = parseTaskKey(otherKey);
+  if (!parsed) return { ok: false, error: "task_not_found" } as ActionResult;
+  const db = await dataClient();
+  const { data: task } = await db.from("tasks").select("workspace_id").eq("id", taskId).maybeSingle();
+  if (!task) return { ok: false, error: "forbidden" } as ActionResult;
+  const { data: project } = await db.from("task_projects").select("id").eq("workspace_id", task.workspace_id).eq("key", parsed[0]).maybeSingle();
+  const { data: other } = project
+    ? await db.from("tasks").select("id").eq("project_id", project.id).eq("number", parsed[1]).maybeSingle()
+    : { data: null };
+  if (!other) return { ok: false, error: "task_not_found" } as ActionResult;
+  return kind === "blocked_by"
+    ? call("add_task_link", { source_task: other.id, target_task: taskId, link_kind: "blocks" })
+    : call("add_task_link", { source_task: taskId, target_task: other.id, link_kind: kind });
+}
+
+export async function deleteTaskLink(linkId: string) {
+  return call("delete_task_link", { target_link: linkId });
+}
+
+export async function bulkUpdateTasks(taskIds: string[], changes: Record<string, unknown>) {
+  return call<{ changed: number }>("bulk_update_tasks", { target_tasks: taskIds, changes });
+}
+
+// The description's unchecked checklist items become subtasks (once: same titles are skipped).
+export async function checklistToSubtasks(taskId: string): Promise<ActionResult<{ created: number }>> {
+  const db = await dataClient();
+  const { data: task } = await db.from("tasks").select("id, project_id, description").eq("id", taskId).maybeSingle();
+  if (!task) return { ok: false, error: "forbidden" };
+  const { data: children } = await db.from("tasks").select("title").eq("parent_id", taskId).is("deleted_at", null);
+  const existing = new Set((children ?? []).map((c) => (c.title as string).toLowerCase()));
+  const titles = [...new Set(openChecklistItems(task.description))].filter((title) => !existing.has(title.toLowerCase())).slice(0, 50);
+  let created = 0;
+  for (const title of titles) {
+    const result = await call("create_task", { target_project: task.project_id, fields: { title, parent_id: taskId } });
+    if (!result.ok) return created ? { ok: true, created } : result;
+    created += 1;
+  }
+  return { ok: true, created };
 }

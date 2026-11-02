@@ -3,8 +3,9 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
-import { canComment, canEdit, loadProject } from "@/lib/tasks-server";
-import { TASK_COLUMNS, taskKey, type TaskRow } from "@/lib/tasks";
+import { canComment, canEdit, linkedTasks, loadProject } from "@/lib/tasks-server";
+import { TASK_COLUMNS, taskKey, type TaskLink, type TaskRow } from "@/lib/tasks";
+import type { ProjectTask, TaskLinkView } from "@/components/tasks/task-relations";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskDetail, type TaskComment, type TaskEvent } from "@/components/tasks/task-detail";
 
@@ -31,10 +32,19 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     .maybeSingle()
     .overrideTypes<TaskRow & { description: unknown; deleted_at: string | null }, { merge: false }>();
   if (!task) return notFound;
-  const [{ data: comments }, { data: events }] = await Promise.all([
+  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }] = await Promise.all([
     db.from("task_comments").select("id, author_id, body, mentions, created_at, edited_at").eq("task_id", task.id).order("created_at"),
     db.from("task_events").select("id, actor_id, field, old_value, new_value, created_at").eq("task_id", task.id).order("created_at", { ascending: false }).limit(100),
+    db.from("tasks").select("id, number, title, status_id, parent_id, type").eq("project_id", view.project.id).is("deleted_at", null).neq("id", task.id),
+    db.from("task_links").select("id, source_id, target_id, kind").or(`source_id.eq.${task.id},target_id.eq.${task.id}`).order("created_at"),
   ]);
+  // The other task of each link, as this reader may see it.
+  const linkRows = (links ?? []) as TaskLink[];
+  const others = await linkedTasks(db, [...new Set(linkRows.map((l) => (l.source_id === task.id ? l.target_id : l.source_id)))]);
+  const linkViews: TaskLinkView[] = linkRows.map((l) => {
+    const outgoing = l.source_id === task.id;
+    return { id: l.id, kind: l.kind, outgoing, other: others.get(outgoing ? l.target_id : l.source_id)! };
+  });
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
@@ -44,6 +54,10 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
       <TaskDetail
         key={task.id}
         taskKey={taskKey(view.project.key, task.number)}
+        shortId={view.workspace.shortId}
+        project={{ id: view.project.id, key: view.project.key }}
+        projectTasks={(projectTasks ?? []) as ProjectTask[]}
+        links={linkViews}
         task={task}
         statuses={view.statuses}
         fields={view.fields}
