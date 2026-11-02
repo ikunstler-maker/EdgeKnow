@@ -22,9 +22,12 @@ on:
       - ".github/workflows/db-migrate.yml"
   workflow_dispatch:
 
+# Tests of different branches run side by side (each on its own throwaway
+# machines); a newer push to the same pull request replaces its older run.
+# Only applying migrations to production waits in one line (the migrate job).
 concurrency:
-  group: db-migrate
-  cancel-in-progress: false
+  group: db-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -57,34 +60,51 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.0
-      - name: Start local Supabase
-        # Test users sign in with a password; only this throwaway copy allows it.
-        run: |
-          sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
-      - name: Run API isolation test
-        run: |
-          supabase status -o json > status.json
-          node scripts/api-isolation.mjs status.json
-      # Then click through the workspace screens in a real browser against the same backend.
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Kept between runs: the browser for the smoke test and Next.js's build cache.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+      # Local Supabase and the app's packages are prepared at the same time.
+      - name: Start local Supabase and install packages
+        run: |
+          # Test users sign in with a password; only this throwaway copy allows it.
+          sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
+          (npm ci && npx playwright install --with-deps chromium) > prepare.log 2>&1 &
+          prepare=$!
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+          if ! wait $prepare; then tail -n 40 prepare.log; exit 1; fi
+      - name: Run API isolation test
+        run: |
+          supabase status -o json > status.json
+          node scripts/api-isolation.mjs status.json
       # Path C: the "Team Delta" workspace keeps its data in a second, team-owned stack
       # that trusts the app's own (throwaway) EdgeKnow signing key; "Team Echo" is
-      # moved into a third one during the test.
-      - name: Team database for the Team Delta workspace
+      # moved into a third one during the test. The two stacks start while the app builds.
+      - name: Team databases and the app build, side by side
         run: |
           keys="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
           echo "EDGEKNOW_OIDC_SIGNING_KEYS=$keys" >> "$GITHUB_ENV"
+          export EDGEKNOW_OIDC_SIGNING_KEYS="$keys"
           drive_key="ci-drive-token-key-$(openssl rand -hex 16)"
           echo "DRIVE_TOKEN_KEY=$drive_key" >> "$GITHUB_ENV"
-          TEAM_STACKS="team-b team-c" TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh
+          (TEAM_STACKS="team-b team-c" TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh) > stacks.log 2>&1 &
+          stacks=$!
+          export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
+          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
+          npm run build
+          if ! wait $stacks; then tail -n 40 stacks.log; exit 1; fi
           DRIVE_TOKEN_KEY="$drive_key" node --experimental-strip-types scripts/register-team.mjs status.json .team-stacks/team-b/status.json .team-stacks/team-c/status.json
-      - name: Build and start the app against local Supabase
+      - name: Start the app against local Supabase
         run: |
           export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
@@ -97,7 +117,6 @@ jobs:
           export CRON_SECRET="ci-cron-secret"
           echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"
-          npm run build
           nohup npm start -- -p 3000 > next.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/privacy && break; sleep 1; done
       - name: Run browser smoke test
@@ -128,6 +147,9 @@ jobs:
 
   migrate:
     needs: [test, api, team]
+    concurrency:
+      group: db-migrate-production
+      cancel-in-progress: false
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     env:
