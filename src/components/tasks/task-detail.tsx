@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { workspacePath } from "@/lib/paths";
+import { pagePath, workspacePath } from "@/lib/paths";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
@@ -42,6 +42,7 @@ export function TaskDetail({
   links,
   workspaceId,
   files,
+  mentionedOn,
   task,
   statuses,
   fields,
@@ -60,6 +61,7 @@ export function TaskDetail({
   links: TaskLinkView[];
   workspaceId: string;
   files: TaskFileView[];
+  mentionedOn: { id: string; title: string; icon: string | null }[];
   task: TaskRow & { description: unknown; deleted_at: string | null };
   statuses: TaskStatus[];
   fields: TaskField[];
@@ -158,6 +160,22 @@ export function TaskDetail({
 
         <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} />
         <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={canEdit} />
+        <section className="mt-6" aria-label={t.tasks.wiki.mentionedOn} data-mentioned-on>
+          <h2 className="text-sm font-medium text-muted">{t.tasks.wiki.mentionedOn}</h2>
+          {mentionedOn.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">{t.tasks.wiki.notMentioned}</p>
+          ) : (
+            <ul className="mt-2 flex flex-wrap gap-2 text-sm">
+              {mentionedOn.map((page) => (
+                <li key={page.id}>
+                  <Link href={pagePath(shortId, page.id)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 hover:bg-surface">
+                    <span aria-hidden="true">{page.icon ?? "📄"}</span> {page.title || t.pages.untitled}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
         <TaskFiles shortId={shortId} workspaceId={workspaceId} taskId={task.id} files={files} members={members} me={me} canEdit={canEdit} />
 
         <h2 className="mt-8 text-sm font-medium text-muted">{k.comments}</h2>

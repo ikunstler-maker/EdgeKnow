@@ -1,0 +1,7 @@
+links: 2, foreign kept out: true
+alice sees mentions on: Plan,Private plan
+bob sees mentions on: Plan
+bob without the project: 0
+outsider: 0
+chip removed: 0
+direct write refused: false
