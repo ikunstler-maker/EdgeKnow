@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DriveError, driveApi } from "./google-drive";
 import { ACCOUNT_COLUMNS, accountAsConnection, activeConnection, connectionById, noteDriveError, refreshTokenOf, type DriveAccount, type DriveConnection } from "./storage";
-import { TEAM_BUCKET, teamAdmin } from "@/lib/team-db/files";
+import { teamAdmin } from "@/lib/team-db/files";
 import { teamDatabase, teamReady } from "@/lib/team-db/sync";
 
 // Files attached to tasks: where a project keeps them (the uploader's own
@@ -30,6 +30,9 @@ export type TaskFileRow = {
 };
 export const TASK_FILE_COLUMNS =
   "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
+
+// Their own private bucket (the wiki one takes only images).
+export const TASK_BUCKET = "task-files";
 
 export const MAX_TASK_FILE_BYTES = 4 * 1024 * 1024;
 
@@ -78,7 +81,7 @@ const nameOnDrive = (row: Pick<TaskFileRow, "id" | "name">) => `${row.id.slice(0
 // Puts the bytes at the destination and records where (`rows`: the database with the file's record).
 export async function storeTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: TaskFileRow, bytes: Uint8Array, to: Destination) {
   if (to.kind === "storage") {
-    const { error } = await rows.storage.from(TEAM_BUCKET).upload(row.storage_path, bytes, { contentType: row.mime_type, upsert: true });
+    const { error } = await rows.storage.from(TASK_BUCKET).upload(row.storage_path, bytes, { contentType: row.mime_type, upsert: true });
     if (error) throw new Error(`storage: ${error.message}`);
     const { error: updateError } = await rows
       .from("task_files")
@@ -113,7 +116,7 @@ export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
     }
   }
   if (row.storage_backend !== "supabase") throw new DriveError("not stored yet", 404);
-  const { data, error } = await rows.storage.from(TEAM_BUCKET).download(row.storage_path);
+  const { data, error } = await rows.storage.from(TASK_BUCKET).download(row.storage_path);
   if (error || !data) throw new DriveError("storage download failed", 404);
   return new Uint8Array(await data.arrayBuffer());
 }
@@ -125,7 +128,7 @@ export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
   const bytes = await readTaskFile(admin, rows, row);
   await storeTaskFile(admin, rows, row, bytes, to);
   if (keepOld) return;
-  if (row.storage_backend === "supabase") await rows.storage.from(TEAM_BUCKET).remove([row.storage_path]);
+  if (row.storage_backend === "supabase") await rows.storage.from(TASK_BUCKET).remove([row.storage_path]);
   if (row.storage_backend === "drive" && row.drive_account_id && row.drive_file_id) {
     const connection = await connectionById(admin, row.drive_account_id);
     if (connection) await driveApi().remove(refreshTokenOf(connection), row.drive_file_id).catch(() => {});

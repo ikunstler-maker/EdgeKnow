@@ -1398,7 +1398,7 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
   await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
   await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
-  check("…or to EdgeKnow's storage", marFile() === "supabase:-" && sql(`select count(*) from storage.objects where name = '${alphaId}/tasks/' || ${marTask(2)} || '/${fileId}'`) === "1", marFile());
+  check("…or to EdgeKnow's storage", marFile() === "supabase:-" && sql(`select count(*) from storage.objects where bucket_id = 'task-files' and name = '${alphaId}/tasks/' || ${marTask(2)} || '/${fileId}'`) === "1", marFile());
   await filesDialog.locator("[data-connect-project-drive]").click();
   await alice.waitForURL(/files=1&drive=connected/, { timeout: 15000 });
   await alice.getByRole("dialog", { name: "Куди зберігати файли задач" }).getByText(/Підключено: team-drive@fake\.test/).first().waitFor({ timeout: 15000 });

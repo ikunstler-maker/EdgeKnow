@@ -2,6 +2,7 @@
 drop function if exists public.delete_task_file(uuid);
 drop function if exists public.register_task_file(uuid, text, text, integer);
 drop table if exists public.task_files;
+delete from storage.buckets b where b.id = 'task-files' and not exists (select 1 from storage.objects o where o.bucket_id = b.id);
 drop function if exists public.remember_deleted_task_file();
 drop function if exists public.check_task_file_workspace();
 alter table public.task_projects drop column if exists files_target;

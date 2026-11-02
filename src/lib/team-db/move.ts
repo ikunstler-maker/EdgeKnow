@@ -25,7 +25,8 @@ type Stage = {
   // comes before its parent), then with it.
   flatten?: boolean;
   merge?: boolean;
-  files?: boolean;
+  // Storage bucket of the rows' files (true: the wiki's "attachments").
+  files?: boolean | string;
   // The team database fills these itself when pages arrive (from what it can see
   // so far), so its own rows are cleared first and the central ones taken as they are.
   replace?: boolean;
@@ -124,7 +125,7 @@ const STAGES: Stage[] = [
     columns: "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at",
     order: "id",
     onConflict: "id",
-    files: true,
+    files: "task-files",
   },
   { name: "task comments", table: "task_comments", columns: "id, workspace_id, task_id, author_id, body, mentions, created_at, edited_at", order: "id", onConflict: "id" },
   {
@@ -232,7 +233,7 @@ export async function copyPortion(
         if (updateError) throw new Error(`${stage.name}: ${updateError.message}`);
       }
     } else {
-      if (stage.files) await copyFiles(from, to, rows);
+      if (stage.files) await copyFiles(from, to, rows, stage.files === true ? "attachments" : stage.files);
       const { error: insertError } = await to.from(stage.table).upsert(rows, { onConflict: stage.onConflict });
       if (insertError) throw new Error(`${stage.name}: ${insertError.message}`);
     }
@@ -281,16 +282,16 @@ async function prune(from: SupabaseClient, to: SupabaseClient, ws: string) {
 
 // Files kept in Supabase Storage go to the other side's storage under the same
 // path (files on Google Drive stay where they are).
-async function copyFiles(from: SupabaseClient, to: SupabaseClient, rows: Record<string, unknown>[]) {
+async function copyFiles(from: SupabaseClient, to: SupabaseClient, rows: Record<string, unknown>[], bucket = "attachments") {
   for (const row of rows.filter((r) => r.storage_backend === "supabase")) {
     const path = row.storage_path as string;
-    const { data: there } = await to.storage.from("attachments").exists(path);
+    const { data: there } = await to.storage.from(bucket).exists(path);
     if (there) continue;
-    const { data: file, error } = await from.storage.from("attachments").download(path);
+    const { data: file, error } = await from.storage.from(bucket).download(path);
     // A file that is already gone at the source (deleted, never uploaded) has nothing to copy.
     if (error || !file) continue;
     const { error: uploadError } = await to.storage
-      .from("attachments")
+      .from(bucket)
       .upload(path, new Uint8Array(await file.arrayBuffer()), { contentType: row.mime_type as string, upsert: true });
     if (uploadError) throw new Error(`file ${path}: ${uploadError.message}`);
   }
@@ -332,10 +333,11 @@ export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws
   const missingFiles: string[] = [];
   const { data: files } = await from.from("attachments").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
   const { data: taskFiles } = await from.from("task_files").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
-  for (const file of [...(files ?? []), ...(taskFiles ?? [])]) {
-    const { data: atSource } = await from.storage.from("attachments").exists(file.storage_path);
+  const checks = [...(files ?? []).map((f) => ({ ...f, bucket: "attachments" })), ...(taskFiles ?? []).map((f) => ({ ...f, bucket: "task-files" }))];
+  for (const file of checks) {
+    const { data: atSource } = await from.storage.from(file.bucket).exists(file.storage_path);
     if (!atSource) continue;
-    const { data: there } = await to.storage.from("attachments").exists(file.storage_path);
+    const { data: there } = await to.storage.from(file.bucket).exists(file.storage_path);
     if (!there) missingFiles.push(file.storage_path);
   }
 
