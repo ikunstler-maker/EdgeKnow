@@ -31,11 +31,12 @@ export function useBoardSession(shortId: string, id: string, stickies: StickyInf
   }, [shortId, id]);
 
   useEffect(() => {
-    void refresh();
+    const first = setTimeout(() => void refresh(), 0);
     const again = () => document.visibilityState === "visible" && void refresh();
     const timer = setInterval(again, 4000);
     document.addEventListener("visibilitychange", again);
     return () => {
+      clearTimeout(first);
       clearInterval(timer);
       document.removeEventListener("visibilitychange", again);
     };
