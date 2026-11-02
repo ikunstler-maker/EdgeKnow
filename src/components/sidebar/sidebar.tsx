@@ -44,6 +44,8 @@ export function Sidebar({
   const sidebarToc = useSidebarToc();
   const navRef = useRef<HTMLElement>(null);
   const { appearance } = useAppearance();
+  // A guest works only in what was shared with them: no new pages, no bin.
+  const guest = workspace.role === "guest";
 
   // Open the branches leading to the page being viewed.
   useEffect(() => {
@@ -78,18 +80,20 @@ export function Sidebar({
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
 
-      <button
-        type="button"
-        onClick={() => {
-          create(null);
-          onNavigate?.();
-        }}
-        disabled={pending}
-        className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground disabled:opacity-60 md:min-h-9"
-      >
-        <span className="w-5 text-center">＋</span>
-        {t.sidebar.newPage}
-      </button>
+      {!guest && (
+        <button
+          type="button"
+          onClick={() => {
+            create(null);
+            onNavigate?.();
+          }}
+          disabled={pending}
+          className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground disabled:opacity-60 md:min-h-9"
+        >
+          <span className="w-5 text-center">＋</span>
+          {t.sidebar.newPage}
+        </button>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
         {sidebarToc && (
@@ -111,7 +115,7 @@ export function Sidebar({
 
       <div className="border-t border-border pt-2">
         {navLink(workspacePath(workspace.shortId, "/profile"), t.profile.link, "👤")}
-        {navLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
+        {!guest && navLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
         {navLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
         {user.isPlatformAdmin && navLink("/admin", t.platform.link, "🛰️")}
         {navLink("/help", t.help.link, "❓")}

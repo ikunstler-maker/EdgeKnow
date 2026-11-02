@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { createContext, use, useMemo, useOptimistic, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
@@ -46,6 +46,8 @@ export type WorkspaceInfo = {
 type PagesContextValue = {
   workspace: WorkspaceInfo;
   pages: PageNode[];
+  // The workspace's guests this person sees, marked «Гість» wherever people appear.
+  guests: ReadonlySet<string>;
   pending: boolean;
   create: (parentId: string | null) => void;
   rename: (id: string, title: string) => void;
@@ -75,10 +77,12 @@ export function errorMessage(result: ActionResult) {
 export function PagesProvider({
   workspace,
   pages,
+  guests = [],
   children,
 }: {
   workspace: WorkspaceInfo;
   pages: PageNode[];
+  guests?: string[];
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -95,9 +99,11 @@ export function PagesProvider({
       setError(errorMessage(result));
     });
 
+  const guestSet = useMemo(() => new Set(guests), [guests]);
   const value: PagesContextValue = {
     workspace,
     pages: optimisticPages,
+    guests: guestSet,
     pending,
     create: (parentId) =>
       startTransition(async () => {

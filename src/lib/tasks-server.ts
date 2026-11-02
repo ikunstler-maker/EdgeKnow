@@ -32,10 +32,10 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     db.rpc("task_project_role", { target_project: project.id }),
     db
       .from("workspace_members")
-      .select("user_id, profile:profiles!workspace_members_user_id_fkey(name, email)")
+      .select("user_id, role, profile:profiles!workspace_members_user_id_fkey(name, email)")
       .eq("workspace_id", workspace.id)
       .eq("status", "active")
-      .overrideTypes<{ user_id: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
+      .overrideTypes<{ user_id: string; role: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
     db.from("task_fields").select("id, name, kind, options, required, task_types, position").eq("project_id", project.id).order("position"),
   ]);
   if (!role) return null;
@@ -48,7 +48,7 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     role: role as ProjectRole,
     members: (members ?? [])
       .filter((m) => m.profile)
-      .map((m) => ({ id: m.user_id, name: m.profile!.name, email: m.profile!.email }))
+      .map((m) => ({ id: m.user_id, name: m.profile!.name, email: m.profile!.email, guest: m.role === "guest" }))
       .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email)),
   };
 }

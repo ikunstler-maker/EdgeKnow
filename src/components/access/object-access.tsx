@@ -63,9 +63,10 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
   const groupName = new Map(access.groups.map((g) => [g.id, g.name]));
   const listedPeople = new Set(access.people.map((p) => p.user_id));
   const listedGroups = new Set(access.groupGrants.map((g) => g.group_id));
-  const roleOptions = (extra?: boolean) => (
+  // A guest is never an owner.
+  const roleOptions = (extra?: boolean, guest?: boolean) => (
     <>
-      {ROLES.map((r) => (
+      {ROLES.filter((r) => !(guest && r === "owner")).map((r) => (
         <option key={r} value={r}>
           {roles[r]}
         </option>
@@ -111,6 +112,7 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
                   .map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name ? `${m.name} (${m.email})` : m.email}
+                      {m.guest ? ` · ${t.workspace.roles.guest}` : ""}
                     </option>
                   ))}
               </select>
@@ -135,7 +137,7 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
                 <li key={p.user_id} className="flex min-h-11 items-center gap-2">
                   <span className="min-w-0 flex-1 truncate">{personLabel(personOf.get(p.user_id)) || p.user_id}</span>
                   <select value={p.role} disabled={pending} aria-label={personLabel(personOf.get(p.user_id))} onChange={(e) => run(() => actions.setMemberRole(p.user_id, e.target.value || null))} className={selectClass}>
-                    {roleOptions(true)}
+                    {roleOptions(true, personOf.get(p.user_id)?.guest)}
                   </select>
                 </li>
               ))}

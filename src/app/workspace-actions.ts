@@ -72,12 +72,18 @@ export async function setGroupMember(ws: string, groupId: string, userId: string
   return callWorkspaceRpc("set_workspace_group_member", { ws, target_group: groupId, member: userId, included });
 }
 
-export async function inviteMember(ws: string, email: string, role: string) {
+// A guest may get an end date for their access (an ISO time, or null for none).
+export async function inviteMember(ws: string, email: string, role: string, guestUntil: string | null = null) {
   return callWorkspaceRpc<{ token: string }>("invite_member", {
     ws,
     invitee_email: email,
     invitee_role: role,
+    guest_until: role === "guest" ? guestUntil : null,
   });
+}
+
+export async function setGuestAccessUntil(ws: string, member: string, until: string | null) {
+  return callWorkspaceRpc("set_guest_access_until", { ws, member, until });
 }
 
 export async function revokeInvitation(ws: string, invitationId: string) {

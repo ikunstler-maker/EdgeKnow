@@ -497,4 +497,59 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await colleagueClient.auth.signOut();
 }
 
+// --- Guests (step Г): invited until a date, see only what is shared with them ---------------------
+{
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=members`);
+  await alice.getByLabel("Пошта").fill("gwen@client.test");
+  await alice.locator("form").getByLabel("Роль").selectOption("guest");
+  const day = new Date(Date.now() + 7 * 86400000).toLocaleDateString("sv");
+  await alice.locator("[data-guest-until]").fill(day);
+  await alice.getByRole("button", { name: "Запросити", exact: true }).click();
+  await alice.getByText(/Запрошення для gwen@client\.test створено/).waitFor({ timeout: 15000 });
+  check("the owner invites a guest until a date", sql("select role || ' ' || (access_until is not null) from public.invitations where email = 'gwen@client.test' and revoked_at is null") === "guest true");
+
+  await fetch(`${API}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: ANON, "content-type": "application/json" },
+    body: JSON.stringify({ email: "gwen@client.test", password: "Test-password-1!" }),
+  });
+  const { cookies: gwenCookies, client: gwenClient } = await sessionCookies("gwen@client.test");
+  await gwenClient.rpc("join_workspaces");
+  const gwenId = sql("select id from public.profiles where email = 'gwen@client.test'");
+  check("…someone from outside joins as a guest", sql(`select role from public.workspace_members where workspace_id = '${alphaId}' and user_id = '${gwenId}'`) === "guest");
+
+  const forClient = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "For the client" })).data.id;
+  await aliceClient.rpc("set_page_workspace_role", { target_page: forClient, new_role: "viewer" });
+  await aliceClient.rpc("set_page_member_role", { target_page: forClient, member: gwenId, new_role: "editor" });
+  const seen = ((await gwenClient.from("pages").select("title")).data ?? []).map((p) => p.title);
+  check("the guest sees only the page shared with her", seen.length === 1 && seen[0] === "For the client", JSON.stringify(seen));
+  const people = ((await gwenClient.from("workspace_members").select("user_id").eq("workspace_id", alphaId)).data ?? []).map((m) => m.user_id);
+  check("…and not the whole member list", !people.includes(colleagueId) && people.includes(gwenId), JSON.stringify(people.length));
+
+  const gwen = await newPage(gwenCookies);
+  await gwen.goto(`${APP}/w/${alphaShort}`);
+  await gwen.getByRole("link", { name: "Мій профіль" }).waitFor({ timeout: 15000 });
+  check("a guest's menu has no new page and no bin", (await gwen.getByRole("button", { name: "Нова сторінка" }).count()) === 0 && (await gwen.getByRole("link", { name: "Кошик" }).count()) === 0);
+  const made = await gwenClient.rpc("create_page", { ws: alphaId, parent: forClient, new_title: "Mine" });
+  check("…and can't make pages, not even below the shared one", made.data?.ok === false, JSON.stringify(made.data));
+
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=members`);
+  check("the members list marks the guest and her date", (await alice.locator("li", { hasText: "gwen@client.test" }).locator("[data-guest-badge]").count()) === 1 && (await alice.locator("li", { hasText: "gwen@client.test" }).getByText(/доступ до/).count()) === 1);
+  await alice.goto(`${APP}/w/${alphaShort}/p/${forClient}`);
+  await alice.getByRole("button", { name: "Поділитися" }).click();
+  const share = alice.getByRole("dialog", { name: "Доступ до сторінки" });
+  await share.getByText(/gwen@client\.test · Гість|Гість/).first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and so does the share dialog", (await share.getByText(/· Гість/).count()) >= 1);
+  await alice.keyboard.press("Escape");
+
+  sql(`update public.workspace_members set access_until = now() - interval '1 minute' where user_id = '${gwenId}'`);
+  await gwen.goto(`${APP}/w/${alphaShort}`);
+  await gwen.waitForURL(/no-access/, { timeout: 15000 }).catch(() => {});
+  const after = ((await gwenClient.from("pages").select("id")).data ?? []).length;
+  check("past her date the guest sees nothing", gwen.url().includes("no-access") && after === 0, `${gwen.url()} ${after}`);
+  await aliceClient.rpc("remove_member", { ws: alphaId, member: gwenId });
+  await gwenClient.auth.signOut();
+  await gwen.close();
+}
+
 await finish("tasks");

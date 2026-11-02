@@ -39,10 +39,10 @@ export default async function NodeMapPage({ params }: PageProps<"/w/[wid]/nodes/
       db.from("workspace_groups").select("id, name").eq("workspace_id", workspace.id).order("name"),
       db
         .from("workspace_members")
-        .select("user_id, profile:profiles!workspace_members_user_id_fkey(name, email)")
+        .select("user_id, role, profile:profiles!workspace_members_user_id_fkey(name, email)")
         .eq("workspace_id", workspace.id)
         .eq("status", "active")
-        .overrideTypes<{ user_id: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
+        .overrideTypes<{ user_id: string; role: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
     ]);
     access = {
       workspaceRole: map.workspace_role,
@@ -50,7 +50,7 @@ export default async function NodeMapPage({ params }: PageProps<"/w/[wid]/nodes/
       groupGrants: (groupGrants ?? []) as ObjectAccess["groupGrants"],
       groups: (groups ?? []) as ObjectAccess["groups"],
     };
-    members = (memberRows ?? []).flatMap((m) => (m.profile ? [{ id: m.user_id, name: m.profile.name, email: m.profile.email }] : []));
+    members = (memberRows ?? []).flatMap((m) => (m.profile ? [{ id: m.user_id, name: m.profile.name, email: m.profile.email, guest: m.role === "guest" }] : []));
   }
 
   return (

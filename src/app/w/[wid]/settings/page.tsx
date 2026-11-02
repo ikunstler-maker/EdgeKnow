@@ -38,11 +38,12 @@ type MemberRow = {
   user_id: string;
   role: MemberItem["role"];
   joined_via: MemberItem["joinedVia"];
+  access_until: string | null;
   profile: { name: string | null; email: string } | null;
 };
 type DomainRow = { domain: string; is_active: boolean; method: DomainItem["method"]; dns_missing_since: string | null };
 type ClaimRow = { domain: string; token: string; checked_at: string | null; last_error: string | null };
-type InvitationRow = { id: string; email: string; role: string; expires_at: string };
+type InvitationRow = { id: string; email: string; role: string; expires_at: string; access_until: string | null };
 type LogRow = {
   id: number;
   action: string;
@@ -85,7 +86,7 @@ export default async function WorkspaceSettingsPage({
     tab === "general" || tab === "members" || tab === "groups"
       ? supabase
           .from("workspace_members")
-          .select("user_id, role, joined_via, profile:profiles!workspace_members_user_id_fkey(name, email)")
+          .select("user_id, role, joined_via, access_until, profile:profiles!workspace_members_user_id_fkey(name, email)")
           .eq("workspace_id", workspace.id)
           .eq("status", "active")
           .order("joined_at")
@@ -102,7 +103,7 @@ export default async function WorkspaceSettingsPage({
     tab === "members"
       ? supabase
           .from("invitations")
-          .select("id, email, role, expires_at")
+          .select("id, email, role, expires_at, access_until")
           .eq("workspace_id", workspace.id)
           .is("accepted_at", null)
           .is("revoked_at", null)
@@ -169,6 +170,7 @@ export default async function WorkspaceSettingsPage({
     email: m.profile?.email ?? "",
     role: m.role,
     joinedVia: m.joined_via,
+    accessUntil: m.access_until,
   }));
   const domainItems: DomainItem[] = (domains?.data ?? []).map((d) => ({
     domain: d.domain,
@@ -217,6 +219,7 @@ export default async function WorkspaceSettingsPage({
     expiresLabel: t.settings.members.expires(
       new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(i.expires_at)),
     ),
+    guestUntil: i.access_until,
   }));
 
   return (
@@ -243,7 +246,7 @@ export default async function WorkspaceSettingsPage({
         {tab === "general" && (
           <GeneralPanel
             workspace={workspace}
-            members={memberItems.filter((m) => m.userId !== user.id)}
+            members={memberItems.filter((m) => m.userId !== user.id && m.role !== "guest")}
           />
         )}
         {tab === "members" && (
@@ -259,7 +262,7 @@ export default async function WorkspaceSettingsPage({
           <GroupsPanel
             workspaceId={workspace.id}
             groups={groupItems}
-            people={memberItems.map((m) => ({ userId: m.userId, name: m.name, email: m.email }))}
+            people={memberItems.filter((m) => m.role !== "guest").map((m) => ({ userId: m.userId, name: m.name, email: m.email }))}
           />
         )}
         {tab === "domains" && (
