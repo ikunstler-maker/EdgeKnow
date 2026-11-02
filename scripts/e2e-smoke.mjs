@@ -1409,6 +1409,52 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("a removed file waits for the daily cleanup", sql(`select count(*) from public.attachment_tombstones where storage_path like '%/${fileId}'`) === "1");
 }
 
+// Someone leaves: their task files on their own Drive are copied first — to the
+// cloud or as an archive — with how much they weigh and how much space is left.
+{
+  await fetch(`${API}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: ANON, "content-type": "application/json" },
+    body: JSON.stringify({ email: "mover@alpha.test", password: "Test-password-1!" }),
+  });
+  const { cookies: moverCookies, client: moverClient } = await sessionCookies("mover@alpha.test");
+  await moverClient.rpc("join_workspaces");
+  const moverId = sql("select id from public.profiles where email = 'mover@alpha.test'");
+  const { writeFileSync } = await import("node:fs");
+  const content = "%PDF-1.4 mover's file\n%%EOF\n";
+  writeFileSync(`${fakeDir}/file-mover1`, content);
+  writeFileSync(`${fakeDir}/file-mover1.type`, "application/pdf");
+  const account = sql(`insert into public.drive_accounts (workspace_id, purpose, user_id, account_email, root_folder_id, files_folder_id, token_encrypted)
+    select workspace_id, 'personal', '${moverId}', 'mover@fake.test', 'folder-m', 'folder-m', token_encrypted from public.drive_accounts
+    where workspace_id = '${alphaId}' and purpose = 'personal' and active limit 1 returning id`).split("\n")[0];
+  const marTwo = sql("select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 2");
+  sql(`insert into public.task_files (workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by)
+    values ('${alphaId}', '${marTwo}', 'mover.pdf', 'application/pdf', ${content.length}, '${alphaId}/tasks/${marTwo}/00000000-0000-4000-8000-00000000f001', 'drive', 'personal', '${account}', 'file-mover1', '${moverId}')`);
+  const moverCookie = moverCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const notAdmin = await fetch(`${APP}/api/members/files?ws=${alphaId}&user=${moverId}`, { headers: { cookie: moverCookie } });
+  check("only the owner or an admin downloads someone's files", notAdmin.status === 403, String(notAdmin.status));
+  const archive = await alice.evaluate(async (url) => {
+    const r = await fetch(url);
+    const text = new TextDecoder().decode(new Uint8Array(await r.arrayBuffer()));
+    return `${r.status} ${text.slice(0, 2)} ${text.includes("MAR/MAR-2 mover.pdf")} ${text.includes("mover's file")}`;
+  }, `/api/members/files?ws=${alphaId}&user=${moverId}`);
+  check("…as a ZIP archive with a folder per project", archive === "200 PK true true", archive);
+
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=members`);
+  await alice.locator("li", { hasText: "mover@alpha.test" }).getByRole("button", { name: "Видалити" }).click();
+  const removeDialog = alice.getByRole("dialog", { name: /mover@alpha\.test/ });
+  await removeDialog.locator("[data-member-files-found]").waitFor({ timeout: 15000 });
+  check("removing someone shows their files on their own Drive, with the space now and after", (await removeDialog.locator("[data-member-files-found]").innerText()).includes("1 файл") && (await removeDialog.locator("[data-member-space]").count()) >= 1);
+  await removeDialog.getByLabel("У сховище EdgeKnow").check();
+  await removeDialog.getByRole("button", { name: "Скопіювати й прибрати" }).click();
+  await removeDialog.waitFor({ state: "detached", timeout: 30000 });
+  const after = sql(`select (select count(*) from public.workspace_members where workspace_id = '${alphaId}' and user_id = '${moverId}' and status = 'active') || ' ' ||
+    (select storage_backend from public.task_files where name = 'mover.pdf') || ' ' || (select active from public.drive_accounts where id = '${account}')`);
+  check("…they are copied to EdgeKnow's storage, then the person is removed and their Drive takes no more files", after === "0 supabase false", after);
+  const copied = await alice.evaluate(async (url) => (await (await fetch(url)).text()).slice(0, 8), `/api/tasks/files/${sql("select id from public.task_files where name = 'mover.pdf'")}?ws=${alphaShort}`);
+  check("…and the file still opens from the task", copied === "%PDF-1.4", copied);
+}
+
 // --- Groups of people ---------------------------------------------------------------------------
 {
   const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");

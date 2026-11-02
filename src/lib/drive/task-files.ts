@@ -120,9 +120,11 @@ export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
 
 // Copies a file to another place, then frees the old one (a Drive copy is removed
 // with that Drive's own access; a Drive that is gone has nothing to remove).
-export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: TaskFileRow, to: Destination) {
+// `keepOld`: a person's own Drive keeps its copy when they leave — it's theirs.
+export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: TaskFileRow, to: Destination, keepOld = false) {
   const bytes = await readTaskFile(admin, rows, row);
   await storeTaskFile(admin, rows, row, bytes, to);
+  if (keepOld) return;
   if (row.storage_backend === "supabase") await rows.storage.from(TEAM_BUCKET).remove([row.storage_path]);
   if (row.storage_backend === "drive" && row.drive_account_id && row.drive_file_id) {
     const connection = await connectionById(admin, row.drive_account_id);

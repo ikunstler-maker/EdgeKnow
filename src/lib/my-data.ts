@@ -1,4 +1,6 @@
 import "server-only";
+import { activeConnection } from "@/lib/drive/storage";
+import { moveMemberFiles } from "@/lib/drive/member-files";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -43,6 +45,7 @@ export async function exportMyData(userId: string) {
         db.from("tasks").select("project_id, number, title, description, type, priority, due_date, created_at, updated_at").eq("workspace_id", m.workspace_id).or(`reporter_id.eq.${userId},assignee_id.eq.${userId}`),
       ),
       task_comments: await rows(db.from("task_comments").select("id, task_id, body, created_at, edited_at").eq("workspace_id", m.workspace_id).eq("author_id", userId)),
+      task_files: await rows(db.from("task_files").select("id, task_id, name, mime_type, bytes, drive_source, created_at").eq("workspace_id", m.workspace_id).eq("uploaded_by", userId)),
       statistics: await rows(db.from("page_contributions").select("page_id, chars_added, chars_removed, saves, last_saved_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
     });
   }
@@ -64,6 +67,13 @@ export async function deleteMyAccount(userId: string): Promise<DeleteResult> {
   // Team databases first: their pages to the workspace owner, their copy of the profile out.
   const { data: memberOf } = await admin.from("workspace_members").select("workspace_id").eq("user_id", userId);
   const ids = (memberOf ?? []).map((m) => m.workspace_id as string);
+  // Task files on their own Google Drive would go with the account: copied first
+  // to the wiki's Drive, or else to EdgeKnow's storage (best effort).
+  for (const ws of ids) {
+    const wiki = await activeConnection(admin, ws).catch(() => null);
+    await moveMemberFiles(admin, ws, userId, wiki?.status === "ok" ? "wiki" : "edgeknow", 15_000).catch(() => null);
+  }
+
   if (ids.length) {
     const { data: teams } = await admin
       .from("team_databases")
