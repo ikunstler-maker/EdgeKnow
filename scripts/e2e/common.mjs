@@ -15,17 +15,19 @@ export const API = status.API_URL;
 export const ANON = status.ANON_KEY ?? status.PUBLISHABLE_KEY;
 export const sql = (query) => execFileSync("psql", [status.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
 
+// Cut by characters, never inside an emoji (half of one breaks GitHub's log).
+export const clip = (text, length) => Array.from(String(text ?? "")).slice(0, length).join("").replace(/[\uD800-\uDFFF]/g, "");
 export const results = [];
 // A crash (timeout, missing element) is reported as an annotation with the last passed step.
 export const consoleErrors = [];
 let lastPage = null;
 const crash = async (error) => {
-  const message = String(error?.message ?? error).split("\n").slice(0, 3).join(" ").slice(0, 600);
+  const message = clip(String(error?.message ?? error).split("\n").slice(0, 3).join(" "), 600);
   console.log(`::error title=E2E crashed::${message} — after: ${results.at(-1)?.name ?? "start"}`);
   const alerts = await lastPage?.locator("[role=alert]").allInnerTexts().catch(() => []);
-  if (alerts?.length) console.log(`::error title=On-screen alerts::${alerts.join(" | ").slice(0, 600)}`);
-  if (consoleErrors.length) console.log(`::error title=Browser console::${consoleErrors.slice(-4).join(" | ").slice(0, 900)}`);
-  const screen = await lastPage?.evaluate(() => `${location.pathname} — ${document.body.innerText.replace(/\s+/g, " ").slice(0, 500)}`).catch(() => "");
+  if (alerts?.length) console.log(`::error title=On-screen alerts::${clip(alerts.join(" | "), 600)}`);
+  if (consoleErrors.length) console.log(`::error title=Browser console::${clip(consoleErrors.slice(-4).join(" | "), 900)}`);
+  const screen = await lastPage?.evaluate(() => `${location.pathname} — ${document.body.innerText.replace(/\s+/g, " ").slice(0, 500).replace(/[\uD800-\uDFFF]$/, "")}`).catch(() => "");
   if (screen) console.log(`::error title=On screen::${screen}`);
   process.exit(1);
 };
@@ -59,7 +61,7 @@ export async function newPage(cookies = []) {
   const page = await context.newPage();
   page.on("pageerror", (e) => problems.push(`page error: ${e.message}`));
   page.on("console", (m) => {
-    if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
+    if (m.type() === "error") consoleErrors.push(clip(m.text(), 300));
   });
   lastPage = page;
   page.on("dialog", (d) => d.accept().catch(() => {}));
@@ -135,7 +137,7 @@ export async function finish(part) {
 
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
-  for (const f of failed) console.log(`::error title=E2E ${part}::${f.name} — ${f.detail}`);
+  for (const f of failed) console.log(`::error title=E2E ${part}::${clip(`${f.name} — ${f.detail}`, 800)}`);
   console.log(`::notice title=E2E ${part}::${results.length - failed.length}/${results.length} checks passed`);
   process.exit(failed.length ? 1 : 0);
 
