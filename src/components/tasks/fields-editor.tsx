@@ -130,7 +130,7 @@ function DraftForm({ draft, setDraft, onSave, pending }: { draft: Draft; setDraf
         </label>
         <label className="flex flex-col gap-1">
           {f.kind}
-          <select value={draft.kind} disabled={!isNew} onChange={(e) => set({ kind: e.target.value as FieldKind })} className={inputClass}>
+          <select value={draft.kind} disabled={!isNew} aria-label={f.kind} onChange={(e) => set({ kind: e.target.value as FieldKind })} className={inputClass}>
             {FIELD_KINDS.map((kind) => (
               <option key={kind} value={kind}>
                 {f.kinds[kind]}
