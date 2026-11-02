@@ -140,6 +140,9 @@ check("alice makes a group and gives it a role on her page", Boolean(alphaGroup)
 const alphaProject = (await rpc(alice, "create_task_project", { ws: alpha.id, new_name: "Secret tasks", new_key: "SEC", new_icon: null, status_names: null })).json;
 const alphaTask = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha secret task" } })).json;
 check("alice makes a task project and a task", alphaProject?.ok === true && alphaTask?.key === "SEC-1", JSON.stringify([alphaProject, alphaTask]));
+const alphaTask2 = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha second task" } })).json;
+const alphaLink = (await rpc(alice, "add_task_link", { source_task: alphaTask?.id, target_task: alphaTask2?.id, link_kind: "blocks" })).json;
+check("alice links two tasks", alphaLink?.ok === true, JSON.stringify(alphaLink));
 const bobReads = {
   "all pages": "pages?select=id,title",
   "alpha page by id": `pages?id=eq.${page.id}&select=id,title`,
@@ -153,6 +156,7 @@ const bobReads = {
   "alpha task projects": `task_projects?workspace_id=eq.${alpha.id}&select=name`,
   "alpha tasks": `tasks?workspace_id=eq.${alpha.id}&select=title`,
   "alpha task history": `task_events?workspace_id=eq.${alpha.id}&select=field`,
+  "alpha task links": `task_links?workspace_id=eq.${alpha.id}&select=kind`,
   "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
   "alpha group grants": `page_group_access?workspace_id=eq.${alpha.id}&select=role`,
 };
@@ -175,6 +179,9 @@ const bobActions = {
   "add a task to alpha's project": ["create_task", { target_project: alphaProject?.id, fields: { title: "hacked" } }],
   "change alpha's task": ["update_task", { target_task: alphaTask?.id, changes: { title: "hacked" } }],
   "comment on alpha's task": ["add_task_comment", { target_task: alphaTask?.id, body: "hi", mention_ids: [] }],
+  "link alpha's tasks": ["add_task_link", { source_task: alphaTask?.id, target_task: alphaTask2?.id, link_kind: "relates" }],
+  "remove alpha's task link": ["delete_task_link", { target_link: alphaLink?.id }],
+  "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
   "switch \"own database first\"": ["set_require_team_database", { required: false }],
@@ -209,6 +216,8 @@ const writes = [
   ["POST", "/rest/v1/workspace_groups", { workspace_id: alpha.id, name: "Direct" }],
   ["POST", "/rest/v1/tasks", { workspace_id: alpha.id, project_id: alphaProject?.id, number: 99, title: "direct" }],
   ["PATCH", `/rest/v1/tasks?id=eq.${alphaTask?.id}`, { title: "direct" }],
+  ["POST", "/rest/v1/task_links", { workspace_id: alpha.id, source_id: alphaTask?.id, target_id: alphaTask2?.id, kind: "relates" }],
+  ["DELETE", `/rest/v1/task_links?id=eq.${alphaLink?.id}`, undefined],
   ["POST", "/rest/v1/page_group_access", { workspace_id: alpha.id, page_id: page.id, group_id: "00000000-0000-0000-0000-000000000000", role: "editor" }],
   ["PATCH", "/rest/v1/workspace_domains?domain=eq.alpha.test", { method: "dns" }],
 ];

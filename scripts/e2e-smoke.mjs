@@ -1300,6 +1300,66 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("“Only mine” filters the board", (await alice.locator("[data-card]").count()) === 0);
   await alice.getByRole("button", { name: "Скинути фільтри" }).click();
   check("…and clearing brings them back", (await alice.locator("[data-card]").count()) === 4);
+
+  // Step Z3: subtasks with progress, links ("blocked by"), checklist → subtasks, bulk changes, epics.
+  const marTask = (number) => `(select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = ${number})`;
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  const subInput = alice.getByLabel("Нова підзадача — назва і Enter");
+  await subInput.fill("Sub one");
+  await subInput.press("Enter");
+  await alice.locator('[data-subtask="MAR-5"]').waitFor({ timeout: 15000 });
+  await subInput.fill("Sub two");
+  await subInput.press("Enter");
+  await alice.locator('[data-subtask="MAR-6"]').waitFor({ timeout: 15000 });
+  check("subtasks are added under a task", sql(`select count(*) from public.tasks where parent_id = ${marTask(2)}`) === "2" && (await alice.locator("[data-progress]").innerText()) === "Готово 0 з 2");
+  await alice.getByLabel("Позначити «Sub one» готовою").click();
+  await alice.getByText("Готово 1 з 2").waitFor({ timeout: 15000 }).catch(() => {});
+  check("…ticking one makes it done and moves the progress", (await alice.locator("[data-progress]").innerText()) === "Готово 1 з 2" && sql(`select s.category from public.tasks t join public.task_statuses s on s.id = t.status_id where t.id = ${marTask(5)}`) === "done");
+  check("…a task can't move under its own subtask", (await alice.locator("[data-parent-picker] option", { hasText: "MAR-5" }).count()) === 0 && (await alice.locator("[data-parent-picker] option", { hasText: "MAR-3" }).count()) === 1);
+  const links = alice.locator("[data-links]");
+  await links.getByLabel("Вид зв'язку").selectOption("blocked_by");
+  await links.getByLabel("Ключ задачі, наприклад MKT-12").fill("mar-1");
+  await links.getByRole("button", { name: "Зв'язати" }).click();
+  await alice.locator('[data-link="MAR-1"]').waitFor({ timeout: 15000 });
+  check("a link by key: MAR-2 is blocked by MAR-1", sql(`select kind from public.task_links where source_id = ${marTask(1)} and target_id = ${marTask(2)}`) === "blocks" && (await alice.locator("[data-blocked-notice]").count()) === 1);
+  await links.getByLabel("Ключ задачі, наприклад MKT-12").fill("NOPE-1");
+  await links.getByRole("button", { name: "Зв'язати" }).click();
+  await alice.getByText("Задачу не знайдено або у вас немає до неї доступу.").last().waitFor({ timeout: 15000 }).catch(() => {});
+  check("…a key no one can see is refused", sql(`select count(*) from public.task_links where target_id = ${marTask(2)} or source_id = ${marTask(2)}`) === "1");
+  sql(`update public.tasks set description = '[{"id":"c1","type":"checkListItem","props":{"checked":false},"content":[{"type":"text","text":"Check fonts","styles":{}}],"children":[]},{"id":"c2","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"Done already","styles":{}}],"children":[]}]' where id = ${marTask(2)}`);
+  await alice.reload();
+  await alice.getByRole("button", { name: "☑ Зробити підзадачі з чек-листа опису" }).click();
+  await alice.getByText("Створено підзадач: 1").waitFor({ timeout: 15000 }).catch(() => {});
+  check("the open checklist items become subtasks", sql(`select string_agg(title, ',' order by number) from public.tasks where parent_id = ${marTask(2)}`) === "Sub one,Sub two,Check fonts");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.locator("[data-task-board]").waitFor();
+  check("the board shows the blocked task and the subtask progress", (await alice.locator('[data-card="MAR-2"] [data-card-blocked]').count()) === 1 && (await alice.locator('[data-card="MAR-1"] [data-card-blocked]').count()) === 0);
+
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
+  await alice.getByLabel("Вибрати MAR-5").check();
+  await alice.getByLabel("Вибрати MAR-6").check();
+  const bar = alice.locator("[data-bulk-bar]");
+  check("selecting tasks opens the bulk bar", (await bar.getByText("Вибрано: 2").count()) === 1);
+  await bar.getByLabel("Пріоритет…").selectOption("highest");
+  await alice.getByText("Змінено задач: 2").waitFor({ timeout: 15000 }).catch(() => {});
+  check("…one choice changes all of them", sql(`select string_agg(priority, ',') from public.tasks where id in (${marTask(5)}, ${marTask(6)})`) === "highest,highest");
+  await bar.getByLabel("Додати мітку").fill("design");
+  await bar.getByLabel("Додати мітку").press("Enter");
+  await alice.waitForTimeout(1500);
+  check("…and adds a label to each", sql(`select count(*) from public.tasks where id in (${marTask(5)}, ${marTask(6)}) and 'design' = any (labels)`) === "2");
+  await bar.getByRole("button", { name: "Зняти вибір" }).click();
+  await alice.getByLabel("Вибрати MAR-3").check();
+  await alice.locator("[data-bulk-bar]").getByLabel("Тип…").selectOption("epic");
+  await alice.waitForTimeout(1500);
+  await alice.locator("[data-bulk-bar]").getByRole("button", { name: "Зняти вибір" }).click();
+  await alice.getByLabel("Вибрати MAR-1").check();
+  await alice.locator("[data-bulk-bar]").getByLabel("Епік…").selectOption({ label: "MAR-3 From a colleague" });
+  await alice.waitForTimeout(1500);
+  check("a task joins an epic", sql(`select parent_id = ${marTask(3)} from public.tasks where id = ${marTask(1)}`) === "t");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/3`);
+  check("…and the epic lists its tasks with progress", (await alice.getByRole("region", { name: "Задачі епіку" }).locator('[data-subtask="MAR-1"]').count()) === 1 && (await alice.locator("[data-progress]").innerText()) === "Готово 0 з 1");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
+  check("…and the task shows its epic above the title", (await alice.locator("[data-parent-link]").innerText()).includes("MAR-3"));
 }
 
 // --- Groups of people ---------------------------------------------------------------------------
@@ -1447,7 +1507,7 @@ check("a team workspace's tasks are in its own database, not centrally", teamSql
 // --- Step 1.8: after all of the above, the central database holds nothing of Team Delta's content ---
 {
   const ws = sql("select id from public.workspaces where name = 'Team Delta'");
-  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_comments", "task_events"];
+  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_links", "task_comments", "task_events"];
   const teamPages = teamSql(`select coalesce(string_agg(quote_literal(id::text), ','), 'null') from public.pages where workspace_id = '${ws}'`);
   const central = [
     ...tables.map((table) => `${table}=${sql(`select count(*) from public.${table} where workspace_id = '${ws}'`)}`),

@@ -48,3 +48,17 @@ set role authenticated;
 :as_bob;
 select 'bob after: ' || count(*) || ' tasks, makes one: ' || (public.create_task(:'project', '{"title": "x"}') ->> 'error') from public.tasks;
 reset role;
+
+-- Links and bulk edit (step Z3) in the team database.
+set role authenticated;
+:as_alice;
+select public.create_task(:'project', '{"title": "Linked one"}') ->> 'id' as l1 \gset
+select public.create_task(:'project', '{"title": "Linked two"}') ->> 'id' as l2 \gset
+select 'team link: ' || (public.add_task_link(:'l1', :'l2', 'blocks') ->> 'ok');
+select 'team loop: ' || (public.update_task(:'l1', jsonb_build_object('parent_id', :'l1')) ->> 'error');
+select 'team bulk: ' || (public.bulk_update_tasks(array[:'l1', :'l2']::uuid[], '{"priority": "highest"}') ->> 'changed');
+reset role;
+set role authenticated;
+:as_carol;
+select 'carol sees links: ' || count(*) || ', links: ' || (public.add_task_link(:'l2', :'l1', 'relates') ->> 'error') from public.task_links;
+reset role;
