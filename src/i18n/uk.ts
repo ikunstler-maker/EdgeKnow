@@ -156,6 +156,7 @@ export const uk = {
       slides: { name: "Презентації", about: "Слайди з усім, що є в EdgeKnow — як Keynote" },
       surveys: { name: "Опитування", about: "Форми, відповіді йдуть у таблицю — як Google Форми" },
       chat: { name: "Чат", about: "Канали й повідомлення команди — як Slack і Telegram" },
+      files: { name: "Файли", about: "Сховище workspace: перегляд, завантаження, вставка у вікі й задачі" },
     } as Record<string, { name: string; about: string }>,
   },
   home: {

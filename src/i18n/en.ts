@@ -147,6 +147,7 @@ export const en: Dictionary = {
       slides: { name: "Presentations", about: "Slides with anything from EdgeKnow — like Keynote" },
       surveys: { name: "Surveys", about: "Forms whose answers go into a sheet — like Google Forms" },
       chat: { name: "Chat", about: "Your team's channels and messages — like Slack and Telegram" },
+      files: { name: "Files", about: "The workspace's storage: browse, upload, insert into the wiki and tasks" },
     } as Record<string, { name: string; about: string }>,
   },
   home: {
