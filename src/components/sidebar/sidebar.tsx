@@ -1,5 +1,6 @@
 "use client";
 
+import { ServiceSwitcher } from "@/components/services/service-switcher";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,6 +74,7 @@ export function Sidebar({
     >
       <AnglerGuide containerRef={navRef} />
       <WorkspaceSwitcher workspaces={workspaces} onNavigate={onNavigate} />
+      <ServiceSwitcher shortId={workspace.shortId} pathname={pathname} onNavigate={onNavigate} />
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
 

@@ -1177,6 +1177,13 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
 // --- Tasks (stage 2a, step Z1) -------------------------------------------------------------------
 {
   const { cookies: colleagueTaskCookies, client: colleagueTasks } = await sessionCookies("colleague@alpha.test");
+  // The start page: a tile per service; those still being built say "Soon".
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 7 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 5);
+  await alice.locator("[data-service-switcher]").getByRole("link", { name: "Задачі" }).click();
+  await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
+  check("…and the switcher in the sidebar opens Tasks", true);
   await alice.goto(`${APP}/w/${alphaShort}/tasks`);
   const form = alice.getByRole("form", { name: "Новий проєкт" });
   await form.getByLabel("Назва проєкту").fill("Маркетинг");
