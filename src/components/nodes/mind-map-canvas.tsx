@@ -5,6 +5,9 @@ import { createContext, memo, use, useEffect, useLayoutEffect, useMemo, useRef, 
 import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { t } from "@/i18n";
 import { useResolvedTheme } from "@/lib/use-theme";
+import { useRouter } from "next/navigation";
+import { workspacePath } from "@/lib/paths";
+import { createNodeMap } from "@/app/node-actions";
 import {
   MAX_NODES,
   NODE_COLORS,
@@ -13,7 +16,11 @@ import {
   addChild,
   addSibling,
   childrenOf,
+  insertOutline,
   layoutMap,
+  mapToDiagram,
+  mapToOutline,
+  parseOutline,
   neighbour,
   removeNode,
   rootOf,
@@ -97,7 +104,12 @@ function EditField({ text, x, y, root, onCommit }: { text: string; x: number; y:
   );
 }
 
-function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void }) {
+type CanvasProps = { shortId: string; map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void };
+
+function Canvas({ shortId, map, editable, onChange, onLocalChange }: CanvasProps) {
+  const router = useRouter();
+  const [pasting, setPasting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const theme = useResolvedTheme();
   const flow = useReactFlow();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -289,8 +301,68 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
         <button type="button" onClick={() => flow.fitView({ duration: 200, padding: 0.2 })} className={tool}>
           ⤢ {n.fit}
         </button>
+        <button
+          type="button"
+          onClick={async () => {
+            await navigator.clipboard.writeText(mapToOutline(mapRef.current)).catch(() => {});
+            setNotice(n.outlineCopied);
+          }}
+          className={tool}
+        >
+          📋 {n.asList}
+        </button>
+        {editable && (
+          <button type="button" onClick={() => setPasting(true)} className={tool}>
+            📥 {n.fromList}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={async () => {
+            const made = await createNodeMap(shortId, "flow", mapToDiagram(mapRef.current), rootOf(mapRef.current).text);
+            if (made.ok) router.push(workspacePath(shortId, `/nodes/${made.id}`));
+            else setError(n.errors[made.error] ?? t.common.unknownError);
+          }}
+          className={tool}
+        >
+          🔀 {n.toFlow}
+        </button>
         <span className="hidden text-xs text-muted lg:inline">{editable ? n.keys : ""}</span>
       </div>
+      {notice && (
+        <p role="status" className="text-sm text-muted">
+          {notice}
+        </p>
+      )}
+      {pasting && (
+        <form
+          className="space-y-2 rounded-lg border border-border p-3 text-sm"
+          aria-label={n.fromListTitle}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const text = new FormData(e.currentTarget).get("outline")?.toString() ?? "";
+            const items = parseOutline(text);
+            if (items.length) {
+              const next = insertOutline(mapRef.current, node.id, items);
+              if (next.nodes.length > MAX_NODES) setError(n.tooBig);
+              else change(next);
+            }
+            setPasting(false);
+          }}
+        >
+          <p className="font-medium">{n.fromListTitle}</p>
+          <p className="text-xs text-muted">{n.fromListHint(node.text || "…")}</p>
+          <textarea name="outline" rows={6} aria-label={n.fromListTitle} placeholder={"- Ідея\n  - Деталь\n- Ще одна"} className="w-full rounded-md border border-border bg-background px-2 py-1 font-mono text-base md:text-sm" />
+          <div className="flex gap-2">
+            <button type="submit" className="min-h-11 rounded-md bg-accent px-3 font-medium text-white md:min-h-9">
+              {n.addBranches}
+            </button>
+            <button type="button" onClick={() => setPasting(false)} className={tool}>
+              {t.common.cancel}
+            </button>
+          </div>
+        </form>
+      )}
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -351,7 +423,7 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
   );
 }
 
-export default function MindMapCanvas(props: { map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void }) {
+export default function MindMapCanvas(props: CanvasProps) {
   return (
     <ReactFlowProvider>
       <Canvas {...props} />

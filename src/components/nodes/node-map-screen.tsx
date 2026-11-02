@@ -11,12 +11,14 @@ import { useRouter } from "next/navigation";
 import { workspacePath } from "@/lib/paths";
 
 const MindMapCanvas = dynamic(() => import("./mind-map-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
+const DiagramCanvas = dynamic(() => import("@/components/editor/diagram-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
 
 const n = t.nodes;
 
 // One map: its title, the save status, access, and the canvas. Changes are saved
 // about a second after the last one; a save that finds a newer version stops and says so.
 export function NodeMapScreen({
+  kind = "mindmap",
   shortId,
   id,
   initialTitle,
@@ -26,6 +28,7 @@ export function NodeMapScreen({
   access,
   members,
 }: {
+  kind?: "mindmap" | "flow";
   shortId: string;
   id: string;
   initialTitle: string;
@@ -38,9 +41,11 @@ export function NodeMapScreen({
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [map, setMap] = useState<MapData>(() => readMap(initialData, n.centralTopic));
+  // A diagram is kept as the canvas's own text and saved as an object.
+  const [diagram] = useState(() => JSON.stringify(initialData ?? {}));
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "conflict" | "error">("idle");
   const version = useRef(initialVersion);
-  const pending = useRef<{ title: string | null; data: MapData | null } | null>(null);
+  const pending = useRef<{ title: string | null; data: unknown } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
 
@@ -72,7 +77,7 @@ export function NodeMapScreen({
   }, [shortId, id]);
 
   const schedule = useCallback(
-    (patch: { title?: string; data?: MapData }) => {
+    (patch: { title?: string; data?: unknown }) => {
       if (!canEdit || status === "conflict") return;
       pending.current = { title: patch.title ?? pending.current?.title ?? null, data: patch.data ?? pending.current?.data ?? null };
       if (timer.current) clearTimeout(timer.current);
@@ -152,7 +157,20 @@ export function NodeMapScreen({
           </button>
         </p>
       )}
-      <MindMapCanvas map={map} editable={canEdit && status !== "conflict"} onChange={changeMap} onLocalChange={setMap} />
+      {kind === "flow" ? (
+        <div className="mt-3" data-flow>
+          <DiagramCanvas
+            large
+            data={diagram}
+            height={640}
+            editable={canEdit && status !== "conflict"}
+            onChange={(next) => schedule({ data: JSON.parse(next) })}
+            onHeightChange={() => {}}
+          />
+        </div>
+      ) : (
+        <MindMapCanvas shortId={shortId} map={map} editable={canEdit && status !== "conflict"} onChange={changeMap} onLocalChange={setMap} />
+      )}
     </div>
   );
 }

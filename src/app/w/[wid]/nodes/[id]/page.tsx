@@ -60,6 +60,7 @@ export default async function NodeMapPage({ params }: PageProps<"/w/[wid]/nodes/
       </Link>
       <NodeMapScreen
         key={map.id}
+        kind={map.kind === "flow" ? "flow" : "mindmap"}
         shortId={workspace.shortId}
         id={map.id}
         initialTitle={map.title}

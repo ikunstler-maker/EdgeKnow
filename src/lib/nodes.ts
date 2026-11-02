@@ -126,3 +126,61 @@ export function mapToOutline(map: MapData): string {
   walk(rootOf(map).id, 0);
   return lines.join("\n");
 }
+
+// An indented list ("- a", "  - b", "1. c", tabs or spaces) as a tree of texts.
+export type OutlineItem = { text: string; children: OutlineItem[] };
+export function parseOutline(source: string): OutlineItem[] {
+  const roots: OutlineItem[] = [];
+  const stack: { indent: number; item: OutlineItem }[] = [];
+  for (const raw of source.replace(/\t/g, "  ").split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    const indent = raw.length - raw.trimStart().length;
+    const text = raw.trim().replace(/^([-*•+]|\d+[.)])\s+/, "").slice(0, 500);
+    if (!text) continue;
+    const item = { text, children: [] };
+    while (stack.length && stack.at(-1)!.indent >= indent) stack.pop();
+    if (stack.length) stack.at(-1)!.item.children.push(item);
+    else roots.push(item);
+    stack.push({ indent, item });
+  }
+  return roots;
+}
+
+// The list's items as branches under a node.
+export function insertOutline(map: MapData, under: string, items: OutlineItem[]): MapData {
+  const nodes = [...map.nodes];
+  const add = (parent: string, list: OutlineItem[]) => {
+    for (const item of list) {
+      if (nodes.length >= MAX_NODES) return;
+      const id = newNodeId();
+      nodes.push({ id, parent, text: item.text });
+      add(id, item.children);
+    }
+  };
+  add(under, items);
+  return { nodes: nodes.map((n) => (n.id === under ? { ...n, collapsed: undefined } : n)) };
+}
+
+// A mind map as a diagram: every node a box where the tree puts it, a line to each child.
+export function mapToDiagram(map: MapData) {
+  const positions = layoutMap({ nodes: map.nodes.map((n) => ({ ...n, collapsed: undefined })) });
+  const fills: Record<NodeColor, string> = { default: "white", blue: "blue", green: "green", yellow: "yellow", orange: "orange", red: "red", purple: "purple" };
+  return {
+    nodes: map.nodes.map((n) => ({
+      id: `n${n.id}`,
+      x: Math.round(positions.get(n.id)!.x * 1.2),
+      y: Math.round(positions.get(n.id)!.y * 1.8),
+      width: 192,
+      height: 64,
+      title: n.text.slice(0, 100),
+      description: "",
+      fill: fills[n.color ?? "default"],
+      stroke: "gray",
+      emoji: "",
+      shape: n.parent === null ? "ellipse" : "round",
+    })),
+    edges: map.nodes
+      .filter((n) => n.parent)
+      .map((n) => ({ id: `e${n.id}`, source: `n${n.parent}`, target: `n${n.id}`, sourceHandle: "right", targetHandle: "left", label: "", dashed: false })),
+  };
+}

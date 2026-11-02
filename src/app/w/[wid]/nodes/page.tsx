@@ -37,9 +37,7 @@ export default async function NodeSpacePage({ params, searchParams }: PageProps<
           <p className="mt-1 text-muted">{t.nodes.intro}</p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <NewNodeMapButton shortId={workspace.shortId} />
-            <span className="inline-flex min-h-11 items-center rounded-lg border border-dashed border-border px-4 text-sm text-muted md:min-h-9" title={t.nodes.flowSoon}>
-              {t.nodes.newFlow} · {t.services.soon}
-            </span>
+            <NewNodeMapButton shortId={workspace.shortId} kind="flow" />
           </div>
         </>
       )}
