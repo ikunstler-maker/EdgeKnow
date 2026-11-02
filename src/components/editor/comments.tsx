@@ -32,6 +32,7 @@ import {
   setThreadResolved,
 } from "@/app/comment-actions";
 import type { schema } from "./schema";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 
 type Editor = typeof schema.BlockNoteEditor;
 type Draft = { from: number; to: number; quoted: string };
@@ -429,12 +430,17 @@ function CommentRow({
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const own = comment.authorId === userId;
+  const guests = useOptionalPages()?.guests;
   const author = (comment.authorId && people[comment.authorId]) || c.formerMember;
+  const authorIsGuest = Boolean(comment.authorId && guests?.has(comment.authorId));
 
   return (
     <li className="space-y-1 text-sm">
       <div className="flex items-baseline gap-2">
-        <span className="min-w-0 flex-1 truncate font-medium">{author}</span>
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {author}
+          {authorIsGuest && <span className="ml-1 rounded bg-surface px-1.5 text-xs font-normal text-muted">{t.workspace.roles.guest}</span>}
+        </span>
         <time className="shrink-0 text-xs text-muted" dateTime={comment.createdAt}>
           {dateFormat().format(new Date(comment.createdAt))}
         </time>

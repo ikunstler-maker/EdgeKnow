@@ -1,5 +1,7 @@
 // Tasks (stage 2a): shared types and small helpers for the server and the browser.
 
+import { t } from "@/i18n";
+
 export type TaskType = "task" | "bug" | "idea" | "epic";
 export type TaskPriority = "lowest" | "low" | "medium" | "high" | "highest";
 export type StatusCategory = "todo" | "doing" | "done";
@@ -12,7 +14,8 @@ export const PRIORITY_ICONS: Record<TaskPriority, string> = { highest: "⏫", hi
 
 export type ProjectSummary = { id: string; key: string; name: string; icon: string | null };
 export type TaskStatus = { id: string; name: string; category: StatusCategory; position: number; wip_limit: number | null };
-export type Person = { id: string; name: string | null; email: string };
+// `guest`: shown with the mark «Гість» wherever the person appears.
+export type Person = { id: string; name: string | null; email: string; guest?: boolean };
 
 export type TaskRow = {
   id: string;
@@ -61,7 +64,8 @@ export const TASK_COLUMNS =
 export const PROJECT_KEY = /^[A-Z][A-Z0-9]{1,9}$/;
 
 export const taskKey = (projectKey: string, number: number) => `${projectKey}-${number}`;
-export const personLabel = (person: Person | null | undefined) => (person ? person.name || person.email : "");
+export const personLabel = (person: Person | null | undefined) =>
+  person ? `${person.name || person.email}${person.guest ? ` · ${t.workspace.roles.guest}` : ""}` : "";
 
 // "MKT-12" → ["MKT", 12]
 export function parseTaskKey(value: string): [string, number] | null {

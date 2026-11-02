@@ -220,6 +220,8 @@ function TreeRow({
   const { workspace, pages, create, rename, move, trash } = usePages();
   const editable = canEdit(page.role);
   const owner = page.role === "owner";
+  // Guests don't start new pages, not even below a shared one.
+  const guest = workspace.role === "guest";
   // Moving needs edit rights on the page itself.
   const drag = useDraggable({ id: page.id, disabled: !editable });
   const dropArea = useDroppable({ id: page.id, disabled: dropBlocked });
@@ -306,18 +308,20 @@ function TreeRow({
         {/* Always visible on touch screens; on desktop they appear on hover. */}
         {editable && (
           <>
-            <button
-              type="button"
-              onClick={() => {
-                create(page.id);
-                setExpanded(page.id, true);
-              }}
-              aria-label={t.sidebar.addSubpage}
-              title={t.sidebar.addSubpage}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
-            >
-              +
-            </button>
+            {!guest && (
+              <button
+                type="button"
+                onClick={() => {
+                  create(page.id);
+                  setExpanded(page.id, true);
+                }}
+                aria-label={t.sidebar.addSubpage}
+                title={t.sidebar.addSubpage}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
+              >
+                +
+              </button>
+            )}
             <button
               type="button"
               onClick={(event) => setMenuAnchor(menuAnchor ? null : event.currentTarget)}
@@ -341,15 +345,17 @@ function TreeRow({
           >
             {t.pages.menu.rename}
           </MenuItem>
-          <MenuItem
-            onSelect={() => {
-              setMenuAnchor(null);
-              create(page.id);
-              setExpanded(page.id, true);
-            }}
-          >
-            {t.pages.menu.addSubpage}
-          </MenuItem>
+          {!guest && (
+            <MenuItem
+              onSelect={() => {
+                setMenuAnchor(null);
+                create(page.id);
+                setExpanded(page.id, true);
+              }}
+            >
+              {t.pages.menu.addSubpage}
+            </MenuItem>
+          )}
           <MenuItem
             onSelect={() => {
               setMenuAnchor(null);

@@ -111,6 +111,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
                   .map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name ? `${m.name} (${m.email})` : m.email}
+                      {m.guest ? ` · ${t.workspace.roles.guest}` : ""}
                     </option>
                   ))}
               </select>
@@ -145,7 +146,8 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
                     onChange={(e) => run(() => setTaskProjectMemberRole(project.id, p.user_id, e.target.value || null))}
                     className={selectClass}
                   >
-                    {ROLES.map((r) => (
+                    {/* A guest is never an owner. */}
+                    {ROLES.filter((r) => !(r === "owner" && personOf.get(p.user_id)?.guest)).map((r) => (
                       <option key={r} value={r}>
                         {t.tasks.roles[r]}
                       </option>

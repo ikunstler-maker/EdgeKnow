@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, useSyncExternalStore, useTransition } from "react";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import type { Workspace } from "@/lib/workspace";
 import {
@@ -15,6 +15,7 @@ import {
   renameWorkspace,
   revokeInvitation,
   setDomainActive,
+  setGuestAccessUntil,
   setMemberRole,
   transferOwnership,
 } from "@/app/workspace-actions";
@@ -29,6 +30,8 @@ export type MemberItem = {
   email: string;
   role: "owner" | "admin" | "member" | "guest";
   joinedVia: "creator" | "domain" | "invite";
+  // A guest's access ends then (ISO), or never (null).
+  accessUntil: string | null;
 };
 export type DomainItem = {
   domain: string;
@@ -38,7 +41,7 @@ export type DomainItem = {
 };
 // A domain asked for and waiting for its DNS record.
 export type ClaimItem = { domain: string; token: string; checkedAt: string | null; lastError: string | null };
-export type InvitationItem = { id: string; email: string; role: string; expiresLabel: string };
+export type InvitationItem = { id: string; email: string; role: string; expiresLabel: string; guestUntil: string | null };
 export type DepartedOwner = { userId: string; name: string | null; email: string; pages: number };
 
 const inputClass = "min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 text-base";
@@ -186,6 +189,11 @@ export function GeneralPanel({ workspace, members }: { workspace: Workspace; mem
   );
 }
 
+// Dates of a guest's access: a picked day lasts until its end, in the admin's time zone.
+const today = () => new Date().toLocaleDateString("sv");
+const endOfDay = (day: string) => (day ? new Date(`${day}T23:59:59`).toISOString() : null);
+const shortDay = (iso: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(iso));
+
 export function MembersPanel({
   workspace,
   currentUserId,
@@ -202,14 +210,15 @@ export function MembersPanel({
   const { pending, run, errorLine } = useAction();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
+  const [until, setUntil] = useState("");
   const [link, setLink] = useState<{ email: string; url: string } | null>(null);
   const [removing, setRemoving] = useState<MemberItem | null>(null);
   const stopRemoving = useCallback(() => setRemoving(null), []);
 
   // The link token is shown only now; the database keeps just its hash.
-  const invite = (address: string, inviteRole: string) =>
+  const invite = (address: string, inviteRole: string, guestUntil: string | null = null) =>
     run(async () => {
-      const result = await inviteMember(workspace.id, address, inviteRole);
+      const result = await inviteMember(workspace.id, address, inviteRole, guestUntil);
       if (result.ok) {
         setLink({ email: address.trim().toLowerCase(), url: `${window.location.origin}/invite/${result.token}` });
         setEmail("");
@@ -227,7 +236,7 @@ export function MembersPanel({
           className="mt-3 flex flex-wrap items-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            invite(email, role);
+            invite(email, role, role === "guest" ? endOfDay(until) : null);
           }}
         >
           <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
@@ -239,12 +248,20 @@ export function MembersPanel({
             <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
               <option value="member">{t.workspace.roles.member}</option>
               <option value="admin">{t.workspace.roles.admin}</option>
+              <option value="guest">{t.workspace.roles.guest}</option>
             </select>
           </label>
+          {role === "guest" && (
+            <label className="flex flex-col gap-1 text-sm">
+              {s.members.inviteUntil}
+              <input type="date" suppressHydrationWarning value={until} min={today()} onChange={(e) => setUntil(e.target.value)} className={inputClass} data-guest-until />
+            </label>
+          )}
           <button type="submit" disabled={pending} className={primaryClass}>
             {s.members.inviteButton}
           </button>
         </form>
+        {role === "guest" && <p className="mt-2 text-sm text-muted">{s.members.guestHint}</p>}
         {link && (
           <div className="mt-3 rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm">
             {s.members.inviteCreated(link.email)}
@@ -262,10 +279,11 @@ export function MembersPanel({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{i.email}</span>
                   <span className="block text-xs text-muted">
-                    {t.workspace.roles[i.role]} · {i.expiresLabel}
+                    {t.workspace.roles[i.role]}
+                    {i.role === "guest" && ` (${i.guestUntil ? s.members.guestUntil(shortDay(i.guestUntil)) : s.members.guestNoEnd})`} · {i.expiresLabel}
                   </span>
                 </span>
-                <button type="button" disabled={pending} className={buttonClass} onClick={() => invite(i.email, i.role)}>
+                <button type="button" disabled={pending} className={buttonClass} onClick={() => invite(i.email, i.role, i.guestUntil)}>
                   {s.members.newLink}
                 </button>
                 <button
@@ -294,6 +312,15 @@ export function MembersPanel({
                 </span>
                 <span className="block truncate text-xs text-muted">
                   {m.email} · {via[m.joinedVia]}
+                  {m.role === "guest" && (
+                    <>
+                      {" · "}
+                      <span className="rounded bg-surface px-1.5 font-medium text-foreground" data-guest-badge>
+                        {t.workspace.roles.guest}
+                      </span>{" "}
+                      {m.accessUntil ? s.members.guestUntil(shortDay(m.accessUntil)) : s.members.guestNoEnd}
+                    </>
+                  )}
                 </span>
               </span>
               {m.role === "owner" ? (
@@ -309,7 +336,27 @@ export function MembersPanel({
                   >
                     <option value="member">{t.workspace.roles.member}</option>
                     <option value="admin">{t.workspace.roles.admin}</option>
+                    <option value="guest">{t.workspace.roles.guest}</option>
                   </select>
+                  {m.role === "guest" && (
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="date"
+                        suppressHydrationWarning
+                        aria-label={`${s.members.accessUntil}: ${m.name ?? m.email}`}
+                        value={m.accessUntil ? m.accessUntil.slice(0, 10) : ""}
+                        min={today()}
+                        disabled={pending}
+                        onChange={(e) => e.target.value && run(() => setGuestAccessUntil(workspace.id, m.userId, endOfDay(e.target.value)))}
+                        className={inputClass}
+                      />
+                      {m.accessUntil && (
+                        <button type="button" disabled={pending} className={buttonClass} onClick={() => run(() => setGuestAccessUntil(workspace.id, m.userId, null))}>
+                          {s.members.noEnd}
+                        </button>
+                      )}
+                    </span>
+                  )}
                   <button
                     type="button"
                     disabled={pending}

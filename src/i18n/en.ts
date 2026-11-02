@@ -119,6 +119,7 @@ export const en: Dictionary = {
     accessTitle: "Access to the map",
     accessIntro: "The map's owner and the workspace's owner and admins always manage it.",
     errors: {
+      guest_role: "A guest can be an editor at most.",
       title_too_long: "Title — up to 200 characters.",
       too_large: "The map is too big.",
       too_many: "Too many maps in this workspace.",
@@ -517,6 +518,7 @@ export const en: Dictionary = {
       label: "Bulk changes",
     },
     errors: {
+      guest_role: "A guest can be an editor at most.",
       link_exists: "This link already exists.",
       too_many_links: "No more than 100 links per task.",
       task_not_found: "Task not found, or you have no access to it.",
@@ -651,6 +653,7 @@ export const en: Dictionary = {
       cancel: "Cancel",
     },
     errors: {
+      guest_role: "A page can't be handed to a guest, nor a guest made its owner.",
       rate_limited: "Too many requests in a short time. Wait a minute and try again.",
       team_database_required: "Connect your own database first: Settings → “Database”.",
       team_setup: "The workspace is moving between databases — changes aren't saved. Wait a few minutes.",
@@ -1596,6 +1599,12 @@ export const en: Dictionary = {
       ownerOnly: "Only the owner can transfer ownership and delete the workspace.",
     },
     members: {
+      inviteUntil: "Access until (optional)",
+      guestHint: "A guest sees only what is shared with them: a page, a task project or a map. They don't see the rest of the workspace, its members or groups, and create nothing new.",
+      guestUntil: (date: string) => `access until ${date}`,
+      guestNoEnd: "access with no end date",
+      accessUntil: "Guest's access until",
+      noEnd: "No end",
       heading: "Members",
       you: "you",
       viaDomain: "by domain",
@@ -1677,6 +1686,9 @@ export const en: Dictionary = {
       heading: "Change log",
     },
     errors: {
+      guest_role: "A guest is never an owner and is in no groups.",
+      invalid_date: "The date must be in the future.",
+      not_a_guest: "This person is not a guest.",
       rate_limited: "Too many requests in a short time. Wait a minute and try again.",
       group_exists: "A group with this name already exists.",
       forbidden: "Not allowed. The attempt was logged.",

@@ -19,7 +19,7 @@ import { errorMessage } from "./pages-provider";
 
 const GRANT_ROLES: GrantRole[] = ["editor", "commenter", "viewer"];
 
-const personLabel = (person: SharingPerson) => person.name || person.email;
+const personLabel = (person: SharingPerson) => `${person.name || person.email}${person.guest ? ` · ${t.workspace.roles.guest}` : ""}`;
 
 const selectClass =
   "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
@@ -125,6 +125,7 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
                     {addable.map((m) => (
                       <option key={m.user_id} value={m.user_id}>
                         {m.name ? `${m.name} (${m.email})` : m.email}
+                        {m.guest ? ` · ${t.workspace.roles.guest}` : ""}
                       </option>
                     ))}
                   </select>
@@ -350,11 +351,14 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
                       className={`${selectClass} min-w-0 flex-1`}
                     >
                       <option value="">{t.share.choosePerson}</option>
-                      {sharing.members.map((m) => (
-                        <option key={m.user_id} value={m.user_id}>
-                          {m.name ? `${m.name} (${m.email})` : m.email}
-                        </option>
-                      ))}
+                      {/* A page is never handed to a guest. */}
+                      {sharing.members
+                        .filter((m) => !m.guest)
+                        .map((m) => (
+                          <option key={m.user_id} value={m.user_id}>
+                            {m.name ? `${m.name} (${m.email})` : m.email}
+                          </option>
+                        ))}
                     </select>
                     <button
                       type="button"

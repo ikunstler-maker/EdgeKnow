@@ -53,7 +53,7 @@ export async function deletePageForever(id: string) {
 
 // Sharing (stage 5). The database lets only the page owner change access.
 
-export type SharingPerson = { user_id: string; name: string | null; email: string };
+export type SharingPerson = { user_id: string; name: string | null; email: string; guest?: boolean };
 export type SharingEntry = SharingPerson & {
   role: GrantRole;
   own: boolean;
@@ -89,7 +89,13 @@ export async function getPageSharing(id: string): Promise<ActionResult<PageShari
   const supabase = await dataClient();
   const { data, error } = await supabase.rpc("page_sharing", { target_page: id });
   if (error || !data) return { ok: false, error: "unknown" };
-  return data as ActionResult<PageSharing>;
+  const result = data as ActionResult<PageSharing>;
+  if (!result.ok) return result;
+  // Guests are marked wherever people are listed.
+  const { data: guestRows } = await supabase.from("workspace_members").select("user_id").eq("role", "guest").eq("status", "active");
+  const guests = new Set((guestRows ?? []).map((g) => g.user_id as string));
+  const mark = <T extends SharingPerson>(person: T): T => (guests.has(person.user_id) ? { ...person, guest: true } : person);
+  return { ...result, owner: mark(result.owner), entries: result.entries.map(mark), members: result.members.map(mark) };
 }
 
 export async function setPageMemberRole(id: string, userId: string, role: GrantRole | null) {

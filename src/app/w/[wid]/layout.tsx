@@ -70,6 +70,14 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     .order("name")
     .overrideTypes<ProjectSummary[], { merge: false }>();
 
+  // Guests this person sees (RLS), to mark them wherever people appear.
+  const { data: guestRows } = await supabase
+    .from("workspace_members")
+    .select("user_id")
+    .eq("workspace_id", workspace.id)
+    .eq("role", "guest")
+    .eq("status", "active");
+
   // The team's own database (path C): if it couldn't be read, or wasn't well at
   // the last check, look again now (this also wakes a sleeping one up).
   let health = data!.health ?? null;
@@ -85,7 +93,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     health && health !== "ok" && (health !== "almost_full" || workspace.role === "owner" || workspace.role === "admin") ? health : null;
 
   return (
-    <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)}>
+    <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)} guests={(guestRows ?? []).map((g) => g.user_id as string)}>
       <AppShell user={user} workspaces={workspaces} projects={projects ?? []}>
         {/* Moving into the team's own database (path C): changes wait until it is done. */}
         {(data!.location === "setup" || data!.location === "returning") && (
