@@ -214,7 +214,15 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <span aria-hidden="true">✅</span>,
     onItemClick: () => editor.getExtension(SuggestionMenu)?.openSuggestionMenu("@", { deleteTriggerCharacter: true, ignoreQueryLength: true }),
   };
-  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed];
+  const nodeMap: DefaultReactSuggestionItem = {
+    title: t.nodes.embed.title,
+    subtext: t.nodes.embed.subtext,
+    aliases: t.nodes.embed.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">🧠</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "nodeMap" }),
+  };
+  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap];
 }
 
 // "@": tasks by key or title, and a new task from what was typed (step Z4).
