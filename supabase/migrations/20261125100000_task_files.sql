@@ -91,6 +91,18 @@ $$;
 create trigger task_files_same_workspace before insert or update of workspace_id, task_id on public.task_files
   for each row execute function public.check_task_file_workspace();
 
+-- Their bytes in EdgeKnow's storage (or the team's own): a private bucket only
+-- the server touches; nobody gets a link to it, files go through our server.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('task-files', 'task-files', false, 4194304, array[
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/csv', 'application/zip',
+  'application/msword', 'application/vnd.ms-excel', 'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation'])
+on conflict (id) do update
+  set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
 -- A removed file is deleted from its storage by the daily cleanup.
 create function public.remember_deleted_task_file()
 returns trigger
