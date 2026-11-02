@@ -1235,7 +1235,7 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Формат", { exact: true }).selectOption("toggle");
   await alice.getByRole("form", { name: "Додати поле" }).getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-custom-field="Погоджено"]').waitFor({ timeout: 15000 });
-  check("the project owner defines own fields, with list items", sql("select string_agg(name || ':' || kind || ':' || jsonb_array_length(options), ',' order by position) from public.task_fields f join public.task_projects p on p.id = f.project_id where p.key = 'MAR'") === "Формат:select:2,Погоджено:toggle:0");
+  check("the project owner defines own fields, with list items", sql("select string_agg(f.name || ':' || f.kind || ':' || jsonb_array_length(f.options), ',' order by f.position) from public.task_fields f join public.task_projects p on p.id = f.project_id where p.key = 'MAR'") === "Формат:select:2,Погоджено:toggle:0");
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
   await alice.locator('[data-field="Формат"] select').selectOption({ label: "Відео" });
   await alice.waitForTimeout(1000);
