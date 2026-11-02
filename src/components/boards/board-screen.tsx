@@ -8,7 +8,9 @@ import { readBoard, type BoardData } from "@/lib/boards";
 import { workspacePath } from "@/lib/paths";
 import type { Person } from "@/lib/tasks";
 import { ObjectAccessButton, type ObjectAccess } from "@/components/access/object-access";
-import { saveBoard, setBoardGroupRole, setBoardMemberRole, setBoardWorkspaceRole, trashBoard } from "@/app/board-actions";
+import { saveBoard, setBoardGroupRole, setBoardMemberRole, setBoardWorkspaceRole, toggleBoardVote, trashBoard } from "@/app/board-actions";
+import { BoardSessionBar, useBoardSession } from "./board-session-bar";
+import type { BoardController, StickyInfo } from "./board-canvas";
 
 const BoardCanvas = dynamic(() => import("./board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.boards.loading}</p> });
 
@@ -23,7 +25,7 @@ export function BoardScreen({
   initialTitle,
   initialData,
   initialVersion,
-  canEdit,
+  role,
   access,
   members,
 }: {
@@ -32,12 +34,18 @@ export function BoardScreen({
   initialTitle: string;
   initialData: unknown;
   initialVersion: number;
-  canEdit: boolean;
+  role: string;
   access: ObjectAccess | null;
   members: Person[];
 }) {
   const router = useRouter();
+  const canEdit = role === "owner" || role === "editor";
   const [title, setTitle] = useState(initialTitle);
+  const [controller, setController] = useState<BoardController | null>(null);
+  const [stickies, setStickies] = useState<StickyInfo[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const live = useBoardSession(shortId, id, stickies);
   const [initial] = useState(() => readBoard(initialData));
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "conflict" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -155,8 +163,34 @@ export function BoardScreen({
           {error}
         </p>
       )}
-      <div className="mt-3 h-[calc(100dvh-12rem)] min-h-[420px] overflow-hidden rounded-lg border border-border" data-board>
-        <BoardCanvas initial={initial} editable={canEdit && status !== "conflict"} onChange={(data) => schedule({ data })} />
+      <BoardSessionBar
+        shortId={shortId}
+        id={id}
+        title={title}
+        role={role}
+        controller={controller}
+        stickies={stickies}
+        selected={selected}
+        state={live}
+        showResults={showResults}
+        setShowResults={setShowResults}
+      />
+      <div className="mt-3 h-[calc(100dvh-14rem)] min-h-[420px] overflow-hidden rounded-lg border border-border" data-board>
+        <BoardCanvas
+          initial={initial}
+          editable={canEdit && status !== "conflict"}
+          onChange={(data) => schedule({ data })}
+          onReady={setController}
+          onStickies={setStickies}
+          onSelect={setSelected}
+          votes={live.session ? { open: live.session.votingOpen, tally: live.session.tally, mine: live.session.mine, show: showResults } : null}
+          onVote={async (sticky) => {
+            const result = await toggleBoardVote(shortId, id, sticky);
+            if (!result.ok) setError(b.errors[result.error] ?? t.common.unknownError);
+            await live.refresh();
+          }}
+          chips={live.chips}
+        />
       </div>
     </div>
   );
