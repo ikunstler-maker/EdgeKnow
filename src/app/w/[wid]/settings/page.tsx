@@ -8,6 +8,7 @@ import { dataClient } from "@/lib/team-db/data";
 import { driveConfigured } from "@/lib/drive/google-drive";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { StoragePanel, type StorageStatus } from "./storage-panel";
+import { taskFilesStatus } from "@/lib/drive/workspace-files";
 import { GroupsPanel, type GroupItem } from "./groups-panel";
 import { TeamDatabasePanel, type TeamDatabaseStatus } from "./team-database-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -134,6 +135,7 @@ export default async function WorkspaceSettingsPage({
         service.from("pages").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id),
       ])
     : [null, null];
+  const taskFiles = tab === "storage" && service ? await taskFilesStatus(service, workspace.id).catch(() => null) : null;
   const teamStatus: TeamDatabaseStatus = teamRow?.data
     ? {
         projectUrl: teamRow.data.project_url,
@@ -276,6 +278,8 @@ export default async function WorkspaceSettingsPage({
           <StoragePanel
             workspaceId={workspace.id}
             status={storage.data as StorageStatus}
+            taskFiles={taskFiles}
+            team={Boolean(taskFiles?.team)}
             isOwner={workspace.role === "owner"}
             configured={driveConfigured()}
             notice={driveParam === "connected" ? "connected" : driveParam === "error" ? "error" : null}

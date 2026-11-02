@@ -295,21 +295,15 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
   check("…and the task shows its epic above the title", (await alice.locator("[data-parent-link]").innerText()).includes("MAR-3"));
 
-  // Files in tasks: kept by default on the Google Drive of whoever attaches them;
-  // the project can choose the wiki's Drive, its own Drive or EdgeKnow's storage.
+  // Files in tasks go where the whole workspace keeps its files (step U1): here
+  // the wiki's Google Drive. Nobody is asked to connect a Drive of their own.
   const marFile = () => sql(`select storage_backend || ':' || coalesce(drive_source, '-') from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);
   const pdf = { name: "brief.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n") };
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
   await alice.locator("[data-task-files] input[type=file]").setInputFiles(pdf);
-  await alice.getByRole("link", { name: "Підключити мій Google Диск" }).waitFor({ timeout: 15000 });
-  check("without their own Drive connected, a person is asked to connect it", sql(`select count(*) from public.task_files where task_id = ${marTask(2)}`) === "0");
-  await alice.getByRole("link", { name: "Підключити мій Google Диск" }).click();
-  await alice.waitForURL(/\/tasks\/MAR\/2\?drive=connected/, { timeout: 15000 });
-  const personal = sql(`select count(*) || ':' || bool_and(token_encrypted like 'v1.%' and token_encrypted not like '%fake-refresh-token%') from public.drive_accounts where workspace_id = '${alphaId}' and purpose = 'personal' and active`);
-  check("…they connect it (the access stored encrypted)", personal === "1:true", personal);
-  await alice.locator("[data-task-files] input[type=file]").setInputFiles(pdf);
   await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 15000 });
-  check("…and the file goes to their Drive", marFile() === "drive:personal", marFile());
+  check("a task file goes to the workspace's one storage (its Drive)", marFile() === "drive:wiki", marFile());
+  check("…with no Drive of anyone's own", (await alice.getByRole("link", { name: /Підключити мій Google Диск/ }).count()) === 0);
   const fileId = sql(`select id from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);
   const served = await alice.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${(await r.text()).slice(0, 5)}`; }, `/api/tasks/files/${fileId}?ws=${alphaShort}`);
   check("people who see the task open the file", served === "200 %PDF-", served);
@@ -317,26 +311,33 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…someone signed out gets nothing", stranger.status !== 200, String(stranger.status));
   const disguised = await alice.evaluate(async ({ ws, task }) => (await fetch(`/api/tasks/files?ws=${ws}&task=${task}&name=x.png`, { method: "POST", headers: { "Content-Type": "image/png" }, body: "<html><script>alert(1)</script>" })).status, { ws: alphaShort, task: sql(`select ${marTask(2)}`) });
   check("a page disguised as a picture is refused", disguised === 400, String(disguised));
-
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
-  await alice.getByRole("button", { name: "📎 Файли" }).click();
-  const filesDialog = alice.getByRole("dialog", { name: "Куди зберігати файли задач" });
-  await filesDialog.locator("[data-files-summary]").waitFor({ timeout: 15000 });
-  await filesDialog.getByLabel(/Google Диск вікі/).click();
-  await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
-  check("choosing the wiki's Drive shows what would move and the space now and after", (await filesDialog.locator("[data-space-now]").count()) === 1 && (await filesDialog.locator("[data-space-after]").count()) === 1);
-  await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
-  await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
-  check("…and the existing file moves there", marFile() === "drive:wiki", marFile());
-  await filesDialog.getByLabel("Сховище EdgeKnow").click();
-  await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
-  await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
-  await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
-  check("…or to EdgeKnow's storage", marFile() === "supabase:-" && sql(`select count(*) from storage.objects where bucket_id = 'task-files' and name = '${alphaId}/tasks/' || ${marTask(2)} || '/${fileId}'`) === "1", marFile());
-  await filesDialog.locator("[data-connect-project-drive]").click();
-  await alice.waitForURL(/files=1&drive=connected/, { timeout: 15000 });
-  await alice.getByRole("dialog", { name: "Куди зберігати файли задач" }).getByText(/Підключено: team-drive@fake\.test/).first().waitFor({ timeout: 15000 });
-  check("the project gets its own Drive", sql(`select count(*) from public.drive_accounts where workspace_id = '${alphaId}' and purpose = 'project' and active`) === "1");
+  check("projects no longer choose their own storage", (await alice.getByRole("button", { name: "📎 Файли" }).count()) === 0);
+
+  // An older file on someone's own Drive (from before U1) moves in from Settings → Storage.
+  {
+    const { writeFileSync } = await import("node:fs");
+    const old = "%PDF-1.4 old personal file\n%%EOF\n";
+    writeFileSync(`${fakeDir}/file-old1`, old);
+    writeFileSync(`${fakeDir}/file-old1.type`, "application/pdf");
+    const aliceId = sql("select id from public.profiles where email = 'alice@alpha.test'");
+    const account = sql(`insert into public.drive_accounts (workspace_id, purpose, user_id, account_email, root_folder_id, files_folder_id, token_encrypted)
+      select workspace_id, 'personal', '${aliceId}', 'alice@fake.test', 'folder-a', 'folder-a', token_encrypted from public.drive_connections
+      where workspace_id = '${alphaId}' and active limit 1 returning id`).split("\n")[0];
+    sql(`insert into public.task_files (workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by)
+      values ('${alphaId}', ${marTask(2)}, 'old.pdf', 'application/pdf', ${old.length}, '${alphaId}/tasks/' || ${marTask(2)} || '/00000000-0000-4000-8000-00000000f0a1', 'drive', 'personal', '${account}', 'file-old1', '${aliceId}')`);
+    await alice.goto(`${APP}/w/${alphaShort}/settings?tab=storage`);
+    const here = alice.locator("[data-one-storage]");
+    await here.locator("[data-not-here]:not([data-not-here='0'])").waitFor({ timeout: 15000 });
+    check("Storage shows the file not yet here, with the space now and after", (await here.locator("[data-space-now]").count()) === 1 && (await here.locator("[data-space-after]").count()) === 1);
+    await here.getByRole("button", { name: "Перенести всі файли сюди" }).click();
+    await here.getByText(/Готово: перенесено/).waitFor({ timeout: 30000 });
+    const moved = sql(`select storage_backend || ':' || drive_source || ':' || (drive_account_id = (select id from public.drive_connections where workspace_id = '${alphaId}' and active)) from public.task_files where name = 'old.pdf'`);
+    check("…it moves into the workspace's Drive", moved === "drive:wiki:true", moved);
+    check("…and the old personal Drive access is forgotten", sql(`select count(*) from public.drive_accounts where id = '${account}'`) === "0");
+    const opened = await alice.evaluate(async (url) => (await (await fetch(url)).text()).slice(0, 8), `/api/tasks/files/${sql("select id from public.task_files where name = 'old.pdf'")}?ws=${alphaShort}`);
+    check("…and still opens from the task", opened === "%PDF-1.4", opened);
+  }
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
   await alice.getByRole("button", { name: "Прибрати файл «brief.pdf»" }).click();
   await alice.locator('[data-task-file="brief.pdf"]').waitFor({ state: "detached", timeout: 15000 });
@@ -359,8 +360,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   writeFileSync(`${fakeDir}/file-mover1`, content);
   writeFileSync(`${fakeDir}/file-mover1.type`, "application/pdf");
   const account = sql(`insert into public.drive_accounts (workspace_id, purpose, user_id, account_email, root_folder_id, files_folder_id, token_encrypted)
-    select workspace_id, 'personal', '${moverId}', 'mover@fake.test', 'folder-m', 'folder-m', token_encrypted from public.drive_accounts
-    where workspace_id = '${alphaId}' and purpose = 'personal' and active limit 1 returning id`).split("\n")[0];
+    select workspace_id, 'personal', '${moverId}', 'mover@fake.test', 'folder-m', 'folder-m', token_encrypted from public.drive_connections
+    where workspace_id = '${alphaId}' and active limit 1 returning id`).split("\n")[0];
   const marTwo = sql("select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 2");
   sql(`insert into public.task_files (workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by)
     values ('${alphaId}', '${marTwo}', 'mover.pdf', 'application/pdf', ${content.length}, '${alphaId}/tasks/${marTwo}/00000000-0000-4000-8000-00000000f001', 'drive', 'personal', '${account}', 'file-mover1', '${moverId}')`);

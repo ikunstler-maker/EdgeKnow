@@ -3,13 +3,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { writeClient } from "@/lib/team-db/data";
-import { MAX_TASK_FILE_BYTES, TASK_FILE_COLUMNS, destinationFor, filesHome, storeTaskFile, taskFileLooksLike, type FilesTarget, type TaskFileRow } from "@/lib/drive/task-files";
+import { MAX_TASK_FILE_BYTES, TASK_FILE_COLUMNS, filesHome, storeTaskFile, taskFileLooksLike, type TaskFileRow, workspaceDestination } from "@/lib/drive/task-files";
 
 // Attaches a file to a task: ?ws=<short id>&task=<id>&name=<file name>, the
 // bytes as the body with their type. The database checks the right to edit the
 // task, the type, the size and the limit (register_task_file, with the person's
 // own session); the server then checks the bytes really are of that type and
-// stores them where the project keeps its files.
+// stores them in the workspace's one storage (its wiki Drive or EdgeKnow's).
 export async function POST(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const ws = params.get("ws") ?? "";
@@ -32,12 +32,12 @@ export async function POST(request: NextRequest) {
   if (!taskFileLooksLike(type, bytes)) return NextResponse.json({ ok: false, error: "invalid_file" }, { status: 400 });
 
   const { data: registered } = await db.rpc("register_task_file", { target_task: task, file_name: name, file_type: type, file_bytes: bytes.length });
-  const reg = registered as { ok: boolean; error?: string; id?: string; target?: FilesTarget; workspace_id?: string; project_id?: string } | null;
+  const reg = registered as { ok: boolean; error?: string; id?: string; workspace_id?: string } | null;
   if (!reg?.ok || !reg.id) return NextResponse.json({ ok: false, error: reg?.error ?? "unknown" }, { status: 403 });
 
   const { rows } = await filesHome(admin, reg.workspace_id!);
   const forget = () => rows.from("task_files").delete().eq("id", reg.id!);
-  const to = await destinationFor(admin, reg.target!, reg.workspace_id!, reg.project_id!, userId);
+  const to = await workspaceDestination(admin, reg.workspace_id!);
   if ("error" in to) {
     await forget();
     return NextResponse.json({ ok: false, error: to.error }, { status: 409 });

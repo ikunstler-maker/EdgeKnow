@@ -838,7 +838,7 @@ check("Drive access not readable through the API", Boolean(tokenLeak.error) || (
 const supabaseFiles = () => sql(`select count(*) from public.attachments where workspace_id = '${alphaId}' and storage_backend = 'supabase'`);
 const before = Number(supabaseFiles());
 check("there are files to move", before > 0, String(before));
-await wide.getByRole("button", { name: "Перенести наявні файли" }).click();
+await wide.getByRole("button", { name: "Перенести всі файли сюди" }).click();
 await wide.getByText(/Готово: перенесено/).waitFor({ timeout: 60000 });
 check("all files moved to Drive", supabaseFiles() === "0", supabaseFiles());
 check("moved files are on the Drive", fakeFiles().length >= before, String(fakeFiles().length));
@@ -894,7 +894,7 @@ await wide.getByRole("link", { name: "Підключити інший Google Dri
 await wide.waitForURL(/drive=connected/);
 const conns = sql(`select count(*) filter (where active) || '/' || count(*) from public.drive_connections where workspace_id = '${alphaId}'`);
 check("new Drive active, old one kept", conns === "1/2", conns);
-await wide.getByRole("button", { name: "Перенести наявні файли" }).click();
+await wide.getByRole("button", { name: "Перенести всі файли сюди" }).click();
 await wide.getByText(/Готово: перенесено/).waitFor({ timeout: 60000 });
 const onOld = sql(`select count(*) from public.attachments a join public.drive_connections c on c.id = a.drive_connection_id where a.workspace_id = '${alphaId}' and not c.active`);
 check("files moved to the new Drive", onOld === "0", onOld);
