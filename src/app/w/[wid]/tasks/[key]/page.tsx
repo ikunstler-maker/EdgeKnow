@@ -7,6 +7,7 @@ import { canEdit, loadProject } from "@/lib/tasks-server";
 import { TASK_COLUMNS, type TaskRow } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
+import { TaskBoard } from "@/components/tasks/task-board";
 import { ProjectAccessButton, type ProjectAccess } from "@/components/tasks/project-access";
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[key]">): Promise<Metadata> {
@@ -15,8 +16,9 @@ export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[ke
 }
 
 // One project: its tasks as a list with filters, and a quick way to add one.
-export default async function ProjectPage({ params }: PageProps<"/w/[wid]/tasks/[key]">) {
+export default async function ProjectPage({ params, searchParams }: PageProps<"/w/[wid]/tasks/[key]">) {
   const { wid, key } = await params;
+  const mode = (await searchParams).view === "list" ? "list" : "board";
   const [view, user] = await Promise.all([loadProject(wid, key), getCurrentUser()]);
   if (!view) {
     return (
@@ -67,15 +69,42 @@ export default async function ProjectPage({ params }: PageProps<"/w/[wid]/tasks/
         {access && <ProjectAccessButton project={view.project} access={access} members={view.members} />}
       </div>
       {!canEdit(view.role) && <p className="mt-2 text-sm text-muted">{t.tasks.readOnly}</p>}
-      <TaskList
-        shortId={view.workspace.shortId}
-        project={view.project}
-        statuses={view.statuses}
-        tasks={tasks ?? []}
-        members={view.members}
-        me={user.id}
-        canEdit={canEdit(view.role)}
-      />
+      <nav className="mt-4 flex gap-1 border-b border-border" aria-label={t.tasks.views.label}>
+        {(["board", "list"] as const).map((value) => (
+          <Link
+            key={value}
+            href={`${workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)}${value === "list" ? "?view=list" : ""}`}
+            aria-current={mode === value ? "page" : undefined}
+            className={`min-h-11 border-b-2 px-3 py-2 text-sm ${mode === value ? "border-accent font-medium" : "border-transparent text-muted hover:text-foreground"}`}
+          >
+            {t.tasks.views[value]}
+          </Link>
+        ))}
+      </nav>
+      {mode === "board" ? (
+        <TaskBoard
+          shortId={view.workspace.shortId}
+          project={view.project}
+          statuses={view.statuses}
+          tasks={tasks ?? []}
+          members={view.members}
+          fields={view.fields}
+          me={user.id}
+          canEdit={canEdit(view.role)}
+          isOwner={view.role === "owner"}
+        />
+      ) : (
+        <TaskList
+          shortId={view.workspace.shortId}
+          project={view.project}
+          statuses={view.statuses}
+          tasks={tasks ?? []}
+          members={view.members}
+          fields={view.fields}
+          me={user.id}
+          canEdit={canEdit(view.role)}
+        />
+      )}
     </main>
   );
 }

@@ -1185,6 +1185,8 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks/MAR$`), { timeout: 15000 });
   check("an admin makes a project and lands on it", (await alice.getByRole("heading", { name: /Маркетинг/ }).count()) === 1);
   check("…it is in the sidebar, with the fish beside it", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Маркетинг"));
+  check("…and opens on the board", (await alice.locator("[data-task-board]").count()) === 1 && (await alice.locator('[data-column="Зробити"]').count()) === 1);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
   const quick = alice.getByLabel("Нова задача");
   await quick.fill("Draw the logo");
   await quick.press("Enter");
@@ -1222,13 +1224,13 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   // Everyone in the workspace edits by default; the project can make them viewers.
   const made = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "From a colleague" } });
   check("a member makes tasks in the project", made.data?.key === "MAR-3", JSON.stringify(made.data));
-  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
   await alice.getByRole("button", { name: "⚙️ Доступ і налаштування" }).click();
   const dialog = alice.getByRole("dialog", { name: /Доступ до проєкту/ });
   await dialog.getByRole("combobox").first().selectOption("viewer");
   await alice.waitForTimeout(1500);
   const colleagueTab = await newPage(colleagueTaskCookies);
-  await colleagueTab.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await colleagueTab.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
   check("…until the project lets the workspace only view", (await colleagueTab.getByText("У цьому проєкті у вас лише перегляд.").count()) === 1 && (await colleagueTab.getByLabel("Нова задача").count()) === 0);
   const refused = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "Not now" } });
   check("…and the database refuses their new tasks", refused.data?.error === "forbidden", JSON.stringify(refused.data));
@@ -1261,6 +1263,43 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.waitForTimeout(1500);
   const values = sql("select (select string_agg(f.name || '=' || coalesce(f.options -> 0 ->> 'label', '') || (t.custom -> f.id::text)::text, ',' order by f.position) from public.task_fields f where f.project_id = t.project_id and t.custom ? f.id::text) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("…and a task gets values in them", /^Формат=Відео".+",Погоджено=true$/.test(values), values);
+
+  // The board: quick add in a column, drag a card to another, a column limit, what the card shows.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.locator("[data-task-board]").waitFor();
+  await alice.getByLabel("Нова задача в колонці «Зробити»").fill("Board task");
+  await alice.getByLabel("Нова задача в колонці «Зробити»").press("Enter");
+  const card = alice.locator('[data-card="MAR-4"]');
+  await card.waitFor({ timeout: 15000 });
+  check("a task is added right in a column", (await alice.locator('[data-column="Зробити"] [data-card="MAR-4"]').count()) === 1);
+  const from = await card.boundingBox();
+  const to = await alice.locator('[data-column="Готово"]').boundingBox();
+  await alice.mouse.move(from.x + 20, from.y + 10);
+  await alice.mouse.down();
+  await alice.mouse.move(from.x + 40, from.y + 20, { steps: 5 });
+  await alice.mouse.move(to.x + to.width / 2, to.y + 60, { steps: 15 });
+  await alice.mouse.up();
+  await alice.locator('[data-column="Готово"] [data-card="MAR-4"]').waitFor({ timeout: 10000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const moved = () => sql("select s.name from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 4");
+  check("…dragged to “Готово” it is done, there and in the database", (await alice.locator('[data-column="Готово"] [data-card="MAR-4"]').count()) === 1 && moved() === "Готово", moved());
+  await alice.getByRole("button", { name: "Колонка «В роботі»" }).click();
+  const columnForm = alice.getByRole("form", { name: "Колонка «В роботі»" });
+  await columnForm.getByLabel("Ліміт задач у колонці").fill("1");
+  await columnForm.getByRole("button", { name: "Зберегти" }).click();
+  await alice.waitForTimeout(1500);
+  check("a column limit shows as count/limit", (await alice.locator('[data-column="В роботі"] [data-wip]').innerText()) === "1/1");
+  await alice.getByRole("button", { name: "🗂 Що показувати на картці" }).click();
+  const cardDialog = alice.getByRole("dialog", { name: "Що показувати на картці" });
+  await cardDialog.getByLabel("Автор").check();
+  await cardDialog.getByLabel("🧩 Формат").check();
+  await cardDialog.getByRole("button", { name: "Зберегти" }).click();
+  await alice.waitForTimeout(1500);
+  check("the card shows the chosen fields, own ones too", (await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').getByText("Відео").count()) === 1);
+  await alice.getByRole("button", { name: "Лише мої" }).click();
+  check("“Only mine” filters the board", (await alice.locator("[data-card]").count()) === 0);
+  await alice.getByRole("button", { name: "Скинути фільтри" }).click();
+  check("…and clearing brings them back", (await alice.locator("[data-card]").count()) === 4);
 }
 
 // --- Groups of people ---------------------------------------------------------------------------
@@ -1399,6 +1438,7 @@ await gammaTab.goto(`${APP}/w/${gammaShort}/tasks`);
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByLabel("Назва проєкту").fill("Delta tasks");
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByRole("button", { name: "Створити" }).click();
 await gammaTab.waitForURL(/\/tasks\/DT$/, { timeout: 15000 });
+await gammaTab.goto(`${APP}/w/${gammaShort}/tasks/DT?view=list`);
 await gammaTab.getByLabel("Нова задача").fill("Team-owned task");
 await gammaTab.getByLabel("Нова задача").press("Enter");
 await gammaTab.locator('[data-task="DT-1"]').waitFor({ timeout: 15000 });

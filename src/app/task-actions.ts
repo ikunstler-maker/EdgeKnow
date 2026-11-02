@@ -48,6 +48,21 @@ export async function deleteTaskField(fieldId: string) {
   return call("delete_task_field", { target_field: fieldId });
 }
 
+export async function saveTaskStatus(projectId: string, statusId: string | null, name: string, category: string, wipLimit: number | null, position: number | null) {
+  return call<{ id: string }>("save_task_status", {
+    target_project: projectId,
+    target_status: statusId,
+    new_name: name,
+    new_category: category,
+    new_wip_limit: wipLimit,
+    new_position: position,
+  });
+}
+
+export async function deleteTaskStatus(statusId: string, moveTo: string | null) {
+  return call("delete_task_status", { target_status: statusId, move_to: moveTo });
+}
+
 export async function createTask(projectId: string, fields: Record<string, unknown>) {
   return call<{ id: string; key: string; number: number }>("create_task", { target_project: projectId, fields });
 }

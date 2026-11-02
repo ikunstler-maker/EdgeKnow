@@ -1,0 +1,13 @@
+bob adds a column: {"ok": false, "error": "forbidden"}
+bob changes the card: {"ok": false, "error": "forbidden"}
+columns: To do/todo, In progress/doing, Review/doing/3, Done/done
+rename and limit: true
+bad group: {"ok": false, "error": "invalid"}
+card fields: {"ok": true}
+unknown card field: {"ok": false, "error": "invalid"}
+remove a column with tasks, nowhere to go: {"ok": false, "error": "invalid_status"}
+remove it, tasks to review: {"ok": true}
+task now in: Code review
+card: key,assignee,due
+the others removed: 2
+the last column: {"ok": false, "error": "last_column"}
