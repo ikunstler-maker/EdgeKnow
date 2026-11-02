@@ -139,6 +139,37 @@ export async function searchPages(
   return (data ?? []) as SearchHit[];
 }
 
+// public.search_blocks: every heading, image, video… on pages the person can open.
+export type BlockKind = "heading" | "image" | "video" | "table" | "code" | "quote" | "checklist" | "callout" | "diagram" | "link";
+export type BlockHit = {
+  id: string;
+  title: string;
+  icon: string | null;
+  parent_id: string | null;
+  depth: number;
+  block_id: string;
+  block_type: string;
+  block_text: string;
+};
+
+export async function searchBlocks(
+  workspaceId: string,
+  kind: BlockKind,
+  query: string,
+  rootId: string | null,
+  maxDepth: number | null,
+): Promise<BlockHit[]> {
+  const supabase = await dataClient();
+  const { data } = await supabase.rpc("search_blocks", {
+    ws: workspaceId,
+    kind,
+    query: query.slice(0, 200) || null,
+    root: rootId,
+    max_depth: maxDepth,
+  });
+  return (data ?? []) as BlockHit[];
+}
+
 export async function setPageCover(id: string, cover: unknown) {
   return callPageRpc<{ cover: unknown }>("set_page_cover", { target_page: id, new_cover: cover });
 }
