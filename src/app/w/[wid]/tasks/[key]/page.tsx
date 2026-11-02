@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { workspacePath } from "@/lib/paths";
 import { t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
 import { canEdit, loadProject } from "@/lib/tasks-server";
@@ -54,6 +56,14 @@ export default async function ProjectPage({ params }: PageProps<"/w/[wid]/tasks/
         <h1 className="flex-1 text-2xl font-semibold">
           {view.project.icon ?? "📋"} {view.project.name} <span className="font-mono text-base text-muted">{view.project.key}</span>
         </h1>
+        {access && (
+          <Link
+            href={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}/fields`)}
+            className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
+          >
+            {t.tasks.customFields.link}
+          </Link>
+        )}
         {access && <ProjectAccessButton project={view.project} access={access} members={view.members} />}
       </div>
       {!canEdit(view.role) && <p className="mt-2 text-sm text-muted">{t.tasks.readOnly}</p>}

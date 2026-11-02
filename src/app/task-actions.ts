@@ -40,6 +40,14 @@ export async function setTaskProjectGroupRole(projectId: string, groupId: string
   return call("set_task_project_group_role", { target_project: projectId, target_group: groupId, new_role: role });
 }
 
+export async function saveTaskField(projectId: string, fieldId: string | null, definition: Record<string, unknown>) {
+  return call<{ id: string }>("save_task_field", { target_project: projectId, field_id: fieldId, definition });
+}
+
+export async function deleteTaskField(fieldId: string) {
+  return call("delete_task_field", { target_field: fieldId });
+}
+
 export async function createTask(projectId: string, fields: Record<string, unknown>) {
   return call<{ id: string; key: string; number: number }>("create_task", { target_project: projectId, fields });
 }

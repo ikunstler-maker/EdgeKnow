@@ -1216,6 +1216,33 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("…and the database refuses their new tasks", refused.data?.error === "forbidden", JSON.stringify(refused.data));
   await colleagueTab.close();
   await colleagueTasks.auth.signOut();
+
+  // The project's own fields: a dropdown with its items and a toggle, then values on a task.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("link", { name: "🧩 Поля задач" }).click();
+  await alice.waitForURL(/\/tasks\/MAR\/fields$/);
+  await alice.getByRole("button", { name: "＋ Додати поле" }).click();
+  const fieldForm = alice.getByRole("form", { name: "Додати поле" });
+  await fieldForm.getByLabel("Назва поля").fill("Формат");
+  await fieldForm.getByLabel("Формат", { exact: true }).selectOption("select");
+  await fieldForm.getByLabel("Пункт 1").fill("Відео");
+  await fieldForm.getByRole("button", { name: "＋ Додати пункт" }).click();
+  await fieldForm.getByLabel("Пункт 2").fill("Статика");
+  await fieldForm.getByRole("button", { name: "Зберегти" }).click();
+  await alice.locator('[data-custom-field="Формат"]').waitFor({ timeout: 15000 });
+  await alice.getByRole("button", { name: "＋ Додати поле" }).click();
+  await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Назва поля").fill("Погоджено");
+  await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Формат", { exact: true }).selectOption("toggle");
+  await alice.getByRole("form", { name: "Додати поле" }).getByRole("button", { name: "Зберегти" }).click();
+  await alice.locator('[data-custom-field="Погоджено"]').waitFor({ timeout: 15000 });
+  check("the project owner defines own fields, with list items", sql("select string_agg(name || ':' || kind || ':' || jsonb_array_length(options), ',' order by position) from public.task_fields f join public.task_projects p on p.id = f.project_id where p.key = 'MAR'") === "Формат:select:2,Погоджено:toggle:0");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
+  await alice.locator('[data-field="Формат"] select').selectOption({ label: "Відео" });
+  await alice.waitForTimeout(1000);
+  await alice.getByRole("switch", { name: "Погоджено" }).click();
+  await alice.waitForTimeout(1500);
+  const values = sql("select (select string_agg(f.name || '=' || coalesce(f.options -> 0 ->> 'label', '') || (t.custom -> f.id::text)::text, ',' order by f.position) from public.task_fields f where f.project_id = t.project_id and t.custom ? f.id::text) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
+  check("…and a task gets values in them", /^Формат=Відео".+",Погоджено=true$/.test(values), values);
 }
 
 // --- Groups of people ---------------------------------------------------------------------------

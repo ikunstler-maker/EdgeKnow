@@ -46,6 +46,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
         taskKey={taskKey(view.project.key, task.number)}
         task={task}
         statuses={view.statuses}
+        fields={view.fields}
         members={view.members}
         comments={(comments ?? []) as TaskComment[]}
         events={(events ?? []) as TaskEvent[]}
