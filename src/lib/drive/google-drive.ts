@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 // A small Google Drive client for what the wiki needs: sign-in exchange, folders,
@@ -20,6 +20,8 @@ export type DriveApi = {
   overwrite(refreshToken: string, fileId: string, mimeType: string, bytes: Uint8Array): Promise<void>;
   download(refreshToken: string, fileId: string): Promise<{ bytes: Uint8Array; mimeType: string }>;
   remove(refreshToken: string, fileId: string): Promise<void>;
+  // How much the Drive holds and how much is used, in bytes (no limit: null).
+  quota(refreshToken: string): Promise<{ limit: number | null; usage: number }>;
 };
 
 export class DriveError extends Error {
@@ -160,6 +162,12 @@ const google: DriveApi = {
       if (!(error instanceof DriveError && error.status === 404)) throw error;
     }
   },
+
+  async quota(refreshToken) {
+    const response = await call(refreshToken, "https://www.googleapis.com/drive/v3/about?fields=storageQuota");
+    const { storageQuota } = (await response.json()) as { storageQuota?: { limit?: string; usage?: string } };
+    return { limit: storageQuota?.limit ? Number(storageQuota.limit) : null, usage: Number(storageQuota?.usage ?? 0) };
+  },
 };
 
 // --- Stand-in for tests ---------------------------------------------------------------
@@ -204,6 +212,14 @@ function fake(dir: string): DriveApi {
       check(refreshToken);
       await rm(file(fileId), { force: true });
       await rm(`${file(fileId)}.type`, { force: true });
+    },
+    async quota(refreshToken) {
+      check(refreshToken);
+      let usage = 0;
+      for (const name of await readdir(dir).catch(() => [] as string[])) {
+        if (!name.endsWith(".type")) usage += (await stat(path.join(dir, name))).size;
+      }
+      return { limit: 15 * 1024 ** 3, usage };
     },
   };
 }

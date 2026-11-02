@@ -20,6 +20,7 @@ import {
   type TaskStatus,
 } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
+import { TaskFiles, type TaskFileView } from "./task-files";
 import { BlockedNotice, ParentPicker, Subtasks, TaskLinks, type ProjectTask, type TaskLinkView } from "./task-relations";
 import { addTaskComment, deleteTask, editTaskComment, updateTask } from "@/app/task-actions";
 
@@ -39,6 +40,8 @@ export function TaskDetail({
   project,
   projectTasks,
   links,
+  workspaceId,
+  files,
   task,
   statuses,
   fields,
@@ -55,6 +58,8 @@ export function TaskDetail({
   project: { id: string; key: string };
   projectTasks: ProjectTask[];
   links: TaskLinkView[];
+  workspaceId: string;
+  files: TaskFileView[];
   task: TaskRow & { description: unknown; deleted_at: string | null };
   statuses: TaskStatus[];
   fields: TaskField[];
@@ -153,6 +158,7 @@ export function TaskDetail({
 
         <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} />
         <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={canEdit} />
+        <TaskFiles shortId={shortId} workspaceId={workspaceId} taskId={task.id} files={files} members={members} me={me} canEdit={canEdit} />
 
         <h2 className="mt-8 text-sm font-medium text-muted">{k.comments}</h2>
         <ul className="mt-2 space-y-3" aria-label={k.comments}>

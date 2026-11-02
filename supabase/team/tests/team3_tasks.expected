@@ -8,3 +8,6 @@ team link: true
 team loop: invalid_parent
 team bulk: 2
 carol sees links: 0, links: forbidden
+team file: personal
+team files to the team storage: true
+carol sees files: 0, attaches: forbidden

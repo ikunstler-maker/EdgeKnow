@@ -118,6 +118,14 @@ const STAGES: Stage[] = [
   { name: "tasks", table: "tasks", columns: TASK_COLUMNS, order: "id", onConflict: "id", flatten: true },
   { name: "task tree", table: "tasks", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
   { name: "task links", table: "task_links", columns: "id, workspace_id, source_id, target_id, kind, created_by, created_at", order: "id", onConflict: "id" },
+  {
+    name: "task files",
+    table: "task_files",
+    columns: "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at",
+    order: "id",
+    onConflict: "id",
+    files: true,
+  },
   { name: "task comments", table: "task_comments", columns: "id, workspace_id, task_id, author_id, body, mentions, created_at, edited_at", order: "id", onConflict: "id" },
   {
     name: "task history",
@@ -130,7 +138,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -235,7 +243,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_links", "tasks", "task_statuses", "task_fields", "task_projects"];
+const BY_ID = ["comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();
@@ -323,7 +331,8 @@ export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws
 
   const missingFiles: string[] = [];
   const { data: files } = await from.from("attachments").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
-  for (const file of files ?? []) {
+  const { data: taskFiles } = await from.from("task_files").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
+  for (const file of [...(files ?? []), ...(taskFiles ?? [])]) {
     const { data: atSource } = await from.storage.from("attachments").exists(file.storage_path);
     if (!atSource) continue;
     const { data: there } = await to.storage.from("attachments").exists(file.storage_path);

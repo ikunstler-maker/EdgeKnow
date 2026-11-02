@@ -94,6 +94,7 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
     task_statuses: await rows(of("task_statuses", "id, project_id, name, category, position")),
     task_fields: await rows(of("task_fields", "id, project_id, name, kind, options, required, task_types, position")),
     tasks: await rows(of("tasks", "id, project_id, number, title, description, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, custom, created_at, updated_at, done_at, deleted_at")),
+    task_files: await rows(of("task_files", "id, task_id, name, mime_type, bytes, storage_backend, drive_source, uploaded_by, created_at")),
     task_links: await rows(of("task_links", "id, source_id, target_id, kind, created_by, created_at")),
     task_comments: await rows(of("task_comments", "id, task_id, author_id, body, created_at, edited_at")),
     comment_threads: await rows(of("comment_threads", "id, page_id, quoted_text, status, created_by, created_at, resolved_by, resolved_at")),

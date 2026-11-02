@@ -1,0 +1,22 @@
+default target: personal
+bob attaches: true to personal, path ok: true
+a page as a file: {"ok": false, "error": "invalid_file"}
+too large: {"ok": false, "error": "invalid_file"}
+no name: {"ok": false, "error": "invalid_file"}
+bob changes where files go: {"ok": false, "error": "forbidden"}
+bob sees: 1
+psql: ERROR:  permission denied for table drive_accounts
+direct write refused: false, drive accounts readable: false
+outsider sees: 0
+outsider attaches: {"ok": false, "error": "forbidden"}
+outsider removes: {"ok": false, "error": "forbidden"}
+unknown target: {"ok": false, "error": "invalid"}
+alice: EdgeKnow storage: true
+within the limit: true
+over the limit: {"ok": false, "error": "quota_exceeded"}
+to the wiki Drive, no limit: true wiki
+viewer attaches: {"ok": false, "error": "forbidden"}
+viewer removes alice's file: {"ok": false, "error": "forbidden"}
+bob removes his own: true
+left for the daily cleanup: 1
+files now: a.png,c.png

@@ -6,6 +6,7 @@ import { dataClient } from "@/lib/team-db/data";
 import { canComment, canEdit, linkedTasks, loadProject } from "@/lib/tasks-server";
 import { TASK_COLUMNS, taskKey, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "@/components/tasks/task-relations";
+import type { TaskFileView } from "@/components/tasks/task-files";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskDetail, type TaskComment, type TaskEvent } from "@/components/tasks/task-detail";
 
@@ -32,11 +33,12 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     .maybeSingle()
     .overrideTypes<TaskRow & { description: unknown; deleted_at: string | null }, { merge: false }>();
   if (!task) return notFound;
-  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }] = await Promise.all([
+  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }, { data: files }] = await Promise.all([
     db.from("task_comments").select("id, author_id, body, mentions, created_at, edited_at").eq("task_id", task.id).order("created_at"),
     db.from("task_events").select("id, actor_id, field, old_value, new_value, created_at").eq("task_id", task.id).order("created_at", { ascending: false }).limit(100),
     db.from("tasks").select("id, number, title, status_id, parent_id, type").eq("project_id", view.project.id).is("deleted_at", null).neq("id", task.id),
     db.from("task_links").select("id, source_id, target_id, kind").or(`source_id.eq.${task.id},target_id.eq.${task.id}`).order("created_at"),
+    db.from("task_files").select("id, name, mime_type, bytes, uploaded_by, created_at").eq("task_id", task.id).neq("storage_backend", "pending").order("created_at"),
   ]);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -58,6 +60,8 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
         project={{ id: view.project.id, key: view.project.key }}
         projectTasks={(projectTasks ?? []) as ProjectTask[]}
         links={linkViews}
+        workspaceId={view.workspace.id}
+        files={(files ?? []) as TaskFileView[]}
         task={task}
         statuses={view.statuses}
         fields={view.fields}

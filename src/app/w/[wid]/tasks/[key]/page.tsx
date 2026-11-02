@@ -9,6 +9,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
 import { TaskBoard } from "@/components/tasks/task-board";
 import { ProjectAccessButton, type ProjectAccess } from "@/components/tasks/project-access";
+import { FilesSettingsButton } from "@/components/tasks/files-settings";
+import { workspaceData } from "@/lib/team-db/data";
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[key]">): Promise<Metadata> {
   const { key } = await params;
@@ -28,6 +30,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     );
   }
   const db = await dataClient(wid);
+  const teamStorage = ["team", "returning"].includes((await workspaceData(wid))?.location ?? "");
   const { data: tasks } = await db
     .from("tasks")
     .select(TASK_COLUMNS)
@@ -68,6 +71,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           >
             {t.tasks.customFields.link}
           </Link>
+        )}
+        {access && (
+          <FilesSettingsButton shortId={view.workspace.shortId} workspaceId={view.workspace.id} project={view.project} teamStorage={teamStorage} />
         )}
         {access && <ProjectAccessButton project={view.project} access={access} members={view.members} />}
       </div>
