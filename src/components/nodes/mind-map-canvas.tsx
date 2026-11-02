@@ -122,6 +122,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
   // goes away (blur after Tab/Enter) must never save an older map over a newer one.
   const mapRef = useRef(map);
   const editingRef = useRef<string | null>(null);
+  const lastClick = useRef({ id: "", at: 0 });
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
@@ -146,7 +147,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
   const callbacks: Callbacks = {
     select: (id) => {
       setSelected(id);
-      wrapper.current?.focus();
+      wrapper.current?.focus({ preventScroll: true });
     },
     startEdit: (id) => {
       if (!editable) return;
@@ -163,11 +164,11 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
       if (then === "child" && !compact) return grow(addChild(next, id));
       if (then === "sibling" && !compact) return grow(addSibling(next, id));
       if (next !== latest) change(next);
-      wrapper.current?.focus();
+      wrapper.current?.focus({ preventScroll: true });
     },
     cancel: () => {
       edit(null);
-      wrapper.current?.focus();
+      wrapper.current?.focus({ preventScroll: true });
     },
     toggle: (id) => {
       const latest = mapRef.current;
@@ -175,6 +176,32 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
       if (node) change(updateNode(latest, id, { collapsed: node.collapsed ? undefined : true }));
     },
   };
+
+  // Double-click opens a node's text; listened to directly, because inside a wiki
+  // page the page editor would take the double-click first.
+  const startEditRef = useRef(callbacks.startEdit);
+  useEffect(() => {
+    startEditRef.current = callbacks.startEdit;
+  });
+  useEffect(() => {
+    const element = wrapper.current;
+    if (!element) return;
+    const onDouble = (event: MouseEvent) => {
+      const id = (event.target as HTMLElement | null)?.closest<HTMLElement>(".react-flow__node")?.dataset.id;
+      event.stopPropagation();
+      if (id) startEditRef.current(id);
+    };
+    // The page editor reads the second press of a double-click to select text and take the focus.
+    const onSecondPress = (event: MouseEvent) => {
+      if (event.detail >= 2) event.stopPropagation();
+    };
+    element.addEventListener("dblclick", onDouble);
+    element.addEventListener("mousedown", onSecondPress);
+    return () => {
+      element.removeEventListener("dblclick", onDouble);
+      element.removeEventListener("mousedown", onSecondPress);
+    };
+  }, []);
 
   const positions = useMemo(() => layoutMap(map), [map]);
   const nodes: Node<NodeView>[] = useMemo(
@@ -413,10 +440,18 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
           disableKeyboardA11y
           onlyRenderVisibleElements
           proOptions={{ hideAttribution: true }}
-          onPaneClick={() => wrapper.current?.focus()}
+          onPaneClick={() => wrapper.current?.focus({ preventScroll: true })}
           // Clicks reach the nodes only with these (they aren't selectable or draggable).
-          onNodeClick={(_, clicked) => callbacks.select(clicked.id)}
-          onNodeDoubleClick={(_, clicked) => callbacks.startEdit(clicked.id)}
+          // A second click on the same node opens its text (inside a wiki page the
+          // browser's double-click goes to the page editor, so it is counted here).
+          onNodeClick={(_, clicked) => {
+            const now = Date.now();
+            const twice = lastClick.current.id === clicked.id && now - lastClick.current.at < 450;
+            lastClick.current = { id: clicked.id, at: now };
+            if (twice) callbacks.startEdit(clicked.id);
+            else callbacks.select(clicked.id);
+          }}
+          zoomOnDoubleClick={false}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
           {editing && positions.get(editing) && (
