@@ -5,13 +5,10 @@ import { ACCOUNT_COLUMNS, accountAsConnection, activeConnection, connectionById,
 import { teamAdmin } from "@/lib/team-db/files";
 import { teamDatabase, teamReady } from "@/lib/team-db/sync";
 
-// Files attached to tasks: where a project keeps them (the uploader's own
-// Google Drive, the wiki's Drive, the project's own Drive or EdgeKnow's
-// storage), and putting, reading and moving their bytes. Server only: the
+// Files attached to tasks: where they go (the workspace's one storage), and
+// putting, reading and moving their bytes. Older files may still be on a
+// person's or a project's Drive until moved. Server only: the
 // Drive accesses and the storage keys never reach the browser.
-
-export type FilesTarget = "personal" | "wiki" | "project" | "edgeknow";
-export const FILES_TARGETS: FilesTarget[] = ["personal", "wiki", "project", "edgeknow"];
 
 export type TaskFileRow = {
   id: string;
@@ -42,11 +39,6 @@ export async function filesHome(admin: SupabaseClient, workspaceId: string): Pro
   return db && teamReady(db) ? { rows: teamAdmin(db), team: true } : { rows: admin, team: false };
 }
 
-export async function personalDrive(admin: SupabaseClient, workspaceId: string, userId: string) {
-  const { data } = await admin.from("drive_accounts").select(ACCOUNT_COLUMNS).eq("workspace_id", workspaceId).eq("purpose", "personal").eq("user_id", userId).eq("active", true).maybeSingle();
-  return data ? accountAsConnection(data as DriveAccount) : null;
-}
-
 export async function projectDrive(admin: SupabaseClient, workspaceId: string, projectId: string) {
   const { data } = await admin.from("drive_accounts").select(ACCOUNT_COLUMNS).eq("workspace_id", workspaceId).eq("purpose", "project").eq("project_id", projectId).eq("active", true).maybeSingle();
   return data ? accountAsConnection(data as DriveAccount) : null;
@@ -54,26 +46,15 @@ export async function projectDrive(admin: SupabaseClient, workspaceId: string, p
 
 export type Destination = { kind: "drive"; source: "personal" | "wiki" | "project"; connection: DriveConnection } | { kind: "storage" };
 
-// Where a new file of `uploader` goes, or why it can't go there.
-export async function destinationFor(
-  admin: SupabaseClient,
-  target: FilesTarget,
-  workspaceId: string,
-  projectId: string,
-  uploader: string | null,
-): Promise<Destination | { error: "needs_personal_drive" | "drive_not_connected" | "drive_error" }> {
-  if (target === "edgeknow") return { kind: "storage" };
-  const connection =
-    target === "personal"
-      ? uploader
-        ? await personalDrive(admin, workspaceId, uploader)
-        : null
-      : target === "wiki"
-        ? await activeConnection(admin, workspaceId)
-        : await projectDrive(admin, workspaceId, projectId);
-  if (!connection) return { error: target === "personal" ? "needs_personal_drive" : "drive_not_connected" };
+// One storage per workspace (step U1): every new file goes where the wiki keeps
+// its files — its Google Drive when one is connected, otherwise EdgeKnow's
+// storage (or the team's own). Files from before stay readable where they are
+// until they are moved (Settings → Storage).
+export async function workspaceDestination(admin: SupabaseClient, workspaceId: string): Promise<Destination | { error: "drive_error" }> {
+  const connection = await activeConnection(admin, workspaceId);
+  if (!connection) return { kind: "storage" };
   if (connection.status !== "ok") return { error: "drive_error" };
-  return { kind: "drive", source: target, connection };
+  return { kind: "drive", source: "wiki", connection };
 }
 
 const nameOnDrive = (row: Pick<TaskFileRow, "id" | "name">) => `${row.id.slice(0, 8)} ${row.name}`.slice(0, 200);

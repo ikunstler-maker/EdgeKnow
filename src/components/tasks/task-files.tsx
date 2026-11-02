@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import { formatBytes } from "@/lib/format-bytes";
 import { personLabel, type Person } from "@/lib/tasks";
@@ -36,7 +36,6 @@ const iconOf = (type: string) => (type.startsWith("image/") ? "🖼️" : type =
 // The files of a task: attach (button or drop), open, download, remove.
 export function TaskFiles({
   shortId,
-  workspaceId,
   taskId,
   files,
   members,
@@ -44,7 +43,6 @@ export function TaskFiles({
   canEdit,
 }: {
   shortId: string;
-  workspaceId: string;
   taskId: string;
   files: TaskFileView[];
   members: Person[];
@@ -52,11 +50,9 @@ export function TaskFiles({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [needsDrive, setNeedsDrive] = useState(false);
   const [over, setOver] = useState(false);
   const [pending, startTransition] = useTransition();
   const personOf = new Map(members.map((m) => [m.id, m]));
@@ -64,7 +60,6 @@ export function TaskFiles({
 
   async function upload(list: FileList | File[]) {
     setError(null);
-    setNeedsDrive(false);
     for (const original of Array.from(list)) {
       setBusy(original.name);
       let body: Blob = original;
@@ -92,9 +87,7 @@ export function TaskFiles({
       }).catch(() => null);
       const result = (await response?.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
       if (!result?.ok) {
-        if (result?.error === "needs_personal_drive") setNeedsDrive(true);
         setError(`${original.name}: ${f.errors[result?.error ?? ""] ?? t.tasks.errors[result?.error ?? ""] ?? t.common.unknownError}`);
-        if (result?.error === "needs_personal_drive") break;
       }
     }
     setBusy(null);
@@ -180,14 +173,6 @@ export function TaskFiles({
         <p role="alert" className="mt-2 text-sm text-danger">
           {error}
         </p>
-      )}
-      {needsDrive && (
-        <a
-          href={`/api/drive/connect?ws=${workspaceId}&purpose=personal&back=${encodeURIComponent(pathname)}`}
-          className="mt-2 inline-flex min-h-11 items-center rounded-md bg-accent px-4 text-sm font-medium text-white md:min-h-9"
-        >
-          {f.connectMine}
-        </a>
       )}
     </section>
   );

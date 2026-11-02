@@ -62,7 +62,6 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
         project={{ id: view.project.id, key: view.project.key }}
         projectTasks={(projectTasks ?? []) as ProjectTask[]}
         links={linkViews}
-        workspaceId={view.workspace.id}
         files={(files ?? []) as TaskFileView[]}
         mentionedOn={(mentions ?? []).flatMap((m) => (m.page ? [m.page] : []))}
         task={task}

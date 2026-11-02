@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
+import { formatBytes } from "@/lib/format-bytes";
+import type { TaskFilesStatus } from "@/lib/drive/workspace-files";
 
 const st = t.storage;
 
@@ -25,17 +27,21 @@ const buttonClass = "min-h-11 rounded-lg border border-border px-3 text-sm hover
 const primaryClass = "min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60";
 const when = (iso: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 
-// Settings → Storage: where the files live, connecting the team's Google Drive,
-// moving existing files there and page backups.
+// Settings → Storage: the workspace's one place for all its files (step U1),
+// connecting the team's Google Drive, moving existing files there and page backups.
 export function StoragePanel({
   workspaceId,
   status,
+  taskFiles,
+  team,
   isOwner,
   configured,
   notice,
 }: {
   workspaceId: string;
   status: StorageStatus;
+  taskFiles: TaskFilesStatus | null;
+  team: boolean;
   isOwner: boolean;
   configured: boolean;
   notice: "connected" | "error" | null;
@@ -47,30 +53,45 @@ export function StoragePanel({
   const [busy, setBusy] = useState(false);
   const drive = status.drive;
   const connectHref = `/api/drive/connect?ws=${workspaceId}`;
+  // Page images wait for the move only on a Drive; task files may also be on old personal or project Drives.
+  const pageToMove = drive ? status.to_move : 0;
+  const toMove = pageToMove + (taskFiles?.toMove ?? 0);
+  const canMove = !drive || drive.status === "ok";
+  // Page images still in EdgeKnow's storage are what goes onto the Drive.
+  const addingBytes = (taskFiles?.toMoveBytes ?? 0) + (drive && pageToMove ? status.supabase_bytes : 0);
+
+  // A few files per request until nothing is left (or only failures remain).
+  const moveFrom = async (url: string, done: number) => {
+    let moved = 0;
+    for (let round = 0; round < 1000; round++) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; moved?: number; failed?: number; remaining?: number };
+      if (!result.ok) return { moved, failed: 1 };
+      moved += result.moved ?? 0;
+      setMoving({ moved: done + moved, remaining: result.remaining ?? 0 });
+      if (!result.remaining || !result.moved) return { moved, failed: result.failed ?? 0 };
+    }
+    return { moved, failed: 0 };
+  };
 
   const move = async () => {
     setBusy(true);
     setMoveResult(null);
     let moved = 0;
     let failed = 0;
-    // A few files per request until nothing is left (or only failures remain).
-    for (let round = 0; round < 1000; round++) {
-      const response = await fetch("/api/drive/migrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId }),
-      });
-      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; moved?: number; failed?: number; remaining?: number };
-      if (!result.ok) {
-        failed += 1;
-        break;
-      }
-      moved += result.moved ?? 0;
-      setMoving({ moved, remaining: result.remaining ?? 0 });
-      if (!result.remaining || !result.moved) {
-        failed += result.failed ?? 0;
-        break;
-      }
+    if (drive && status.to_move > 0) {
+      const pages = await moveFrom("/api/drive/migrate", moved);
+      moved += pages.moved;
+      failed += pages.failed;
+    }
+    if (taskFiles && taskFiles.toMove > 0) {
+      const tasks = await moveFrom("/api/tasks/files/move", moved);
+      moved += tasks.moved;
+      failed += tasks.failed;
     }
     setMoving(null);
     setMoveResult(failed ? st.moveFailed(failed) : st.moveDone(moved));
@@ -123,7 +144,7 @@ export function StoragePanel({
           </div>
         ) : (
           <>
-            <p className="text-sm">{st.supabase((status.supabase_bytes / 1048576).toFixed(1), status.limit_mb)}</p>
+            <p className="text-sm">{team ? st.teamStorage : st.supabase((status.supabase_bytes / 1048576).toFixed(1), status.limit_mb)}</p>
             <p className="text-sm text-muted">{st.driveIntro}</p>
           </>
         )}
@@ -142,28 +163,28 @@ export function StoragePanel({
         )}
       </section>
 
-      {drive && (
-        <section className="space-y-3">
-          <p className="text-sm">
-            {st.filesTotal(status.total_files)} {status.to_move > 0 ? st.toMove(status.to_move) : st.allMoved}
+      <section className="space-y-2 text-sm" data-one-storage>
+        <p className="text-muted">{st.oneStorage}</p>
+        <p>{st.pageFiles(status.total_files)}</p>
+        {taskFiles && <p>{st.taskFiles(taskFiles.count, formatBytes(taskFiles.bytes))}</p>}
+        <p data-not-here={toMove}>{toMove > 0 ? st.notHere(toMove) : st.allHere}</p>
+        {toMove > 0 && canMove && <SpaceLine space={taskFiles?.space ?? null} adding={addingBytes} />}
+        {isOwner && toMove > 0 && canMove && (
+          <button type="button" onClick={move} disabled={busy} className={primaryClass}>
+            {st.moveAll}
+          </button>
+        )}
+        {moving && (
+          <p role="status">
+            {st.moving(moving.moved, moving.remaining)}
           </p>
-          {isOwner && status.to_move > 0 && drive.status === "ok" && (
-            <button type="button" onClick={move} disabled={busy} className={primaryClass}>
-              {st.move}
-            </button>
-          )}
-          {moving && (
-            <p role="status" className="text-sm">
-              {st.moving(moving.moved, moving.remaining)}
-            </p>
-          )}
-          {moveResult && (
-            <p role="status" className="text-sm">
-              {moveResult}
-            </p>
-          )}
-        </section>
-      )}
+        )}
+        {moveResult && (
+          <p role="status">
+            {moveResult}
+          </p>
+        )}
+      </section>
 
       {drive && (
         <section className="space-y-2">
@@ -183,5 +204,19 @@ export function StoragePanel({
         </section>
       )}
     </div>
+  );
+}
+
+// The space where the files go: free now, and after moving the rest.
+function SpaceLine({ space, adding }: { space: { limit: number | null; used: number } | null; adding: number }) {
+  if (!space) return <p className="text-muted">{st.spaceUnknown}</p>;
+  if (!space.limit) return <p className="text-muted" data-space-now>{st.spaceUnlimited}</p>;
+  const free = Math.max(0, space.limit - space.used);
+  const after = free - adding;
+  return (
+    <p>
+      <span data-space-now>{st.spaceNow(formatBytes(free), formatBytes(space.limit))}</span> <span data-space-after>{st.spaceAfter(formatBytes(Math.max(0, after)))}</span>
+      {after < 0 && <span className="block text-danger">{st.notEnough}</span>}
+    </p>
   );
 }

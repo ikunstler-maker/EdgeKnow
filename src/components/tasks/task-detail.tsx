@@ -40,7 +40,6 @@ export function TaskDetail({
   project,
   projectTasks,
   links,
-  workspaceId,
   files,
   mentionedOn,
   task,
@@ -59,7 +58,6 @@ export function TaskDetail({
   project: { id: string; key: string };
   projectTasks: ProjectTask[];
   links: TaskLinkView[];
-  workspaceId: string;
   files: TaskFileView[];
   mentionedOn: { id: string; title: string; icon: string | null }[];
   task: TaskRow & { description: unknown; deleted_at: string | null };
@@ -176,7 +174,7 @@ export function TaskDetail({
             </ul>
           )}
         </section>
-        <TaskFiles shortId={shortId} workspaceId={workspaceId} taskId={task.id} files={files} members={members} me={me} canEdit={canEdit} />
+        <TaskFiles shortId={shortId} taskId={task.id} files={files} members={members} me={me} canEdit={canEdit} />
 
         <h2 className="mt-8 text-sm font-medium text-muted">{k.comments}</h2>
         <ul className="mt-2 space-y-3" aria-label={k.comments}>
