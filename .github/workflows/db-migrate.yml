@@ -60,11 +60,35 @@ jobs:
       - uses: supabase/setup-cli@v3
         with:
           version: 2.122.0
+      - name: Start local Supabase
+        run: |
+          # Test users sign in with a password; only this throwaway copy allows it.
+          sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
+          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+      - name: Run API isolation test
+        run: |
+          supabase status -o json > status.json
+          node scripts/api-isolation.mjs status.json
+
+  # Then click through the app in a real browser, in independent parts at the same
+  # time — each on its own machine with its own local Supabase (scripts/e2e/).
+  e2e:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [wiki, tasks, team]
+    name: e2e (${{ matrix.part }})
+    steps:
+      - uses: actions/checkout@v6
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 2.122.0
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-      # Kept between runs: the browser for the smoke test and Next.js's build cache.
+      # Kept between runs: the browser for the test and Next.js's build cache.
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -77,37 +101,38 @@ jobs:
       # Local Supabase and the app's packages are prepared at the same time.
       - name: Start local Supabase and install packages
         run: |
-          # Test users sign in with a password; only this throwaway copy allows it.
           sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
           (npm ci && npx playwright install --with-deps chromium) > prepare.log 2>&1 &
           prepare=$!
           supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
           if ! wait $prepare; then tail -n 40 prepare.log; exit 1; fi
-      - name: Run API isolation test
+      # The people and workspaces every part starts from (the API test leaves them).
+      - name: Seed through the API isolation test
         run: |
           supabase status -o json > status.json
-          node scripts/api-isolation.mjs status.json
-      # Path C: the "Team Delta" workspace keeps its data in a second, team-owned stack
-      # that trusts the app's own (throwaway) EdgeKnow signing key; "Team Echo" is
-      # moved into a third one during the test. The two stacks start while the app builds.
-      - name: Team databases and the app build, side by side
+          node scripts/api-isolation.mjs status.json > api.log || { tail -n 30 api.log; exit 1; }
+      # Path C (team part only): "Team Delta" keeps its data in a second, team-owned stack
+      # that trusts the app's own (throwaway) EdgeKnow signing key; "Team Echo" is moved
+      # into a third one during the test. The stacks start while the app builds.
+      - name: Build the app (and the team stacks, side by side)
         run: |
           keys="$(node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID()}]))")"
           echo "EDGEKNOW_OIDC_SIGNING_KEYS=$keys" >> "$GITHUB_ENV"
-          export EDGEKNOW_OIDC_SIGNING_KEYS="$keys"
           drive_key="ci-drive-token-key-$(openssl rand -hex 16)"
           echo "DRIVE_TOKEN_KEY=$drive_key" >> "$GITHUB_ENV"
-          (TEAM_STACKS="team-b team-c" TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh) > stacks.log 2>&1 &
-          stacks=$!
+          if [ "${{ matrix.part }}" = team ]; then
+            (TEAM_STACKS="team-b team-c" TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh) > stacks.log 2>&1 &
+            stacks=$!
+          fi
           export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
           export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
           npm run build
-          if ! wait $stacks; then tail -n 40 stacks.log; exit 1; fi
-          DRIVE_TOKEN_KEY="$drive_key" node --experimental-strip-types scripts/register-team.mjs status.json .team-stacks/team-b/status.json .team-stacks/team-c/status.json
+          if [ "${{ matrix.part }}" = team ]; then
+            if ! wait $stacks; then tail -n 40 stacks.log; exit 1; fi
+            DRIVE_TOKEN_KEY="$drive_key" node --experimental-strip-types scripts/register-team.mjs status.json .team-stacks/team-b/status.json .team-stacks/team-c/status.json
+          fi
       - name: Start the app against local Supabase
         run: |
-          export NEXT_PUBLIC_SUPABASE_URL="$(jq -r .API_URL status.json)"
-          export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="$(jq -r '.PUBLISHABLE_KEY // .ANON_KEY' status.json)"
           # Throwaway values for this run only; Google Drive and DNS are replaced by local stand-ins.
           export SUPABASE_SECRET_KEY="$(jq -r '.SECRET_KEY // .SERVICE_ROLE_KEY' status.json)"
           export DRIVE_FAKE_DIR="$RUNNER_TEMP/fake-drive"
@@ -119,9 +144,9 @@ jobs:
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"
           nohup npm start -- -p 3000 > next.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/privacy && break; sleep 1; done
-      - name: Run browser smoke test
+      - name: Run the browser test (${{ matrix.part }})
         run: |
-          if ! node scripts/e2e-smoke.mjs status.json http://localhost:3000; then
+          if ! node scripts/e2e/${{ matrix.part }}.mjs status.json http://localhost:3000; then
             echo "::error title=next.log::$(grep -iE 'error|failed' next.log | tail -n 8 | tr '\n' ' ' | cut -c1-900)"
             echo "::error title=next.log (end)::$(tail -n 25 next.log | tr '\n' ' ' | cut -c1-1500)"
             exit 1
@@ -146,7 +171,7 @@ jobs:
         run: node --experimental-strip-types scripts/team-isolation.mjs .team-stacks
 
   migrate:
-    needs: [test, api, team]
+    needs: [test, api, e2e, team]
     concurrency:
       group: db-migrate-production
       cancel-in-progress: false
