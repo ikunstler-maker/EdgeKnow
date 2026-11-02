@@ -1488,6 +1488,17 @@ export const en: Dictionary = {
     minutes: (minutes: number) => (minutes ? `≈ ${minutes} min` : "—"),
   },
   platform: {
+    teamKey: {
+      heading: "Team databases' key (TEAM_DB_KEY)",
+      notConfigured: "TEAM_DB_KEY isn't set in Vercel yet: team database secrets are still encrypted with the old DRIVE_TOKEN_KEY.",
+      status: (done: number, total: number) => `Team databases on the new key: ${done} of ${total}`,
+      explain: "Each team's secret key, database address and Supabase access are encrypted with a separate key. Old records move to the new key by themselves (nightly), or at once with the button. Don't remove DRIVE_TOKEN_KEY: Google Drive accesses are encrypted with it.",
+      now: "Re-encrypt now",
+      back: "Back to the old key",
+      backConfirm: "Move team database secrets back to the old DRIVE_TOKEN_KEY? Only needed before removing TEAM_DB_KEY.",
+      done: (changed: number, failed: number) => `Re-encrypted: ${changed}${failed ? `, failed: ${failed}` : ""}.`,
+      errors: { no_team_key: "TEAM_DB_KEY isn't set.", forbidden: "Platform admin only." } as Record<string, string>,
+    },
     title: "Platform panel",
     forbidden: "This page is only for the platform super-admin.",
     intro: "Statistics for all workspaces. Page contents aren't shown here.",

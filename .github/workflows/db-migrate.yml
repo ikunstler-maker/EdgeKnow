@@ -120,6 +120,8 @@ jobs:
           echo "EDGEKNOW_OIDC_SIGNING_KEYS=$keys" >> "$GITHUB_ENV"
           drive_key="ci-drive-token-key-$(openssl rand -hex 16)"
           echo "DRIVE_TOKEN_KEY=$drive_key" >> "$GITHUB_ENV"
+          # The team databases' own key: their secrets start under DRIVE_TOKEN_KEY and are moved onto it.
+          echo "TEAM_DB_KEY=ci-team-db-key-$(openssl rand -hex 16)" >> "$GITHUB_ENV"
           if [ "${{ matrix.part }}" = team ]; then
             (TEAM_STACKS="team-b team-c" TEAM_SIGNING_KEYS="$keys" scripts/team-stacks.sh) > stacks.log 2>&1 &
             stacks=$!

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { readyTeams, teamAdmin } from "@/lib/team-db/files";
 import { checkAllTeams } from "@/lib/team-db/health";
 import { recheckDomains } from "@/lib/domain-dns";
+import { rekeyTeamSecrets } from "@/lib/team-db/rekey";
 
 // Daily (vercel.json): checks every team database (step 1.5b) and DNS-proven domains, and deletes files whose attachment record is gone — removed
 // from their page, page deleted forever, or workspace deleted — from Supabase
@@ -34,9 +35,11 @@ export async function GET(request: NextRequest) {
   const health = await checkAllTeams(admin);
   // Rate limit counters older than a day are no longer needed.
   await admin.from("rate_limits").delete().lt("window_start", new Date(Date.now() - 24 * 3600_000).toISOString());
+  // Team database secrets still under the old key move onto TEAM_DB_KEY (when set).
+  const rekeyed = process.env.TEAM_DB_KEY ? await rekeyTeamSecrets(admin).catch(() => ({ changed: 0, failed: 1 })) : null;
   // Domains proven through DNS: is the record still there (weekly per domain)?
   const domains = await recheckDomains(admin);
-  return NextResponse.json({ removed: central + teams, health, domains });
+  return NextResponse.json({ removed: central + teams, health, domains, rekeyed });
 }
 
 const TASK_FILE_PATH = /^[0-9a-f-]{36}\/tasks\//;

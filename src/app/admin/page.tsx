@@ -9,7 +9,9 @@ import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { teamCheckSql } from "@/lib/oidc-guard";
 import { RegistrationToggle } from "./registration-toggle";
 import { DomainRequests, type DomainRequest } from "./domain-requests";
-import { OwnDatabaseFirst, WorkspaceControls } from "./platform-controls";
+import { OwnDatabaseFirst, TeamKeyPanel, WorkspaceControls } from "./platform-controls";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { teamKeyStatus } from "@/lib/team-db/rekey";
 import { TeamLoginPanel } from "./team-login/team-login-panel";
 
 // Read per request, so the title follows the interface language.
@@ -63,6 +65,8 @@ export default async function PlatformAdminPage() {
     supabase.rpc("platform_domain_requests"),
     supabase.rpc("platform_database_size"),
   ]);
+  const service = createAdminClient();
+  const keyStatus = service ? await teamKeyStatus(service) : null;
   const centralSize = size as { database_bytes: number; storage_bytes: number } | null;
   const c = t.platform.columns;
   const h = await headers();
@@ -88,6 +92,8 @@ export default async function PlatformAdminPage() {
       <DomainRequests requests={(domainRequests ?? []) as DomainRequest[]} emailWay={Boolean(settings?.email_domain_proof)} />
 
       <TeamLoginPanel configured={oidcConfigured()} issuer={issuer} sql={teamCheckSql(issuer)} />
+
+      {keyStatus && <TeamKeyPanel {...keyStatus} />}
 
       <div className="mt-8 overflow-x-auto rounded-lg border border-border">
         <table className="w-full min-w-[960px] text-left text-sm">
