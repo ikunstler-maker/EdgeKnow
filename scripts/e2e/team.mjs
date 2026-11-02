@@ -347,6 +347,21 @@ check("…and saves there again", savedCentrally.ok === true, JSON.stringify(sav
 await bob.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 check("a non-member can't open the team workspace", (await bob.getByText("Team-owned page").count()) === 0 && (await bob.getByText("Немає доступу до workspace").count()) > 0);
 
+// TEAM_DB_KEY: the team databases' secrets were written under the old key; the
+// nightly job moves them onto the new one, and the team workspace keeps working.
+{
+  const keyed = () => sql("select count(*) filter (where secret_key_encrypted like 'v2.team.%') || '/' || count(*) from public.team_databases where secret_key_encrypted is not null");
+  const before = keyed();
+  const cron = await fetch(`${APP}/api/cron/cleanup-files`, { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } });
+  const after = keyed();
+  const [moved, total] = after.split("/").map(Number);
+  check("the nightly job moves team database secrets onto TEAM_DB_KEY", cron.ok && moved === total && total > 0, `${before} → ${after}`);
+  check("…nothing is left on the old key", sql("select count(*) from public.team_databases where secret_key_encrypted like 'v1.%' or db_url_encrypted like 'v1.%' or management_token_encrypted like 'v1.%'") === "0");
+  await gammaTab.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
+  await gammaTab.getByText("Stored in the team database").first().waitFor({ timeout: 20000 }).catch(() => {});
+  check("…and the team workspace still opens from its own database", (await gammaTab.getByText("Stored in the team database").count()) > 0);
+}
+
 // Rate limits: past 30 link previews a minute the server stops doing the work.
 {
   const cookie = aliceCookies.map((c) => `${c.name}=${c.value}`).join("; ");

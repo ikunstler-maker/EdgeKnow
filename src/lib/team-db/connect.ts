@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
-import { decrypt, encrypt } from "@/lib/drive/secret-box";
+import { decrypt, encryptTeam } from "@/lib/drive/secret-box";
 import { loadTeamMigrations, managementExecutor, migrateTeam, migrateTeams, postgresExecutor, type TeamExecutor, type TeamMigrationResult } from "./migrate";
 import { supabaseApi, refreshTokens, SupabaseApiError } from "./supabase-api";
 import { copyPortion, verifyMove, type CopyProgress } from "./move";
@@ -29,7 +29,7 @@ const COPY_BUDGET_MS = 35_000;
 export async function managementToken(admin: SupabaseClient, row: Pick<SetupRow, "workspace_id" | "management_token_encrypted">) {
   if (!row.management_token_encrypted) throw new SupabaseApiError("no Supabase access", 401);
   const tokens = await refreshTokens(decrypt(row.management_token_encrypted));
-  await admin.from("team_databases").update({ management_token_encrypted: encrypt(tokens.refreshToken) }).eq("workspace_id", row.workspace_id);
+  await admin.from("team_databases").update({ management_token_encrypted: encryptTeam(tokens.refreshToken) }).eq("workspace_id", row.workspace_id);
   return tokens.accessToken;
 }
 
@@ -84,7 +84,7 @@ export async function advanceSetup(admin: SupabaseClient, row: SetupRow, issuer:
       await save({
         project_url: `https://${ref}.supabase.co`,
         publishable_key: publishable,
-        secret_key_encrypted: encrypt(secret),
+        secret_key_encrypted: encryptTeam(secret),
         setup_step: "sync",
         last_error: null,
       });

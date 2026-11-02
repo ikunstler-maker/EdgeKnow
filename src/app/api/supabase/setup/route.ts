@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireOwner } from "@/lib/drive/owner";
 import { overLimit, tooManyRequests } from "@/lib/rate-limit";
-import { encrypt } from "@/lib/drive/secret-box";
+import { encryptTeam } from "@/lib/drive/secret-box";
 import { oidcConfigured, oidcIssuer } from "@/lib/oidc";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { advanceReturn, advanceSetup, SETUP_COLUMNS, type SetupRow } from "@/lib/team-db/connect";
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     const { error } = await admin.from("team_databases").insert({
       workspace_id: ws,
       project_ref: ref,
-      management_token_encrypted: encrypt(tokens.refreshToken),
+      management_token_encrypted: encryptTeam(tokens.refreshToken),
       setup_step: "project",
       status: "pending",
       connected_by: owner.userId,

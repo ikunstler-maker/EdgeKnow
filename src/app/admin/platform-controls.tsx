@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
-import { freezeWorkspace, setCentralAllowed, setRequireTeamDatabase } from "@/app/platform-actions";
+import { freezeWorkspace, rekeyTeamDatabases, setCentralAllowed, setRequireTeamDatabase } from "@/app/platform-actions";
 
 const p = t.platform;
 const buttonClass = "min-h-11 rounded-lg border border-border px-3 text-sm hover:bg-surface disabled:opacity-60";
@@ -80,5 +80,45 @@ export function WorkspaceControls({
       </button>
       {error && <span role="alert" className="text-xs text-danger">{error}</span>}
     </div>
+  );
+}
+
+// The key of the team databases' secrets (TEAM_DB_KEY): how many are on it, move now, or back.
+export function TeamKeyPanel({ configured, total, onNewKey }: { configured: boolean; total: number; onNewKey: number }) {
+  const [pending, startTransition] = useTransition();
+  const [notice, setNotice] = useState<string | null>(null);
+  const run = (direction: "new" | "old") =>
+    startTransition(async () => {
+      const result = await rekeyTeamDatabases(direction);
+      setNotice(result.ok ? p.teamKey.done(result.changed, result.failed) : (t.settings.errors[result.error] ?? p.teamKey.errors[result.error] ?? t.common.unknownError));
+    });
+  return (
+    <section className="mt-8 rounded-lg border border-border p-4" data-section="team-key">
+      <h2 className="font-semibold">{p.teamKey.heading}</h2>
+      <p className="mt-2 text-sm" data-team-key-status>
+        {configured ? p.teamKey.status(onNewKey, total) : p.teamKey.notConfigured}
+      </p>
+      <p className="mt-1 text-xs text-muted">{p.teamKey.explain}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {configured && (
+          <button type="button" disabled={pending} onClick={() => run("new")} className={buttonClass}>
+            {p.teamKey.now}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={pending || onNewKey === 0}
+          onClick={() => confirm(p.teamKey.backConfirm) && run("old")}
+          className={buttonClass}
+        >
+          {p.teamKey.back}
+        </button>
+      </div>
+      {notice && (
+        <p role="status" className="mt-2 text-sm text-muted">
+          {notice}
+        </p>
+      )}
+    </section>
   );
 }
