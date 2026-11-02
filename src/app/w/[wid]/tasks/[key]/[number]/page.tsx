@@ -33,12 +33,14 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     .maybeSingle()
     .overrideTypes<TaskRow & { description: unknown; deleted_at: string | null }, { merge: false }>();
   if (!task) return notFound;
-  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }, { data: files }] = await Promise.all([
+  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }, { data: files }, { data: mentions }] = await Promise.all([
     db.from("task_comments").select("id, author_id, body, mentions, created_at, edited_at").eq("task_id", task.id).order("created_at"),
     db.from("task_events").select("id, actor_id, field, old_value, new_value, created_at").eq("task_id", task.id).order("created_at", { ascending: false }).limit(100),
     db.from("tasks").select("id, number, title, status_id, parent_id, type").eq("project_id", view.project.id).is("deleted_at", null).neq("id", task.id),
     db.from("task_links").select("id, source_id, target_id, kind").or(`source_id.eq.${task.id},target_id.eq.${task.id}`).order("created_at"),
     db.from("task_files").select("id, name, mime_type, bytes, uploaded_by, created_at").eq("task_id", task.id).neq("storage_backend", "pending").order("created_at"),
+    // Pages with a chip of this task (only those the reader can open).
+    db.from("task_page_links").select("page:pages(id, title, icon)").eq("task_id", task.id).overrideTypes<{ page: { id: string; title: string; icon: string | null } | null }[], { merge: false }>(),
   ]);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -62,6 +64,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
         links={linkViews}
         workspaceId={view.workspace.id}
         files={(files ?? []) as TaskFileView[]}
+        mentionedOn={(mentions ?? []).flatMap((m) => (m.page ? [m.page] : []))}
         task={task}
         statuses={view.statuses}
         fields={view.fields}

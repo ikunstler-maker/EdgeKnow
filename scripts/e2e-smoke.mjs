@@ -1455,6 +1455,68 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("…and the file still opens from the task", copied === "%PDF-1.4", copied);
 }
 
+// Step Z4: tasks inside wiki pages — chips with a live status, a list or board on
+// a page, new tasks from "@" and from selected text, "mentioned on pages".
+{
+  const untilAsync = async (condition, ms = 8000) => {
+    for (let i = 0; i < ms / 250; i++) {
+      if (await condition().catch(() => false)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return false;
+  };
+  const marId = (n) => sql(`select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = ${n}`);
+  const marProject = sql("select id from public.task_projects where key = 'MAR'");
+  const category = (n) => sql(`select s.category from public.tasks t join public.task_statuses s on s.id = t.status_id where t.id = '${marId(n)}'`);
+  const planPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Sprint notes" })).data.id;
+  const planContent = [
+    { id: "z1", type: "paragraph", props: {}, content: [{ type: "text", text: "Logo: ", styles: {} }, { type: "taskChip", props: { taskId: marId(1) } }], children: [] },
+    { id: "z2", type: "tasks", props: { projectId: marProject, view: "list", mine: false }, children: [] },
+    { id: "z3", type: "paragraph", props: {}, content: [], children: [] },
+  ];
+  const planSaved = await aliceClient.rpc("save_page_content", { target_page: planPage, new_content: planContent, base_version: 1 });
+  check("(setup) a page with a task chip and a task list", planSaved.data?.ok === true, JSON.stringify(planSaved.data));
+  await alice.goto(`${APP}/w/${alphaShort}/p/${planPage}`);
+  await alice.waitForSelector('.bn-editor[contenteditable="true"]');
+  const chip = alice.locator('[data-task-chip="MAR-1"]');
+  await chip.waitFor({ timeout: 15000 });
+  check("a task chip shows the task's key, title and status", (await chip.innerText()).includes("Draw the logo"));
+  const doneStatus = sql(`select id from public.task_statuses where project_id = '${marProject}' and category = 'done' order by position limit 1`);
+  sql(`update public.tasks set status_id = '${doneStatus}' where id = '${marId(1)}'`);
+  await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
+  check("…a status changed elsewhere shows up without editing the page", await untilAsync(async () => (await chip.locator("[data-task-chip-status]").innerText()) === "Готово", 15000));
+  await chip.getByRole("button").click();
+  await alice.getByRole("menuitemradio", { name: "В роботі" }).click();
+  check("…and the status changes right from the chip", await until(() => category(1) === "doing", 10000));
+  check("the task knows it is mentioned on the page", sql(`select count(*) from public.task_page_links where page_id = '${planPage}' and task_id = '${marId(1)}'`) === "1");
+
+  const embed = alice.locator("[data-tasks-embed]");
+  await embed.locator('[data-embed-task="MAR-2"]').waitFor({ timeout: 15000 });
+  check("a task list shows the project's tasks on the page", (await embed.locator("[data-embed-task]").count()) >= 3);
+  await embed.getByLabel("Позначити «Write the brief» готовою").click();
+  check("…a task is ticked done right there", await until(() => category(2) === "done", 10000));
+  await embed.getByRole("button", { name: "Дошка" }).click();
+  await embed.locator('[data-embed-column="Готово"] [data-embed-task="MAR-2"]').waitFor({ timeout: 15000 });
+  check("…and it turns into a board", (await embed.locator('[data-embed-column="Готово"] [data-embed-task="MAR-2"]').count()) === 1 && JSON.stringify(pageContent(planPage)).includes('"view":"board"'));
+
+  const lastLine = await alice.locator('[data-id="z3"] .bn-inline-content').first().boundingBox();
+  await alice.mouse.click(lastLine.x + 5, lastLine.y + lastLine.height / 2);
+  await alice.keyboard.type("@Brand new idea");
+  await alice.locator(".bn-suggestion-menu-item", { hasText: "＋ MAR: «Brand new idea»" }).click({ timeout: 15000 });
+  check("“@” makes a new task from what was typed and puts its chip in", await until(() => sql("select count(*) from public.tasks where title = 'Brand new idea'") === "1", 10000) && sql("select description::text like '%pageChip%' from public.tasks where title = 'Brand new idea'") === "t");
+  await alice.keyboard.press("Enter");
+  await alice.keyboard.type("Fix the footer");
+  await alice.keyboard.press("Shift+Home");
+  await alice.getByRole("button", { name: "Створити задачу з виділеного" }).click();
+  const fromSelection = alice.getByRole("form", { name: "Нова задача з виділеного тексту" });
+  await fromSelection.getByRole("button", { name: "Створити" }).click();
+  check("selected text becomes a task", await until(() => sql("select count(*) from public.tasks where title = 'Fix the footer'") === "1", 10000));
+  check("…and its chip takes the text's place", await untilAsync(async () => (await alice.locator("[data-task-chip]").count()) >= 3, 10000));
+  await alice.waitForTimeout(2500);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
+  check("a task lists the pages that mention it", (await alice.locator("[data-mentioned-on]").getByText("Sprint notes").count()) === 1);
+}
+
 // --- Groups of people ---------------------------------------------------------------------------
 {
   const { client: colleagueClient } = await sessionCookies("colleague@alpha.test");
@@ -1600,7 +1662,7 @@ check("a team workspace's tasks are in its own database, not centrally", teamSql
 // --- Step 1.8: after all of the above, the central database holds nothing of Team Delta's content ---
 {
   const ws = sql("select id from public.workspaces where name = 'Team Delta'");
-  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_links", "task_files", "task_comments", "task_events"];
+  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events"];
   const teamPages = teamSql(`select coalesce(string_agg(quote_literal(id::text), ','), 'null') from public.pages where workspace_id = '${ws}'`);
   const central = [
     ...tables.map((table) => `${table}=${sql(`select count(*) from public.${table} where workspace_id = '${ws}'`)}`),
