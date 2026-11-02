@@ -1,0 +1,15 @@
+sync with a guest: true
+gwen here: guest true
+shared with gwen: true
+a map never owned by a guest: guest_role
+gwen sees pages: Team, for the client
+gwen sees maps: 0
+gwen sees projects: 0
+gwen makes a page: forbidden
+gwen makes a map: forbidden
+gwen sees groups: 0
+gwen sees these members: 00000000-0000-0000-0000-0000000000a1, 00000000-0000-0000-0000-0000000000b1, 00000000-0000-0000-0000-0000000000e1
+sync after the date: true
+after the date gwen sees: 0 pages, member: false
+sync without gwen: true
+gwen's grants gone: 0

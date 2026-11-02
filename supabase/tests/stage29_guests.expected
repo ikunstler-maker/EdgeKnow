@@ -1,0 +1,57 @@
+a member invites a guest: {"ok": false, "error": "forbidden"}
+a date in the past: {"ok": false, "error": "invalid_date"}
+the owner invites a guest until a date: true
+a member invitation has no date: true
+stored: guest true, member false
+an outside email may sign up with the invitation: true
+gwen joins: true
+gwen is a guest until a date: guest true
+gwen is in the workspace: true, has access to the platform: true
+bob shares with gwen as editor: true
+never as owner: {"ok": false, "error": "guest_role"}
+gwen sees: Details, For the client
+gwen's role on the shared page and below: editor editor
+gwen edits: true
+gwen makes a page: {"ok": false, "error": "forbidden"}
+gwen makes a subpage: {"ok": false, "error": "forbidden"}
+search finds only the shared pages: For the client
+gwen sees a project open to the workspace: 0
+never owner of a project: {"ok": false, "error": "guest_role"}
+gwen gets edit: true
+gwen sees it: editor, tasks: 1
+gwen adds a task: true
+gwen makes a project: {"ok": false, "error": "forbidden"}
+gwen sees a map open to the workspace: 0
+gwen makes a map: {"ok": false, "error": "forbidden"}
+never owner of a map: {"ok": false, "error": "guest_role"}
+gwen gets view: true
+gwen sees it: viewer
+a guest in a group: {"ok": false, "error": "guest_role"}
+even if put there, the group opens nothing: none
+gwen sees groups: 0, group members: 0
+gwen sees these members: alice@guests.test, bob@guests.test, gwen@client.test
+gwen reads these profiles: alice@guests.test, bob@guests.test, gwen@client.test
+people to mention on the shared page: alice@guests.test, bob@guests.test
+bob sees gwen among the members: 1
+bob can mention: alice@guests.test, dave@guests.test, gwen@client.test
+never owner of the workspace: {"ok": false, "error": "guest_role"}
+gwen invites: {"ok": false, "error": "forbidden"}
+gwen reads the log: 0
+after the date gwen is in: false, platform: false, pages: 0, projects: 0, maps: 0
+nobody shares with a guest past the date: {"ok": false, "error": "not_a_member"}
+bob sets the date: {"ok": false, "error": "forbidden"}
+a date in the past: {"ok": false, "error": "invalid_date"}
+only for guests: {"ok": false, "error": "not_a_guest"}
+alice gives a new date: true
+everything is back: 2 pages, role editor
+the team database gets the date: true
+gwen becomes a member: true
+no date for a member: none
+as a member gwen sees: Details, For everyone, For the client
+and a guest again: true
+left the groups: 0
+owner of the project became editor: editor
+alice removes gwen: true
+gwen sees: 0
+removed: removed member no date
+gwen's grants gone: 0 0 0

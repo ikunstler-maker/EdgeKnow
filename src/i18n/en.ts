@@ -592,7 +592,7 @@ export const en: Dictionary = {
     noAccessTitle: "No access to this workspace",
     noAccess: "This workspace doesn't exist, or you're not a member.",
     toMyWorkspaces: "To my workspaces",
-    roles: { owner: "Owner", admin: "Admin", member: "Member" } as Record<string, string>,
+    roles: { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest" } as Record<string, string>,
   },
   newWorkspace: {
     title: "New workspace",

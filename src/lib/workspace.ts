@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-export type WorkspaceRole = "owner" | "admin" | "member";
+export type WorkspaceRole = "owner" | "admin" | "member" | "guest";
 
 export type Workspace = {
   id: string;
