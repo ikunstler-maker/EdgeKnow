@@ -207,6 +207,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-voting-open]").waitFor({ timeout: 15000 });
   await alice.locator("[data-vote]").first().click();
   const votes = () => sql(`select count(*) from public.board_votes where object_id = '${retroId}'`);
+  await alice.getByText("Ваші голоси: 1 з 2").waitFor({ timeout: 15000 }).catch(() => {});
   check("voting: a vote on a sticky note counts, with the votes left shown", await until(() => votes() === "1", 15000) && (await alice.getByText("Ваші голоси: 1 з 2").count()) === 1, votes());
   await alice.getByRole("button", { name: "Завершити" }).click();
   await alice.locator("[data-vote-results]").waitFor({ timeout: 15000 });
