@@ -1503,6 +1503,17 @@ export const uk = {
     minutes: (minutes: number) => (minutes ? `≈ ${minutes} хв` : "—"),
   },
   platform: {
+    teamKey: {
+      heading: "Ключ баз команд (TEAM_DB_KEY)",
+      notConfigured: "TEAM_DB_KEY ще не додано у Vercel: секрети баз команд поки шифруються старим ключем DRIVE_TOKEN_KEY.",
+      status: (done: number, total: number) => `Бази команд на новому ключі: ${done} з ${total}`,
+      explain: "Секретний ключ, адреса бази й доступ до Supabase кожної команди шифруються окремим ключем. Старі записи переходять на новий ключ самі (щоночі), кнопкою — одразу. DRIVE_TOKEN_KEY не видаляйте: ним зашифровано доступи до Google Drive.",
+      now: "Перешифрувати зараз",
+      back: "Повернути на старий ключ",
+      backConfirm: "Повернути секрети баз команд на старий ключ DRIVE_TOKEN_KEY? Потрібно лише перед тим, як прибрати TEAM_DB_KEY.",
+      done: (changed: number, failed: number) => `Перешифровано: ${changed}${failed ? `, не вдалося: ${failed}` : ""}.`,
+      errors: { no_team_key: "TEAM_DB_KEY не налаштовано.", forbidden: "Лише для адміністратора платформи." } as Record<string, string>,
+    },
     title: "Панель платформи",
     forbidden: "Ця сторінка доступна лише супер-адміністратору платформи.",
     intro: "Статистика всіх workspace. Вміст сторінок тут не показується.",

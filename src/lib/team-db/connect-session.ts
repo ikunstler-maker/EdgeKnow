@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { decrypt, encrypt } from "@/lib/drive/secret-box";
+import { decrypt, encryptTeam } from "@/lib/drive/secret-box";
 
 // Between signing in to Supabase and choosing the project, the owner's Supabase
 // access waits in an encrypted, short-lived cookie (never readable by the page).
@@ -10,7 +10,7 @@ const TTL_SECONDS = 15 * 60;
 type Session = { ws: string; u: string; refreshToken: string; exp: number };
 
 export async function saveConnectSession(session: Omit<Session, "exp">) {
-  (await cookies()).set(COOKIE, encrypt(JSON.stringify({ ...session, exp: Date.now() + TTL_SECONDS * 1000 })), {
+  (await cookies()).set(COOKIE, encryptTeam(JSON.stringify({ ...session, exp: Date.now() + TTL_SECONDS * 1000 })), {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
