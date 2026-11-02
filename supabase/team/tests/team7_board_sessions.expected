@@ -1,0 +1,5 @@
+team voting: true, vote: true
+team tally: {"n1": 1}
+carol (not a member): forbidden forbidden
+gone with the board: true true
+nothing left: 0 0

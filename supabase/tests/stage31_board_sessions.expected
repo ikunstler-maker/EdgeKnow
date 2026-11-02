@@ -1,0 +1,27 @@
+voting closed: {"ok": false, "error": "voting_closed"}
+alice opens voting, 2 each: true
+too many each: {"ok": false, "error": "invalid"}
+not on a map: {"ok": false, "error": "forbidden"}
+bob votes s1: true
+bob votes s2: true
+bob's third vote: {"ok": false, "error": "no_votes_left"}
+bob takes s2 back: false
+alice votes s1: true
+alice sees: {"ok": true, "mine": ["s1"], "tally": {"s1": 2}, "voters": 2, "voting_open": true, "timer_seconds": null, "votes_per_person": 2}
+alice starts a 5-minute timer: true
+it ends in about 5 minutes: true
+a timer too long: {"ok": false, "error": "invalid"}
+bob sees the timer: true
+a viewer doesn't vote: {"ok": false, "error": "forbidden"}
+nor starts the timer: {"ok": false, "error": "forbidden"}
+outsider reads: {"ok": false, "error": "forbidden"}
+outsider votes: {"ok": false, "error": "forbidden"}
+outsider times: {"ok": false, "error": "forbidden"}
+outsider may read the tables: false false
+a new voting: true
+…clears the old votes: {}
+closing: true
+…keeps the number: 3 false
+stop the timer: true
+…stopped: yes
+direct writes refused: false false

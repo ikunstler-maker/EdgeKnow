@@ -65,7 +65,7 @@ export default async function BoardPage({ params }: PageProps<"/w/[wid]/boards/[
         initialTitle={board.title}
         initialData={board.data}
         initialVersion={board.version}
-        canEdit={role === "owner" || role === "editor"}
+        role={String(role)}
         access={access}
         members={members}
       />

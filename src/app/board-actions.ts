@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
-import { writeClient } from "@/lib/team-db/data";
+import { dataClient, writeClient } from "@/lib/team-db/data";
+import { workspacePath } from "@/lib/paths";
+import { t } from "@/i18n";
 import { getWorkspace } from "@/lib/workspace";
 import { EMPTY_BOARD } from "@/lib/boards";
 
@@ -54,4 +56,52 @@ export async function setBoardMemberRole(shortId: string, id: string, member: st
 
 export async function setBoardGroupRole(shortId: string, id: string, group: string, role: string | null) {
   return call(shortId, "set_service_object_group_role", { target_object: id, target_group: group, new_role: role });
+}
+
+// Step Д3a: voting and the shared timer (read and changed through the database
+// functions, with the person's own access), and tasks from sticky notes.
+
+export type BoardSession = {
+  votesPerPerson: number | null;
+  votingOpen: boolean;
+  timerEndsAt: string | null;
+  timerSeconds: number | null;
+  // The server's clock, so a countdown is right whatever the device's clock says.
+  now: string;
+  tally: Record<string, number>;
+  mine: string[];
+  voters: number;
+};
+
+export async function boardSession(shortId: string, id: string): Promise<BoardSession | null> {
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("board_session", { target_object: id });
+  const row = data as { ok: boolean; votes_per_person: number | null; voting_open: boolean; timer_ends_at: string | null; timer_seconds: number | null; now: string; tally: Record<string, number>; mine: string[]; voters: number } | null;
+  if (!row?.ok) return null;
+  return { votesPerPerson: row.votes_per_person, votingOpen: row.voting_open, timerEndsAt: row.timer_ends_at, timerSeconds: row.timer_seconds, now: row.now, tally: row.tally, mine: row.mine, voters: row.voters };
+}
+
+export async function setBoardVoting(shortId: string, id: string, votes: number | null) {
+  return call(shortId, "set_board_voting", { target_object: id, votes }, false);
+}
+
+export async function toggleBoardVote(shortId: string, id: string, elementId: string) {
+  return call<{ voted: boolean }>(shortId, "toggle_board_vote", { target_object: id, target_element: elementId }, false);
+}
+
+export async function setBoardTimer(shortId: string, id: string, seconds: number | null) {
+  return call(shortId, "set_board_timer", { target_object: id, seconds }, false);
+}
+
+// A task from a sticky note's text; its description says which board it came from.
+export async function createTaskFromSticky(shortId: string, projectId: string, title: string, boardId: string, boardTitle: string) {
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" } as ActionResult<{ id: string; key: string }>;
+  const href = workspacePath(shortId, `/boards/${boardId}`);
+  const description = [
+    { type: "paragraph", content: [{ type: "text", text: `${t.boards.task.fromBoard} `, styles: {} }, { type: "link", href, content: [{ type: "text", text: boardTitle || t.boards.untitled, styles: {} }] }] },
+  ];
+  const { data, error } = await db.rpc("create_task", { target_project: projectId, fields: { title: (title.trim() || t.boards.voting.untitledSticky).slice(0, 300), description } });
+  if (error || !data) return { ok: false, error: "unknown" } as ActionResult<{ id: string; key: string }>;
+  return data as ActionResult<{ id: string; key: string }>;
 }

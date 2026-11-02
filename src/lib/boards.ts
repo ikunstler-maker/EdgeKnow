@@ -1,8 +1,8 @@
 // Boards (step Д1): what is stored of an Excalidraw scene. Only the drawn
-// elements and the background; the rest of the editor's state (zoom, tool,
+// elements, the background and the grid; the rest of the editor's state (zoom, tool,
 // selection) stays in the browser.
 
-export type BoardData = { elements: unknown[]; appState: { viewBackgroundColor?: string }; files: Record<string, unknown> };
+export type BoardData = { elements: unknown[]; appState: { viewBackgroundColor?: string; gridModeEnabled?: boolean }; files: Record<string, unknown> };
 
 export const EMPTY_BOARD: BoardData = { elements: [], appState: {}, files: {} };
 
@@ -10,7 +10,10 @@ export function readBoard(data: unknown): BoardData {
   const value = (data ?? {}) as Partial<BoardData>;
   return {
     elements: Array.isArray(value.elements) ? value.elements : [],
-    appState: typeof value.appState === "object" && value.appState ? { viewBackgroundColor: value.appState.viewBackgroundColor } : {},
+    appState:
+      typeof value.appState === "object" && value.appState
+        ? { viewBackgroundColor: value.appState.viewBackgroundColor, ...(value.appState.gridModeEnabled ? { gridModeEnabled: true } : {}) }
+        : {},
     files: typeof value.files === "object" && value.files ? value.files : {},
   };
 }
