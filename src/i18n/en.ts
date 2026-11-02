@@ -226,6 +226,7 @@ export const en: Dictionary = {
     },
   },
   tasks: {
+    hoursShort: "h",
     section: "Tasks",
     title: "Tasks",
     intro: "Projects with your team's tasks. Each task has a key, such as MKT-12.",

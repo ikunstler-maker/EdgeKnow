@@ -32,6 +32,7 @@ import {
   type Person,
   type StatusCategory,
   type TaskField,
+  type TaskPriority,
   type TaskRow,
   type TaskStatus,
 } from "@/lib/tasks";
@@ -208,6 +209,11 @@ export function TaskBoard({
                         progress={progress.get(task.id)}
                         blocked={blocked.has(task.id)}
                         canEdit={canEdit}
+                        onPriority={(priority) => {
+                          const before = tasks;
+                          setTasks(tasks.map((x) => (x.id === task.id ? { ...x, priority } : x)));
+                          run(() => updateTask(task.id, { priority }), () => setTasks(before));
+                        }}
                       />
                     )}
                   />
@@ -372,6 +378,7 @@ function BoardCard({
   progress,
   blocked,
   canEdit,
+  onPriority,
 }: {
   task: TaskRow;
   href: string;
@@ -383,6 +390,7 @@ function BoardCard({
   progress?: { done: number; total: number };
   blocked: boolean;
   canEdit: boolean;
+  onPriority?: (priority: TaskPriority) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canEdit });
   const today = new Date().toISOString().slice(0, 10);
@@ -406,65 +414,122 @@ function BoardCard({
             🔒
           </span>
         )}
-        {fields.has("priority") && <span title={k.priorities[task.priority]}>{PRIORITY_ICONS[task.priority]}</span>}
       </div>
       <Link href={href} className={`mt-1 block font-medium hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
         {task.title}
       </Link>
-      {fields.has("labels") && task.labels.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {task.labels.map((label) => (
-            <span key={label} className="rounded bg-surface px-1.5 text-xs text-muted">
-              {label}
-            </span>
-          ))}
-        </div>
-      )}
-      {customFields.map((field) => {
-        const value = task.custom?.[field.id];
-        if (value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length)) return null;
-        const chosen = (id: unknown) => field.options.find((o) => o.id === id);
-        return (
-          <div key={field.id} className="mt-1 flex flex-wrap items-center gap-1 text-xs" data-card-field={field.name}>
-            <span className="text-muted">{field.name}:</span>
-            {field.kind === "select" || field.kind === "multiselect" ? (
-              (Array.isArray(value) ? value : [value]).map((id) => (
-                <span key={String(id)} className="rounded-full px-2 text-white" style={{ background: chosen(id)?.color ?? "var(--accent)" }}>
-                  {chosen(id)?.label}
-                </span>
-              ))
-            ) : field.kind === "color" ? (
-              <span className="inline-block h-3 w-6 rounded" style={{ background: String(value) }} />
-            ) : field.kind === "checkbox" || field.kind === "toggle" ? (
-              <span>{value ? "✓" : "—"}</span>
-            ) : field.kind === "person" ? (
-              <span>{personLabel(personOf.get(String(value)))}</span>
+      {/* Every field chosen in "What to show on the card" is shown, empty ones as "—": the card grows instead of hiding them. */}
+      <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 text-xs" data-card-fields>
+        {fields.has("type") && (
+          <CardRow label={b.cardFields.type}>
+            {TYPE_ICONS[task.type]} {k.types[task.type]}
+          </CardRow>
+        )}
+        {fields.has("priority") && (
+          <CardRow label={b.cardFields.priority}>
+            {canEdit && onPriority ? (
+              <select
+                value={task.priority}
+                aria-label={`${b.cardFields.priority}: ${key}`}
+                data-card-priority
+                onPointerDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                onChange={(e) => onPriority(e.target.value as TaskPriority)}
+                className="min-h-8 w-full rounded border border-border bg-background px-1 md:min-h-7"
+              >
+                {TASK_PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {PRIORITY_ICONS[p]} {k.priorities[p]}
+                  </option>
+                ))}
+              </select>
             ) : (
-              <span className="truncate">{String(value)}</span>
+              <>
+                {PRIORITY_ICONS[task.priority]} {k.priorities[task.priority]}
+              </>
             )}
-          </div>
-        );
-      })}
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-        {fields.has("due") && task.due_date && <span className={overdue ? "font-medium text-danger" : ""}>📅 {shortDate(task.due_date)}</span>}
-        {fields.has("start") && task.start_date && <span>▶ {shortDate(task.start_date)}</span>}
-        {fields.has("estimate") && task.estimate !== null && <span>⏱ {task.estimate}</span>}
-        {progress && (fields.has("subtasks") || task.type === "epic") && (
-          <span title={k.hierarchy.progress(progress.done, progress.total)} data-card-progress className={progress.done === progress.total ? "text-emerald-600 dark:text-emerald-400" : ""}>
-            ☑ {progress.done}/{progress.total}
-          </span>
+          </CardRow>
         )}
-        {fields.has("created") && <span title={k.fields.created}>＋ {shortDate(task.created_at)}</span>}
-        {fields.has("updated") && <span title={k.fields.updated}>✎ {shortDate(task.updated_at)}</span>}
-        {fields.has("reporter") && reporter && <span title={k.fields.reporter}>✍ {personLabel(reporter)}</span>}
-        <span className="flex-1" />
-        {fields.has("assignee") && (
-          <span title={assignee ? personLabel(assignee) : k.unassigned} className="flex h-6 min-w-6 items-center justify-center rounded-full bg-surface px-1 font-medium text-foreground">
-            {assignee ? personLabel(assignee).split(/[\s@]/)[0] : "∅"}
-          </span>
+        {fields.has("assignee") && <CardRow label={b.cardFields.assignee}>{assignee ? personLabel(assignee) : k.unassigned}</CardRow>}
+        {fields.has("reporter") && <CardRow label={b.cardFields.reporter}>{reporter ? personLabel(reporter) : EMPTY}</CardRow>}
+        {fields.has("labels") && (
+          <CardRow label={b.cardFields.labels}>
+            {task.labels.length ? (
+              <span className="flex flex-wrap gap-1">
+                {task.labels.map((label) => (
+                  <span key={label} className="rounded bg-surface px-1.5">
+                    {label}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              EMPTY
+            )}
+          </CardRow>
         )}
-      </div>
+        {fields.has("due") && (
+          <CardRow label={b.cardFields.due}>
+            <span className={overdue ? "font-medium text-danger" : ""}>{task.due_date ? shortDate(task.due_date) : EMPTY}</span>
+          </CardRow>
+        )}
+        {fields.has("start") && <CardRow label={b.cardFields.start}>{task.start_date ? shortDate(task.start_date) : EMPTY}</CardRow>}
+        {fields.has("estimate") && <CardRow label={b.cardFields.estimate}>{task.estimate !== null ? `${task.estimate} ${k.hoursShort}` : EMPTY}</CardRow>}
+        {(fields.has("subtasks") || (task.type === "epic" && progress)) && (
+          <CardRow label={b.cardFields.subtasks}>
+            {progress ? (
+              <span title={k.hierarchy.progress(progress.done, progress.total)} data-card-progress className={progress.done === progress.total ? "text-emerald-600 dark:text-emerald-400" : ""}>
+                ☑ {progress.done}/{progress.total}
+              </span>
+            ) : (
+              EMPTY
+            )}
+          </CardRow>
+        )}
+        {fields.has("created") && <CardRow label={b.cardFields.created}>{shortDate(task.created_at)}</CardRow>}
+        {fields.has("updated") && <CardRow label={b.cardFields.updated}>{shortDate(task.updated_at)}</CardRow>}
+        {customFields.map((field) => {
+          const value = task.custom?.[field.id];
+          const empty = value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length);
+          const chosen = (id: unknown) => field.options.find((o) => o.id === id);
+          return (
+            <CardRow key={field.id} label={field.name} data={field.name}>
+              {empty ? (
+                EMPTY
+              ) : field.kind === "select" || field.kind === "multiselect" ? (
+                <span className="flex flex-wrap gap-1">
+                  {(Array.isArray(value) ? value : [value]).map((id) => (
+                    <span key={String(id)} className="rounded-full px-2 text-white" style={{ background: chosen(id)?.color ?? "var(--accent)" }}>
+                      {chosen(id)?.label}
+                    </span>
+                  ))}
+                </span>
+              ) : field.kind === "color" ? (
+                <span className="inline-block h-3 w-6 rounded" style={{ background: String(value) }} />
+              ) : field.kind === "checkbox" || field.kind === "toggle" ? (
+                value ? "✓" : EMPTY
+              ) : field.kind === "person" ? (
+                personLabel(personOf.get(String(value)))
+              ) : (
+                String(value)
+              )}
+            </CardRow>
+          );
+        })}
+      </dl>
     </div>
+  );
+}
+
+const EMPTY = "—";
+
+function CardRow({ label, data, children }: { label: string; data?: string; children: React.ReactNode }) {
+  return (
+    <>
+      <dt className="text-muted">{label}</dt>
+      <dd className="min-w-0 break-words" data-card-field={data}>
+        {children}
+      </dd>
+    </>
   );
 }
 
