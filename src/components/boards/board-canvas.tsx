@@ -8,6 +8,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { currentLocale, t } from "@/i18n";
 import { useResolvedTheme } from "@/lib/use-theme";
 import { STICKY_COLORS, type BoardData, type StickyColor } from "@/lib/boards";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 
 const b = t.boards;
 
@@ -17,6 +18,8 @@ const b = t.boards;
 // zooming or selecting.
 export default function BoardCanvas({ initial, editable, onChange }: { initial: BoardData; editable: boolean; onChange: (data: BoardData) => void }) {
   const theme = useResolvedTheme();
+  // A guest doesn't take the board away as a picture.
+  const canExport = useOptionalPages()?.workspace.role !== "guest";
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const [color, setColor] = useState<StickyColor>("yellow");
   const box = useRef<HTMLDivElement>(null);
@@ -91,7 +94,7 @@ export default function BoardCanvas({ initial, editable, onChange }: { initial: 
         langCode={currentLocale() === "en" ? "en" : "uk-UA"}
         aiEnabled={false}
         UIOptions={{
-          canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: true, toggleTheme: null, clearCanvas: editable, changeViewBackgroundColor: editable },
+          canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: canExport, toggleTheme: null, clearCanvas: editable, changeViewBackgroundColor: editable },
           // Pictures come with step Д3 (stored in the workspace's one storage).
           tools: { image: false },
         }}
@@ -132,7 +135,7 @@ export default function BoardCanvas({ initial, editable, onChange }: { initial: 
         }}
       >
         <MainMenu>
-          <MainMenu.DefaultItems.SaveAsImage />
+          {canExport && <MainMenu.DefaultItems.SaveAsImage />}
           <MainMenu.DefaultItems.SearchMenu />
           <MainMenu.DefaultItems.Help />
           {editable && <MainMenu.DefaultItems.ClearCanvas />}

@@ -39,7 +39,11 @@ select 'after: ' || title || ' / ' || search_text from public.service_objects wh
 
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000030e1';
 select 'the guest sees boards: ' || count(*) from public.service_objects where service = 'boards';
-select 'the guest makes a board: ' || public.create_service_object(:'ws', 'boards', 'board', 'x', '{}')::text;
+select 'the guest makes a board: ' || (public.create_service_object(:'ws', 'boards', 'board', 'Guest board', '{}') ->> 'ok');
+reset role;
+select '…the workspace owner owns it: ' || pr.email from public.service_objects o join public.profiles pr on pr.id = o.owner_id where o.title = 'Guest board';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000030e1';
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000030b1';
 select 'bob shares it with the guest: ' || (public.set_service_object_member_role(:'board', '00000000-0000-0000-0000-0000000030e1', 'editor') ->> 'ok');
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000030e1';

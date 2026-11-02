@@ -529,9 +529,17 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const gwen = await newPage(gwenCookies);
   await gwen.goto(`${APP}/w/${alphaShort}`);
   await gwen.getByRole("link", { name: "Мій профіль" }).waitFor({ timeout: 15000 });
-  check("a guest's menu has no new page and no bin", (await gwen.getByRole("button", { name: "Нова сторінка" }).count()) === 0 && (await gwen.getByRole("link", { name: "Кошик" }).count()) === 0);
-  const made = await gwenClient.rpc("create_page", { ws: alphaId, parent: forClient, new_title: "Mine" });
-  check("…and can't make pages, not even below the shared one", made.data?.ok === false, JSON.stringify(made.data));
+  check("a guest's menu has “New page” but no bin", (await gwen.getByRole("button", { name: "Нова сторінка" }).count()) === 1 && (await gwen.getByRole("link", { name: "Кошик" }).count()) === 0);
+  await gwen.getByRole("button", { name: "Нова сторінка" }).click();
+  await gwen.waitForURL(/\/p\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const gwenPage = gwen.url().split("/").pop();
+  const ownerOf = sql(`select pr.email || ' ' || (select a.role from public.page_access a where a.page_id = p.id and a.user_id = '${gwenId}') from public.pages p join public.profiles pr on pr.id = p.owner_id where p.id = '${gwenPage}'`);
+  check("…a page the guest makes belongs to the workspace owner, and she edits it", ownerOf === "alice@alpha.test editor", ownerOf);
+  const below = await gwenClient.rpc("create_page", { ws: alphaId, parent: forClient, new_title: "Below" });
+  check("…the same below the shared page", below.data?.ok === true && sql(`select pr.email from public.pages p join public.profiles pr on pr.id = p.owner_id where p.id = '${below.data?.id}'`) === "alice@alpha.test", JSON.stringify(below.data));
+  const exported = await gwen.evaluate(async () => (await (await fetch("/api/me/export")).json()).workspaces);
+  const alphaPart = exported.find((w) => w.name === "Alpha");
+  check("…and “My data” gives a guest no content of the workspace", alphaPart && alphaPart.role === "guest" && !("pages" in alphaPart), JSON.stringify(alphaPart));
 
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=members`);
   check("the members list marks the guest and her date", (await alice.locator("li", { hasText: "gwen@client.test" }).locator("[data-guest-badge]").count()) === 1 && (await alice.locator("li", { hasText: "gwen@client.test" }).getByText(/доступ до/).count()) === 1);

@@ -37,8 +37,14 @@ set role authenticated;
 select 'gwen sees pages: ' || string_agg(title, ', ' order by title) from public.pages where title like 'Team,%';
 select 'gwen sees maps: ' || count(*) from public.service_objects;
 select 'gwen sees projects: ' || count(*) from public.task_projects;
-select 'gwen makes a page: ' || (public.create_page(:'ws', null, 'Mine') ->> 'error');
-select 'gwen makes a map: ' || (public.create_service_object(:'ws', 'nodes', 'mindmap', 'x', '{}') ->> 'error');
+select public.create_page(:'ws', null, 'Team, by gwen') ->> 'id' as gwen_page \gset
+select 'gwen makes a page and edits it: ' || public.effective_role(:'gwen_page');
+select public.create_service_object(:'ws', 'nodes', 'mindmap', 'Gwen map', '{}') ->> 'id' as gwen_map \gset
+select 'gwen makes a map and edits it: ' || public.service_object_role(:'gwen_map') || ', trashes it: ' || (public.trash_service_object(:'gwen_map', false) ->> 'error');
+reset role;
+select 'the workspace owner owns them: ' || (select owner_id from public.pages where id = :'gwen_page') || ' ' || (select owner_id from public.service_objects where id = :'gwen_map');
+set role authenticated;
+:as_gwen;
 select 'gwen sees groups: ' || count(*) from public.workspace_groups;
 select 'gwen sees these members: ' || string_agg(user_id::text, ', ' order by user_id) from public.workspace_members;
 reset role;

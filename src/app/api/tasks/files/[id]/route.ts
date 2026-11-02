@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { dataClient } from "@/lib/team-db/data";
 import { TASK_FILE_COLUMNS, filesHome, readTaskFile, showsInline, type TaskFileRow } from "@/lib/drive/task-files";
 
@@ -18,7 +19,11 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/api/t
   try {
     const { rows } = await filesHome(admin, row.workspace_id);
     const bytes = await readTaskFile(admin, rows, row);
-    const inline = showsInline(row.mime_type) && request.nextUrl.searchParams.get("download") === null;
+    // A guest gets files shown, not handed over as downloads (where the browser can show them).
+    const { data: claims } = await (await createClient()).auth.getClaims();
+    const { data: me } = await db.from("workspace_members").select("role").eq("workspace_id", row.workspace_id).eq("user_id", String(claims?.claims?.sub ?? "")).maybeSingle();
+    const asDownload = request.nextUrl.searchParams.get("download") !== null && me?.role !== "guest";
+    const inline = showsInline(row.mime_type) && !asDownload;
     return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": row.mime_type,

@@ -36,12 +36,9 @@ export default async function BoardsPage({ params, searchParams }: PageProps<"/w
       {!bin && (
         <>
           <p className="mt-1 text-muted">{b.intro}</p>
-          {/* Guests see the boards shared with them and make none. */}
-          {workspace.role !== "guest" && (
-            <div className="mt-4">
-              <NewBoardButton shortId={workspace.shortId} />
-            </div>
-          )}
+          <div className="mt-4">
+            <NewBoardButton shortId={workspace.shortId} />
+          </div>
         </>
       )}
       {rows.length === 0 ? (

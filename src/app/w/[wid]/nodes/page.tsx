@@ -35,13 +35,10 @@ export default async function NodeSpacePage({ params, searchParams }: PageProps<
       {!bin && (
         <>
           <p className="mt-1 text-muted">{t.nodes.intro}</p>
-          {/* Guests see the maps shared with them and make none. */}
-          {workspace.role !== "guest" && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <NewNodeMapButton shortId={workspace.shortId} />
-              <NewNodeMapButton shortId={workspace.shortId} kind="flow" />
-            </div>
-          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <NewNodeMapButton shortId={workspace.shortId} />
+            <NewNodeMapButton shortId={workspace.shortId} kind="flow" />
+          </div>
         </>
       )}
       {rows.length === 0 ? (

@@ -7,6 +7,7 @@ import { formatBytes } from "@/lib/format-bytes";
 import { personLabel, type Person } from "@/lib/tasks";
 import { prepareImage } from "@/lib/image-compression";
 import { deleteTaskFile } from "@/app/task-file-actions";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 
 export type TaskFileView = { id: string; name: string; mime_type: string; bytes: number; uploaded_by: string | null; created_at: string };
 
@@ -50,6 +51,8 @@ export function TaskFiles({
   canEdit: boolean;
 }) {
   const router = useRouter();
+  // A guest views files but gets no download button.
+  const guest = useOptionalPages()?.workspace.role === "guest";
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -135,9 +138,11 @@ export function TaskFiles({
                   {formatBytes(file.bytes)} · {f.byOn(personLabel(personOf.get(file.uploaded_by ?? "")) || t.tasks.someone, new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(file.created_at)))}
                 </p>
               </div>
-              <a href={href(file.id, true)} aria-label={`${f.download}: ${file.name}`} className="flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-surface md:min-h-9 md:min-w-9">
-                ⬇️
-              </a>
+              {!guest && (
+                <a href={href(file.id, true)} aria-label={`${f.download}: ${file.name}`} className="flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-surface md:min-h-9 md:min-w-9">
+                  ⬇️
+                </a>
+              )}
               {(canEdit || file.uploaded_by === me) && (
                 <button
                   type="button"

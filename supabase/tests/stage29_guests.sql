@@ -55,8 +55,14 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029e1';
 select 'gwen sees: ' || string_agg(title, ', ' order by title) from public.pages;
 select 'gwen''s role on the shared page and below: ' || public.effective_role(:'shared') || ' ' || public.effective_role(:'details');
 select 'gwen edits: ' || (public.save_page_content(:'shared', '[]'::jsonb, 1, false) ->> 'ok');
-select 'gwen makes a page: ' || public.create_page(:'ws', null, 'Mine')::text;
-select 'gwen makes a subpage: ' || public.create_page(:'ws', :'shared', 'Mine')::text;
+select public.create_page(:'ws', null, 'Gwen top') ->> 'id' as gwen_top \gset
+select public.create_page(:'ws', :'shared', 'Gwen below') ->> 'id' as gwen_below \gset
+select 'gwen makes pages, she edits them: ' || public.effective_role(:'gwen_top') || ' ' || public.effective_role(:'gwen_below');
+select 'gwen can''t share her page: ' || (public.set_page_workspace_role(:'gwen_top', 'viewer') ->> 'error');
+reset role;
+select 'the workspace owner owns them: ' || string_agg(p.title || ' ' || pr.email, ', ' order by p.title) from public.pages p join public.profiles pr on pr.id = p.owner_id where p.title like 'Gwen %';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029e1';
 select 'search finds only the shared pages: ' || coalesce((select string_agg(r.title, ', ' order by r.title) from public.search_pages(:'ws', 'for', null, null) r), '-');
 
 -- Tasks
@@ -78,7 +84,13 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029b1';
 select public.create_service_object(:'ws', 'nodes', 'mindmap', 'Plan', '{}') ->> 'id' as map \gset
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029e1';
 select 'gwen sees a map open to the workspace: ' || count(*) from public.service_objects;
-select 'gwen makes a map: ' || public.create_service_object(:'ws', 'nodes', 'mindmap', 'x', '{}')::text;
+select public.create_service_object(:'ws', 'nodes', 'mindmap', 'Gwen map', '{}') ->> 'id' as gwen_map \gset
+select 'gwen makes a map, she edits it: ' || public.service_object_role(:'gwen_map');
+select 'but doesn''t throw it away: ' || (public.trash_service_object(:'gwen_map', false) ->> 'error');
+reset role;
+select 'the workspace owner owns it: ' || pr.email from public.service_objects o join public.profiles pr on pr.id = o.owner_id where o.id = :'gwen_map';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029e1';
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029b1';
 select 'never owner of a map: ' || public.set_service_object_member_role(:'map', '00000000-0000-0000-0000-0000000029e1', 'owner')::text;
 select 'gwen gets view: ' || (public.set_service_object_member_role(:'map', '00000000-0000-0000-0000-0000000029e1', 'viewer') ->> 'ok');
@@ -150,6 +162,15 @@ select 'and a guest again: ' || (public.set_member_role(:'ws', '00000000-0000-00
 reset role;
 select 'left the groups: ' || count(*) from public.workspace_group_members where user_id = '00000000-0000-0000-0000-0000000029e1';
 select 'owner of the project became editor: ' || role from public.task_project_access where user_id = '00000000-0000-0000-0000-0000000029e1';
+
+-- A member who becomes a guest hands what they own to the workspace owner
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029d1';
+select public.create_page(:'ws', null, 'Dave''s notes') ->> 'id' as dave_page \gset
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000029a1';
+select 'dave becomes a guest: ' || (public.set_member_role(:'ws', '00000000-0000-0000-0000-0000000029d1', 'guest') ->> 'ok');
+reset role;
+select 'his page now belongs to: ' || pr.email || ', he edits it: ' || (select a.role from public.page_access a where a.page_id = :'dave_page' and a.user_id = '00000000-0000-0000-0000-0000000029d1') from public.pages p join public.profiles pr on pr.id = p.owner_id where p.id = :'dave_page';
+set role authenticated;
 
 -- Removing
 set role authenticated;
