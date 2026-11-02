@@ -1177,6 +1177,13 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
 // --- Tasks (stage 2a, step Z1) -------------------------------------------------------------------
 {
   const { cookies: colleagueTaskCookies, client: colleagueTasks } = await sessionCookies("colleague@alpha.test");
+  // The start page: a tile per service; those still being built say "Soon".
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 7 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 5);
+  await alice.locator("[data-service-switcher]").getByRole("link", { name: "Задачі" }).click();
+  await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
+  check("…and the switcher in the sidebar opens Tasks", true);
   await alice.goto(`${APP}/w/${alphaShort}/tasks`);
   const form = alice.getByRole("form", { name: "Новий проєкт" });
   await form.getByLabel("Назва проєкту").fill("Маркетинг");
@@ -1497,7 +1504,7 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("…a task is ticked done right there", await until(() => category(2) === "done", 10000));
   await embed.getByRole("button", { name: "Дошка" }).click();
   await embed.locator('[data-embed-column="Готово"] [data-embed-task="MAR-2"]').waitFor({ timeout: 15000 });
-  check("…and it turns into a board", (await embed.locator('[data-embed-column="Готово"] [data-embed-task="MAR-2"]').count()) === 1 && JSON.stringify(pageContent(planPage)).includes('"view":"board"'));
+  check("…and it turns into a board (kept in the page)", await untilAsync(async () => JSON.stringify(pageContent(planPage)).includes('"view":"board"'), 10000));
 
   const lastLine = await alice.locator('[data-id="z3"] .bn-inline-content').first().boundingBox();
   await alice.mouse.click(lastLine.x + 5, lastLine.y + lastLine.height / 2);
@@ -1508,7 +1515,7 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.keyboard.type("Fix the footer");
   await alice.keyboard.press("Shift+Home");
   await alice.getByRole("button", { name: "Створити задачу з виділеного" }).click();
-  const fromSelection = alice.getByRole("form", { name: "Нова задача з виділеного тексту" });
+  const fromSelection = alice.getByRole("dialog", { name: "Нова задача з виділеного тексту" });
   await fromSelection.getByRole("button", { name: "Створити" }).click();
   check("selected text becomes a task", await until(() => sql("select count(*) from public.tasks where title = 'Fix the footer'") === "1", 10000));
   check("…and its chip takes the text's place", await untilAsync(async () => (await alice.locator("[data-task-chip]").count()) >= 3, 10000));

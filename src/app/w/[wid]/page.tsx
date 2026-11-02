@@ -5,6 +5,7 @@ import { pagePath, workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { NewPageButton } from "@/components/pages/new-page-button";
+import { ServiceTiles } from "@/components/services/service-tiles";
 import { Onboarding, type OnboardingStep } from "@/components/onboarding";
 import { createClient } from "@/lib/supabase/server";
 import { workspaceData } from "@/lib/team-db/data";
@@ -115,7 +116,7 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
       <p className="text-sm text-muted">{workspace.name}</p>
       <h1 className="text-3xl font-semibold">{t.home.greeting(user.name ?? user.email)}</h1>
       <p className="mt-3 text-muted">{t.home.intro}</p>
@@ -132,6 +133,8 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
       </div>
 
       {steps && <Onboarding workspaceId={workspace.id} shortId={workspace.shortId} steps={steps} canAddExamples={canAddExamples} />}
+
+      <ServiceTiles db={supabase} workspaceId={workspace.id} shortId={workspace.shortId} userId={user.id} />
 
       <section className="mt-10">
         <h2 className="text-lg font-semibold">{t.mentions.heading}</h2>

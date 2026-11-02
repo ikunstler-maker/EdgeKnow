@@ -32,7 +32,7 @@ import { Popover } from "@/components/ui/popover";
 import { publishPageStats } from "@/components/pages/page-stats";
 import { ChipPeopleContext } from "./chips";
 import { rememberTask } from "./task-chip-store";
-import { TaskFromSelectionButton } from "./task-from-selection";
+import { TaskFromSelectionButton, TaskFromSelectionDialog } from "./task-from-selection";
 import { createTaskFromPage, searchTasksForChip } from "@/app/task-wiki-actions";
 import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
@@ -365,6 +365,9 @@ export default function PageEditor({
   const comments = useComments(commentProps);
   const wide = useWide();
   const [sheet, setSheet] = useState<"threads" | "archive" | null>(null);
+  // A task from the selected text: its dialog lives here, not in the toolbar.
+  const [taskTitle, setTaskTitle] = useState<string | null>(null);
+  const closeTaskDialog = useCallback(() => setTaskTitle(null), []);
   const hasColumn = wide && (comments.visible.length > 0 || comments.draft !== null);
   // With comments on the page, the contents go where the reader chose.
   const placement = useTocPlacement();
@@ -410,13 +413,13 @@ export default function PageEditor({
               <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />,
               <MonoButton key="monoButton" />,
               <ClearFormattingButton key="clearFormattingButton" />,
-              ...(pagesContext ? [<TaskFromSelectionButton key="taskFromSelection" shortId={pagesContext.workspace.shortId} pageId={pageId} />] : []),
+              ...(pagesContext ? [<TaskFromSelectionButton key="taskFromSelection" onOpen={setTaskTitle} />] : []),
               ...(canComment ? [<CommentButton key="commentButton" onComment={startComment} />] : []),
             ]}
           </FormattingToolbar>
         );
       },
-    [editable, canComment, startComment, pagesContext, pageId],
+    [editable, canComment, startComment, pagesContext],
   );
 
   // A click on highlighted text opens its thread.
@@ -497,6 +500,9 @@ export default function PageEditor({
         </BlockNoteView>
         </ChipPeopleContext>
         </EditorPageContext>
+        {taskTitle !== null && pagesContext && (
+          <TaskFromSelectionDialog editor={editor} shortId={pagesContext.workspace.shortId} pageId={pageId} initialTitle={taskTitle} onClose={closeTaskDialog} />
+        )}
         {hasColumn && placement === "bottom" && <TableOfContents headings={headings} variant="bottom" />}
       </div>
       {hasColumn ? (
