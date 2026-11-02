@@ -986,6 +986,8 @@ check(
   minted.status === 200 && verified.payload?.sub === aliceUserId && verified.payload?.role === "authenticated" && verified.payload?.ek_workspace === alphaId && verified.payload.exp - verified.payload.iat <= 600,
   `${minted.status} ${verified.error ?? JSON.stringify(verified.payload ?? {}).slice(0, 200)}`,
 );
+const unbound = await tokenFor(null);
+check("no token without a workspace (a token works only in its workspace's database)", unbound.status === 400, String(unbound.status));
 const foreign = await tokenFor(betaId);
 check("no token for someone else's workspace", foreign.status === 403, String(foreign.status));
 

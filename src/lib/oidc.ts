@@ -41,19 +41,27 @@ export function publicJwks() {
   };
 }
 
-// A short-lived token for one person. Always the plain "authenticated" role:
-// nothing here can mint an admin token, and team databases refuse one from us anyway.
-export async function mintTeamToken(issuer: string, person: { id: string; email: string }, workspaceId?: string) {
+// A short-lived token for one person, for one workspace's own database: team
+// databases refuse it anywhere else (ek_workspace, checked by edgeknow_guard).
+// Always the plain "authenticated" role: nothing here can mint an admin token,
+// and team databases refuse one from us anyway.
+export async function mintTeamToken(issuer: string, person: { id: string; email: string }, workspaceId: string) {
+  return mint(issuer, person, { ek_workspace: workspaceId });
+}
+
+// Only for the platform admin's live check of a project not connected to any
+// workspace yet: marked as a check, and with no workspace no team database accepts it.
+export async function mintCheckToken(issuer: string, person: { id: string; email: string }) {
+  return mint(issuer, person, { ek_purpose: "check" });
+}
+
+async function mint(issuer: string, person: { id: string; email: string }, claims: Record<string, string>) {
   const [current] = signingKeys();
   if (!current) throw new Error("oidc not configured");
   const { kty, crv, x, y, d, kid } = current;
   const key = await importJWK({ kty, crv, x, y, d }, "ES256");
   const now = Math.floor(Date.now() / 1000);
-  const token = await new SignJWT({
-    role: "authenticated",
-    email: person.email,
-    ...(workspaceId ? { ek_workspace: workspaceId } : {}),
-  })
+  const token = await new SignJWT({ role: "authenticated", email: person.email, ...claims })
     .setProtectedHeader({ alg: "ES256", kid, typ: "JWT" })
     .setIssuer(issuer)
     .setSubject(person.id)

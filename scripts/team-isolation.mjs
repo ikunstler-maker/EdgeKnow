@@ -47,10 +47,11 @@ check("running again applies nothing", second.every((r) => r.applied.length === 
 // --- Tokens the way the central service mints them ----------------------------------------
 
 // In the cloud every team trusts the same EdgeKnow key; here team A's key plays it.
-async function token(t, sub, email, role = "authenticated") {
+// Like the real ones, each token is for one workspace (ek_workspace); null: none at all.
+async function token(t, sub, email, role = "authenticated", workspace = t === A ? wsA : wsB) {
   const { kty, crv, x, y, d, kid } = t.key;
   const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({ role, email })
+  return new SignJWT({ role, email, ...(workspace ? { ek_workspace: workspace } : {}) })
     .setProtectedHeader({ alg: "ES256", kid, typ: "JWT" })
     .setIssuer(ISSUER)
     .setSubject(sub)
@@ -144,6 +145,17 @@ const bobAfter = await select(A, "pages?select=title", bobA);
 check("someone removed centrally loses access at the next sync", resync.json?.ok === true && bobAfter.json?.length === 0, JSON.stringify(bobAfter.json));
 const otherWorkspace = await rpc(A, "team_sync", payload(wsB, "teamb001", eve, [eve]), A.secret, A.secret);
 check("a team database refuses a second workspace", otherWorkspace.json?.error === "other_workspace", JSON.stringify(otherWorkspace.json));
+
+// --- A token works only in the database of its own workspace -------------------------------
+// Bob is in both teams. A token given for team A, seen by team A's owner, is sent to team B's
+// database — signed with the key team B trusts, as in the cloud where every team trusts EdgeKnow.
+const bothB = await rpc(B, "team_sync", payload(wsB, "teamb001", eve, [eve, bob]), B.secret, B.secret);
+const forB = await select(B, "workspace_members?select=user_id", await token(B, bob.id, bob.email, "authenticated", wsB));
+check("someone in both teams uses team B with a token for team B", bothB.json?.ok === true && forB.status === 200 && forB.json?.length > 0, `${forB.status} ${JSON.stringify(forB.json)}`);
+const replayed = await select(B, "workspace_members?select=user_id", await token(B, bob.id, bob.email, "authenticated", wsA));
+check("…but a token given for team A is refused in team B's database", replayed.status === 403, `${replayed.status} ${JSON.stringify(replayed.json)}`);
+const unbound = await select(B, "workspace_members?select=user_id", await token(B, bob.id, bob.email, "authenticated", null));
+check("…and so is a token for no workspace at all", unbound.status === 403, `${unbound.status} ${JSON.stringify(unbound.json)}`);
 
 const failed = results.filter((r) => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
