@@ -147,8 +147,9 @@ jobs:
       - name: Run the browser test (${{ matrix.part }})
         run: |
           if ! node scripts/e2e/${{ matrix.part }}.mjs status.json http://localhost:3000; then
-            echo "::error title=next.log::$(grep -iE 'error|failed' next.log | tail -n 8 | tr '\n' ' ' | cut -c1-900)"
-            echo "::error title=next.log (end)::$(tail -n 25 next.log | tr '\n' ' ' | cut -c1-1500)"
+            # cut counts bytes: iconv drops a character cut in half (it breaks GitHub's log).
+            echo "::error title=next.log::$(grep -iE 'error|failed' next.log | tail -n 8 | tr '\n' ' ' | cut -c1-900 | iconv -c -f utf-8 -t utf-8)"
+            echo "::error title=next.log (end)::$(tail -n 25 next.log | tr '\n' ' ' | cut -c1-1500 | iconv -c -f utf-8 -t utf-8)"
             exit 1
           fi
 

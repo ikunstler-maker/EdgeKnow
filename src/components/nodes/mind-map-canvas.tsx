@@ -103,13 +103,29 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The latest map and node being typed in, read by every action: a field that
+  // goes away (blur after Tab/Enter) must never save an older map over a newer one.
+  const mapRef = useRef(map);
+  const editingRef = useRef<string | null>(null);
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
+  const edit = (id: string | null) => {
+    editingRef.current = id;
+    setEditing(id);
+  };
+
   // Folding is allowed to readers too, but only editors' folds are saved.
-  const change = (next: MapData) => (editable ? onChange(next) : onLocalChange(next));
+  const change = (next: MapData) => {
+    mapRef.current = next;
+    if (editable) onChange(next);
+    else onLocalChange(next);
+  };
   const grow = (made: [MapData, string]) => {
     if (made[0].nodes.length > MAX_NODES) return setError(n.tooBig);
     change(made[0]);
     setSelected(made[1]);
-    setEditing(made[1]);
+    edit(made[1]);
   };
 
   const callbacks: Callbacks = {
@@ -120,25 +136,28 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
     startEdit: (id) => {
       if (!editable) return;
       setSelected(id);
-      setEditing(id);
+      edit(id);
     },
     commit: (id, text, then) => {
-      if (editing !== id) return;
-      const current = map.nodes.find((node) => node.id === id);
-      const next = current && current.text !== text ? updateNode(map, id, { text: text.trim().slice(0, 500) }) : map;
-      setEditing(null);
+      if (editingRef.current !== id) return;
+      edit(null);
+      const latest = mapRef.current;
+      const current = latest.nodes.find((node) => node.id === id);
+      const clean = text.trim().slice(0, 500);
+      const next = current && current.text !== clean ? updateNode(latest, id, { text: clean }) : latest;
       if (then === "child") return grow(addChild(next, id));
       if (then === "sibling") return grow(addSibling(next, id));
-      if (next !== map) change(next);
+      if (next !== latest) change(next);
       wrapper.current?.focus();
     },
     cancel: () => {
-      setEditing(null);
+      edit(null);
       wrapper.current?.focus();
     },
     toggle: (id) => {
-      const node = map.nodes.find((x) => x.id === id);
-      if (node) change(updateNode(map, id, { collapsed: node.collapsed ? undefined : true }));
+      const latest = mapRef.current;
+      const node = latest.nodes.find((x) => x.id === id);
+      if (node) change(updateNode(latest, id, { collapsed: node.collapsed ? undefined : true }));
     },
   };
 
@@ -207,7 +226,7 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
     }
     if (e.key === "F2") {
       e.preventDefault();
-      return setEditing(node.id);
+      return edit(node.id);
     }
     if ((e.key === "Delete" || e.key === "Backspace") && !isRoot) {
       e.preventDefault();
@@ -228,7 +247,7 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
             <button type="button" title={n.addSiblingHint} onClick={() => grow(addSibling(map, node.id))} className={tool}>
               {n.addSibling}
             </button>
-            <button type="button" aria-label={n.edit} title={n.edit} onClick={() => setEditing(node.id)} className={tool}>
+            <button type="button" aria-label={n.edit} title={n.edit} onClick={() => edit(node.id)} className={tool}>
               ✏️
             </button>
           </>
