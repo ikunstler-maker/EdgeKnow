@@ -8,7 +8,7 @@ import type { Person, ProjectRole, TaskField, TaskStatus } from "@/lib/tasks";
 // wherever the workspace keeps its data, so RLS decides what shows.
 export type ProjectView = {
   workspace: Workspace;
-  project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean };
+  project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean; card_fields: string[] };
   statuses: TaskStatus[];
   fields: TaskField[];
   role: ProjectRole;
@@ -21,7 +21,7 @@ export async function loadProject(shortId: string, key: string): Promise<Project
   const db = await dataClient(shortId);
   const { data: project } = await db
     .from("task_projects")
-    .select("id, key, name, icon, workspace_role, sprints")
+    .select("*")
     .eq("workspace_id", workspace.id)
     .eq("key", key.toUpperCase())
     .maybeSingle();
@@ -40,7 +40,8 @@ export async function loadProject(shortId: string, key: string): Promise<Project
   if (!role) return null;
   return {
     workspace,
-    project,
+    // card_fields may be missing while the board migration rolls out.
+    project: { ...project, card_fields: project.card_fields ?? ["key", "type", "priority", "assignee", "due", "labels"] },
     statuses: (statuses ?? []) as TaskStatus[],
     fields: (fields ?? []) as TaskField[],
     role: role as ProjectRole,

@@ -48,6 +48,10 @@ export type TaskField = {
   task_types: TaskType[] | null;
   position: number;
 };
+// What a board card can show; the project's own fields join by id.
+export const CARD_FIELDS = ["key", "type", "priority", "assignee", "reporter", "labels", "due", "start", "created", "updated", "estimate"] as const;
+export type CardField = (typeof CARD_FIELDS)[number];
+
 export const fieldApplies = (field: TaskField, type: TaskType) => !field.task_types || field.task_types.includes(type);
 export const isEmptyValue = (value: unknown) => value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 

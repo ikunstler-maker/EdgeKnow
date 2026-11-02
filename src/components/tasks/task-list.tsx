@@ -5,17 +5,8 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
-import {
-  PRIORITY_ICONS,
-  TASK_PRIORITIES,
-  TASK_TYPES,
-  TYPE_ICONS,
-  personLabel,
-  taskKey,
-  type Person,
-  type TaskRow,
-  type TaskStatus,
-} from "@/lib/tasks";
+import { PRIORITY_ICONS, TYPE_ICONS, personLabel, taskKey, type Person, type TaskField, type TaskRow, type TaskStatus } from "@/lib/tasks";
+import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { createTask } from "@/app/task-actions";
 
 const k = t.tasks;
@@ -30,6 +21,7 @@ export function TaskList({
   statuses,
   tasks,
   members,
+  fields,
   me,
   canEdit,
 }: {
@@ -38,6 +30,7 @@ export function TaskList({
   statuses: TaskStatus[];
   tasks: TaskRow[];
   members: Person[];
+  fields: TaskField[];
   me: string;
   canEdit: boolean;
 }) {
@@ -45,27 +38,13 @@ export function TaskList({
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
-  const [assignee, setAssignee] = useState("");
-  const [type, setType] = useState("");
-  const [priority, setPriority] = useState("");
-
+  const [filters, setFilters] = useFilters(project.id);
   const statusOf = useMemo(() => new Map(statuses.map((s) => [s.id, s])), [statuses]);
   const personOf = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const today = new Date().toISOString().slice(0, 10);
 
-  const shown = tasks.filter((task) => {
-    const q = query.trim().toLowerCase();
-    if (q && !task.title.toLowerCase().includes(q) && !taskKey(project.key, task.number).toLowerCase().includes(q)) return false;
-    if (status && task.status_id !== status) return false;
-    if (assignee === "me" && task.assignee_id !== me) return false;
-    if (assignee === "none" && task.assignee_id) return false;
-    if (assignee && assignee !== "me" && assignee !== "none" && task.assignee_id !== assignee) return false;
-    if (type && task.type !== type) return false;
-    if (priority && task.priority !== priority) return false;
-    return true;
-  });
+  const shown = applyFilters(tasks, filters, { me, projectKey: project.key, statuses });
+  const labels = useMemo(() => [...new Set(tasks.flatMap((task) => task.labels))].sort(), [tasks]);
 
   return (
     <div className="mt-6">
@@ -104,43 +83,7 @@ export function TaskList({
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-2" role="search">
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={k.search} aria-label={k.search} className={`${inputClass} min-w-0 flex-1`} />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={k.columns.status} className={inputClass}>
-          <option value="">{k.allStatuses}</option>
-          {statuses.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        <select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label={k.columns.assignee} className={inputClass}>
-          <option value="">{k.allAssignees}</option>
-          <option value="me">{k.me}</option>
-          <option value="none">{k.unassigned}</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {personLabel(m)}
-            </option>
-          ))}
-        </select>
-        <select value={type} onChange={(e) => setType(e.target.value)} aria-label={k.columns.type} className={inputClass}>
-          <option value="">{k.columns.type}</option>
-          {TASK_TYPES.map((value) => (
-            <option key={value} value={value}>
-              {TYPE_ICONS[value]} {k.types[value]}
-            </option>
-          ))}
-        </select>
-        <select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label={k.columns.priority} className={inputClass}>
-          <option value="">{k.columns.priority}</option>
-          {TASK_PRIORITIES.map((value) => (
-            <option key={value} value={value}>
-              {PRIORITY_ICONS[value]} {k.priorities[value]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FilterBar filters={filters} setFilters={setFilters} members={members} statuses={statuses} fields={fields} labels={labels} />
       <p className="mt-2 text-xs text-muted">{k.count(shown.length, tasks.length)}</p>
 
       {tasks.length === 0 ? (
