@@ -46,10 +46,17 @@ export async function activeConnection(admin: SupabaseClient, workspaceId: strin
   return (data as DriveConnection | null) ?? null;
 }
 
+// A wiki Drive, or a personal or project Drive of task files (drive_accounts).
 export async function connectionById(admin: SupabaseClient, id: string): Promise<DriveConnection | null> {
   const { data } = await admin.from("drive_connections").select(CONNECTION_COLUMNS).eq("id", id).maybeSingle();
-  return (data as DriveConnection | null) ?? null;
+  if (data) return data as DriveConnection;
+  const { data: account } = await admin.from("drive_accounts").select(ACCOUNT_COLUMNS).eq("id", id).maybeSingle();
+  return account ? accountAsConnection(account as DriveAccount) : null;
 }
+
+export type DriveAccount = Omit<DriveConnection, "backups_folder_id"> & { purpose: "personal" | "project"; user_id: string | null; project_id: string | null };
+export const ACCOUNT_COLUMNS = "id, workspace_id, purpose, user_id, project_id, account_email, root_folder_id, files_folder_id, token_encrypted, status, active";
+export const accountAsConnection = (account: DriveAccount): DriveConnection => ({ ...account, backups_folder_id: account.files_folder_id });
 
 export const refreshTokenOf = (connection: DriveConnection) => decrypt(connection.token_encrypted);
 
@@ -57,6 +64,7 @@ export const refreshTokenOf = (connection: DriveConnection) => decrypt(connectio
 export async function noteDriveError(admin: SupabaseClient, connection: DriveConnection, error: unknown) {
   if (error instanceof DriveError && error.revoked) {
     await admin.from("drive_connections").update({ status: "error", last_error: "access_revoked" }).eq("id", connection.id);
+    await admin.from("drive_accounts").update({ status: "error", last_error: "access_revoked" }).eq("id", connection.id);
   }
 }
 

@@ -157,6 +157,8 @@ const bobReads = {
   "alpha tasks": `tasks?workspace_id=eq.${alpha.id}&select=title`,
   "alpha task history": `task_events?workspace_id=eq.${alpha.id}&select=field`,
   "alpha task links": `task_links?workspace_id=eq.${alpha.id}&select=kind`,
+  "alpha task files": `task_files?workspace_id=eq.${alpha.id}&select=name`,
+  "Drive accesses for task files": "drive_accounts?select=token_encrypted",
   "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
   "alpha group grants": `page_group_access?workspace_id=eq.${alpha.id}&select=role`,
 };
@@ -181,6 +183,8 @@ const bobActions = {
   "comment on alpha's task": ["add_task_comment", { target_task: alphaTask?.id, body: "hi", mention_ids: [] }],
   "link alpha's tasks": ["add_task_link", { source_task: alphaTask?.id, target_task: alphaTask2?.id, link_kind: "relates" }],
   "remove alpha's task link": ["delete_task_link", { target_link: alphaLink?.id }],
+  "attach a file to alpha's task": ["register_task_file", { target_task: alphaTask?.id, file_name: "x.pdf", file_type: "application/pdf", file_bytes: 10 }],
+  "choose where alpha's task files go": ["update_task_project", { target_project: alphaProject?.id, changes: { files_target: "edgeknow" } }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
@@ -218,6 +222,8 @@ const writes = [
   ["PATCH", `/rest/v1/tasks?id=eq.${alphaTask?.id}`, { title: "direct" }],
   ["POST", "/rest/v1/task_links", { workspace_id: alpha.id, source_id: alphaTask?.id, target_id: alphaTask2?.id, kind: "relates" }],
   ["DELETE", `/rest/v1/task_links?id=eq.${alphaLink?.id}`, undefined],
+  ["POST", "/rest/v1/task_files", { workspace_id: alpha.id, task_id: alphaTask?.id, name: "x.pdf", mime_type: "application/pdf", bytes: 10, storage_path: `${alpha.id}/tasks/x/y` }],
+  ["POST", "/rest/v1/drive_accounts", { workspace_id: alpha.id, purpose: "project", project_id: alphaProject?.id, account_email: "x", root_folder_id: "x", files_folder_id: "x", token_encrypted: "x" }],
   ["POST", "/rest/v1/page_group_access", { workspace_id: alpha.id, page_id: page.id, group_id: "00000000-0000-0000-0000-000000000000", role: "editor" }],
   ["PATCH", "/rest/v1/workspace_domains?domain=eq.alpha.test", { method: "dns" }],
 ];

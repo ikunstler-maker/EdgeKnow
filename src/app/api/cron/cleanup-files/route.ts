@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ removed: central + teams, health, domains });
 }
 
+const TASK_FILE_PATH = /^[0-9a-f-]{36}\/tasks\//;
+
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
   const { data: found, error } = await rows
@@ -49,20 +51,27 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   if (error) return null;
   if (!found.length) return 0;
   // A path that has a record again (a workspace moved back and forth) keeps its file.
-  const { data: inUse, error: inUseError } = await rows
-    .from("attachments")
-    .select("storage_path")
-    .in("storage_path", found.map((row) => row.storage_path as string));
+  const paths = found.map((row) => row.storage_path as string);
+  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }] = await Promise.all([
+    rows.from("attachments").select("storage_path").in("storage_path", paths),
+    // Task files (a table that may not exist yet in an older team database).
+    rows.from("task_files").select("storage_path").in("storage_path", paths),
+  ]);
   if (inUseError) return null;
-  const used = new Set((inUse ?? []).map((row) => row.storage_path as string));
+  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? [])].map((row) => row.storage_path as string));
   if (used.size) await rows.from("attachment_tombstones").delete().in("storage_path", [...used]);
   const tombstones = found.filter((row) => !used.has(row.storage_path as string));
 
   const done: string[] = [];
   const onSupabase = tombstones.filter((row) => row.storage_backend !== "drive").map((row) => row.storage_path as string);
-  if (onSupabase.length) {
-    const removed = await rows.storage.from("attachments").remove(onSupabase);
-    if (!removed.error) done.push(...onSupabase);
+  // Task files ("<ws>/tasks/…") have their own bucket.
+  for (const [bucket, paths] of [
+    ["attachments", onSupabase.filter((path) => !TASK_FILE_PATH.test(path))],
+    ["task-files", onSupabase.filter((path) => TASK_FILE_PATH.test(path))],
+  ] as const) {
+    if (!paths.length) continue;
+    const removed = await rows.storage.from(bucket).remove(paths);
+    if (!removed.error) done.push(...paths);
   }
   for (const row of tombstones.filter((r) => r.storage_backend === "drive")) {
     const connection = row.drive_connection_id ? await connectionById(admin, row.drive_connection_id as string) : null;

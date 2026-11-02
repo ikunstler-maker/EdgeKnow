@@ -62,3 +62,14 @@ set role authenticated;
 :as_carol;
 select 'carol sees links: ' || count(*) || ', links: ' || (public.add_task_link(:'l2', :'l1', 'relates') ->> 'error') from public.task_links;
 reset role;
+
+-- Task files in the team database.
+set role authenticated;
+:as_alice;
+select 'team file: ' || (public.register_task_file(:'l1', 'plan.pdf', 'application/pdf', 100) ->> 'target');
+select 'team files to the team storage: ' || (public.update_task_project(:'project', '{"files_target": "edgeknow"}') ->> 'ok');
+reset role;
+set role authenticated;
+:as_carol;
+select 'carol sees files: ' || count(*) || ', attaches: ' || (public.register_task_file(:'l1', 'x.txt', 'text/plain', 5) ->> 'error') from public.task_files;
+reset role;

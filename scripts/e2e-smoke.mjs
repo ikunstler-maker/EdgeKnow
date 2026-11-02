@@ -1360,6 +1360,53 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   check("…and the epic lists its tasks with progress", (await alice.getByRole("region", { name: "Задачі епіку" }).locator('[data-subtask="MAR-1"]').count()) === 1 && (await alice.locator("[data-progress]").innerText()) === "Готово 0 з 1");
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
   check("…and the task shows its epic above the title", (await alice.locator("[data-parent-link]").innerText()).includes("MAR-3"));
+
+  // Files in tasks: kept by default on the Google Drive of whoever attaches them;
+  // the project can choose the wiki's Drive, its own Drive or EdgeKnow's storage.
+  const marFile = () => sql(`select storage_backend || ':' || coalesce(drive_source, '-') from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);
+  const pdf = { name: "brief.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n") };
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  await alice.locator("[data-task-files] input[type=file]").setInputFiles(pdf);
+  await alice.getByRole("link", { name: "Підключити мій Google Диск" }).waitFor({ timeout: 15000 });
+  check("without their own Drive connected, a person is asked to connect it", sql(`select count(*) from public.task_files where task_id = ${marTask(2)}`) === "0");
+  await alice.getByRole("link", { name: "Підключити мій Google Диск" }).click();
+  await alice.waitForURL(/\/tasks\/MAR\/2\?drive=connected/, { timeout: 15000 });
+  const personal = sql(`select count(*) || ':' || bool_and(token_encrypted like 'v1.%' and token_encrypted not like '%fake-refresh-token%') from public.drive_accounts where workspace_id = '${alphaId}' and purpose = 'personal' and active`);
+  check("…they connect it (the access stored encrypted)", personal === "1:true", personal);
+  await alice.locator("[data-task-files] input[type=file]").setInputFiles(pdf);
+  await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 15000 });
+  check("…and the file goes to their Drive", marFile() === "drive:personal", marFile());
+  const fileId = sql(`select id from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);
+  const served = await alice.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${(await r.text()).slice(0, 5)}`; }, `/api/tasks/files/${fileId}?ws=${alphaShort}`);
+  check("people who see the task open the file", served === "200 %PDF-", served);
+  const stranger = await fetch(`${APP}/api/tasks/files/${fileId}?ws=${alphaShort}`, { redirect: "manual" });
+  check("…someone signed out gets nothing", stranger.status !== 200, String(stranger.status));
+  const disguised = await alice.evaluate(async ({ ws, task }) => (await fetch(`/api/tasks/files?ws=${ws}&task=${task}&name=x.png`, { method: "POST", headers: { "Content-Type": "image/png" }, body: "<html><script>alert(1)</script>" })).status, { ws: alphaShort, task: sql(`select ${marTask(2)}`) });
+  check("a page disguised as a picture is refused", disguised === 400, String(disguised));
+
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("button", { name: "📎 Файли" }).click();
+  const filesDialog = alice.getByRole("dialog", { name: "Куди зберігати файли задач" });
+  await filesDialog.locator("[data-files-summary]").waitFor({ timeout: 15000 });
+  await filesDialog.getByLabel(/Google Диск вікі/).click();
+  await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
+  check("choosing the wiki's Drive shows what would move and the space now and after", (await filesDialog.locator("[data-space-now]").count()) === 1 && (await filesDialog.locator("[data-space-after]").count()) === 1);
+  await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
+  await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
+  check("…and the existing file moves there", marFile() === "drive:wiki", marFile());
+  await filesDialog.getByLabel("Сховище EdgeKnow").click();
+  await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
+  await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
+  await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
+  check("…or to EdgeKnow's storage", marFile() === "supabase:-" && sql(`select count(*) from storage.objects where bucket_id = 'task-files' and name = '${alphaId}/tasks/' || ${marTask(2)} || '/${fileId}'`) === "1", marFile());
+  await filesDialog.locator("[data-connect-project-drive]").click();
+  await alice.waitForURL(/files=1&drive=connected/, { timeout: 15000 });
+  await alice.getByRole("dialog", { name: "Куди зберігати файли задач" }).getByText(/Підключено: team-drive@fake\.test/).first().waitFor({ timeout: 15000 });
+  check("the project gets its own Drive", sql(`select count(*) from public.drive_accounts where workspace_id = '${alphaId}' and purpose = 'project' and active`) === "1");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  await alice.getByRole("button", { name: "Прибрати файл «brief.pdf»" }).click();
+  await alice.locator('[data-task-file="brief.pdf"]').waitFor({ state: "detached", timeout: 15000 });
+  check("a removed file waits for the daily cleanup", sql(`select count(*) from public.attachment_tombstones where storage_path like '%/${fileId}'`) === "1");
 }
 
 // --- Groups of people ---------------------------------------------------------------------------
@@ -1507,7 +1554,7 @@ check("a team workspace's tasks are in its own database, not centrally", teamSql
 // --- Step 1.8: after all of the above, the central database holds nothing of Team Delta's content ---
 {
   const ws = sql("select id from public.workspaces where name = 'Team Delta'");
-  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_links", "task_comments", "task_events"];
+  const tables = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "task_projects", "tasks", "task_links", "task_files", "task_comments", "task_events"];
   const teamPages = teamSql(`select coalesce(string_agg(quote_literal(id::text), ','), 'null') from public.pages where workspace_id = '${ws}'`);
   const central = [
     ...tables.map((table) => `${table}=${sql(`select count(*) from public.${table} where workspace_id = '${ws}'`)}`),
