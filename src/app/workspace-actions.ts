@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/action-result";
 import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { syncWorkspaceNow, writeClient } from "@/lib/team-db/data";
 
 // Permission checks and audit logging live in the database functions; these
@@ -88,12 +89,19 @@ export async function setMemberRole(ws: string, member: string, role: string) {
 }
 
 export async function removeMember(ws: string, member: string) {
-  return callWorkspaceRpc("remove_member", { ws, member });
+  const result = await callWorkspaceRpc("remove_member", { ws, member });
+  // Their own Drive no longer takes new task files here; files still on it stay
+  // readable while the access lasts (and can be copied later).
+  if (result.ok) await createAdminClient()?.from("drive_accounts").update({ active: false }).eq("workspace_id", ws).eq("user_id", member).eq("purpose", "personal");
+  return result;
 }
 
 export async function leaveWorkspace(ws: string, me: string): Promise<ActionResult> {
   const result = await callWorkspaceRpc("remove_member", { ws, member: me });
-  if (result.ok) redirect("/");
+  if (result.ok) {
+    await createAdminClient()?.from("drive_accounts").update({ active: false }).eq("workspace_id", ws).eq("user_id", me).eq("purpose", "personal");
+    redirect("/");
+  }
   return result;
 }
 

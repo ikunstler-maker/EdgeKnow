@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useState, useSyncExternalStore, useTransition } from "react";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import type { Workspace } from "@/lib/workspace";
@@ -19,6 +19,7 @@ import {
   transferOwnership,
 } from "@/app/workspace-actions";
 import { cancelDomainRequest, requestDomain, verifyDomain } from "@/app/domain-actions";
+import { RemoveMemberDialog } from "./remove-member-dialog";
 
 const s = t.settings;
 
@@ -202,6 +203,8 @@ export function MembersPanel({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [link, setLink] = useState<{ email: string; url: string } | null>(null);
+  const [removing, setRemoving] = useState<MemberItem | null>(null);
+  const stopRemoving = useCallback(() => setRemoving(null), []);
 
   // The link token is shown only now; the database keeps just its hash.
   const invite = (address: string, inviteRole: string) =>
@@ -311,9 +314,7 @@ export function MembersPanel({
                     type="button"
                     disabled={pending}
                     className={`${buttonClass} text-danger`}
-                    onClick={() => {
-                      if (confirm(s.members.confirmRemove(m.email))) run(() => removeMember(workspace.id, m.userId));
-                    }}
+                    onClick={() => setRemoving(m)}
                   >
                     {s.members.remove}
                   </button>
@@ -336,6 +337,9 @@ export function MembersPanel({
         </section>
       )}
       {errorLine}
+      {removing && (
+        <RemoveMemberDialog workspaceId={workspace.id} member={removing} onRemove={() => removeMember(workspace.id, removing.userId)} onClose={stopRemoving} />
+      )}
     </div>
   );
 }
