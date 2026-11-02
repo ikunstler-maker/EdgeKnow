@@ -44,7 +44,7 @@ export function Sidebar({
   const sidebarToc = useSidebarToc();
   const navRef = useRef<HTMLElement>(null);
   const { appearance } = useAppearance();
-  // A guest works only in what was shared with them: no new pages, no bin.
+  // A guest's pages belong to the workspace owner, so a guest has no bin.
   const guest = workspace.role === "guest";
 
   // Open the branches leading to the page being viewed.
@@ -80,20 +80,18 @@ export function Sidebar({
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
 
-      {!guest && (
-        <button
-          type="button"
-          onClick={() => {
-            create(null);
-            onNavigate?.();
-          }}
-          disabled={pending}
-          className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground disabled:opacity-60 md:min-h-9"
-        >
-          <span className="w-5 text-center">＋</span>
-          {t.sidebar.newPage}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          create(null);
+          onNavigate?.();
+        }}
+        disabled={pending}
+        className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground disabled:opacity-60 md:min-h-9"
+      >
+        <span className="w-5 text-center">＋</span>
+        {t.sidebar.newPage}
+      </button>
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
         {sidebarToc && (

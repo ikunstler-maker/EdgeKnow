@@ -5,8 +5,9 @@ a map never owned by a guest: guest_role
 gwen sees pages: Team, for the client
 gwen sees maps: 0
 gwen sees projects: 0
-gwen makes a page: forbidden
-gwen makes a map: forbidden
+gwen makes a page and edits it: editor
+gwen makes a map and edits it: editor, trashes it: forbidden
+the workspace owner owns them: 00000000-0000-0000-0000-0000000000a1 00000000-0000-0000-0000-0000000000a1
 gwen sees groups: 0
 gwen sees these members: 00000000-0000-0000-0000-0000000000a1, 00000000-0000-0000-0000-0000000000b1, 00000000-0000-0000-0000-0000000000e1
 sync after the date: true

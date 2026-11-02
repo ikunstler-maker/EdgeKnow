@@ -32,6 +32,11 @@ export async function exportMyData(userId: string) {
     if (!data) continue;
     const rows = async (query: PromiseLike<{ data: unknown[] | null }>) => (await query).data ?? [];
     const db: SupabaseClient = data.client;
+    // A guest takes nothing of the workspace with them: only that they were in it.
+    if (m.role === "guest") {
+      workspaces.push({ name: m.workspace.name, role: m.role, joined_via: m.joined_via, joined_at: m.joined_at });
+      continue;
+    }
     workspaces.push({
       name: m.workspace.name,
       role: m.role,

@@ -8,6 +8,7 @@ import { useResolvedTheme } from "@/lib/use-theme";
 import { useRouter } from "next/navigation";
 import { workspacePath } from "@/lib/paths";
 import { createNodeMap } from "@/app/node-actions";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 import {
   MAX_NODES,
   NODE_COLORS,
@@ -108,6 +109,7 @@ function EditField({ text, x, y, root, onCommit }: { text: string; x: number; y:
 type CanvasProps = { shortId: string; map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void; compact?: boolean };
 
 function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = false }: CanvasProps) {
+  const guest = useOptionalPages()?.workspace.role === "guest";
   const router = useRouter();
   const [pasting, setPasting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -342,7 +344,8 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
           ⤢ {n.fit}
         </button>
         {!compact && (<>
-        <button
+        {/* A guest doesn't take the map away as text. */}
+        {!guest && <button
           type="button"
           onClick={async () => {
             await navigator.clipboard.writeText(mapToOutline(mapRef.current)).catch(() => {});
@@ -351,7 +354,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
           className={tool}
         >
           📋 {n.asList}
-        </button>
+        </button>}
         {editable && (
           <button type="button" onClick={() => setPasting(true)} className={tool}>
             📥 {n.fromList}
