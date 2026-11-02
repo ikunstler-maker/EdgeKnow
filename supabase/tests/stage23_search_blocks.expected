@@ -1,0 +1,9 @@
+alice, headings: Plan#h1 Бюджет 2027 | Plan#h2 Нested heading | Private#h9 Salaries
+alice, headings with "бюджет": Бюджет 2027
+alice, images: i1 logo.png Новий логотип
+alice, tables: t1 Q1
+unknown kind: 0
+under the private page: Salaries
+bob, headings: Бюджет 2027 | Нested heading
+dave, headings: 0
+psql: ERROR:  permission denied for function search_blocks

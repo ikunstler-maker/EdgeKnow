@@ -797,6 +797,24 @@ check("search finds text inside a page", (await searchResults.getByText("Extras"
 await searchBox.fill("Imag");
 await wide.waitForTimeout(800);
 check("search matches word beginnings in titles", (await searchResults.getByText("Images").count()) > 0);
+// By what is on a page: "заголовки" lists every heading; words after it narrow it down.
+const blockResults = wide.locator("[data-block-results]");
+await searchBox.fill("заголовки");
+await blockResults.waitFor({ timeout: 10000 });
+check("“заголовки” lists the headings themselves", (await blockResults.getByText("Heading one").count()) === 1 && (await blockResults.getByText("Heading two").count()) === 1);
+await searchBox.fill("заголовок two");
+await wide.waitForTimeout(1000);
+check("…“заголовок two” only the matching one", (await blockResults.getByText("Heading two").count()) === 1 && (await blockResults.getByText("Heading one").count()) === 0);
+await searchBox.fill("");
+await wide.getByRole("button", { name: "🖼️ Зображення" }).click();
+await wide.waitForTimeout(1200);
+check("the Images button lists pages with images", (await blockResults.getByText("Images").count()) > 0);
+await wide.getByRole("button", { name: "⌨️ Код" }).click();
+await wide.waitForTimeout(1200);
+check("…and Code the code blocks", (await blockResults.getByText("const answer = 42;").count()) === 1);
+await wide.getByRole("button", { name: "Текст", exact: true }).click();
+await searchBox.fill("Imag");
+await wide.waitForTimeout(800);
 await wide.keyboard.press("Escape");
 await colleague.keyboard.press("Control+k");
 const colleagueSearch = colleague.getByLabel("Шукати в назвах і тексті сторінок…");
