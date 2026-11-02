@@ -103,7 +103,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   // The start page: a tile per service; those still being built say "Soon".
   await alice.goto(`${APP}/w/${alphaShort}`);
   await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
-  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 7 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 5);
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 8 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 5);
   await alice.locator("[data-service-switcher]").getByRole("link", { name: "Задачі" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
   check("…and the switcher in the sidebar opens Tasks", true);

@@ -116,6 +116,30 @@ const STAGES: Stage[] = [
     onConflict: "project_id,group_id",
     replace: true,
   },
+  // Objects of the services (node space…) and who may open them.
+  {
+    name: "service objects",
+    table: "service_objects",
+    columns: "id, workspace_id, service, kind, title, icon, data, search_text, version, owner_id, created_by, workspace_role, created_at, updated_at, updated_by, deleted_at, deleted_by",
+    order: "id",
+    onConflict: "id",
+  },
+  {
+    name: "object access",
+    table: "service_object_access",
+    columns: "object_id, workspace_id, user_id, role, granted_by, created_at",
+    order: "object_id,user_id",
+    onConflict: "object_id,user_id",
+    replace: true,
+  },
+  {
+    name: "object group access",
+    table: "service_object_group_access",
+    columns: "object_id, workspace_id, group_id, role, granted_by, created_at",
+    order: "object_id,group_id",
+    onConflict: "object_id,group_id",
+    replace: true,
+  },
   { name: "tasks", table: "tasks", columns: TASK_COLUMNS, order: "id", onConflict: "id", flatten: true },
   { name: "task tree", table: "tasks", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
   // Pages that mention tasks (after both are there; the pages' own trigger can't see tasks yet).
@@ -148,7 +172,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -253,7 +277,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_fields", "task_projects"];
+const BY_ID = ["service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();

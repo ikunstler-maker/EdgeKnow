@@ -143,6 +143,8 @@ check("alice makes a task project and a task", alphaProject?.ok === true && alph
 const alphaTask2 = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha second task" } })).json;
 const alphaLink = (await rpc(alice, "add_task_link", { source_task: alphaTask?.id, target_task: alphaTask2?.id, link_kind: "blocks" })).json;
 check("alice links two tasks", alphaLink?.ok === true, JSON.stringify(alphaLink));
+const alphaMap = (await rpc(alice, "create_service_object", { ws: alpha.id, target_service: "nodes", new_kind: "mindmap", new_title: "Alpha secret map", new_data: { nodes: [{ id: "r", parent: null, text: "Alpha root" }] } })).json;
+check("alice makes a mind map", alphaMap?.ok === true, JSON.stringify(alphaMap));
 const bobReads = {
   "all pages": "pages?select=id,title",
   "alpha page by id": `pages?id=eq.${page.id}&select=id,title`,
@@ -158,6 +160,8 @@ const bobReads = {
   "alpha task history": `task_events?workspace_id=eq.${alpha.id}&select=field`,
   "alpha task links": `task_links?workspace_id=eq.${alpha.id}&select=kind`,
   "alpha task files": `task_files?workspace_id=eq.${alpha.id}&select=name`,
+  "alpha maps": `service_objects?workspace_id=eq.${alpha.id}&select=title,data`,
+  "alpha map access": `service_object_access?workspace_id=eq.${alpha.id}&select=user_id`,
   "alpha task mentions on pages": `task_page_links?workspace_id=eq.${alpha.id}&select=task_id`,
   "Drive accesses for task files": "drive_accounts?select=token_encrypted",
   "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
@@ -186,6 +190,11 @@ const bobActions = {
   "remove alpha's task link": ["delete_task_link", { target_link: alphaLink?.id }],
   "attach a file to alpha's task": ["register_task_file", { target_task: alphaTask?.id, file_name: "x.pdf", file_type: "application/pdf", file_bytes: 10 }],
   "choose where alpha's task files go": ["update_task_project", { target_project: alphaProject?.id, changes: { files_target: "edgeknow" } }],
+  "make a map in alpha": ["create_service_object", { ws: alpha.id, target_service: "nodes", new_kind: "mindmap", new_title: "x", new_data: {} }],
+  "change alpha's map": ["save_service_object", { target_object: alphaMap?.id, new_title: "hacked", new_data: null, base_version: 1 }],
+  "bin alpha's map": ["trash_service_object", { target_object: alphaMap?.id, restore: false }],
+  "open alpha's map to everyone": ["set_service_object_workspace_role", { target_object: alphaMap?.id, new_role: "editor" }],
+  "give himself alpha's map": ["set_service_object_member_role", { target_object: alphaMap?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
@@ -223,6 +232,9 @@ const writes = [
   ["PATCH", `/rest/v1/tasks?id=eq.${alphaTask?.id}`, { title: "direct" }],
   ["POST", "/rest/v1/task_links", { workspace_id: alpha.id, source_id: alphaTask?.id, target_id: alphaTask2?.id, kind: "relates" }],
   ["DELETE", `/rest/v1/task_links?id=eq.${alphaLink?.id}`, undefined],
+  ["POST", "/rest/v1/service_objects", { workspace_id: alpha.id, service: "nodes", kind: "mindmap", title: "direct" }],
+  ["PATCH", `/rest/v1/service_objects?id=eq.${alphaMap?.id}`, { title: "direct" }],
+  ["POST", "/rest/v1/service_object_access", { object_id: alphaMap?.id, workspace_id: alpha.id, user_id: "00000000-0000-0000-0000-000000000000", role: "owner" }],
   ["POST", "/rest/v1/task_page_links", { workspace_id: alpha.id, page_id: page.id, task_id: alphaTask?.id }],
   ["POST", "/rest/v1/task_files", { workspace_id: alpha.id, task_id: alphaTask?.id, name: "x.pdf", mime_type: "application/pdf", bytes: 10, storage_path: `${alpha.id}/tasks/x/y` }],
   ["POST", "/rest/v1/drive_accounts", { workspace_id: alpha.id, purpose: "project", project_id: alphaProject?.id, account_email: "x", root_folder_id: "x", files_folder_id: "x", token_encrypted: "x" }],
