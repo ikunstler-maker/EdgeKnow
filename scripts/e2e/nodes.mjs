@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { APP, alice, aliceClient, alphaId, alphaShort, check, colleague, finish, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, finish, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
 const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
@@ -168,5 +168,33 @@ const shownMap = await untilShown(colleague.locator('[data-node-embed="Launch ma
 const screen = (await colleague.locator("main").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 300);
 check("someone without access to a map sees “no access” on the page, not its name", hidden && (await colleague.getByText("Order flow").count()) === 0, screen);
 check("…while a map they may view shows as usual", shownMap, screen);
+
+// --- Boards (step Д1): a canvas with sticky notes, saved and private --------------------------------
+{
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  check("the Boards tile is ready on the start page", (await alice.locator(`a[href="/w/${alphaShort}/boards"]`).count()) >= 1);
+  await alice.goto(`${APP}/w/${alphaShort}/boards`);
+  await alice.getByRole("button", { name: "＋ Нова дошка" }).click();
+  await alice.waitForURL(/\/boards\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const boardId = alice.url().split("/").pop();
+  await alice.locator("[data-board-canvas] canvas").first().waitFor({ timeout: 30000 });
+  await alice.getByLabel("Назва дошки").fill("Retro");
+  await alice.locator('[data-sticky-color="yellow"]').click();
+  await alice.locator("[data-board-canvas] canvas").last().click({ position: { x: 60, y: 60 } });
+  await alice.keyboard.press("Escape");
+  await alice.keyboard.press("s");
+  const stickies = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${boardId}' and e -> 'customData' ->> 'sticky' = 'true'`);
+  check("a new board takes sticky notes (button and S) and saves them with its name", await until(() => stickies() === "2" && sql(`select title from public.service_objects where id = '${boardId}'`) === "Retro", 20000), stickies());
+  await alice.reload();
+  await alice.locator("[data-board-canvas] canvas").first().waitFor({ timeout: 30000 });
+  await alice.waitForTimeout(1500);
+  check("…after reloading everything is in place", stickies() === "2" && (await alice.getByLabel("Назва дошки").inputValue()) === "Retro");
+  const font = await fetch(`${APP}/excalidraw-assets/fonts/Nunito/${readdirSync("public/excalidraw-assets/fonts/Nunito")[0]}`, { redirect: "manual" });
+  check("the canvas's fonts are served by the site itself", font.status === 200, String(font.status));
+  await bob.goto(`${APP}/w/${alphaShort}/boards/${boardId}`);
+  check("someone from another workspace sees nothing of the board", (await bob.getByText("Retro").count()) === 0);
+  await colleague.goto(`${APP}/w/${alphaShort}/boards`);
+  check("a colleague sees the team's board in the list", (await colleague.locator('[data-board="Retro"]').count()) === 1);
+}
 
 await finish("nodes");

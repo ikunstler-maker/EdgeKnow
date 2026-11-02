@@ -5,7 +5,7 @@ export type ServiceKey = "wiki" | "tasks" | "boards" | "nodes" | "sheets" | "sli
 export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: string | null }[] = [
   { key: "wiki", icon: "📚", ready: true, path: "" },
   { key: "tasks", icon: "✅", ready: true, path: "/tasks" },
-  { key: "boards", icon: "🎨", ready: false, path: null },
+  { key: "boards", icon: "🎨", ready: true, path: "/boards" },
   { key: "nodes", icon: "🧠", ready: true, path: "/nodes" },
   { key: "sheets", icon: "📊", ready: false, path: null },
   { key: "slides", icon: "🖼️", ready: false, path: null },
