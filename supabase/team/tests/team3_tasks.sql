@@ -73,3 +73,18 @@ set role authenticated;
 :as_carol;
 select 'carol sees files: ' || count(*) || ', attaches: ' || (public.register_task_file(:'l1', 'x.txt', 'text/plain', 5) ->> 'error') from public.task_files;
 reset role;
+
+-- A task chip on a page of the team database.
+set role authenticated;
+:as_alice;
+select public.create_page(:'ws', null, 'Team plan') ->> 'id' as team_page \gset
+reset role;
+update public.pages set content = jsonb_build_array(jsonb_build_object('type', 'taskChip', 'props', jsonb_build_object('taskId', :'l1'))) where id = :'team_page';
+set role authenticated;
+:as_alice;
+select 'team mention: ' || count(*) from public.task_page_links where task_id = :'l1';
+reset role;
+set role authenticated;
+:as_carol;
+select 'carol sees team mentions: ' || count(*) from public.task_page_links;
+reset role;

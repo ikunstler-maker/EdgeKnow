@@ -12,6 +12,7 @@ import { codeBlockOptions } from "@blocknote/code-block";
 import { t } from "@/i18n";
 import { calloutBlock } from "./callout-block";
 import { dropdownChip, pageChip, personChip } from "./chips";
+import { taskChip, tasksBlock } from "./task-blocks";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
 import { linkCardBlock } from "./link-card-block";
@@ -101,12 +102,14 @@ export const schema = BlockNoteSchema.create({
     diagram: diagramBlock(),
     linkCard: linkCardBlock(),
     navigation: navigationBlock(),
+    tasks: tasksBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,
     chip: dropdownChip,
     pageChip,
     personChip,
+    taskChip,
   },
   styleSpecs: {
     ...defaultStyleSpecs,

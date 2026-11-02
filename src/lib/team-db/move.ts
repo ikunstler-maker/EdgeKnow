@@ -118,6 +118,15 @@ const STAGES: Stage[] = [
   },
   { name: "tasks", table: "tasks", columns: TASK_COLUMNS, order: "id", onConflict: "id", flatten: true },
   { name: "task tree", table: "tasks", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
+  // Pages that mention tasks (after both are there; the pages' own trigger can't see tasks yet).
+  {
+    name: "task mentions on pages",
+    table: "task_page_links",
+    columns: "workspace_id, page_id, task_id, created_at",
+    order: "page_id,task_id",
+    onConflict: "page_id,task_id",
+    replace: true,
+  },
   { name: "task links", table: "task_links", columns: "id, workspace_id, source_id, target_id, kind, created_by, created_at", order: "id", onConflict: "id" },
   {
     name: "task files",
@@ -139,7 +148,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 

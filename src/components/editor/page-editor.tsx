@@ -31,6 +31,9 @@ import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
 import { publishPageStats } from "@/components/pages/page-stats";
 import { ChipPeopleContext } from "./chips";
+import { rememberTask } from "./task-chip-store";
+import { TaskFromSelectionButton } from "./task-from-selection";
+import { createTaskFromPage, searchTasksForChip } from "@/app/task-wiki-actions";
 import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
@@ -194,7 +197,55 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <span aria-hidden="true">🧭</span>,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "navigation" }),
   };
-  return [...items, callout, navigation, linkCard, diagram, chip, mention];
+  const tasksEmbed: DefaultReactSuggestionItem = {
+    title: t.tasks.wiki.embedTitle,
+    subtext: t.tasks.wiki.embedSubtext,
+    aliases: t.tasks.wiki.embedAliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">📋</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "tasks" }),
+  };
+  // A task chip is picked from the "@" menu, like pages and people.
+  const taskChipItem: DefaultReactSuggestionItem = {
+    title: t.tasks.wiki.chipTitle,
+    subtext: t.tasks.wiki.chipSubtext,
+    aliases: t.tasks.wiki.chipAliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">✅</span>,
+    onItemClick: () => editor.getExtension(SuggestionMenu)?.openSuggestionMenu("@", { deleteTriggerCharacter: true, ignoreQueryLength: true }),
+  };
+  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed];
+}
+
+// "@": tasks by key or title, and a new task from what was typed (step Z4).
+async function taskMentionItems(editor: Editor, shortId: string, query: string, pageId: string): Promise<DefaultReactSuggestionItem[]> {
+  const { tasks, projects } = await searchTasksForChip(shortId, query).catch(() => ({ tasks: [], projects: [] }));
+  const insert = (taskId: string) => editor.insertInlineContent([{ type: "taskChip", props: { taskId } }, " "]);
+  const found = tasks.map((task) => ({
+    title: `${task.key} ${task.title}`,
+    group: t.tasks.wiki.mentionGroup,
+    icon: <span aria-hidden="true">✅</span>,
+    onItemClick: () => {
+      rememberTask(task);
+      insert(task.id);
+    },
+  }));
+  const title = query.trim();
+  const create = title.length >= 2 && !/^[A-Za-z][A-Za-z0-9]{1,9}-\d+$/.test(title)
+    ? projects
+        .filter((p) => p.canEdit)
+        .slice(0, 3)
+        .map((project) => ({
+          title: t.tasks.wiki.newTaskIn(project.key, title),
+          group: t.tasks.wiki.newTaskGroup,
+          icon: <span aria-hidden="true">＋</span>,
+          onItemClick: async () => {
+            const made = await createTaskFromPage(shortId, project.id, title, pageId);
+            if (made.ok) insert(made.id);
+          },
+        }))
+    : [];
+  return [...found, ...create];
 }
 
 // "@": people who can see the page, then pages, as chips.
@@ -359,12 +410,13 @@ export default function PageEditor({
               <BasicTextStyleButton key="codeStyleButton" basicTextStyle="code" />,
               <MonoButton key="monoButton" />,
               <ClearFormattingButton key="clearFormattingButton" />,
+              ...(pagesContext ? [<TaskFromSelectionButton key="taskFromSelection" shortId={pagesContext.workspace.shortId} pageId={pageId} />] : []),
               ...(canComment ? [<CommentButton key="commentButton" onComment={startComment} />] : []),
             ]}
           </FormattingToolbar>
         );
       },
-    [editable, canComment, startComment],
+    [editable, canComment, startComment, pagesContext, pageId],
   );
 
   // A click on highlighted text opens its thread.
@@ -434,9 +486,10 @@ export default function PageEditor({
           {editable && (
             <SuggestionMenuController
               triggerCharacter="@"
-              getItems={async (query) =>
-                filterSuggestionItems(mentionItems(editor, chipPeople, pagesContext?.pages ?? [], pageId), query).slice(0, 12)
-              }
+              getItems={async (query) => [
+                ...filterSuggestionItems(mentionItems(editor, chipPeople, pagesContext?.pages ?? [], pageId), query).slice(0, 8),
+                ...(pagesContext ? await taskMentionItems(editor, pagesContext.workspace.shortId, query, pageId) : []),
+              ]}
             />
           )}
           <FormattingToolbarController formattingToolbar={formattingToolbar} />
