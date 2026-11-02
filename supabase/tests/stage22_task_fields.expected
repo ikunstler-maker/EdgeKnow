@@ -1,0 +1,23 @@
+bob defines a field: {"ok": false, "error": "forbidden"}
+bug template field: true
+duplicate items: {"ok": false, "error": "invalid_options"}
+unknown kind: {"ok": false, "error": "invalid"}
+fields: Format:select, Approved:toggle, Brand colour:color, Reference:url, Reviewer:person, Frames:number, Platforms:multiselect, Steps:longtext[bug]
+with fields: DES-1
+an item that isn't there: {"ok": false, "error": "invalid_value"}
+a number as text: {"ok": false, "error": "invalid_value"}
+a field of another project: {"ok": false, "error": "invalid_field"}
+not a colour: {"ok": false, "error": "invalid_value"}
+not a link: {"ok": false, "error": "invalid_value"}
+someone from elsewhere: {"ok": false, "error": "invalid_value"}
+fitting values: {"ok": true}
+clear the format: {"ok": true}
+values: Approved=true, Brand colour="#12ab9F", Reference="https://example.com/ref", Reviewer="00000000-0000-0000-0000-0000000022a1", Frames=240, Platforms=["ig", "yt"]
+history has it: 2
+rename: true
+still a number: number
+bob deletes a field: {"ok": false, "error": "forbidden"}
+delete: {"ok": true}
+its value is gone: true
+dave sees fields: 0
+psql: ERROR:  permission denied for table task_fields
