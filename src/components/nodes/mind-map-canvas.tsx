@@ -1,8 +1,8 @@
 "use client";
 
 import "@xyflow/react/dist/style.css";
-import { createContext, memo, use, useEffect, useMemo, useRef, useState } from "react";
-import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
+import { createContext, memo, use, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { t } from "@/i18n";
 import { useResolvedTheme } from "@/lib/use-theme";
 import {
@@ -31,50 +31,16 @@ const CallbacksContext = createContext<Callbacks | null>(null);
 
 const MapNodeView = memo(function MapNodeView({ id, data }: NodeProps<Node<NodeView>>) {
   const colors = NODE_COLOR_STYLES[data.color];
-  const input = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (data.editing) {
-      input.current?.focus();
-      input.current?.select();
-    }
-  }, [data.editing]);
   const cb = use(CallbacksContext)!;
   return (
     <div
       data-map-node={data.text || "…"}
       data-selected={data.selected ? "" : undefined}
-      onClick={() => cb.select(id)}
-      onDoubleClick={() => cb.startEdit(id)}
       className={`relative rounded-xl border-2 px-3 py-2 text-sm shadow-sm ${data.root ? "text-base font-semibold" : ""} ${data.selected ? "ring-2 ring-accent ring-offset-1" : ""}`}
       style={{ width: NODE_WIDTH, background: colors.bg, borderColor: colors.border, color: data.color === "default" ? "var(--foreground)" : "#111827" }}
     >
       <Handle type="target" position={Position.Left} className="!opacity-0" isConnectable={false} />
-      {data.editing ? (
-        <textarea
-          ref={input}
-          defaultValue={data.text}
-          rows={1}
-          maxLength={500}
-          aria-label={n.edit}
-          className="nodrag w-full resize-none bg-transparent outline-none [field-sizing:content]"
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            // Esc finishes typing and keeps the text.
-            if (e.key === "Escape") cb.commit(id, e.currentTarget.value);
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              cb.commit(id, e.currentTarget.value, "sibling");
-            }
-            if (e.key === "Tab") {
-              e.preventDefault();
-              cb.commit(id, e.currentTarget.value, "child");
-            }
-          }}
-          onBlur={(e) => cb.commit(id, e.currentTarget.value)}
-        />
-      ) : (
-        <span className="block break-words">{data.text || "…"}</span>
-      )}
+      <span className={`block break-words ${data.editing ? "invisible" : ""}`}>{data.text || "…"}</span>
       {data.hasChildren && (
         <button
           type="button"
@@ -94,6 +60,42 @@ const MapNodeView = memo(function MapNodeView({ id, data }: NodeProps<Node<NodeV
 });
 
 const nodeTypes = { map: MapNodeView };
+
+// The text field of the node being typed in: over the node, there from the first
+// moment (a new node is hidden by React Flow until it is measured).
+function EditField({ text, x, y, root, onCommit }: { text: string; x: number; y: number; root: boolean; onCommit: (text: string, then?: "child" | "sibling") => void }) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    field.current?.focus({ preventScroll: true });
+    field.current?.select();
+  }, []);
+  return (
+    <textarea
+      ref={field}
+      defaultValue={text}
+      rows={1}
+      maxLength={500}
+      aria-label={n.edit}
+      data-map-edit
+      className={`nodrag nopan pointer-events-auto absolute resize-none rounded-xl border-2 border-accent bg-background px-3 py-2 text-sm text-foreground shadow-md outline-none [field-sizing:content] ${root ? "text-base font-semibold" : ""}`}
+      style={{ transform: `translate(${x}px, ${y}px)`, width: NODE_WIDTH, zIndex: 10 }}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        // Esc finishes typing and keeps the text.
+        if (e.key === "Escape") onCommit(e.currentTarget.value);
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          onCommit(e.currentTarget.value, "sibling");
+        }
+        if (e.key === "Tab") {
+          e.preventDefault();
+          onCommit(e.currentTarget.value, "child");
+        }
+      }}
+      onBlur={(e) => onCommit(e.currentTarget.value)}
+    />
+  );
+}
 
 function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void }) {
   const theme = useResolvedTheme();
@@ -300,7 +302,7 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
         onKeyDown={onKey}
         aria-label={t.nodes.kinds.mindmap}
         data-mind-map
-        className="relative min-h-[60vh] flex-1 overflow-hidden rounded-xl border border-border outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="relative h-[65vh] min-h-80 overflow-hidden rounded-xl border border-border outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <CallbacksContext value={callbacks}>
         <ReactFlow
@@ -314,12 +316,34 @@ function Canvas({ map, editable, onChange, onLocalChange }: { map: MapData; edit
           maxZoom={2}
           nodesConnectable={false}
           nodesDraggable={false}
-          elementsSelectable={false}
+          // Selectable so clicks reach the nodes; selection, deleting and moving stay ours.
+          elementsSelectable
+          nodesFocusable={false}
+          edgesFocusable={false}
+          deleteKeyCode={null}
+          selectionKeyCode={null}
+          multiSelectionKeyCode={null}
+          disableKeyboardA11y
           onlyRenderVisibleElements
           proOptions={{ hideAttribution: true }}
           onPaneClick={() => wrapper.current?.focus()}
+          // Clicks reach the nodes only with these (they aren't selectable or draggable).
+          onNodeClick={(_, clicked) => callbacks.select(clicked.id)}
+          onNodeDoubleClick={(_, clicked) => callbacks.startEdit(clicked.id)}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
+          {editing && positions.get(editing) && (
+            <ViewportPortal>
+              <EditField
+                key={editing}
+                text={map.nodes.find((x) => x.id === editing)?.text ?? ""}
+                x={positions.get(editing)!.x}
+                y={positions.get(editing)!.y}
+                root={map.nodes.find((x) => x.id === editing)?.parent === null}
+                onCommit={(text, then) => callbacks.commit(editing, text, then)}
+              />
+            </ViewportPortal>
+          )}
         </ReactFlow>
         </CallbacksContext>
       </div>

@@ -38,6 +38,8 @@ const byText = Object.fromEntries(tree.map((node) => [node.text, node]));
 check("…as a tree", byText.Design.parent === byText.Launch.id && byText.Marketing.parent === byText.Launch.id && byText.Ads.parent === byText.Marketing.id);
 
 // The toolbar (for phones): fold a branch, colour, delete.
+await alice.getByRole("button", { name: /Показати всю карту/ }).click();
+await alice.waitForTimeout(400);
 await canvas.locator('[data-map-node="Marketing"]').click();
 await alice.locator("[data-map-toolbar]").getByRole("button", { name: "Згорнути гілку (Пробіл)" }).click();
 await canvas.locator('[data-map-node="Ads"]').waitFor({ state: "detached", timeout: 10000 });
