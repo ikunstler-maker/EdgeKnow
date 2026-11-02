@@ -1388,13 +1388,13 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.getByRole("button", { name: "📎 Файли" }).click();
   const filesDialog = alice.getByRole("dialog", { name: "Куди зберігати файли задач" });
   await filesDialog.locator("[data-files-summary]").waitFor({ timeout: 15000 });
-  await filesDialog.getByLabel(/Google Диск вікі/).check();
+  await filesDialog.getByLabel(/Google Диск вікі/).click();
   await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
   check("choosing the wiki's Drive shows what would move and the space now and after", (await filesDialog.locator("[data-space-now]").count()) === 1 && (await filesDialog.locator("[data-space-after]").count()) === 1);
   await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
   await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
   check("…and the existing file moves there", marFile() === "drive:wiki", marFile());
-  await filesDialog.getByLabel("Сховище EdgeKnow").check();
+  await filesDialog.getByLabel("Сховище EdgeKnow").click();
   await filesDialog.getByText(/Ще не на вибраному місці: 1/).waitFor({ timeout: 15000 });
   await filesDialog.getByRole("button", { name: "Перенести наявні файли" }).click();
   await filesDialog.getByText("Перенесено: 1").waitFor({ timeout: 30000 });
