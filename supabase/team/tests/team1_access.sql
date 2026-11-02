@@ -94,7 +94,7 @@ reset role;
 select 'bob grants left: ' || count(*) from public.page_access where user_id = :'bob';
 
 -- The guard: our tokens act only as a signed-in person.
-set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated"}';
+set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","ek_workspace":"00000000-0000-0000-0000-0000000000f1"}';
 select 'guard, person: ok' from (select public.edgeknow_guard()) g;
 set request.jwt.claims = '{"iss":"https://supabase.test/auth/v1","role":"service_role"}';
 select 'guard, the project''s own secret key: ok' from (select public.edgeknow_guard()) g;

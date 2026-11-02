@@ -1,0 +1,7 @@
+before the first sync, any token passes as before: ok
+synced for: 00000000-0000-0000-0000-0000000000f1
+a token for this workspace: ok
+psql: ERROR:  This EdgeKnow token is for another workspace
+psql: ERROR:  This EdgeKnow token is for another workspace
+psql: ERROR:  EdgeKnow tokens are for signed-in people only
+the project's own sign-in is not ours to check: ok

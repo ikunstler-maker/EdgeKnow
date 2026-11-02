@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import { SignJWT, generateKeyPair, importJWK } from "jose";
 import { getCurrentUser } from "@/lib/auth";
-import { mintTeamToken, oidcIssuer } from "@/lib/oidc";
+import { mintCheckToken, oidcIssuer } from "@/lib/oidc";
 
 // Live check of a team's Supabase project against our sign-in (platform admin only).
 // Only *.supabase.co project addresses are called, never arbitrary hosts.
@@ -52,7 +52,7 @@ export async function checkTeamProject(input: { url: string; publishableKey: str
   const issuer = oidcIssuer(`${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`);
   const steps: CheckStep[] = [];
   try {
-    const { token } = await mintTeamToken(issuer, user);
+    const { token } = await mintCheckToken(issuer, user);
     const own = await callWhoami(url, publishableKey, token);
     steps.push({ id: "accepted", ok: own.status === 200, detail: `HTTP ${own.status} ${own.text}` });
     let uid = "";

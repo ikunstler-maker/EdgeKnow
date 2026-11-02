@@ -1,6 +1,8 @@
 // SQL a team runs in its own Supabase project (SQL editor) for the live check:
 // a "who am I" function, and the guard that lets tokens from EdgeKnow act only as
 // a plain signed-in person, never as an admin role, even if our key leaked.
+// The project isn't any workspace's yet, so here only check tokens are accepted
+// (a member's token, bound to a workspace, is refused here too).
 export function teamCheckSql(issuer: string) {
   const quoted = issuer.replace(/'/g, "''");
   return `-- EdgeKnow: перевірка входу
@@ -16,6 +18,9 @@ returns void language plpgsql as $$
 begin
   if auth.jwt() ->> 'iss' = '${quoted}' and coalesce(auth.jwt() ->> 'role', '') <> 'authenticated' then
     raise exception 'EdgeKnow tokens are for signed-in people only' using errcode = '42501';
+  end if;
+  if auth.jwt() ->> 'iss' = '${quoted}' and coalesce(auth.jwt() ->> 'ek_purpose', '') <> 'check' then
+    raise exception 'Only EdgeKnow check tokens here' using errcode = '42501';
   end if;
 end;
 $$;
