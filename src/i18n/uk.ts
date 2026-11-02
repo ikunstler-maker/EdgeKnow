@@ -601,7 +601,7 @@ export const uk = {
     noAccessTitle: "Немає доступу до workspace",
     noAccess: "Цього workspace не існує, або ви не є його учасником.",
     toMyWorkspaces: "До моїх workspace",
-    roles: { owner: "Власник", admin: "Адмін", member: "Учасник" } as Record<string, string>,
+    roles: { owner: "Власник", admin: "Адмін", member: "Учасник", guest: "Гість" } as Record<string, string>,
   },
   newWorkspace: {
     title: "Новий workspace",

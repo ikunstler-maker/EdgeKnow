@@ -99,5 +99,8 @@ export async function syncWorkspaceNow(workspaceId: string) {
   const admin = createAdminClient();
   if (!admin || !oidcConfigured()) return;
   const db = await teamDatabase(admin, workspaceId);
-  if (db && teamReady(db)) await syncTeam(admin, db, oidcIssuer(await requestOrigin())).catch(() => {});
+  if (!db || !teamReady(db)) return;
+  // A new role (e.g. guests) needs the team's schema to know it first.
+  if (db.schema_version !== latestTeamMigration()) await upgradeTeam(admin, workspaceId).catch(() => {});
+  await syncTeam(admin, db, oidcIssuer(await requestOrigin())).catch(() => {});
 }

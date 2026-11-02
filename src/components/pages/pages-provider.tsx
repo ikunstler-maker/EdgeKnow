@@ -40,7 +40,7 @@ export type WorkspaceInfo = {
   id: string;
   shortId: string;
   name: string;
-  role: "owner" | "admin" | "member";
+  role: "owner" | "admin" | "member" | "guest";
 };
 
 type PagesContextValue = {

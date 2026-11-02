@@ -27,7 +27,7 @@ export type MemberItem = {
   userId: string;
   name: string | null;
   email: string;
-  role: "owner" | "admin" | "member";
+  role: "owner" | "admin" | "member" | "guest";
   joinedVia: "creator" | "domain" | "invite";
 };
 export type DomainItem = {

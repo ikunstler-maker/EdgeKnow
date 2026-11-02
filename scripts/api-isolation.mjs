@@ -176,6 +176,8 @@ const bobActions = {
   "rename alpha page": ["rename_page", { target_page: page.id, new_title: "hacked" }],
   "create page in alpha": ["create_page", { ws: alpha.id, parent: null, new_title: "x" }],
   "invite himself to alpha": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "admin" }],
+  "invite himself to alpha as a guest": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "guest", guest_until: null }],
+  "change a guest's date in alpha": ["set_guest_access_until", { ws: alpha.id, member: "00000000-0000-0000-0000-000000000000", until: null }],
   "add domain to alpha": ["add_workspace_domain", { ws: alpha.id, new_domain: "beta.test" }],
   "ask to prove a domain for alpha": ["request_workspace_domain", { ws: alpha.id, new_domain: "beta.test" }],
   "confirm a domain as platform admin": ["platform_confirm_domain", { ws: alpha.id, target_domain: "beta.test" }],
@@ -228,6 +230,7 @@ const writes = [
   ["PATCH", `/rest/v1/workspaces?id=eq.${alpha.id}`, { frozen_at: null, central_allowed: true }],
   ["POST", "/rest/v1/workspace_domain_claims", { workspace_id: alpha.id, domain: "evil.test" }],
   ["POST", "/rest/v1/workspace_groups", { workspace_id: alpha.id, name: "Direct" }],
+  ["PATCH", `/rest/v1/workspace_members?workspace_id=eq.${alpha.id}`, { role: "guest", access_until: null }],
   ["POST", "/rest/v1/tasks", { workspace_id: alpha.id, project_id: alphaProject?.id, number: 99, title: "direct" }],
   ["PATCH", `/rest/v1/tasks?id=eq.${alphaTask?.id}`, { title: "direct" }],
   ["POST", "/rest/v1/task_links", { workspace_id: alpha.id, source_id: alphaTask?.id, target_id: alphaTask2?.id, kind: "relates" }],
@@ -248,8 +251,8 @@ for (const [method, path, body] of writes) {
 const titleAfter = (await rest(alice, `pages?id=eq.${page.id}&select=title`)).json?.[0]?.title;
 check("alpha page unchanged after bob's attempts", titleAfter === "Alpha secret", String(titleAfter));
 const logged = sql(`select count(*) from public.audit_log where workspace_id = '${alpha.id}' and action = 'access_denied'`);
-// Workspace management attempts (invite, add and ask for a domain, create a group, delete, rename) are logged; page actions are not.
-check("bob's attempts are in alpha's audit log", Number(logged) === 6, `${logged} entries`);
+// Workspace management attempts (invite twice, a guest's date, add and ask for a domain, create a group, delete, rename) are logged; page actions are not.
+check("bob's attempts are in alpha's audit log", Number(logged) === 8, `${logged} entries`);
 // The group was only for these checks; later tests see alpha's page as before.
 await rpc(alice, "delete_workspace_group", { ws: alpha.id, target_group: alphaGroup });
 
