@@ -4,16 +4,36 @@ import { t } from "@/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { AnglerFish } from "@/components/angler/angler-fish";
+import { CountUp, HeroZoom, Reveal, ServiceTour } from "@/components/landing/motion";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t.landing.title, description: t.landing.description };
 }
 
-const section = "mx-auto w-full max-w-6xl px-4 md:px-8";
-const button = "inline-flex min-h-11 items-center justify-center rounded-xl px-5 text-sm font-medium transition";
+const wrap = "mx-auto w-full max-w-[1120px] px-5 md:px-8";
+const pill = "inline-flex min-h-11 items-center justify-center rounded-full px-6 text-[15px] font-medium transition";
+const eyebrow = "text-sm font-semibold uppercase tracking-[0.18em] text-white/45";
+const title = "whitespace-pre-line text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.02em] md:text-7xl";
+
+// A generated picture (Gemini), in two sizes for ordinary and sharp screens.
+function Picture({ name, alt, className = "", priority = false }: { name: string; alt: string; className?: string; priority?: boolean }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- fixed, already optimised WebP files
+    <img
+      src={`/landing/${name}-1600.webp`}
+      srcSet={`/landing/${name}-800.webp 800w, /landing/${name}-1600.webp 1600w`}
+      sizes="(min-width: 1120px) 1120px, 100vw"
+      alt={alt}
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+      className={className}
+    />
+  );
+}
 
 // The presentation page of EdgeKnow: open to everyone (it holds no team data),
-// and where someone not signed in lands. In both languages, like the rest.
+// and where someone not signed in lands. Always dark, like a product launch;
+// in both languages.
 export default async function AboutPage() {
   const l = t.landing;
   const central = await createClient();
@@ -22,32 +42,30 @@ export default async function AboutPage() {
   const go = signedIn ? { href: "/", label: l.open } : { href: "/login", label: l.signIn };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background" data-landing>
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className={`${section} flex h-14 items-center gap-4`}>
-          <Link href="/about" className="flex items-center gap-2 font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-white">E</span>
+    <div className="ek-landing flex min-h-dvh flex-col" data-landing>
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-white/10 bg-black/55 backdrop-blur-xl backdrop-saturate-150">
+        <div className={`${wrap} flex h-12 items-center gap-6 text-[13px]`}>
+          <Link href="/about" className="flex items-center gap-2 font-semibold text-white">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-sky-400 to-violet-500 text-[11px] font-bold">E</span>
             {l.brand}
           </Link>
-          <nav className="hidden flex-1 items-center gap-5 text-sm text-muted md:flex" aria-label={l.title}>
-            <a href="#services" className="hover:text-foreground">
+          <nav className="hidden flex-1 items-center justify-center gap-7 text-white/70 md:flex" aria-label={l.title}>
+            <a href="#services" className="hover:text-white">
               {l.nav.services}
             </a>
-            <a href="#together" className="hover:text-foreground">
+            <a href="#together" className="hover:text-white">
               {l.nav.together}
             </a>
-            <a href="#security" className="hover:text-foreground">
+            <a href="#security" className="hover:text-white">
               {l.nav.security}
             </a>
-            <a href="#start" className="hover:text-foreground">
-              {l.nav.start}
+            <a href="#compare" className="hover:text-white">
+              {l.nav.compare}
             </a>
           </nav>
           <span className="flex-1 md:hidden" />
-          <div className="hidden sm:block">
-            <PreferencesSwitch compact />
-          </div>
-          <Link href={go.href} className={`${button} min-h-9 bg-foreground px-4 text-background hover:opacity-90`}>
+          <PreferencesSwitch compact languageOnly />
+          <Link href={go.href} className="rounded-full bg-white px-3.5 py-1.5 font-medium text-black hover:bg-white/90">
             {go.label}
           </Link>
         </div>
@@ -55,251 +73,241 @@ export default async function AboutPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-0 bg-[radial-gradient(60rem_30rem_at_70%_-10%,color-mix(in_oklab,var(--accent)_22%,transparent),transparent),radial-gradient(40rem_24rem_at_0%_20%,rgba(139,124,246,0.16),transparent)]" />
-          <div className={`${section} relative grid items-center gap-10 py-16 md:grid-cols-[1.05fr_1fr] md:py-24`}>
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-1 text-xs text-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                {l.badge}
-              </p>
-              <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight md:text-5xl">{l.hero}</h1>
-              <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">{l.lead}</p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link href={go.href} className={`${button} bg-accent text-white shadow-lg shadow-accent/25 hover:opacity-90`} data-landing-start>
-                  {signedIn ? l.open : l.primary} →
+        <section className="relative overflow-hidden pt-32 md:pt-40">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[80vh] bg-[radial-gradient(50rem_28rem_at_50%_0%,rgba(99,102,241,0.28),transparent)]" />
+          <div className={`${wrap} relative text-center`}>
+            <Reveal>
+              <p className={eyebrow}>{l.eyebrow}</p>
+              <h1 className={`${title} mx-auto mt-5 md:text-8xl`}>
+                <span className="ek-gradient-text">{l.hero}</span>
+              </h1>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/65 md:text-[22px]">{l.lead}</p>
+              <div className="mt-9 flex flex-wrap justify-center gap-3">
+                <Link href={go.href} className={`${pill} bg-white text-black hover:bg-white/90`} data-landing-start>
+                  {signedIn ? l.open : l.primary}
                 </Link>
-                <a href="#services" className={`${button} border border-border bg-background hover:bg-surface`}>
-                  {l.secondary}
+                <a href="#services" className={`${pill} text-sky-300 hover:text-sky-200`}>
+                  {l.secondary} ›
                 </a>
               </div>
-            </div>
-            <Preview />
+            </Reveal>
           </div>
-          <div className={`${section} relative pb-12`}>
-            <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {l.stats.map((stat) => (
-                <div key={stat.label} className="rounded-2xl border border-border bg-background/80 p-4">
-                  <dt className="text-2xl font-bold tracking-tight">{stat.value}</dt>
-                  <dd className="mt-1 text-sm text-muted">{stat.label}</dd>
-                </div>
-              ))}
-            </dl>
+          <div className={`${wrap} relative mt-14 md:mt-20`}>
+            <HeroZoom>
+              <Picture name="hero" alt="" priority className="w-full ek-fade" />
+            </HeroZoom>
+          </div>
+        </section>
+
+        {/* Numbers */}
+        <section className="py-24 md:py-36">
+          <div className={`${wrap} grid grid-cols-2 gap-x-6 gap-y-14 md:grid-cols-4`}>
+            {l.stats.map((stat, i) => (
+              <Reveal key={stat.label} delay={i * 100}>
+                <p className="text-5xl font-semibold tracking-tight text-white md:text-6xl">
+                  <CountUp value={stat.value} suffix={stat.suffix} />
+                </p>
+                <p className="mt-3 max-w-[14rem] text-[15px] leading-snug text-white/55">{stat.label}</p>
+              </Reveal>
+            ))}
           </div>
         </section>
 
         {/* Services */}
-        <section id="services" className="scroll-mt-16 border-t border-border bg-surface/50 py-16 md:py-24">
-          <div className={section}>
-            <h2 className="text-3xl font-bold tracking-tight">{l.servicesTitle}</h2>
-            <p className="mt-3 max-w-2xl text-muted">{l.servicesLead}</p>
-            <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {l.services.map((service) => (
-                <article key={service.name} className="flex flex-col rounded-2xl border border-border bg-background p-5 shadow-sm" data-landing-service={service.name}>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface text-2xl" aria-hidden="true">
-                      {service.icon}
-                    </span>
-                    <div>
-                      <h3 className="font-semibold">{service.name}</h3>
-                      <p className="text-xs text-muted">{service.like}</p>
-                    </div>
-                  </div>
-                  <ul className="mt-4 flex flex-col gap-2 text-sm">
-                    {service.points.map((point) => (
-                      <li key={point} className="flex gap-2">
-                        <span className="mt-0.5 text-accent" aria-hidden="true">
-                          ✓
-                        </span>
-                        <span>{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              {l.upcoming.map((service) => (
-                <article key={service.name} className="rounded-2xl border border-dashed border-border bg-background/60 p-5">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl" aria-hidden="true">
-                      {service.icon}
-                    </span>
-                    <h3 className="font-semibold">{service.name}</h3>
-                    <span className="ml-auto rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">{l.soon}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-muted">{service.like}</p>
-                  <p className="mt-3 text-sm text-muted">{service.about}</p>
-                </article>
-              ))}
-            </div>
+        <section id="services" className="scroll-mt-12 pb-24 md:pb-36">
+          <div className={wrap}>
+            <Reveal className="mb-6 max-w-3xl md:mb-10">
+              <p className={eyebrow}>{l.servicesEyebrow}</p>
+              <h2 className={`${title} mt-4`}>{l.servicesTitle}</h2>
+            </Reveal>
+            <ServiceTour services={l.services} />
           </div>
         </section>
 
         {/* Together */}
-        <section id="together" className="scroll-mt-16 py-16 md:py-24">
-          <div className={section}>
-            <h2 className="text-3xl font-bold tracking-tight">{l.togetherTitle}</h2>
-            <p className="mt-3 max-w-2xl text-muted">{l.togetherLead}</p>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {l.together.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-border p-5">
-                  <span className="text-3xl" aria-hidden="true">
-                    {item.icon}
-                  </span>
-                  <h3 className="mt-3 font-semibold">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
-                </div>
+        <section id="together" className="scroll-mt-12 bg-[#0b0b0f] py-28 md:py-40">
+          <div className={wrap}>
+            <Reveal className="mx-auto max-w-3xl text-center">
+              <p className={eyebrow}>{l.togetherEyebrow}</p>
+              <h2 className={`${title} mt-4`}>{l.togetherTitle}</h2>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/60 md:text-xl">{l.togetherLead}</p>
+            </Reveal>
+            <Reveal className="mt-16">
+              <Picture name="connect" alt="" className="mx-auto w-full max-w-4xl ek-fade" />
+            </Reveal>
+            <div className="mx-auto mt-14 grid max-w-4xl gap-4 md:grid-cols-3">
+              {l.flow.map((step, i) => (
+                <Reveal key={step} delay={i * 150}>
+                  <div className="ek-glass flex h-full items-center gap-4 rounded-3xl p-5">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-violet-500 text-sm font-semibold">{i + 1}</span>
+                    <span className="text-[17px] font-medium">{step}</span>
+                  </div>
+                </Reveal>
               ))}
             </div>
+            <Reveal className="mx-auto mt-24 max-w-3xl text-center">
+              <h3 className="text-3xl font-semibold tracking-tight md:text-5xl">{l.searchTitle}</h3>
+              <p className="mt-5 text-lg text-white/60">{l.searchText}</p>
+              <div className="ek-glass mx-auto mt-10 flex max-w-xl items-center gap-3 rounded-full px-6 py-4 text-left text-white/50">
+                <span aria-hidden="true">🔎</span>
+                <span className="flex-1">
+                  <span className="block h-2 w-2/3 rounded-full bg-white/25" />
+                </span>
+                <span className="rounded-md border border-white/15 px-1.5 text-xs">⌘K</span>
+              </div>
+            </Reveal>
           </div>
         </section>
 
         {/* Security */}
-        <section id="security" className="scroll-mt-16 bg-[#0f172a] py-16 text-white md:py-24">
-          <div className={section}>
-            <h2 className="text-3xl font-bold tracking-tight">{l.securityTitle}</h2>
-            <p className="mt-3 max-w-2xl text-slate-300">{l.securityLead}</p>
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {l.security.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                  <span className="text-2xl" aria-hidden="true">
-                    {item.icon}
-                  </span>
-                  <h3 className="mt-3 font-semibold">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">{item.text}</p>
+        <section id="security" className="scroll-mt-12 py-28 md:py-40">
+          <div className={`${wrap} grid items-center gap-12 md:grid-cols-2`}>
+            <Reveal>
+              <p className={eyebrow}>{l.securityEyebrow}</p>
+              <h2 className={`${title} mt-4`}>{l.securityTitle}</h2>
+              <p className="mt-6 max-w-md text-lg leading-relaxed text-white/60">{l.securityLead}</p>
+            </Reveal>
+            <Reveal delay={150}>
+              <Picture name="security" alt="" className="w-full ek-fade" />
+            </Reveal>
+          </div>
+          <div className={`${wrap} mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
+            {l.security.map((item, i) => (
+              <Reveal key={item.title} delay={(i % 3) * 100}>
+                <div className="ek-glass h-full rounded-3xl p-6">
+                  <h3 className="text-lg font-semibold">{item.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-white/60">{item.text}</p>
                 </div>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
+        {/* Devices */}
+        <section className="bg-[#0b0b0f] py-28 md:py-40">
+          <div className={wrap}>
+            <Reveal className="mx-auto max-w-3xl text-center">
+              <p className={eyebrow}>{l.devicesEyebrow}</p>
+              <h2 className={`${title} mt-4`}>{l.devicesTitle}</h2>
+              <p className="mx-auto mt-6 max-w-xl text-lg text-white/60">{l.devicesLead}</p>
+            </Reveal>
+            <Reveal className="mt-16">
+              <Picture name="devices" alt="" className="w-full ek-fade" />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Compare */}
+        <section id="compare" className="scroll-mt-12 py-28 md:py-40">
+          <div className={wrap}>
+            <Reveal className="max-w-3xl">
+              <p className={eyebrow}>{l.compareEyebrow}</p>
+              <h2 className={`${title} mt-4`}>{l.compareTitle}</h2>
+              <p className="mt-6 max-w-xl text-lg text-white/60">{l.compareLead}</p>
+            </Reveal>
+            <Reveal className="mt-14">
+              <div className="ek-glass overflow-hidden rounded-[28px]">
+                <table className="w-full text-left text-[15px]" data-landing-compare>
+                  <thead className="text-xs uppercase tracking-wider text-white/45">
+                    <tr className="border-b border-white/10">
+                      <th className="px-5 py-4 font-medium md:px-8">{l.compareKind}</th>
+                      <th className="hidden px-5 py-4 font-medium sm:table-cell">{l.compareUsual}</th>
+                      <th className="px-5 py-4 text-right font-medium md:px-8">{l.brand}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {l.compareRows.map((row) => (
+                      <tr key={row.kind} className="border-b border-white/5 last:border-0">
+                        <td className="px-5 py-4 font-medium md:px-8">
+                          {row.kind}
+                          <span className="mt-0.5 block text-sm font-normal text-white/45 sm:hidden">{row.usual}</span>
+                        </td>
+                        <td className="hidden px-5 py-4 text-white/50 sm:table-cell">{row.usual}</td>
+                        <td className="px-5 py-4 text-right md:px-8">
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-violet-500 text-sm">✓</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-xs leading-relaxed text-white/35">{l.compareNote}</p>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Coming soon */}
+        <section className="bg-[#0b0b0f] py-28 md:py-36">
+          <div className={wrap}>
+            <Reveal className="text-center">
+              <p className={eyebrow}>{l.soonEyebrow}</p>
+              <h2 className={`${title} mt-4`}>{l.soonTitle}</h2>
+            </Reveal>
+            <div className="mt-14 grid gap-4 md:grid-cols-3">
+              {l.upcoming.map((item, i) => (
+                <Reveal key={item.name} delay={i * 120}>
+                  <div className="ek-glass h-full rounded-3xl p-7">
+                    <span className="text-3xl" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    <h3 className="mt-4 text-xl font-semibold">{item.name}</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/60">{item.about}</p>
+                  </div>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Comfort */}
-        <section className="py-16">
-          <div className={section}>
-            <h2 className="text-2xl font-bold tracking-tight">{l.comfortTitle}</h2>
-            <ul className="mt-6 flex flex-wrap gap-2">
-              {l.comfort.map((item) => (
-                <li key={item} className="rounded-full border border-border bg-surface px-4 py-2 text-sm">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* Start */}
-        <section id="start" className="scroll-mt-16 border-t border-border bg-surface/50 py-16 md:py-24">
-          <div className={section}>
-            <h2 className="text-3xl font-bold tracking-tight">{l.startTitle}</h2>
-            <ol className="mt-10 grid gap-4 md:grid-cols-3">
+        {/* Steps */}
+        <section className="py-28 md:py-36">
+          <div className={wrap}>
+            <Reveal>
+              <h2 className="text-4xl font-semibold tracking-tight md:text-6xl">{l.stepsTitle}</h2>
+            </Reveal>
+            <ol className="mt-14 grid gap-10 md:grid-cols-3">
               {l.steps.map((step, i) => (
-                <li key={step.title} className="rounded-2xl border border-border bg-background p-5">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">{i + 1}</span>
-                  <h3 className="mt-4 font-semibold">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{step.text}</p>
-                </li>
+                <Reveal key={step.title} delay={i * 120}>
+                  <li className="border-t border-white/15 pt-6">
+                    <span className="ek-gradient-text text-5xl font-semibold">{i + 1}</span>
+                    <h3 className="mt-4 text-xl font-semibold">{step.title}</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/60">{step.text}</p>
+                  </li>
+                </Reveal>
               ))}
             </ol>
-            <div className="mt-12 flex flex-col items-center gap-4 rounded-3xl bg-gradient-to-br from-accent to-violet-500 px-6 py-12 text-center text-white">
-              <div className="h-14 w-16">
-                <AnglerFish className="h-full w-full" />
-              </div>
-              <h2 className="text-3xl font-bold">{l.ctaTitle}</h2>
-              <p className="max-w-xl text-white/85">{l.ctaText}</p>
-              <Link href={go.href} className={`${button} bg-white text-slate-900 hover:bg-white/90`}>
-                {go.label} →
-              </Link>
-            </div>
           </div>
+        </section>
+
+        {/* Finale */}
+        <section className="relative overflow-hidden py-32 md:py-44">
+          <Picture name="finale" alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/30 to-black" aria-hidden="true" />
+          <Reveal className={`${wrap} relative flex flex-col items-center text-center`}>
+            <div className="h-16 w-20">
+              <AnglerFish className="h-full w-full" />
+            </div>
+            <h2 className={`${title} mt-6`}>{l.ctaTitle}</h2>
+            <p className="mt-5 max-w-lg text-lg text-white/65">{l.ctaText}</p>
+            <Link href={go.href} className={`${pill} mt-9 bg-white text-black hover:bg-white/90`}>
+              {go.label}
+            </Link>
+          </Reveal>
         </section>
       </main>
 
-      <footer className="border-t border-border py-8">
-        <div className={`${section} flex flex-wrap items-center gap-4 text-sm text-muted`}>
+      <footer className="border-t border-white/10 py-8 text-[13px] text-white/45">
+        <div className={`${wrap} flex flex-wrap items-center gap-5`}>
           <span>{l.footer.made}</span>
           <span className="flex-1" />
-          <Link href="/help" className="hover:text-foreground">
+          <Link href="/help" className="hover:text-white">
             {l.footer.help}
           </Link>
-          <Link href="/privacy" className="hover:text-foreground">
+          <Link href="/privacy" className="hover:text-white">
             {l.footer.privacy}
           </Link>
-          <div className="sm:hidden">
-            <PreferencesSwitch compact />
-          </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-// A small drawing of the app (not a screenshot): the sidebar, a page with a
-// table, a chart and a survey embedded, so a visitor sees how it fits together.
-function Preview() {
-  const services = ["📚", "✅", "🎨", "🧠", "📊", "📝"];
-  const bars = [62, 88, 45, 74];
-  return (
-    <div aria-hidden="true" className="relative mx-auto w-full max-w-lg">
-      <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-br from-accent/25 via-violet-400/15 to-transparent blur-2xl" />
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
-        <div className="flex items-center gap-1.5 border-b border-border px-3 py-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-          <span className="ml-3 h-4 flex-1 rounded bg-surface" />
-        </div>
-        <div className="grid grid-cols-[7rem_1fr] text-[10px]">
-          <div className="flex flex-col gap-2 border-r border-border bg-surface/60 p-2">
-            <div className="flex flex-wrap gap-1">
-              {services.map((icon) => (
-                <span key={icon} className="flex h-5 w-5 items-center justify-center rounded bg-background text-[11px]">
-                  {icon}
-                </span>
-              ))}
-            </div>
-            {[70, 55, 80, 40, 65].map((w, i) => (
-              <span key={i} className="flex items-center gap-1">
-                <span className="h-2 w-2 rounded-sm bg-accent/50" />
-                <span className="h-1.5 rounded bg-border" style={{ width: `${w}%` }} />
-              </span>
-            ))}
-          </div>
-          <div className="flex flex-col gap-2 p-3">
-            <span className="h-3 w-2/3 rounded bg-foreground/80" />
-            <span className="h-1.5 w-full rounded bg-border" />
-            <span className="h-1.5 w-5/6 rounded bg-border" />
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-md border border-border p-1.5">
-                <div className="grid grid-cols-3 gap-px overflow-hidden rounded-sm bg-border">
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <span key={i} className={`h-2.5 ${i < 3 ? "bg-accent/20" : "bg-background"}`} />
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-end gap-1 rounded-md border border-border p-1.5">
-                {bars.map((h, i) => (
-                  <span key={i} className="flex-1 rounded-t bg-accent" style={{ height: `${h * 0.45}px`, opacity: 0.55 + i * 0.12 }} />
-                ))}
-              </div>
-            </div>
-            <div className="rounded-md border border-border p-2">
-              <span className="block h-1.5 w-1/2 rounded bg-foreground/60" />
-              {[0, 1].map((i) => (
-                <span key={i} className="mt-1.5 flex items-center gap-1">
-                  <span className={`h-2 w-2 rounded-full border ${i === 0 ? "border-accent bg-accent" : "border-muted"}`} />
-                  <span className="h-1.5 w-1/3 rounded bg-border" />
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {["bg-amber-200", "bg-sky-200", "bg-rose-200"].map((color) => (
-                <span key={color} className={`h-6 flex-1 rounded-sm ${color} shadow-sm`} />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
