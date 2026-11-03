@@ -1,0 +1,34 @@
+diff --git a/node_modules/@fortune-sheet/core/dist/index.esm.js b/node_modules/@fortune-sheet/core/dist/index.esm.js
+index 5c9820b..df02c16 100644
+--- a/node_modules/@fortune-sheet/core/dist/index.esm.js
++++ b/node_modules/@fortune-sheet/core/dist/index.esm.js
+@@ -52076,6 +52076,12 @@ var localeObj = {
+   ru: ru
+ };
+ function locale(ctx) {
++  // EdgeKnow: languages added by the app (Ukrainian), laid over English.
++  var _ek = typeof window !== "undefined" ? window.__EK_SHEET_LOCALES : undefined;
++  if (_ek && ctx.lang && _ek[ctx.lang]) {
++    if (!_ek[ctx.lang].__merged) _ek[ctx.lang] = Object.assign(_.merge({}, localeObj.en, _ek[ctx.lang]), { __merged: true });
++    return _ek[ctx.lang];
++  }
+   var _ctx$lang;
+   var langsToTry = [ctx.lang || "", ((_ctx$lang = ctx.lang) === null || _ctx$lang === void 0 ? void 0 : _ctx$lang.split("-")[0]) || ""];
+   for (var i = 0; i < langsToTry.length; i += 1) {
+diff --git a/node_modules/@fortune-sheet/core/dist/index.js b/node_modules/@fortune-sheet/core/dist/index.js
+index 04113a1..69e16ca 100644
+--- a/node_modules/@fortune-sheet/core/dist/index.js
++++ b/node_modules/@fortune-sheet/core/dist/index.js
+@@ -52086,6 +52086,12 @@ var localeObj = {
+   ru: ru
+ };
+ function locale(ctx) {
++  // EdgeKnow: languages added by the app (Ukrainian), laid over English.
++  var _ek = typeof window !== "undefined" ? window.__EK_SHEET_LOCALES : undefined;
++  if (_ek && ctx.lang && _ek[ctx.lang]) {
++    if (!_ek[ctx.lang].__merged) _ek[ctx.lang] = Object.assign(___default['default'].merge({}, localeObj.en, _ek[ctx.lang]), { __merged: true });
++    return _ek[ctx.lang];
++  }
+   var _ctx$lang;
+   var langsToTry = [ctx.lang || "", ((_ctx$lang = ctx.lang) === null || _ctx$lang === void 0 ? void 0 : _ctx$lang.split("-")[0]) || ""];
+   for (var i = 0; i < langsToTry.length; i += 1) {

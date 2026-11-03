@@ -309,4 +309,32 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("a colleague sees the team's board in the list", (await colleague.locator('[data-board="Retro"]').count()) === 1);
 }
 
+// --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------
+{
+  await alice.goto(`${APP}/w/${alphaShort}/sheets`);
+  await alice.getByRole("button", { name: "＋ Нова таблиця" }).click();
+  await alice.waitForURL(/\/sheets\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const sheetId = alice.url().split("/").pop();
+  const overlay = alice.locator("[data-sheet] .fortune-sheet-overlay").first();
+  await overlay.waitFor({ timeout: 30000 });
+  await alice.getByLabel("Назва таблиці").fill("Budget");
+  const box = await overlay.boundingBox();
+  await alice.mouse.click(box.x + 46 + 40, box.y + 20 + 10);
+  for (const value of ["10", "32", "=SUM(A1:A2)", "=XLOOKUP(32,A1:A2,A1:A2)", "=IF(TRUE,\"yes\",\"no\")"]) {
+    await alice.keyboard.type(value);
+    await alice.keyboard.press("Enter");
+  }
+  const cell = (r, field) => sql(`select e -> 'v' ->> '${field}' from public.service_objects o, jsonb_array_elements(o.data -> 'sheets' -> 0 -> 'celldata') e where o.id = '${sheetId}' and (e ->> 'r')::int = ${r} and (e ->> 'c')::int = 0`);
+  check("a table takes values and Excel formulas, and saves them with its name", await until(() => cell(2, "v") === "42" && cell(3, "v") === "32" && cell(4, "v") === "yes" && sql(`select title from public.service_objects where id = '${sheetId}'`) === "Budget", 20000), `${cell(2, "v")} ${cell(3, "v")} ${cell(4, "v")}`);
+  check("…the formula itself is kept", cell(2, "f") === "=SUM(A1:A2)", cell(2, "f"));
+  await alice.reload();
+  await alice.locator("[data-sheet] .fortune-sheet-overlay").first().waitFor({ timeout: 30000 });
+  await alice.waitForTimeout(1000);
+  check("…after reloading it is all there", cell(2, "v") === "42" && (await alice.getByLabel("Назва таблиці").inputValue()) === "Budget");
+  check("the editor speaks Ukrainian", (await alice.locator("[data-sheet]").getByText("Аркуш1").count()) >= 1);
+  check("search reads the table's cells", await until(() => sql(`select search_text from public.service_objects where id = '${sheetId}'`).includes("42"), 10000));
+  await colleague.goto(`${APP}/w/${alphaShort}/sheets`);
+  check("a colleague sees the team's table in the list", (await colleague.locator('[data-sheet="Budget"]').count()) === 1);
+}
+
 await finish("nodes");

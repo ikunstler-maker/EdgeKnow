@@ -1,0 +1,8 @@
+bob makes a table: true
+a table of another kind: {"ok": false, "error": "invalid"}
+text for search: Q1 Rent 1 200,00 ₴
+save: 2
+stale save: {"ok": false, "error": "conflict", "version": 2}
+outsider sees: 0
+outsider makes one in the workspace: {"ok": false, "error": "forbidden"}
+outsider saves: {"ok": false, "error": "forbidden"}
