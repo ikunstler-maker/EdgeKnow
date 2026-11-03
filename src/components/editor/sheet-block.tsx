@@ -51,6 +51,8 @@ function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId: strin
   const [tick, setTick] = useState(0);
   const version = useRef(0);
   const busy = useRef(false);
+  // A fresh version read while a change was being saved: looked at again once it is saved.
+  const missed = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const box = useRef<HTMLDivElement>(null);
 
@@ -59,7 +61,11 @@ function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId: strin
     if (!shortId || !sheetId) return;
     let alive = true;
     sheetView(shortId, sheetId).then((result) => {
-      if (!alive || busy.current) return;
+      if (!alive) return;
+      if (busy.current) {
+        missed.current = true;
+        return;
+      }
       if (result && result.version === version.current) return;
       version.current = result?.version ?? 0;
       setView(result);
@@ -99,6 +105,10 @@ function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId: strin
       startTransition(async () => {
         const result = await saveSheet(shortId, view.id, null, { ...data, charts }, version.current);
         busy.current = false;
+        if (missed.current) {
+          missed.current = false;
+          setTick((n) => n + 1);
+        }
         if (result.ok) {
           version.current = result.version;
           setNotice(null);
