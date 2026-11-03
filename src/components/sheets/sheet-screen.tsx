@@ -11,6 +11,8 @@ import { ObjectAccessButton, type ObjectAccess } from "@/components/access/objec
 import { saveSheet, setSheetGroupRole, setSheetMemberRole, setSheetWorkspaceRole, trashSheet } from "@/app/sheet-actions";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { ACCEPT, readSheetFile } from "./sheet-files";
+import { SheetCharts } from "./sheet-charts";
+import type { SheetChart } from "@/lib/sheet-charts";
 
 const SheetEditor = dynamic(() => import("./sheet-editor"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.sheets.loading}</p> });
 
@@ -45,6 +47,10 @@ export function SheetScreen({
   // The editor opens again on new data (sheets added from a file).
   const [round, setRound] = useState(0);
   const latest = useRef<SheetData>(initial);
+  // Charts (step Т3) live beside the sheets and are saved with them.
+  const [charts, setCharts] = useState<SheetChart[]>(() => initial.charts ?? []);
+  const [liveSheets, setLiveSheets] = useState(initial.sheets);
+  const [selection, setSelection] = useState<{ sheet: string; range: string } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   // A guest doesn't take the table away as a file.
@@ -74,9 +80,10 @@ export function SheetScreen({
       names.add(name.toLowerCase());
       return { ...sheet, name, order: have.length + i, status: 0 };
     });
-    const next = { sheets: [...have, ...added] } as SheetData;
+    const next = { sheets: [...have, ...added], charts } as SheetData;
     latest.current = next;
     setInitial(next);
+    setLiveSheets(next.sheets);
     setRound((n) => n + 1);
     schedule({ data: next });
     setNotice(`${s.files.added(added.length)}${read.cut ? ` ${s.files.cut}` : ""}`);
@@ -238,11 +245,24 @@ export function SheetScreen({
           initial={initial}
           editable={canEdit && status !== "conflict"}
           onChange={(data) => {
-            latest.current = data;
-            schedule({ data });
+            latest.current = { ...data, charts };
+            setLiveSheets(data.sheets);
+            schedule({ data: latest.current });
           }}
+          onSelection={(sheet, range) => setSelection({ sheet, range })}
         />
       </div>
+      <SheetCharts
+        charts={charts}
+        sheets={liveSheets}
+        selection={selection}
+        canEdit={canEdit && status !== "conflict"}
+        onCharts={(next) => {
+          setCharts(next);
+          latest.current = { ...latest.current, charts: next };
+          schedule({ data: latest.current });
+        }}
+      />
     </div>
   );
 }

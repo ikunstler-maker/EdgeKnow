@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import { currentLocale } from "@/i18n";
 import { formatForFormula, installSheetFunctions } from "@/lib/sheet-functions";
+import { rangeOf } from "@/lib/sheet-charts";
 import { toStored, type SheetData } from "@/lib/sheets";
 import { fortuneUk } from "./fortune-uk";
 
@@ -20,7 +21,18 @@ const CELL_MENU = ["copy", "paste", "|", "insert-row", "insert-column", "delete-
 
 // A table (step Т1): Fortune-sheet (MIT) with the Excel functions it lacks
 // added; every real change is reported (the screen saves it a moment later).
-export default function SheetEditor({ initial, editable, onChange }: { initial: SheetData; editable: boolean; onChange: (data: SheetData) => void }) {
+export default function SheetEditor({
+  initial,
+  editable,
+  onChange,
+  onSelection,
+}: {
+  initial: SheetData;
+  editable: boolean;
+  onChange: (data: SheetData) => void;
+  // The selected range (for a new chart), e.g. "Аркуш1", "A1:C6".
+  onSelection?: (sheet: string, range: string) => void;
+}) {
   const book = useRef<WorkbookInstance>(null);
   const first = useRef(true);
   const last = useRef<string>("");
@@ -34,6 +46,11 @@ export default function SheetEditor({ initial, editable, onChange }: { initial: 
         ref={book}
         data={data}
         hooks={{
+          afterSelectionChange: (sheetId: string, selection: { row: number[]; column: number[] }) => {
+            if (!onSelection || !selection?.row || !selection?.column) return;
+            const sheet = book.current?.getAllSheets().find((one) => one.id === sheetId);
+            if (sheet) onSelection(String(sheet.name), rangeOf(selection.row, selection.column));
+          },
           // A date from =DATE(…) is shown as a date, as in Excel (the cell keeps its own format if it has one).
           afterUpdateCell: (row: number, column: number, _old: unknown, cell: { f?: string; ct?: { fa?: string } } | null) => {
             const format = cell?.f ? formatForFormula(cell.f) : null;
