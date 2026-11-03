@@ -3,7 +3,7 @@
 // it. The database walks the same path when it checks an answer
 // (public.survey_clean_answers), so what is shown here is only for the person.
 
-export const QUESTION_TYPES = ["short", "long", "single", "multi", "dropdown", "scale", "rating", "date"] as const;
+export const QUESTION_TYPES = ["short", "long", "single", "multi", "dropdown", "scale", "rating", "date", "file"] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
 
 // goTo / next: a section id, "submit" (the end) or nothing (the next section).
@@ -22,7 +22,10 @@ export type Question = {
 };
 export type Section = { id: string; title?: string; description?: string; next?: string; questions: Question[] };
 export type SurveyData = { description?: string; sections: Section[] };
+// A "file" answer is the ids of the files added (up to 5); their names come with the answers.
 export type Answer = string | string[] | number;
+export const MAX_FILES_PER_ANSWER = 5;
+export type SurveyFiles = Record<string, { name: string; bytes: number }>;
 export type Answers = Record<string, Answer>;
 
 export const CHOICE_TYPES: QuestionType[] = ["single", "multi", "dropdown"];
@@ -109,14 +112,14 @@ export function answersOnPath(survey: SurveyData, answers: Answers): Answers {
   return kept;
 }
 
-export type SurveyResponse = { id: string; created_at: string; updated_at: string; answers: Answers; name: string | null; email: string | null };
+export type SurveyResponse = { id: string; created_at: string; updated_at: string; answers: Answers; name: string | null; email: string | null; public?: boolean };
 
 export type QuestionSummary =
   | { kind: "counts"; question: Question; total: number; counts: { label: string; count: number }[]; average?: number }
   | { kind: "texts"; question: Question; total: number; texts: string[] };
 
 // What the answers add up to, question by question (the charts of the results).
-export function summarize(survey: SurveyData, responses: SurveyResponse[]): QuestionSummary[] {
+export function summarize(survey: SurveyData, responses: SurveyResponse[], files: SurveyFiles = {}): QuestionSummary[] {
   return allQuestions(survey).map((question) => {
     const given = responses.map((r) => r.answers?.[question.id]).filter((a): a is Answer => !isEmpty(a));
     if (isChoice(question.type)) {
@@ -133,15 +136,23 @@ export function summarize(survey: SurveyData, responses: SurveyResponse[]): Ques
       const average = numbers.length ? Math.round((numbers.reduce((a, b) => a + b, 0) / numbers.length) * 10) / 10 : undefined;
       return { kind: "counts", question, total: numbers.length, counts, average };
     }
-    return { kind: "texts", question, total: given.length, texts: given.map((a) => (question.type === "date" ? formatDate(String(a)) : String(a))).reverse() };
+    return { kind: "texts", question, total: given.length, texts: given.map((a) => answerText(question, a, files)).reverse() };
   });
 }
 
 // 2026-12-01 → 01.12.2026
 export const formatDate = (value: string) => (/^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split("-").reverse().join(".") : value);
 
-export const answerText = (question: Question, answer: Answer | undefined) =>
-  isEmpty(answer) ? "—" : Array.isArray(answer) ? answer.join(", ") : question.type === "date" ? formatDate(String(answer)) : String(answer);
+export const answerText = (question: Question, answer: Answer | undefined, files: SurveyFiles = {}) =>
+  isEmpty(answer)
+    ? "—"
+    : question.type === "file" && Array.isArray(answer)
+      ? answer.map((id) => files[id]?.name ?? "…").join(", ")
+      : Array.isArray(answer)
+        ? answer.join(", ")
+        : question.type === "date"
+          ? formatDate(String(answer))
+          : String(answer);
 
 export type SurveyState = {
   anonymous: boolean;
@@ -156,4 +167,15 @@ export type SurveyState = {
   manager: boolean;
   count: number | null;
   sheet: { id: string; title: string | null; name: string; full: boolean } | null;
+  public?: { enabled: boolean; token: string | null } | null;
+};
+
+// A file added to an answer, before the answer is sent.
+export type AddedFile = { id: string; name: string };
+// How the form sends its answer and its files: inside the workspace, or through the link for anyone.
+export type SurveyTransport = {
+  submit: (answers: Answers) => Promise<{ ok: true; edited?: boolean } | { ok: false; error: string; question?: string }>;
+  upload: ((file: File) => Promise<{ ok: true; id: string } | { ok: false; error: string }>) | null;
+  // Not signed in (the link for anyone): files can't be added; where to sign in.
+  signInHref?: string;
 };

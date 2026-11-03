@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
-import { emptySurvey, newQuestion, type Answers, type SurveyResponse, type SurveyState } from "@/lib/surveys";
+import { emptySurvey, newQuestion, type Answers, type SurveyFiles, type SurveyResponse, type SurveyState } from "@/lib/surveys";
 import { emptyWorkbook } from "@/lib/sheets";
 import { t } from "@/i18n";
 
@@ -77,11 +77,16 @@ export async function submitSurveyResponse(shortId: string, id: string, answers:
   return call<{ edited: boolean }>(shortId, "submit_survey_response", { target_object: id, answers }, false);
 }
 
-export async function surveyAnswers(shortId: string, id: string): Promise<SurveyResponse[] | null> {
+export async function surveyAnswers(shortId: string, id: string): Promise<{ responses: SurveyResponse[]; files: SurveyFiles } | null> {
   if (!validId(id)) return null;
   const db = await dataClient(shortId);
   const { data } = await db.rpc("survey_answers", { target_object: id });
-  return data?.ok ? ((data.responses ?? []) as SurveyResponse[]) : null;
+  return data?.ok ? { responses: (data.responses ?? []) as SurveyResponse[], files: (data.files ?? {}) as SurveyFiles } : null;
+}
+
+// Step О3: the link for anyone — on, off, or a new one (the old one stops working).
+export async function setSurveyPublic(shortId: string, id: string, enabled: boolean | null, renew = false) {
+  return call<{ token: string; enabled: boolean }>(shortId, "set_survey_public", { target_object: id, enabled, renew }, false);
 }
 
 export async function deleteSurveyResponse(shortId: string, id: string, response: string) {

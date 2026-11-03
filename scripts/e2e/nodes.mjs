@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, readdirSync, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, newPage, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
 const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
@@ -488,6 +488,64 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-survey-hits]").getByText("Lunch poll").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Surveys” finds a survey by its question", (await alice.locator("[data-survey-hits]").getByText("Lunch poll").count()) === 1);
   await alice.keyboard.press("Escape");
+}
+
+// --- Surveys, step О3: the link for anyone; files only for someone signed in ------------------------
+{
+  const made = await aliceClient.rpc("create_service_object", {
+    ws: alphaId,
+    target_service: "surveys",
+    new_kind: "survey",
+    new_title: "Open form",
+    new_data: { sections: [{ id: "s", questions: [{ id: "q", type: "single", title: "Pick one", required: true, options: [{ label: "Red" }, { label: "Blue" }] }, { id: "f", type: "file", title: "Your file" }] }] },
+  });
+  const openId = made.data?.id;
+  const link = await aliceClient.rpc("set_survey_public", { target_object: openId, enabled: true, renew: false });
+  const token = link.data?.token;
+  check("(setup) a survey with its link for anyone", Boolean(openId && /^[0-9a-f]{32}$/.test(token ?? "")), JSON.stringify(link.data ?? link.error));
+  const url = `${APP}/f/${alphaShort}/${token}`;
+
+  const visitor = await newPage();
+  await visitor.goto(url);
+  await visitor.locator("[data-public-survey] [data-survey-form]").waitFor({ timeout: 20000 }).catch(() => {});
+  check("someone without an account opens the form through the link", (await visitor.getByText("Pick one").count()) === 1 && !visitor.url().includes("/login"));
+  check("…sees the file question with “sign in to add a file”", (await visitor.locator("[data-survey-file-signin]").count()) === 1 && (await visitor.locator('input[type="file"]').count()) === 0);
+  check("…and nothing else of the workspace", (await visitor.locator("aside").count()) === 0 && (await visitor.getByText("Alpha secret").count()) === 0);
+  await visitor.getByRole("radio", { name: "Blue" }).check();
+  await visitor.getByRole("button", { name: "Надіслати" }).click();
+  await visitor.locator("[data-survey-done]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and sends an answer", (await visitor.getByText("Дякуємо! Відповідь записано.").count()) === 1);
+  const kept = sql(`select count(*) || ' ' || bool_and(public) || ' ' || bool_and(user_id is null and respondent_email is null) from public.survey_responses where object_id = '${openId}'`);
+  check("…kept as an answer through the link, with no account or name", kept === "1 true true", kept);
+  const direct = await fetch(`${APP}/api/f/files?ws=${alphaShort}&token=${token}&name=x.png`, { method: "POST", headers: { "Content-Type": "image/png" }, body: new Uint8Array([137, 80, 78, 71]) });
+  check("a file can't be added through the link without signing in", direct.status === 401, String(direct.status));
+
+  // A colleague signed in adds a file to the answer.
+  await colleague.goto(url);
+  await colleague.locator("[data-survey-file-input]").waitFor({ timeout: 20000 }).catch(() => {});
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  await colleague.locator('[data-survey-file-input] input[type="file"]').setInputFiles({ name: "pixel.png", mimeType: "image/png", buffer: png });
+  await colleague.getByText("pixel.png").waitFor({ timeout: 20000 }).catch(() => {});
+  check("someone signed in adds a file", (await colleague.getByText("pixel.png").count()) === 1);
+  await colleague.getByRole("radio", { name: "Red" }).check();
+  await colleague.getByRole("button", { name: "Надіслати" }).click();
+  await colleague.locator("[data-survey-done]").waitFor({ timeout: 15000 }).catch(() => {});
+  const withFile = sql(`select count(*) from public.survey_responses r join public.object_files f on r.answers -> 'f' ? f.id::text where r.object_id = '${openId}' and f.name = 'pixel.png' and r.respondent_email = 'colleague@alpha.test'`);
+  check("…and the answer keeps the file and who sent it", withFile === "1", withFile);
+  await alice.goto(`${APP}/w/${alphaShort}/surveys/${openId}`);
+  await alice.getByRole("tab", { name: /Відповіді/ }).click();
+  await alice.locator("[data-survey-file]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  const fileHref = await alice.locator("[data-survey-file]").first().getAttribute("href").catch(() => null);
+  const download = fileHref ? await alice.request.get(`${APP}${fileHref}`) : null;
+  check("the owner sees the answers through the link and downloads the file", (await alice.locator("[data-survey-response]").count()) === 2 && download?.status() === 200 && (download?.headers()["content-disposition"] ?? "").startsWith("attachment"), String(download?.status()));
+  const peek = await visitor.request.get(`${APP}${fileHref}`);
+  check("…someone without an account can't", !(peek.headers()["content-type"] ?? "").startsWith("image/png"), `${peek.status()} ${peek.headers()["content-type"]}`);
+
+  await aliceClient.rpc("set_survey_public", { target_object: openId, enabled: false, renew: false });
+  await visitor.goto(url);
+  check("with the link turned off the form is gone", (await visitor.locator("[data-public-survey-missing]").count()) === 1);
+  await visitor.goto(`${APP}/`);
+  check("someone not signed in who opens the site sees the presentation page", visitor.url().endsWith("/about"), visitor.url());
 }
 
 await finish("nodes");

@@ -1,9 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { submitSurveyResponse } from "@/app/survey-actions";
-import { answersOnPath, isEmpty, missingIn, nextStep, type Answer, type Answers, type Question, type SurveyData, type SurveyState } from "@/lib/surveys";
+import {
+  answersOnPath,
+  isEmpty,
+  MAX_FILES_PER_ANSWER,
+  missingIn,
+  nextStep,
+  type Answer,
+  type Answers,
+  type Question,
+  type SurveyData,
+  type SurveyState,
+  type SurveyTransport,
+} from "@/lib/surveys";
+import { FILE_ACCEPT, MAX_FILE_BYTES, uploadSurveyFile } from "./survey-files";
 
 const f = t.surveys.form;
 const field = "min-h-11 w-full rounded-md border border-border bg-background px-3 text-base md:min-h-9 md:text-sm";
@@ -18,6 +31,8 @@ export function SurveyForm({
   state,
   onSent,
   compact = false,
+  transport,
+  footer,
 }: {
   shortId: string;
   id: string;
@@ -25,7 +40,20 @@ export function SurveyForm({
   state: SurveyState;
   onSent?: () => void;
   compact?: boolean;
+  // The link for anyone sends through the server instead (and maybe without files).
+  transport?: SurveyTransport;
+  // Shown above the send button (the "not a robot" check).
+  footer?: React.ReactNode;
 }) {
+  const send = useMemo<SurveyTransport>(
+    () =>
+      transport ?? {
+        submit: async (answers) => (await submitSurveyResponse(shortId, id, answers).catch(() => null)) ?? { ok: false, error: "unknown" },
+        upload: (file) => uploadSurveyFile(`/api/surveys/files?ws=${shortId}&survey=${id}`, file),
+      },
+    [transport, shortId, id],
+  );
+  const [fileNames, setFileNames] = useState<Record<string, string>>({});
   const changeable = state.once && state.editable && !state.anonymous;
   const [answers, setAnswers] = useState<Answers>(() => (changeable && state.mine ? state.mine : {}));
   const [path, setPath] = useState<number[]>([0]);
@@ -87,11 +115,11 @@ export function SurveyForm({
       return;
     }
     setSending(true);
-    const result = await submitSurveyResponse(shortId, id, answersOnPath(survey, answers)).catch(() => null);
+    const result = await send.submit(answersOnPath(survey, answers)).catch(() => null);
     setSending(false);
     if (!result?.ok) {
       const code = result && !result.ok ? result.error : "unknown";
-      if (code === "required" && result && "question" in result) setMissing([String((result as { question?: string }).question)]);
+      if (code === "required" && result && !result.ok && result.question) setMissing([result.question]);
       setError(t.surveys.errors[code] ?? t.common.unknownError);
       return;
     }
@@ -108,7 +136,8 @@ export function SurveyForm({
         void goOn();
       }}
     >
-      <p className="text-xs text-muted">{state.anonymous ? f.anonymous : f.named}</p>
+      {/* The link for anyone says it on its own page (it knows who is signed in). */}
+      {!transport && <p className="text-xs text-muted">{state.anonymous ? f.anonymous : f.named}</p>}
       {survey.sections.length > 1 && (
         <div>
           <p className="text-xs text-muted">{f.step(at + 1, survey.sections.length)}</p>
@@ -133,7 +162,22 @@ export function SurveyForm({
           </p>
           {question.help && <p className="mt-0.5 text-sm text-muted">{question.help}</p>}
           <div className="mt-2">
-            <QuestionInput question={question} value={answers[question.id]} onChange={(value) => set(question.id, value)} />
+            {question.type === "file" ? (
+              <FileInput
+                question={question}
+                value={answers[question.id]}
+                names={fileNames}
+                transport={send}
+                onAdded={(fileId, name) => {
+                  setFileNames((now) => ({ ...now, [fileId]: name }));
+                  setAnswers((now) => ({ ...now, [question.id]: [...(Array.isArray(now[question.id]) ? (now[question.id] as string[]) : []), fileId] }));
+                  setMissing((now) => now.filter((m) => m !== question.id));
+                }}
+                onChange={(value) => set(question.id, value)}
+              />
+            ) : (
+              <QuestionInput question={question} value={answers[question.id]} onChange={(value) => set(question.id, value)} />
+            )}
           </div>
         </fieldset>
       ))}
@@ -142,6 +186,7 @@ export function SurveyForm({
           {error}
         </p>
       )}
+      {step === "submit" && footer}
       <div className="flex flex-wrap items-center gap-2">
         {path.length > 1 && (
           <button type="button" onClick={() => setPath((now) => now.slice(0, -1))} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
@@ -265,5 +310,92 @@ function QuestionInput({ question, value, onChange }: { question: Question; valu
     }
     case "date":
       return <input type="date" aria-label={question.title} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value || undefined)} className={`${field} w-auto`} />;
+    case "file":
+      return null;
   }
+}
+
+// Files for an answer: each is stored right away (in the workspace's one
+// storage) and only its id goes with the answer.
+function FileInput({
+  question,
+  value,
+  names,
+  transport,
+  onAdded,
+  onChange,
+}: {
+  question: Question;
+  value: Answer | undefined;
+  names: Record<string, string>;
+  transport: SurveyTransport;
+  onAdded: (id: string, name: string) => void;
+  onChange: (value: Answer | undefined) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const ids = Array.isArray(value) ? value : [];
+  if (!transport.upload) {
+    return (
+      <p className="rounded-md bg-surface px-3 py-2 text-sm text-muted" data-survey-file-signin>
+        {f.fileSignIn}{" "}
+        {transport.signInHref && (
+          <a href={transport.signInHref} className="text-accent hover:underline">
+            {f.signIn}
+          </a>
+        )}
+      </p>
+    );
+  }
+  const upload = transport.upload;
+  return (
+    <div className="flex flex-col gap-2" data-survey-file-input>
+      {ids.length > 0 && (
+        <ul className="flex flex-col gap-1 text-sm">
+          {ids.map((fileId) => (
+            <li key={fileId} className="flex items-center gap-2">
+              <span aria-hidden="true">📎</span>
+              <span className="min-w-0 flex-1 truncate">{names[fileId] ?? fileId}</span>
+              <button type="button" onClick={() => onChange(ids.filter((x) => x !== fileId))} aria-label={f.removeFile} title={f.removeFile} className="min-h-9 rounded px-2 text-xs text-muted hover:bg-surface">
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ids.length < MAX_FILES_PER_ANSWER && (
+        <>
+          <input
+            ref={input}
+            type="file"
+            accept={FILE_ACCEPT}
+            className="hidden"
+            aria-label={question.title}
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              if (file.size > MAX_FILE_BYTES) return setProblem(t.surveys.errors.too_large_file);
+              setBusy(true);
+              setProblem(null);
+              const result = await upload(file).catch(() => ({ ok: false as const, error: "upload_failed" }));
+              setBusy(false);
+              if (result.ok) onAdded(result.id, file.name);
+              else setProblem(t.surveys.errors[result.error] ?? t.common.unknownError);
+            }}
+          />
+          <button type="button" disabled={busy} onClick={() => input.current?.click()} className="self-start min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9">
+            {busy ? f.uploading : f.addFile}
+          </button>
+          <p className="text-xs text-muted">{f.fileHint}</p>
+        </>
+      )}
+      {problem && (
+        <p role="alert" className="text-sm text-danger">
+          {problem}
+        </p>
+      )}
+    </div>
+  );
 }

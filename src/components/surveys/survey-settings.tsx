@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
-import { linkSurveySheet, setSurveySettings, sheetsToConnect, type SurveySettingsPatch } from "@/app/survey-actions";
+import { linkSurveySheet, setSurveyPublic, setSurveySettings, sheetsToConnect, type SurveySettingsPatch } from "@/app/survey-actions";
 import type { SurveyState } from "@/lib/surveys";
 
 const st = t.surveys.settings;
@@ -130,6 +130,8 @@ export function SurveySettings({
         </p>
       </section>
 
+      {state.manager && <PublicLink shortId={shortId} id={id} state={state} onState={onState} onError={setError} />}
+
       {state.manager && (
         <section className={box} data-survey-sheet>
           <h3 className="font-semibold">{st.sheetHeading}</h3>
@@ -185,5 +187,67 @@ export function SurveySettings({
         </p>
       )}
     </div>
+  );
+}
+
+// The link for anyone (step О3): on or off, copied, or replaced by a new one.
+function PublicLink({
+  shortId,
+  id,
+  state,
+  onState,
+  onError,
+}: {
+  shortId: string;
+  id: string;
+  state: SurveyState;
+  onState: () => Promise<void> | void;
+  onError: (message: string | null) => void;
+}) {
+  const p = t.surveys.public;
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const enabled = state.public?.enabled ?? false;
+  const token = state.public?.token ?? null;
+  const url = token && typeof window !== "undefined" ? `${window.location.origin}/f/${shortId}/${token}` : "";
+  const change = async (on: boolean | null, renew = false) => {
+    setBusy(true);
+    const result = await setSurveyPublic(shortId, id, on, renew).catch(() => null);
+    setBusy(false);
+    if (!result?.ok) return onError(t.surveys.errors[result && !result.ok ? result.error : "unknown"] ?? t.common.unknownError);
+    onError(null);
+    await onState();
+  };
+  return (
+    <section className={box} data-survey-public>
+      <h3 className="font-semibold">🌐 {p.heading}</h3>
+      <p className="mt-1 text-sm text-muted">{p.intro}</p>
+      <label className="mt-3 flex min-h-11 cursor-pointer items-center gap-3 md:min-h-9">
+        <input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => change(e.target.checked)} className="h-4 w-4" />
+        <span className="text-sm">{p.enable}</span>
+      </label>
+      {enabled && url && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input readOnly value={url} aria-label={p.link} data-survey-public-link onFocus={(e) => e.target.select()} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-surface/50 px-3 font-mono text-xs md:min-h-9" />
+          <button
+            type="button"
+            onClick={async () => {
+              await navigator.clipboard?.writeText(url).catch(() => {});
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+            className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
+          >
+            {copied ? p.copied : p.copy}
+          </button>
+          <button type="button" disabled={busy} onClick={() => confirm(p.renewConfirm) && change(null, true)} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+            {p.renew}
+          </button>
+        </div>
+      )}
+      <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs">⚠️ {p.warning}</p>
+      <p className="mt-2 text-xs text-muted">{p.limits}</p>
+      <p className="mt-1 text-xs text-muted">{p.robot}</p>
+    </section>
   );
 }
