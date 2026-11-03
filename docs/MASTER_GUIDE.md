@@ -122,12 +122,7 @@ Before any code:
 4. Then propose the plan for stage 1 and wait for my OK.
 ```
 
-For a fresh sprint in an existing project:
-
-```
-Продовжуємо <project>. Прочитай CLAUDE.md, docs/backlog.md і останні 10 рядків docs/decisions.md.
-Запропонуй план кроку «<name>» з пунктом «Готово, коли» і чекай мого OK.
-```
+For a fresh sprint in an existing project: nothing to paste. `CLAUDE.md` has a "Session start" section that makes Claude read the backlog and recent decisions by itself; the owner just writes what she wants (e.g. «Зроби план кроку «Чат»»).
 
 ---
 
@@ -135,7 +130,7 @@ For a fresh sprint in an existing project:
 
 ## 1. Як починати
 - **Новий проєкт:** вставте промпт з A3 першим повідомленням. Claude спершу поставить кілька питань, потім створить базові файли й запропонує план першого етапу.
-- **Новий крок у наявному проєкті:** нова сесія і короткий промпт «Продовжуємо…» з A3.
+- **Новий крок у наявному проєкті:** нова сесія — і одразу пишіть, що потрібно (наприклад, «Зроби план кроку «Чат»»). Вводні Claude читає сам за правилом «Session start» у CLAUDE.md.
 - **Одна сесія — один крок.** Коли PR злитий, починайте нову сесію: довгий чат дорожчає з кожним повідомленням, а все важливе вже записано у файли.
 
 ## 2. Як формулювати запити
