@@ -62,7 +62,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the angler fish sits to the left of the current page in the tree", await beside());
   await alice.goto(`${APP}/w/${alphaShort}/trash`);
   await alice.waitForTimeout(900);
-  check("…and of the trash link when that is where you are", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Кошик") && (await beside()));
+  check("…and of the trash link when that is where you are", (await alice.locator("aside [data-angler-here]").first().getAttribute("aria-label")) === "Кошик" && (await beside()));
   check("the lure replaces the old feedback button", (await alice.locator('[data-lure="bright"]').getByRole("button", { name: "Залишити відгук" }).count()) === 1);
   for (let i = 0; i < 3; i++) await fish.click();
   await alice.waitForTimeout(300);
@@ -103,7 +103,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   // The start page: a tile per service; those still being built say "Soon".
   await alice.goto(`${APP}/w/${alphaShort}`);
   await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
-  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 9 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 4);
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 9 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 3);
   check("…as a launcher: no page buttons at the top", (await alice.locator("main").getByRole("button", { name: /Нова сторінка/ }).count()) === 0);
   await alice.locator('[data-service="tasks"]').getByRole("link", { name: "Задачі" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });

@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, finish, readdirSync, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
 const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
@@ -414,6 +414,80 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await colleague.getByText("Немає доступу до цієї таблиці.").first().waitFor({ timeout: 20000 }).catch(() => {});
   check("someone without access to a table sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї таблиці.").count()) === 2 && (await colleague.getByText("Budget 2").count()) === 0);
   sql(`update public.service_objects set workspace_role = 'editor' where id = '${sheetId}'`);
+}
+
+// --- Surveys (steps О1, О2, О4): a form, answers into a connected table, results, on a page --------
+{
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  await alice.locator("[data-service-switcher]").getByRole("link", { name: "Опитування" }).click();
+  await alice.waitForURL(new RegExp(`/w/${alphaShort}/surveys$`), { timeout: 15000 });
+  await alice.getByRole("button", { name: "＋ Нове опитування" }).click();
+  await alice.waitForURL(new RegExp(`/w/${alphaShort}/surveys/[0-9a-f-]{36}$`), { timeout: 15000 });
+  const surveyId = alice.url().split("/").at(-1);
+  check("a new survey is open to the workspace for answering only", sql(`select workspace_role from public.service_objects where id = '${surveyId}'`) === "viewer");
+  await alice.getByLabel("Назва опитування").fill("Lunch poll");
+  await alice.getByLabel("Текст питання").first().fill("Coming to lunch?");
+  await alice.getByLabel("Варіант 1", { exact: true }).fill("Yes");
+  await alice.getByLabel("Варіант 2", { exact: true }).fill("No");
+  await alice.getByLabel("Обов'язкове").first().check();
+  const surveyJson = () => sql(`select title || ' ' || (data -> 'sections' -> 0 -> 'questions' -> 0)::text from public.service_objects where id = '${surveyId}'`);
+  check("the form is saved by itself", await until(() => /Lunch poll .*Coming to lunch\?.*"required": true.*/.test(surveyJson()) && surveyJson().includes('"label": "No"'), 15000), surveyJson());
+
+  await alice.getByRole("tab", { name: /Налаштування/ }).click();
+  await alice.getByRole("button", { name: "＋ Нова таблиця" }).click();
+  await alice.locator("[data-survey-sheet-linked]").waitFor({ timeout: 15000 }).catch(() => {});
+  const linkedSheet = sql(`select coalesce(sheet_id::text, '') from public.survey_settings where object_id = '${surveyId}'`);
+  check("a new table is connected for the answers", linkedSheet.length === 36 && (await alice.locator("[data-survey-sheet-linked]").count()) === 1, linkedSheet);
+
+  // A colleague answers (the required question first).
+  await colleague.goto(`${APP}/w/${alphaShort}/surveys/${surveyId}`);
+  await colleague.locator("[data-survey-form]").waitFor({ timeout: 15000 });
+  await colleague.getByRole("button", { name: "Надіслати" }).click();
+  check("a required question must be answered", (await colleague.getByText("Дайте відповідь на обов'язкові питання.").count()) === 1);
+  await colleague.getByRole("radio", { name: "Yes" }).check();
+  await colleague.getByRole("button", { name: "Надіслати" }).click();
+  await colleague.locator("[data-survey-done]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("the colleague's answer is sent", (await colleague.getByText("Дякуємо! Відповідь записано.").count()) === 1);
+  const stored = sql(`select count(*) || ' ' || bool_and(user_id is not null) || ' ' || max(answers::text) from public.survey_responses where object_id = '${surveyId}'`);
+  check("…and kept with its name", /^1 true \{".+": "Yes"\}$/.test(stored), stored);
+  const row = sql(`select string_agg(c -> 'v' ->> 'm', '|' order by (c ->> 'c')::integer) from public.service_objects o, jsonb_array_elements(o.data -> 'sheets') s, jsonb_array_elements(s -> 'celldata') c where o.id = '${linkedSheet}' and s ->> 'name' = 'Відповіді' and (c ->> 'r')::integer = 1`);
+  check("…and written as a row of the connected table", row.endsWith("|Yes") && row.split("|").length === 3, row);
+  await colleague.reload();
+  await colleague.locator("[data-survey-answered]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("one answer per person", (await colleague.locator("[data-survey-answered]").count()) === 1);
+  const peek = await colleagueClient.rpc("survey_answers", { target_object: surveyId });
+  check("someone who only answers can't read the answers", peek.data?.error === "forbidden", JSON.stringify(peek.data ?? peek.error));
+
+  await alice.reload();
+  await alice.getByRole("tab", { name: /Відповіді/ }).click();
+  await alice.locator('[data-survey-count="1"]').waitFor({ timeout: 15000 }).catch(() => {});
+  check("the owner sees the answer, with a chart for the question", (await alice.locator('[data-survey-count="1"]').count()) === 1 && (await alice.locator("[data-survey-summary] canvas").count()) === 1 && (await alice.locator("[data-survey-response]").count()) === 1);
+
+  // Step О4: the form and the summary on a wiki page; search finds the survey by its question.
+  const surveyPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Survey notes" })).data.id;
+  const surveyPageSaved = await aliceClient.rpc("save_page_content", {
+    target_page: surveyPage,
+    new_content: [
+      { id: "v1", type: "surveyEmbed", props: { surveyId, view: "form" }, children: [] },
+      { id: "v2", type: "surveyEmbed", props: { surveyId, view: "summary" }, children: [] },
+    ],
+    base_version: 1,
+  });
+  check("(setup) a page with a survey's form and summary", surveyPageSaved.data?.ok === true, JSON.stringify(surveyPageSaved.data));
+  sql(`update public.pages set workspace_role = 'viewer' where id = '${surveyPage}'`);
+  await alice.goto(`${APP}/w/${alphaShort}/p/${surveyPage}`);
+  await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-results]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("a survey's form and summary show on a wiki page", (await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-form]').count()) === 1 && (await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-results]').count()) === 1);
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${surveyPage}`);
+  await colleague.locator('[data-survey-embed="Lunch poll"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  check("…someone who only answers sees the form (answered) but not the summary",
+    (await colleague.locator("[data-survey-answered]").count()) === 1 && (await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").count()) === 1);
+  await alice.getByRole("button", { name: /Пошук/ }).first().click();
+  await alice.getByRole("button", { name: "📝 Опитування" }).click();
+  await alice.getByLabel(/Шукати в назвах/).fill("lunch?");
+  await alice.locator("[data-survey-hits]").getByText("Lunch poll").waitFor({ timeout: 15000 }).catch(() => {});
+  check("search “Surveys” finds a survey by its question", (await alice.locator("[data-survey-hits]").getByText("Lunch poll").count()) === 1);
+  await alice.keyboard.press("Escape");
 }
 
 await finish("nodes");

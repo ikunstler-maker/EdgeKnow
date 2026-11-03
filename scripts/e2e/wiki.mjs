@@ -908,6 +908,28 @@ await alice.locator("aside").getByRole("link", { name: /Довідка/ }).click
 await alice.waitForURL(/\/help$/);
 check("help linked from the sidebar, with every section", (await alice.locator("main section").count()) >= 14);
 
+// --- Sidebar: one row of icons at the bottom, width set by dragging -----------------------
+{
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  const bottom = alice.locator("aside [data-sidebar-bottom] > div").first();
+  const icons = await bottom.locator("a, button").evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+  check("the bottom links are one row of icons", icons.length >= 5 && new Set(icons).size === 1, JSON.stringify(icons));
+  const aside = alice.locator("aside[data-sidebar-width]");
+  const handle = alice.locator("[data-sidebar-resize]");
+  const before = (await aside.boundingBox()).width;
+  const grip = await handle.boundingBox();
+  await alice.mouse.move(grip.x + grip.width / 2, grip.y + 200);
+  await alice.mouse.down();
+  await alice.mouse.move(grip.x + 120, grip.y + 200, { steps: 6 });
+  await alice.mouse.up();
+  const after = (await aside.boundingBox()).width;
+  await alice.reload();
+  const kept = (await alice.locator("aside[data-sidebar-width]").boundingBox()).width;
+  check("the sidebar gets wider by dragging its edge and stays so", after > before + 100 && Math.abs(kept - after) < 2, `${before} → ${after} → ${kept}`);
+  await alice.locator("[data-sidebar-resize]").dblclick();
+  check("a double click brings the usual width back", Math.abs((await alice.locator("aside[data-sidebar-width]").boundingBox()).width - 256) < 2);
+}
+
 // --- Page counter and profile statistics -------------------------------------------------
 
 await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);

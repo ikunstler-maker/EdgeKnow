@@ -10,6 +10,7 @@ import { searchBlocks, searchPages, type BlockHit, type BlockKind, type SearchHi
 import { searchNodeObjects, type NodeObjectHit } from "@/app/node-actions";
 import { searchBoards, type BoardHit } from "@/app/board-actions";
 import { searchSheets, type SheetHit } from "@/app/sheet-actions";
+import { searchSurveys, type SurveyHit } from "@/app/survey-actions";
 import { usePages } from "@/components/pages/pages-provider";
 
 const s = t.search;
@@ -94,7 +95,7 @@ function SearchDialog({
   const [depth, setDepth] = useState("all");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   // "" lets the words decide; "text" is plain text search even for "картинка".
-  const [kind, setKind] = useState<BlockKind | "" | "text" | "maps" | "boards" | "sheets">("");
+  const [kind, setKind] = useState<BlockKind | "" | "text" | "maps" | "boards" | "sheets" | "surveys">("");
   const [blockHits, setBlockHits] = useState<BlockHit[] | null>(null);
   // Maps and diagrams of the node space (step Н3): their own chip, and below page results.
   const [mapHits, setMapHits] = useState<NodeObjectHit[] | null>(null);
@@ -105,6 +106,9 @@ function SearchDialog({
   // Tables (step Т4): the same, with the text of their cells.
   const [sheetHits, setSheetHits] = useState<SheetHit[] | null>(null);
   const sheetsMode = kind === "sheets";
+  // Surveys (step О4): the same, with their questions and choices.
+  const [surveyHits, setSurveyHits] = useState<SurveyHit[] | null>(null);
+  const surveysMode = kind === "surveys";
   const [pending, startTransition] = useTransition();
   const latest = useRef(0);
   const currentPage = currentPageId ? pages.find((p) => p.id === currentPageId) : undefined;
@@ -118,7 +122,7 @@ function SearchDialog({
 
   // A kind chosen with a button, or said in words: "картинка", "заголовки бюджет"…
   const said = kind ? null : detectKind(query);
-  const activeKind: BlockKind | "" = kind === "text" || kind === "maps" || kind === "boards" || kind === "sheets" ? "" : kind || said?.kind || "";
+  const activeKind: BlockKind | "" = kind === "text" || kind === "maps" || kind === "boards" || kind === "sheets" || kind === "surveys" ? "" : kind || said?.kind || "";
   const words = said ? said.rest : query.trim();
 
   // Searches after a short pause in typing; only the latest answer is shown.
@@ -127,6 +131,13 @@ function SearchDialog({
     const timer = setTimeout(() => {
       const root = effectiveScope === "page" ? (currentPageId ?? null) : null;
       const levels = depth === "all" ? null : Number(depth);
+      if (surveysMode) {
+        startTransition(async () => {
+          const result = await searchSurveys(workspace.shortId, words);
+          if (id === latest.current) setSurveyHits(result);
+        });
+        return;
+      }
       if (sheetsMode) {
         startTransition(async () => {
           const result = await searchSheets(workspace.shortId, words);
@@ -157,24 +168,26 @@ function SearchDialog({
       }
       if (!words) return;
       startTransition(async () => {
-        const [result, maps, boards, tables] = await Promise.all([
+        const [result, maps, boards, tables, forms] = await Promise.all([
           searchPages(workspace.id, words, root, levels),
           effectiveScope === "workspace" ? searchNodeObjects(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchBoards(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchSheets(workspace.shortId, words) : Promise.resolve([]),
+          effectiveScope === "workspace" ? searchSurveys(workspace.shortId, words) : Promise.resolve([]),
         ]);
         if (id === latest.current) {
           setHits(result);
           setMapHits(maps.slice(0, 5));
           setBoardHits(boards.slice(0, 5));
           setSheetHits(tables.slice(0, 5));
+          setSurveyHits(forms.slice(0, 5));
         }
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [words, activeKind, mapsMode, boardsMode, sheetsMode, effectiveScope, depth, workspace.id, workspace.shortId, currentPageId]);
+  }, [words, activeKind, mapsMode, boardsMode, sheetsMode, surveysMode, effectiveScope, depth, workspace.id, workspace.shortId, currentPageId]);
 
-  const shown = !activeKind && !mapsMode && !boardsMode && !sheetsMode && query.trim() ? hits : null;
+  const shown = !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && query.trim() ? hits : null;
   const sheetList = (list: SheetHit[]) => (
     <ul aria-label={s.sheets} data-sheet-results>
       {list.map((hit) => (
@@ -183,6 +196,21 @@ function SearchDialog({
             <span className="shrink-0 text-lg">📊</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title || t.sheets.untitled}</span>
+              {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+  const surveyList = (list: SurveyHit[]) => (
+    <ul aria-label={s.surveys} data-survey-hits>
+      {list.map((hit) => (
+        <li key={hit.id}>
+          <Link href={workspacePath(workspace.shortId, `/surveys/${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
+            <span className="shrink-0 text-lg">📝</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{hit.title || t.surveys.untitled}</span>
               {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
             </span>
           </Link>
@@ -271,7 +299,7 @@ function SearchDialog({
           </div>
           <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={s.kindLabel}>
             {(["text", ...KINDS] as const).map((value) => {
-              const on = value === "text" ? !activeKind && !mapsMode && !boardsMode && !sheetsMode : activeKind === value;
+              const on = value === "text" ? !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode : activeKind === value;
               return (
                 <button
                   key={value}
@@ -308,11 +336,27 @@ function SearchDialog({
             >
               📊 {s.sheets}
             </button>
+            <button
+              type="button"
+              aria-pressed={surveysMode}
+              onClick={() => setKind("surveys")}
+              className={`min-h-9 rounded-full border px-3 text-xs ${surveysMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
+            >
+              📝 {s.surveys}
+            </button>
           </div>
           {said && <p className="mt-1 text-xs text-muted">{s.kindSaid(s.kinds[said.kind])}</p>}
         </div>
         <div className="flex-1 overflow-y-auto p-2" aria-live="polite">
-          {sheetsMode ? (
+          {surveysMode ? (
+            !surveyHits ? (
+              <p className="p-3 text-sm text-muted">{s.searching}</p>
+            ) : surveyHits.length === 0 ? (
+              <p className="p-3 text-sm text-muted">{pending ? s.searching : s.nothing}</p>
+            ) : (
+              surveyList(surveyHits)
+            )
+          ) : sheetsMode ? (
             !sheetHits ? (
               <p className="p-3 text-sm text-muted">{s.searching}</p>
             ) : sheetHits.length === 0 ? (
@@ -409,6 +453,12 @@ function SearchDialog({
             <div className="mt-2 border-t border-border pt-2">
               <p className="px-3 pb-1 text-xs font-medium text-muted">{s.sheets}</p>
               {sheetList(sheetHits)}
+            </div>
+          )}
+          {shown && surveyHits && surveyHits.length > 0 && (
+            <div className="mt-2 border-t border-border pt-2">
+              <p className="px-3 pb-1 text-xs font-medium text-muted">{s.surveys}</p>
+              {surveyList(surveyHits)}
             </div>
           )}
         </div>

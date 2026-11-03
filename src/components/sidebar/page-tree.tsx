@@ -37,6 +37,8 @@ type Zone = "before" | "inside" | "after";
 type DropTarget = { id: string; zone: Zone };
 type VisibleItem = { page: PageNode; depth: number; hasChildren: boolean };
 
+const rowAction = "h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border";
+
 const SECTIONS: SidebarSection[] = ["workspace", "mine", "shared"];
 
 function flattenVisible(pages: PageNode[], roots: PageNode[], expanded: Set<string>): VisibleItem[] {
@@ -303,7 +305,8 @@ function TreeRow({
           </Link>
         )}
 
-        {/* Always visible on touch screens; on desktop they appear on hover. */}
+        {/* On desktop they appear on hover and take no room otherwise, so the title reaches
+            the edge of the panel. On touch screens only "⋯" stays (its menu can add a subpage). */}
         {editable && (
           <>
             <button
@@ -314,7 +317,7 @@ function TreeRow({
               }}
               aria-label={t.sidebar.addSubpage}
               title={t.sidebar.addSubpage}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
+              className={`${rowAction} hidden [@media(hover:hover)]:group-hover:flex [@media(hover:hover)]:group-focus-within:flex`}
             >
               +
             </button>
@@ -323,7 +326,7 @@ function TreeRow({
               onClick={(event) => setMenuAnchor(menuAnchor ? null : event.currentTarget)}
               aria-label={t.sidebar.moreActions}
               title={t.sidebar.moreActions}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted hover:bg-border [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:opacity-100"
+              className={`${rowAction} ${menuAnchor ? "flex" : "flex [@media(hover:hover)]:hidden [@media(hover:hover)]:group-hover:flex [@media(hover:hover)]:group-focus-within:flex"}`}
             >
               ⋯
             </button>
