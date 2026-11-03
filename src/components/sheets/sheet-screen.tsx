@@ -249,7 +249,7 @@ export function SheetScreen({
             setLiveSheets(data.sheets);
             schedule({ data: latest.current });
           }}
-          onSelection={(sheet, range) => setSelection({ sheet, range })}
+          onSelection={(sheet, range) => setSelection((now) => (now?.sheet === sheet && now.range === range ? now : { sheet, range }))}
         />
       </div>
       <SheetCharts
