@@ -4,7 +4,7 @@ import { t } from "@/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { AnglerFish } from "@/components/angler/angler-fish";
-import { CountUp, HeroZoom, Reveal, ServiceTour } from "@/components/landing/motion";
+import { CountUp, HeroZoom, Reveal, ServiceTour, SoonBadge } from "@/components/landing/motion";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t.landing.title, description: t.landing.description };
@@ -53,6 +53,9 @@ export default async function AboutPage() {
             <a href="#services" className="hover:text-white">
               {l.nav.services}
             </a>
+            <a href="#ai" className="hover:text-white">
+              {l.nav.ai}
+            </a>
             <a href="#together" className="hover:text-white">
               {l.nav.together}
             </a>
@@ -94,7 +97,7 @@ export default async function AboutPage() {
           </div>
           <div className={`${wrap} relative mt-14 md:mt-20`}>
             <HeroZoom>
-              <Picture name="hero" alt="" priority className="w-full ek-fade" />
+              <Picture name="hero" alt="" priority className="w-full" />
             </HeroZoom>
           </div>
         </section>
@@ -118,9 +121,36 @@ export default async function AboutPage() {
           <div className={wrap}>
             <Reveal className="mb-6 max-w-3xl md:mb-10">
               <p className={eyebrow}>{l.servicesEyebrow}</p>
-              <h2 className={`${title} mt-4`}>{l.servicesTitle}</h2>
+              <h2 className={`${title} ek-grad-a mt-4`}>{l.servicesTitle}</h2>
             </Reveal>
-            <ServiceTour services={l.services} />
+            <ServiceTour services={l.services} soon={l.soon} />
+          </div>
+        </section>
+
+        {/* AI assistant */}
+        <section id="ai" className="relative scroll-mt-12 overflow-hidden bg-[#06060a] py-28 md:py-40">
+          <div className={wrap}>
+            <Reveal className="mx-auto max-w-3xl text-center">
+              <p className={eyebrow}>
+                {l.aiEyebrow}
+                <SoonBadge label={l.soon} />
+              </p>
+              <h2 className={`${title} ek-grad-c mt-4`}>{l.aiTitle}</h2>
+              <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/60 md:text-xl">{l.aiLead}</p>
+            </Reveal>
+            <Reveal className="mt-10">
+              <Picture name="ai" alt="" className="mx-auto w-full max-w-3xl" />
+            </Reveal>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {l.ai.map((item, i) => (
+                <Reveal key={item.title} delay={(i % 3) * 100}>
+                  <div className="ek-glass h-full rounded-3xl p-6">
+                    <h3 className="bg-gradient-to-r from-cyan-200 to-fuchsia-300 bg-clip-text text-lg font-bold text-transparent">{item.title}</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/60">{item.text}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -129,11 +159,11 @@ export default async function AboutPage() {
           <div className={wrap}>
             <Reveal className="mx-auto max-w-3xl text-center">
               <p className={eyebrow}>{l.togetherEyebrow}</p>
-              <h2 className={`${title} mt-4`}>{l.togetherTitle}</h2>
+              <h2 className={`${title} ek-grad-b mt-4`}>{l.togetherTitle}</h2>
               <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/60 md:text-xl">{l.togetherLead}</p>
             </Reveal>
             <Reveal className="mt-16">
-              <Picture name="connect" alt="" className="mx-auto w-full max-w-4xl ek-fade" />
+              <Picture name="connect" alt="" className="mx-auto w-full max-w-4xl" />
             </Reveal>
             <div className="mx-auto mt-14 grid max-w-4xl gap-4 md:grid-cols-3">
               {l.flow.map((step, i) => (
@@ -146,7 +176,7 @@ export default async function AboutPage() {
               ))}
             </div>
             <Reveal className="mx-auto mt-24 max-w-3xl text-center">
-              <h3 className="text-3xl font-semibold tracking-tight md:text-5xl">{l.searchTitle}</h3>
+              <h3 className="ek-grad-c text-3xl font-semibold tracking-tight md:text-5xl">{l.searchTitle}</h3>
               <p className="mt-5 text-lg text-white/60">{l.searchText}</p>
               <div className="ek-glass mx-auto mt-10 flex max-w-xl items-center gap-3 rounded-full px-6 py-4 text-left text-white/50">
                 <span aria-hidden="true">🔎</span>
@@ -159,23 +189,81 @@ export default async function AboutPage() {
           </div>
         </section>
 
+        {/* Knowledge people trust */}
+        <section className="py-28 md:py-40">
+          <div className={wrap}>
+            <Reveal className="max-w-3xl">
+              <p className={eyebrow}>{l.trustEyebrow}</p>
+              <h2 className={`${title} ek-grad-e mt-4`}>{l.trustTitle}</h2>
+              <p className="mt-6 max-w-xl text-lg text-white/60">{l.trustLead}</p>
+            </Reveal>
+            <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {l.trust.map((item, i) => (
+                <Reveal key={item.title} delay={(i % 3) * 100}>
+                  <div className="ek-glass h-full rounded-3xl p-6">
+                    <h3 className="text-lg font-semibold">
+                      {item.title}
+                      {item.soon && <SoonBadge label={l.soon} />}
+                    </h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/60">{item.text}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Integrations */}
+        <section className="bg-[#0b0b0f] py-28 md:py-36">
+          <div className={wrap}>
+            <Reveal className="mx-auto max-w-3xl text-center">
+              <p className={eyebrow}>
+                {l.connectEyebrow}
+                <SoonBadge label={l.soon} />
+              </p>
+              <h2 className={`${title} ek-grad-b mt-4`}>{l.connectTitle}</h2>
+            </Reveal>
+            <Reveal className="mt-12">
+              <ul className="mx-auto flex max-w-4xl flex-wrap justify-center gap-3">
+                {l.integrations.map((name) => (
+                  <li key={name} className="ek-glass rounded-full px-5 py-2.5 text-[15px] text-white/80">
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+            <Reveal className="mx-auto mt-14 max-w-3xl">
+              <div className="ek-glass rounded-[28px] p-8 text-center">
+                <h3 className="text-2xl font-semibold md:text-3xl">
+                  {l.publicTitle}
+                  <SoonBadge label={l.soon} />
+                </h3>
+                <p className="mt-3 text-lg text-white/60">{l.publicText}</p>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
         {/* Security */}
         <section id="security" className="scroll-mt-12 py-28 md:py-40">
           <div className={`${wrap} grid items-center gap-12 md:grid-cols-2`}>
             <Reveal>
               <p className={eyebrow}>{l.securityEyebrow}</p>
-              <h2 className={`${title} mt-4`}>{l.securityTitle}</h2>
+              <h2 className={`${title} ek-grad-d mt-4`}>{l.securityTitle}</h2>
               <p className="mt-6 max-w-md text-lg leading-relaxed text-white/60">{l.securityLead}</p>
             </Reveal>
             <Reveal delay={150}>
-              <Picture name="security" alt="" className="w-full ek-fade" />
+              <Picture name="security" alt="" className="w-full" />
             </Reveal>
           </div>
           <div className={`${wrap} mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3`}>
             {l.security.map((item, i) => (
               <Reveal key={item.title} delay={(i % 3) * 100}>
                 <div className="ek-glass h-full rounded-3xl p-6">
-                  <h3 className="text-lg font-semibold">{item.title}</h3>
+                  <h3 className="text-lg font-semibold">
+                    {item.title}
+                    {item.soon && <SoonBadge label={l.soon} />}
+                  </h3>
                   <p className="mt-2 text-[15px] leading-relaxed text-white/60">{item.text}</p>
                 </div>
               </Reveal>
@@ -188,11 +276,11 @@ export default async function AboutPage() {
           <div className={wrap}>
             <Reveal className="mx-auto max-w-3xl text-center">
               <p className={eyebrow}>{l.devicesEyebrow}</p>
-              <h2 className={`${title} mt-4`}>{l.devicesTitle}</h2>
+              <h2 className={`${title} ek-grad-c mt-4`}>{l.devicesTitle}</h2>
               <p className="mx-auto mt-6 max-w-xl text-lg text-white/60">{l.devicesLead}</p>
             </Reveal>
             <Reveal className="mt-16">
-              <Picture name="devices" alt="" className="w-full ek-fade" />
+              <Picture name="devices" alt="" className="w-full" />
             </Reveal>
           </div>
         </section>
@@ -202,7 +290,7 @@ export default async function AboutPage() {
           <div className={wrap}>
             <Reveal className="max-w-3xl">
               <p className={eyebrow}>{l.compareEyebrow}</p>
-              <h2 className={`${title} mt-4`}>{l.compareTitle}</h2>
+              <h2 className={`${title} ek-grad-e mt-4`}>{l.compareTitle}</h2>
               <p className="mt-6 max-w-xl text-lg text-white/60">{l.compareLead}</p>
             </Reveal>
             <Reveal className="mt-14">
@@ -224,7 +312,11 @@ export default async function AboutPage() {
                         </td>
                         <td className="hidden px-5 py-4 text-white/50 sm:table-cell">{row.usual}</td>
                         <td className="px-5 py-4 text-right md:px-8">
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-violet-500 text-sm">✓</span>
+                          {row.soon ? (
+                            <SoonBadge label={l.soon} />
+                          ) : (
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-violet-500 text-sm">✓</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -236,34 +328,11 @@ export default async function AboutPage() {
           </div>
         </section>
 
-        {/* Coming soon */}
-        <section className="bg-[#0b0b0f] py-28 md:py-36">
-          <div className={wrap}>
-            <Reveal className="text-center">
-              <p className={eyebrow}>{l.soonEyebrow}</p>
-              <h2 className={`${title} mt-4`}>{l.soonTitle}</h2>
-            </Reveal>
-            <div className="mt-14 grid gap-4 md:grid-cols-3">
-              {l.upcoming.map((item, i) => (
-                <Reveal key={item.name} delay={i * 120}>
-                  <div className="ek-glass h-full rounded-3xl p-7">
-                    <span className="text-3xl" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <h3 className="mt-4 text-xl font-semibold">{item.name}</h3>
-                    <p className="mt-2 text-[15px] leading-relaxed text-white/60">{item.about}</p>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Steps */}
         <section className="py-28 md:py-36">
           <div className={wrap}>
             <Reveal>
-              <h2 className="text-4xl font-semibold tracking-tight md:text-6xl">{l.stepsTitle}</h2>
+              <h2 className="ek-grad-a text-4xl font-semibold tracking-tight md:text-6xl">{l.stepsTitle}</h2>
             </Reveal>
             <ol className="mt-14 grid gap-10 md:grid-cols-3">
               {l.steps.map((step, i) => (
@@ -287,7 +356,7 @@ export default async function AboutPage() {
             <div className="h-16 w-20">
               <AnglerFish className="h-full w-full" />
             </div>
-            <h2 className={`${title} mt-6`}>{l.ctaTitle}</h2>
+            <h2 className={`${title} ek-grad-a mt-6`}>{l.ctaTitle}</h2>
             <p className="mt-5 max-w-lg text-lg text-white/65">{l.ctaText}</p>
             <Link href={go.href} className={`${pill} mt-9 bg-white text-black hover:bg-white/90`}>
               {go.label}

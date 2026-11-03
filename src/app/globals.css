@@ -700,3 +700,15 @@ body {
     transform: none;
   }
 }
+/* Section headings of the presentation page, each with its own gradient. */
+.ek-grad-a { background-image: linear-gradient(100deg, #7dd3fc, #a5b4fc 50%, #f0abfc); }
+.ek-grad-b { background-image: linear-gradient(100deg, #67e8f9, #818cf8 55%, #c084fc); }
+.ek-grad-c { background-image: linear-gradient(100deg, #f9a8d4, #c4b5fd 50%, #93c5fd); }
+.ek-grad-d { background-image: linear-gradient(100deg, #6ee7b7, #67e8f9 50%, #a5b4fc); }
+.ek-grad-e { background-image: linear-gradient(100deg, #fde68a, #fdba74 45%, #f9a8d4); }
+.ek-grad-a, .ek-grad-b, .ek-grad-c, .ek-grad-d, .ek-grad-e {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-bottom: 0.08em;
+}

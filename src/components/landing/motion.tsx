@@ -103,11 +103,28 @@ export function CountUp({ value, suffix = "" }: { value: number; suffix?: string
   );
 }
 
-type Service = { key: string; icon: string; name: string; like: string; headline: string; points: string[] };
+type Service = { key: string; icon: string; name: string; like: string; soon: boolean; headline: string; points: string[] };
+
+// Each service's own colours, for its headline.
+export const SERVICE_GRADIENTS: Record<string, string> = {
+  wiki: "from-sky-300 to-blue-500",
+  tasks: "from-emerald-300 to-teal-500",
+  boards: "from-amber-300 to-pink-500",
+  nodes: "from-violet-300 to-fuchsia-500",
+  sheets: "from-lime-300 to-emerald-500",
+  surveys: "from-orange-300 to-rose-500",
+  slides: "from-rose-300 to-purple-500",
+  chat: "from-cyan-300 to-indigo-500",
+  files: "from-yellow-200 to-orange-500",
+};
+
+export function SoonBadge({ label }: { label: string }) {
+  return <span className="ml-2 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">{label}</span>;
+}
 
 // The six services: the screen stays in place while the text beside it scrolls;
 // the screen changes to the service being read. On a phone, one after another.
-export function ServiceTour({ services }: { services: Service[] }) {
+export function ServiceTour({ services, soon }: { services: Service[]; soon: string }) {
   const [active, setActive] = useState(0);
   const items = useRef<(HTMLElement | null)[]>([]);
   useEffect(() => {
@@ -135,8 +152,9 @@ export function ServiceTour({ services }: { services: Service[] }) {
           >
             <p className="text-sm font-medium text-white/50">
               <span aria-hidden="true">{service.icon}</span> {service.name} · {service.like}
+              {service.soon && <SoonBadge label={soon} />}
             </p>
-            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-white md:text-5xl">{service.headline}</h3>
+            <h3 className={`mt-3 bg-gradient-to-r bg-clip-text pb-1 text-3xl font-bold tracking-tight text-transparent md:text-5xl ${SERVICE_GRADIENTS[service.key] ?? "from-white to-white"}`}>{service.headline}</h3>
             <ul className="mt-6 flex flex-col gap-3 text-lg text-white/70">
               {service.points.map((point) => (
                 <li key={point} className="flex gap-3">

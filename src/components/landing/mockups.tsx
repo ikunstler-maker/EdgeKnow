@@ -181,7 +181,86 @@ function Surveys() {
   );
 }
 
-const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys };
+
+function Slides() {
+  return (
+    <div className="grid h-[calc(100%-2rem)] grid-cols-[22%_1fr] gap-4">
+      <div className="flex flex-col gap-2.5">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className={`aspect-video rounded-lg ${i === 1 ? "ring-2 ring-rose-300/70" : ""} bg-white/[0.07]`} />
+        ))}
+      </div>
+      <div className="flex flex-col justify-center gap-4 rounded-2xl bg-gradient-to-br from-rose-400/15 via-purple-500/10 to-transparent p-6">
+        <span className="h-4 w-2/3 rounded-full bg-white/80" />
+        {line("50%", 0.3)}
+        <div className="mt-2 flex items-end gap-2">
+          {[45, 70, 55, 90, 65].map((h, i) => (
+            <span key={i} className="flex-1 rounded-t-md bg-gradient-to-t from-rose-400/60 to-purple-300/80" style={{ height: h }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Chat() {
+  const messages = [
+    [false, "70%"],
+    [true, "55%"],
+    [false, "40%"],
+    [true, "65%"],
+  ] as const;
+  return (
+    <div className="grid h-[calc(100%-2rem)] grid-cols-[28%_1fr] gap-4">
+      <div className="flex flex-col gap-3 rounded-2xl bg-white/[0.04] p-3">
+        {["#", "#", "#", "@", "@"].map((mark, i) => (
+          <span key={i} className={`flex items-center gap-2 rounded-md px-1 py-0.5 ${i === 1 ? "bg-white/10" : ""}`}>
+            <span className="text-[11px] text-cyan-200/70">{mark}</span>
+            {line(`${40 + ((i * 13) % 40)}%`, 0.25)}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-col justify-end gap-3">
+        {messages.map(([mine, w], i) => (
+          <div key={i} className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+            <span className={`h-6 w-6 shrink-0 rounded-full ${mine ? "bg-indigo-300/60" : "bg-cyan-300/50"}`} />
+            <span className={`rounded-2xl px-3 py-2.5 ${mine ? "bg-gradient-to-r from-cyan-500/50 to-indigo-500/50" : "bg-white/[0.08]"}`} style={{ width: w }}>
+              {line("90%", 0.35)}
+              {i === 2 && <span className="mt-1.5 inline-block rounded-full bg-white/10 px-1.5 text-[10px]">👍 3</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Files() {
+  const tiles = ["bg-amber-300/60", "bg-sky-300/60", "bg-rose-300/60", "bg-emerald-300/60", "bg-violet-300/60", "bg-orange-300/60"];
+  return (
+    <div className="flex h-[calc(100%-2rem)] flex-col gap-4">
+      <div className="flex items-center gap-2">
+        {line("20%", 0.35)}
+        <span className="text-white/30">›</span>
+        {line("15%", 0.25)}
+      </div>
+      <div className="grid flex-1 grid-cols-3 gap-3">
+        {tiles.map((color, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-2xl bg-white/[0.06] p-3">
+            <span className={`h-8 w-10 rounded-md ${color} ${i < 2 ? "rounded-tl-none" : ""}`} />
+            {line("80%", 0.3)}
+            {line("45%", 0.15)}
+          </div>
+        ))}
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+        <span className="block h-full w-[38%] rounded-full bg-gradient-to-r from-yellow-300 to-orange-400" />
+      </div>
+    </div>
+  );
+}
+
+const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files };
 
 export function ServiceMockup({ service, label }: { service: string; label: string }) {
   const Screen = SCREENS[service] ?? Wiki;
