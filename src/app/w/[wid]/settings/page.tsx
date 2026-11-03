@@ -244,10 +244,18 @@ export default async function WorkspaceSettingsPage({
 
       <div className="mt-6">
         {tab === "general" && (
-          <GeneralPanel
-            workspace={workspace}
-            members={memberItems.filter((m) => m.userId !== user.id && m.role !== "guest")}
-          />
+          <>
+            <GeneralPanel
+              workspace={workspace}
+              members={memberItems.filter((m) => m.userId !== user.id && m.role !== "guest")}
+            />
+            {/* An admin (for example a former owner) can step away too; only the owner can't. */}
+            {workspace.role !== "owner" && (
+              <div className="mt-8 border-t border-border pt-6">
+                <LeaveButton workspaceId={workspace.id} workspaceName={workspace.name} userId={user.id} />
+              </div>
+            )}
+          </>
         )}
         {tab === "members" && (
           <MembersPanel
