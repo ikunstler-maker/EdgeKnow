@@ -260,6 +260,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   const pictureId = sql(`select id from public.object_files where object_id = '${retroId}'`);
   const served = await alice.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${r.headers.get("content-type")}`; }, `/api/boards/files/${pictureId}?ws=${alphaShort}`);
   check("…it opens for people who see the board", /^200 image\//.test(served), served);
+  await bob.goto(`${APP}/`);
   const strangerPicture = await bob.evaluate(async (url) => (await fetch(url)).status, `${APP}/api/boards/files/${pictureId}?ws=${alphaShort}`).catch(() => 0);
   check("…and not for someone from another workspace", strangerPicture !== 200, String(strangerPicture));
   const fetchedAgain = alice.waitForResponse((r) => r.url().includes(`/api/boards/files/${pictureId}`), { timeout: 30000 }).then((r) => r.status()).catch(() => 0);
@@ -278,7 +279,8 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await boardEmbed.locator("[data-board-embed-canvas] canvas").first().waitFor({ timeout: 30000 });
   const stickiesOnRetro = () => Number(sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${retroId}' and e -> 'customData' ->> 'sticky' = 'true'`));
   const before = stickiesOnRetro();
-  await boardEmbed.locator('[data-sticky-color="green"]').click();
+  // A narrow board (on a page) shows only the current colour.
+  await boardEmbed.locator("[data-sticky-color]").first().click();
   check("a board shows on a wiki page and takes a sticky note right there", await until(() => stickiesOnRetro() === before + 1, 20000), `${before} → ${stickiesOnRetro()}`);
   check("…with a link to the editor", (await boardEmbed.getByRole("link", { name: /Відкрити в редакторі/ }).count()) === 1);
   await alice.waitForTimeout(1500);
