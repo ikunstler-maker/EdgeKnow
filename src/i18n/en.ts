@@ -2015,6 +2015,8 @@ export const en: Dictionary = {
       frozen: "Frozen",
       name: "Workspace",
       owner: "Owner",
+      hidden: "hidden",
+      hiddenHint: "You are not a member of this workspace: only its ID and numbers show, no name or people.",
       members: "Members",
       pages: "Pages",
       storage: "Files",
