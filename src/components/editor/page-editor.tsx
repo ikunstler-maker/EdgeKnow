@@ -230,7 +230,15 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <span aria-hidden="true">🎨</span>,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "boardEmbed" }),
   };
-  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed];
+  const sheetEmbed: DefaultReactSuggestionItem = {
+    title: t.sheets.embed.title,
+    subtext: t.sheets.embed.subtext,
+    aliases: t.sheets.embed.aliases,
+    group: t.editor.groups.special,
+    icon: <span aria-hidden="true">📊</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "sheetEmbed" }),
+  };
+  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed, sheetEmbed];
 }
 
 // "@": tasks by key or title, and a new task from what was typed (step Z4).

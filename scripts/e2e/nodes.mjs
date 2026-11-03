@@ -380,6 +380,40 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-sheet] .fortune-sheet-overlay").first().waitFor({ timeout: 30000 });
   await alice.locator("[data-add-sheet-file]").setInputFiles(`${dir}/costs.xlsx`);
   check("…and sheets from a file are added to a table", await until(() => sql(`select jsonb_array_length(data -> 'sheets') || ' ' || (data -> 'sheets' -> 1 ->> 'name') from public.service_objects where id = '${openedId}'`) === "2 Витрати (2)", 20000), sql(`select jsonb_array_length(data -> 'sheets') from public.service_objects where id = '${openedId}'`));
+
+  // Step Т4: a table and one of its charts on a wiki page; search finds tables by their cells.
+  const chartId = sql(`select data -> 'charts' -> 0 ->> 'id' from public.service_objects where id = '${sheetId}'`);
+  const tablePage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Table notes" })).data.id;
+  const tablePageSaved = await aliceClient.rpc("save_page_content", {
+    target_page: tablePage,
+    new_content: [
+      { id: "s1", type: "sheetEmbed", props: { sheetId, chartId: "" }, children: [] },
+      { id: "s2", type: "sheetEmbed", props: { sheetId, chartId }, children: [] },
+    ],
+    base_version: 1,
+  });
+  check("(setup) a page with a table and its chart", tablePageSaved.data?.ok === true, JSON.stringify(tablePageSaved.data));
+  await alice.goto(`${APP}/w/${alphaShort}/p/${tablePage}`);
+  const tableEmbed = alice.locator('[data-sheet-embed="Budget"]');
+  await tableEmbed.first().locator("[data-sheet-embed-grid] .fortune-sheet-overlay").waitFor({ timeout: 30000 }).catch(() => {});
+  check("a table shows on a wiki page, and a chart of it too", (await tableEmbed.first().locator("[data-sheet-embed-grid] .fortune-sheet-overlay").count()) === 1 && (await alice.locator("[data-sheet-embed-chart] canvas").count()) === 1);
+  check("…with a link to the editor", (await tableEmbed.first().getByRole("link", { name: /Відкрити в редакторі/ }).count()) === 1);
+  sql(`update public.service_objects set title = 'Budget 2', version = version + 1 where id = '${sheetId}'`);
+  await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await alice.locator('[data-sheet-embed="Budget 2"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-sheet-embed="Budget 2"]').count()) === 2);
+  await alice.getByRole("button", { name: /Пошук/ }).first().click();
+  await alice.getByRole("button", { name: "📊 Таблиці" }).click();
+  await alice.getByLabel(/Шукати в назвах/).fill("42");
+  await alice.locator("[data-sheet-results]").getByText("Budget 2").waitFor({ timeout: 15000 }).catch(() => {});
+  check("search “Tables” finds a table by the text of its cells", (await alice.locator("[data-sheet-results]").getByText("Budget 2").count()) === 1);
+  await alice.keyboard.press("Escape");
+  sql(`update public.service_objects set workspace_role = null where id = '${sheetId}'`);
+  sql(`update public.pages set workspace_role = 'viewer' where id = '${tablePage}'`);
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${tablePage}`);
+  await colleague.getByText("Немає доступу до цієї таблиці.").first().waitFor({ timeout: 20000 }).catch(() => {});
+  check("someone without access to a table sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї таблиці.").count()) === 2 && (await colleague.getByText("Budget 2").count()) === 0);
+  sql(`update public.service_objects set workspace_role = 'editor' where id = '${sheetId}'`);
 }
 
 await finish("nodes");
