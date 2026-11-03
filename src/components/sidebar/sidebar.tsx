@@ -53,17 +53,20 @@ export function Sidebar({
     expandAll(ancestorsOf(pages, currentId).slice(0, -1).map((p) => p.id));
   }, [currentId, pages]);
 
-  const navLink = (href: string, label: string, icon: string) => (
+  // The bottom links are one row of icons (the name shows on hover and is read aloud).
+  const iconLink = (href: string, label: string, icon: string, hint?: string) => (
     <Link
       href={href}
       onClick={onNavigate}
+      title={hint ?? label}
+      aria-label={label}
+      aria-current={pathname === href ? "page" : undefined}
       data-angler-here={pathname === href ? "" : undefined}
-      className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm hover:bg-surface md:min-h-9 ${
-        pathname === href ? "bg-surface font-medium" : ""
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-lg hover:bg-surface md:h-9 md:w-9 ${
+        pathname === href ? "bg-surface" : ""
       }`}
     >
-      <span>{icon}</span>
-      {label}
+      {icon}
     </Link>
   );
 
@@ -111,20 +114,19 @@ export function Sidebar({
         <TaskProjects projects={projects} pathname={pathname} onNavigate={onNavigate} />
       </div>
 
-      <div className="border-t border-border pt-2">
-        {navLink(workspacePath(workspace.shortId, "/profile"), t.profile.link, "👤")}
-        {!guest && navLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
-        {navLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
-        {user.isPlatformAdmin && navLink("/admin", t.platform.link, "🛰️")}
-        {navLink("/help", t.help.link, "❓")}
-        <div className="mt-2">
-          <PreferencesSwitch />
-        </div>
-        <div className="mt-2 flex items-center gap-2 px-3">
-          <span className="min-w-0 flex-1 truncate text-xs text-muted" title={user.email}>
-            {user.email}
+      <div className="flex flex-col gap-1 border-t border-border pt-2" data-sidebar-bottom>
+        <div className="flex flex-wrap items-center gap-0.5 px-1">
+          {iconLink(workspacePath(workspace.shortId, "/profile"), t.profile.link, "👤", `${t.profile.link} · ${user.email}`)}
+          {!guest && iconLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
+          {iconLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
+          {user.isPlatformAdmin && iconLink("/admin", t.platform.link, "🛰️")}
+          {iconLink("/help", t.help.link, "❓")}
+          <span className="ml-auto">
+            <SignOutButton icon />
           </span>
-          <SignOutButton />
+        </div>
+        <div className="px-1">
+          <PreferencesSwitch compact />
         </div>
       </div>
     </nav>

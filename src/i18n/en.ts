@@ -820,6 +820,7 @@ export const en: Dictionary = {
     addSubpage: "Add subpage",
     moreActions: "Page actions",
     dragHint: "Drag to move. On a phone, press and hold.",
+    resize: "Panel width: drag with the mouse or use the arrow keys; double-click to reset",
   },
   pages: {
     untitled: "Untitled",

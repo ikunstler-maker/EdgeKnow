@@ -62,7 +62,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the angler fish sits to the left of the current page in the tree", await beside());
   await alice.goto(`${APP}/w/${alphaShort}/trash`);
   await alice.waitForTimeout(900);
-  check("…and of the trash link when that is where you are", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Кошик") && (await beside()));
+  check("…and of the trash link when that is where you are", (await alice.locator("aside [data-angler-here]").first().getAttribute("aria-label")) === "Кошик" && (await beside()));
   check("the lure replaces the old feedback button", (await alice.locator('[data-lure="bright"]').getByRole("button", { name: "Залишити відгук" }).count()) === 1);
   for (let i = 0; i < 3; i++) await fish.click();
   await alice.waitForTimeout(300);
