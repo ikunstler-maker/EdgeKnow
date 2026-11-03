@@ -30,7 +30,38 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # A merge into main whose files are exactly those of a pull request commit that
+  # already passed every test of this workflow does not run the same tests again
+  # (about 35 Actions minutes saved per merge). Anything else is tested in full.
+  tested:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          skip=false
+          if [ "${{ github.event_name }}" = push ] && head=$(git rev-parse -q --verify HEAD^2); then
+            if [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "$head^{tree}")" ]; then
+              passed=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$head&event=pull_request&status=success" \
+                --jq '[.workflow_runs[] | select(.path == ".github/workflows/db-migrate.yml")] | length')
+              [ "${passed:-0}" -gt 0 ] && skip=true
+            fi
+          fi
+          echo "Same files as a tested pull request commit: $skip"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
   test:
+    needs: tested
+    if: needs.tested.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -54,6 +85,8 @@ jobs:
 
   # Real HTTP requests (Auth + PostgREST + RLS) prove two workspaces can't see each other.
   api:
+    needs: tested
+    if: needs.tested.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -73,6 +106,8 @@ jobs:
   # Then click through the app in a real browser, in independent parts at the same
   # time — each on its own machine with its own local Supabase (scripts/e2e/).
   e2e:
+    needs: tested
+    if: needs.tested.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -157,6 +192,8 @@ jobs:
 
   # Path C: two local Supabase stacks stand in for two teams' own projects.
   team:
+    needs: tested
+    if: needs.tested.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -174,11 +211,18 @@ jobs:
         run: node --experimental-strip-types scripts/team-isolation.mjs .team-stacks
 
   migrate:
-    needs: [test, api, e2e, team]
+    needs: [tested, test, api, e2e, team]
     concurrency:
       group: db-migrate-production
       cancel-in-progress: false
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Runs only after every test passed here, or when they were skipped because the
+    # very same files already passed them in the pull request.
+    if: >-
+      always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      needs.tested.result == 'success' &&
+      (needs.tested.outputs.skip == 'true' ||
+       (needs.test.result == 'success' && needs.api.result == 'success' &&
+        needs.e2e.result == 'success' && needs.team.result == 'success'))
     runs-on: ubuntu-24.04
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
