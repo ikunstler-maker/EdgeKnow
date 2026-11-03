@@ -5,7 +5,7 @@ import { Chart, registerables } from "chart.js";
 import { dateLocale, t } from "@/i18n";
 import { useResolvedTheme } from "@/lib/use-theme";
 import { deleteSurveyResponse, surveyAnswers } from "@/app/survey-actions";
-import { allQuestions, answerText, summarize, type QuestionSummary, type SurveyData, type SurveyResponse } from "@/lib/surveys";
+import { allQuestions, answerText, summarize, type QuestionSummary, type SurveyData, type SurveyFiles, type SurveyResponse } from "@/lib/surveys";
 
 Chart.register(...registerables);
 
@@ -31,11 +31,14 @@ export function SurveyResults({
   refreshKey?: number;
 }) {
   const [responses, setResponses] = useState<SurveyResponse[] | null>(null);
+  const [files, setFiles] = useState<SurveyFiles>({});
   const [failed, setFailed] = useState(false);
   const load = useCallback(async () => {
     const list = await surveyAnswers(shortId, id).catch(() => null);
-    if (list) setResponses(list);
-    else setFailed(true);
+    if (list) {
+      setResponses(list.responses);
+      setFiles(list.files);
+    } else setFailed(true);
   }, [shortId, id]);
   useEffect(() => {
     let live = true;
@@ -43,8 +46,10 @@ export function SurveyResults({
       .catch(() => null)
       .then((list) => {
         if (!live) return;
-        if (list) setResponses(list);
-        else setFailed(true);
+        if (list) {
+          setResponses(list.responses);
+          setFiles(list.files);
+        } else setFailed(true);
       });
     return () => {
       live = false;
@@ -53,7 +58,7 @@ export function SurveyResults({
 
   if (failed) return <p className="text-sm text-muted">{r.onlyManagers}</p>;
   if (!responses) return <p className="text-sm text-muted">{r.loading}</p>;
-  const summaries = summarize(survey, responses);
+  const summaries = summarize(survey, responses, files);
   const questions = allQuestions(survey);
   const when = (value: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 
@@ -97,10 +102,27 @@ export function SurveyResults({
                     {[...responses].reverse().map((response) => (
                       <tr key={response.id} data-survey-response>
                         <td className="whitespace-nowrap px-3 py-2 text-muted">{when(response.updated_at)}</td>
-                        <td className="whitespace-nowrap px-3 py-2">{response.name || response.email || r.anonymous}</td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {response.name || response.email || r.anonymous}
+                          {response.public && (
+                            <span className="ml-1 rounded bg-surface px-1 text-xs text-muted" title={r.viaLinkHint}>
+                              {r.viaLink}
+                            </span>
+                          )}
+                        </td>
                         {questions.map((q) => (
                           <td key={q.id} className="max-w-64 px-3 py-2 align-top">
-                            {answerText(q, response.answers?.[q.id])}
+                            {q.type === "file" && Array.isArray(response.answers?.[q.id]) ? (
+                              <span className="flex flex-col gap-0.5">
+                                {(response.answers[q.id] as string[]).map((fileId) => (
+                                  <a key={fileId} href={`/api/surveys/files/${fileId}?ws=${shortId}`} className="truncate text-accent hover:underline" data-survey-file>
+                                    📎 {files[fileId]?.name ?? "…"}
+                                  </a>
+                                ))}
+                              </span>
+                            ) : (
+                              answerText(q, response.answers?.[q.id], files)
+                            )}
                           </td>
                         ))}
                         {canDelete && (

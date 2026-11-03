@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 const securityHeaders = [
   {
     key: "Content-Security-Policy",
-    value: "frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+    value: "frame-src https://www.youtube-nocookie.com https://challenges.cloudflare.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
   },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

@@ -19,6 +19,15 @@ const ALWAYS_PUBLIC_PATHS = [
   "/oidc/jwks",
 ];
 
+// Open to everyone, signed in or not and with or without a workspace: the
+// presentation page, a survey's link for anyone and its file uploads (step О3).
+const OPEN_PREFIXES = ["/f/", "/api/f/"];
+const OPEN_PATHS = ["/about"];
+
+function isOpenPath(pathname: string) {
+  return OPEN_PATHS.includes(pathname) || OPEN_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
@@ -71,12 +80,14 @@ export async function updateSession(request: NextRequest) {
     return redirect;
   };
 
-  if (ALWAYS_PUBLIC_PATHS.includes(pathname)) {
+  if (ALWAYS_PUBLIC_PATHS.includes(pathname) || isOpenPath(pathname)) {
     return response;
   }
 
   if (!signedIn) {
     if (isPublicPath(pathname)) return response;
+    // Someone not signed in who opens the site sees what it is first.
+    if (pathname === "/") return redirectTo("/about");
     // Come back here after signing in; a workspace link also gives Google its domain hint.
     const params: Record<string, string> = {};
     if (pathname !== "/") params.next = pathname + search;
