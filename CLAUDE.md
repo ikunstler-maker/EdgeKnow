@@ -6,6 +6,10 @@ Source of truth: `docs/SPEC.md` (Ukrainian) + owner-approved `docs/decisions.md`
 Open work: `docs/backlog.md`. DB rules: `.claude/rules/supabase.md`. UI/i18n rules: `.claude/rules/ui-i18n.md`.
 Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries per `docs/MASTER_GUIDE.md` A2). Terms: `docs/GLOSSARY.md`.
 
+## Session start (automatic, the owner doesn't need to ask)
+- On the first message of a session: read `docs/backlog.md` and `tail -n 10 docs/decisions.md`; grep `docs/TROUBLESHOOTING.md` when debugging.
+- Then do what the owner asks. A new feature/step → short plan with "Готово, коли", wait for OK. A question or small fix → answer/do it directly.
+
 ## Communication
 - Owner is a non-developer: reply in plain Ukrainian, formal «ви». Short, no fluff, no code dumps in chat.
 - No subagents unless the owner asks.
