@@ -44,6 +44,8 @@ function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string; pageEd
   const [tick, setTick] = useState(0);
   const version = useRef(0);
   const busy = useRef(false);
+  // A fresh version read while a change was being saved: looked at again once it is saved.
+  const missed = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const box = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,11 @@ function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string; pageEd
     if (!shortId || !boardId) return;
     let alive = true;
     boardView(shortId, boardId).then((result) => {
-      if (!alive || busy.current) return;
+      if (!alive) return;
+      if (busy.current) {
+        missed.current = true;
+        return;
+      }
       if (result && result.version === version.current) return;
       version.current = result?.version ?? 0;
       setView(result);
@@ -92,6 +98,10 @@ function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string; pageEd
       startTransition(async () => {
         const result = await saveBoard(shortId, view.id, null, data, version.current);
         busy.current = false;
+        if (missed.current) {
+          missed.current = false;
+          setTick((n) => n + 1);
+        }
         if (result.ok) {
           version.current = result.version;
           setNotice(null);

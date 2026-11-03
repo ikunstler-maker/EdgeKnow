@@ -261,6 +261,20 @@ export const en: Dictionary = {
     access: "⚙️ Access",
     accessTitle: "Access to the table",
     accessIntro: "The table's owner and the workspace's owner and admins always manage it.",
+    embed: {
+      title: "Table",
+      subtext: "A table or one of its charts from “Tables” right on the page, updating by itself",
+      aliases: ["table", "таблиця", "excel", "spreadsheet", "sheet", "chart", "діаграма", "graph"],
+      choose: "Choose a table…",
+      whole: "The whole table",
+      chart: (name: string) => `Chart “${name}”`,
+      empty: "No table chosen yet.",
+      loading: "Loading the table…",
+      noAccess: "No access to this table.",
+      noChart: "This chart is no longer in the table.",
+      openEditor: "Open in the editor",
+      conflict: "The table was just changed elsewhere — showing the fresh version; please repeat your change.",
+    },
     files: {
       open: "⬆️ Open a file (Excel, CSV)",
       addSheets: "⬆️ Add sheets from a file",
@@ -1526,6 +1540,7 @@ export const en: Dictionary = {
     mapResults: "Maps and diagrams",
     boards: "Boards",
     boardResults: "Boards",
+    sheets: "Tables",
     kindSaid: (kind: string) => `Finding by kind: ${kind.toLowerCase()}. Words after the kind narrow it down.`,
     kinds: {
       heading: "Headings",

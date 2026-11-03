@@ -1,7 +1,7 @@
 "use client";
 
 import "@fortune-sheet/react/dist/index.css";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import { currentLocale } from "@/i18n";
 import { formatForFormula, installSheetFunctions } from "@/lib/sheet-functions";
@@ -36,47 +36,59 @@ export default function SheetEditor({
   const book = useRef<WorkbookInstance>(null);
   const first = useRef(true);
   const last = useRef<string>("");
-  const data = useMemo(() => initial.sheets as never, [initial]);
+  // The editor takes its data once: a new workbook (another table, sheets added
+  // from a file) opens it again under a new key. Handing it a new copy on every
+  // render would make it start over each time.
+  const [data] = useState(() => initial.sheets as never);
+  const callbacks = useRef({ onChange, onSelection });
   useEffect(() => {
-    first.current = true;
-  }, [initial]);
+    callbacks.current = { onChange, onSelection };
+  });
+  const hooks = useMemo(
+    () => ({
+      afterSelectionChange: (sheetId: string, selection: { row: number[]; column: number[] }) => {
+        const notify = callbacks.current.onSelection;
+        if (!notify || !selection?.row || !selection?.column) return;
+        const sheet = book.current?.getAllSheets().find((one) => one.id === sheetId);
+        if (sheet) notify(String(sheet.name), rangeOf(selection.row, selection.column));
+      },
+      // A date from =DATE(…) is shown as a date, as in Excel (the cell keeps its own format if it has one).
+      afterUpdateCell: (row: number, column: number, _old: unknown, cell: { f?: string; ct?: { fa?: string } } | null) => {
+        const format = cell?.f ? formatForFormula(cell.f) : null;
+        if (format && (!cell?.ct?.fa || cell.ct.fa === "General")) setTimeout(() => book.current?.setCellFormat(row, column, "ct", format), 0);
+      },
+    }),
+    [],
+  );
+  const handleChange = useMemo(
+    () => (sheets: Record<string, unknown>[]) => {
+      const stored = toStored(sheets);
+      const key = JSON.stringify(stored);
+      // The first call is the workbook as loaded.
+      if (first.current) {
+        first.current = false;
+        last.current = key;
+        return;
+      }
+      if (key === last.current) return;
+      last.current = key;
+      callbacks.current.onChange(stored);
+    },
+    [],
+  );
   return (
     <div className="h-full w-full" data-sheet-editor>
       <Workbook
         ref={book}
         data={data}
-        hooks={{
-          afterSelectionChange: (sheetId: string, selection: { row: number[]; column: number[] }) => {
-            if (!onSelection || !selection?.row || !selection?.column) return;
-            const sheet = book.current?.getAllSheets().find((one) => one.id === sheetId);
-            if (sheet) onSelection(String(sheet.name), rangeOf(selection.row, selection.column));
-          },
-          // A date from =DATE(…) is shown as a date, as in Excel (the cell keeps its own format if it has one).
-          afterUpdateCell: (row: number, column: number, _old: unknown, cell: { f?: string; ct?: { fa?: string } } | null) => {
-            const format = cell?.f ? formatForFormula(cell.f) : null;
-            if (format && (!cell?.ct?.fa || cell.ct.fa === "General")) setTimeout(() => book.current?.setCellFormat(row, column, "ct", format), 0);
-          },
-        }}
+        hooks={hooks}
         lang={currentLocale() === "en" ? "en" : "uk"}
         currency={currentLocale() === "en" ? "$" : "₴"}
         allowEdit={editable}
         showToolbar={editable}
         toolbarItems={TOOLBAR}
         cellContextMenu={CELL_MENU}
-        onChange={(sheets: Record<string, unknown>[]) => {
-          if (!editable) return;
-          const stored = toStored(sheets);
-          const key = JSON.stringify(stored);
-          // The first call is the workbook as loaded.
-          if (first.current) {
-            first.current = false;
-            last.current = key;
-            return;
-          }
-          if (key === last.current) return;
-          last.current = key;
-          onChange(stored);
-        }}
+        onChange={editable ? handleChange : undefined}
       />
     </div>
   );
