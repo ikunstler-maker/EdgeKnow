@@ -1,0 +1,12 @@
+bob adds a picture: true, path: true
+not a picture: {"ok": false, "error": "invalid_file"}
+too big: {"ok": false, "error": "invalid_file"}
+not on a map: {"ok": false, "error": "forbidden"}
+bob sees it: 1
+over the workspace's limit: {"ok": false, "error": "quota_exceeded"}
+a viewer sees it: 1
+a viewer doesn't add: {"ok": false, "error": "forbidden"}
+outsider sees: 0
+outsider adds: {"ok": false, "error": "forbidden"}
+direct writes refused: false false
+deleted with the board, then cleaned up: 0 1

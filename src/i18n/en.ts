@@ -1238,7 +1238,7 @@ export const en: Dictionary = {
     oneStorage: "All of the workspace's files — page images and covers, task files — are kept in one place, shown above.",
     teamStorage: "Files are kept in your team database's storage.",
     pageFiles: (count: number) => `Page images and covers: ${count}.`,
-    taskFiles: (count: number, size: string) => `Task files: ${count} (${size}).`,
+    taskFiles: (count: number, size: string) => `Task files and board pictures: ${count} (${size}).`,
     notHere: (count: number) => `Not here yet: ${count}. They open from their old place until moved.`,
     allHere: "All files are already here.",
     moveAll: "Move all files here",

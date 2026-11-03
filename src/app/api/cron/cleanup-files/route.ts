@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ removed: central + teams, health, domains, rekeyed });
 }
 
-const TASK_FILE_PATH = /^[0-9a-f-]{36}\/tasks\//;
+// Task files and board pictures share their bucket.
+const TASK_FILE_PATH = /^[0-9a-f-]{36}\/(tasks|objects)\//;
 
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
@@ -55,13 +56,14 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   if (!found.length) return 0;
   // A path that has a record again (a workspace moved back and forth) keeps its file.
   const paths = found.map((row) => row.storage_path as string);
-  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }] = await Promise.all([
+  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }] = await Promise.all([
     rows.from("attachments").select("storage_path").in("storage_path", paths),
-    // Task files (a table that may not exist yet in an older team database).
+    // Task files and board pictures (tables that may not exist yet in an older team database).
     rows.from("task_files").select("storage_path").in("storage_path", paths),
+    rows.from("object_files").select("storage_path").in("storage_path", paths),
   ]);
   if (inUseError) return null;
-  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? [])].map((row) => row.storage_path as string));
+  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? [])].map((row) => row.storage_path as string));
   if (used.size) await rows.from("attachment_tombstones").delete().in("storage_path", [...used]);
   const tombstones = found.filter((row) => !used.has(row.storage_path as string));
 
