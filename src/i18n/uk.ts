@@ -170,6 +170,17 @@ export const uk = {
     access: "⚙️ Доступ",
     accessTitle: "Доступ до дошки",
     accessIntro: "Власник дошки, власник і адміністратори workspace завжди нею керують.",
+    embed: {
+      title: "Дошка",
+      subtext: "Дошка з розділу «Дошки» прямо на сторінці, оновлюється сама",
+      aliases: ["дошка", "board", "miro", "whiteboard", "стікери", "полотно", "excalidraw"],
+      choose: "Виберіть дошку…",
+      empty: "Дошку ще не вибрано.",
+      loading: "Завантажую дошку…",
+      noAccess: "Немає доступу до цієї дошки.",
+      openEditor: "Відкрити в редакторі",
+      conflict: "Дошку щойно змінили в іншому місці — показую свіжу версію; повторіть зміну.",
+    },
     templates: {
       button: "📐 Шаблон",
       title: "Почати з шаблону",
@@ -1456,6 +1467,8 @@ export const uk = {
     kindText: "Текст",
     maps: "Карти",
     mapResults: "Карти й схеми",
+    boards: "Дошки",
+    boardResults: "Дошки",
     kindSaid: (kind: string) => `Шукаю за типом: ${kind.toLowerCase()}. Слова після типу звужують пошук.`,
     kinds: {
       heading: "Заголовки",

@@ -161,6 +161,17 @@ export const en: Dictionary = {
     access: "⚙️ Access",
     accessTitle: "Access to the board",
     accessIntro: "The board's owner and the workspace's owner and admins always manage it.",
+    embed: {
+      title: "Board",
+      subtext: "A board from “Boards” right on the page, updating by itself",
+      aliases: ["board", "дошка", "miro", "whiteboard", "sticky notes", "canvas", "excalidraw"],
+      choose: "Choose a board…",
+      empty: "No board chosen yet.",
+      loading: "Loading the board…",
+      noAccess: "No access to this board.",
+      openEditor: "Open in the editor",
+      conflict: "The board was just changed elsewhere — showing the fresh version; please repeat your change.",
+    },
     templates: {
       button: "📐 Template",
       title: "Start from a template",
@@ -1441,6 +1452,8 @@ export const en: Dictionary = {
     kindText: "Text",
     maps: "Maps",
     mapResults: "Maps and diagrams",
+    boards: "Boards",
+    boardResults: "Boards",
     kindSaid: (kind: string) => `Finding by kind: ${kind.toLowerCase()}. Words after the kind narrow it down.`,
     kinds: {
       heading: "Headings",
