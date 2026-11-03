@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, finish, readdirSync, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
 const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
