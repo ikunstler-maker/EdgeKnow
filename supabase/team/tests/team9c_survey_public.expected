@@ -1,0 +1,4 @@
+bob turns the link on: 32
+psql: ERROR:  permission denied for function submit_public_survey_response
+the server answers through it: {"ok": true}
+kept: {"q": "from outside"} true

@@ -47,6 +47,8 @@ const TASK_FILE_PATH = /^[0-9a-f-]{36}\/(tasks|objects)\//;
 
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
+  // Survey files added but never sent with an answer (after a day) go the same way.
+  await rows.rpc("clean_survey_files");
   const { data: found, error } = await rows
     .from("attachment_tombstones")
     .select("storage_path, storage_backend, drive_connection_id, drive_file_id")

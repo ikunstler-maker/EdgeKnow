@@ -1,0 +1,28 @@
+a member who only answers turns the link on: {"ok": false, "error": "forbidden"}
+the owner turns it on: true, token 32
+a member adds a file: true
+a file of the wrong kind: {"ok": false, "error": "invalid_file"}
+a file too big: {"ok": false, "error": "invalid_file"}
+psql: ERROR:  permission denied for function public_survey
+psql: ERROR:  permission denied for function submit_public_survey_response
+psql: ERROR:  permission denied for function register_public_survey_file
+the server reads it: {"ok": true, "once": true, "title": "Open poll", "closed": false, "anonymous": false}
+a wrong token: {"ok": false, "error": "not_found"}
+required still required: {"ok": false, "error": "required", "question": "q"}
+another survey's file: {"ok": false, "error": "invalid"}
+an answer with its file: {"ok": true}
+kept as: true no account Dana dana@elsewhere.test
+once per signed-in person: {"ok": false, "error": "already_answered"}
+answers: truetruetruetrue
+the sixth from one visitor in 10 minutes: {"ok": false, "error": "rate_limited"}
+another visitor: true
+hits keep no address: 6 true
+a file through the link: true
+the owner reads: Dana:true —:true —:true —:true —:true —:true, files 2
+a member who only answers sees the survey's files: 0
+a new link: true
+the old link: {"ok": false, "error": "not_found"}
+turned off: false
+the link when off: {"ok": false, "error": "not_found"}
+files never sent go after a day: 1 removed
+kept (sent with an answer): cv.pdf
