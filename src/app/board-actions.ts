@@ -105,3 +105,55 @@ export async function createTaskFromSticky(shortId: string, projectId: string, t
   if (error || !data) return { ok: false, error: "unknown" } as ActionResult<{ id: string; key: string }>;
   return data as ActionResult<{ id: string; key: string }>;
 }
+
+// Step Д4: boards inside wiki pages (read live with the reader's own access —
+// someone who can't open the board gets nothing) and in search.
+
+export type BoardSummary = { id: string; title: string };
+export type BoardView = BoardSummary & { data: unknown; version: number; canEdit: boolean };
+
+export async function boardsForEmbed(shortId: string): Promise<BoardSummary[]> {
+  const workspace = await getWorkspace(shortId);
+  if (!workspace) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db
+    .from("service_objects")
+    .select("id, title")
+    .eq("workspace_id", workspace.id)
+    .eq("service", "boards")
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+  return (data ?? []) as BoardSummary[];
+}
+
+export async function boardView(shortId: string, id: string): Promise<BoardView | null> {
+  if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+  const db = await dataClient(shortId);
+  const [{ data }, { data: role }] = await Promise.all([
+    db.from("service_objects").select("id, title, data, version, deleted_at").eq("id", id).eq("service", "boards").maybeSingle(),
+    db.rpc("service_object_role", { target_object: id }),
+  ]);
+  if (!data || !role || data.deleted_at) return null;
+  return { id: data.id, title: data.title, data: data.data, version: data.version, canEdit: role === "owner" || role === "editor" };
+}
+
+export type BoardHit = BoardSummary & { snippet: string };
+
+// Boards whose name, sticky notes or frames have the words (search "Дошки").
+export async function searchBoards(shortId: string, query: string): Promise<BoardHit[]> {
+  const workspace = await getWorkspace(shortId);
+  if (!workspace) return [];
+  const db = await dataClient(shortId);
+  const words = query.trim().slice(0, 200);
+  let request = db.from("service_objects").select("id, title, search_text").eq("workspace_id", workspace.id).eq("service", "boards").is("deleted_at", null);
+  if (words) {
+    const like = `%${words.replace(/[%_\\,()]/g, " ")}%`;
+    request = request.or(`title.ilike.${like},search_text.ilike.${like}`);
+  }
+  const { data } = await request.order("updated_at", { ascending: false }).limit(20);
+  return ((data ?? []) as (BoardSummary & { search_text: string })[]).map((row) => {
+    const at = words ? row.search_text.toLowerCase().indexOf(words.toLowerCase()) : -1;
+    return { id: row.id, title: row.title, snippet: at >= 0 ? row.search_text.slice(Math.max(0, at - 30), at + words.length + 50) : row.search_text.slice(0, 80) };
+  });
+}

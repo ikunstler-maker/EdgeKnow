@@ -260,12 +260,48 @@ check("…while a map they may view shows as usual", shownMap, screen);
   const pictureId = sql(`select id from public.object_files where object_id = '${retroId}'`);
   const served = await alice.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${r.headers.get("content-type")}`; }, `/api/boards/files/${pictureId}?ws=${alphaShort}`);
   check("…it opens for people who see the board", /^200 image\//.test(served), served);
+  await bob.goto(`${APP}/`);
   const strangerPicture = await bob.evaluate(async (url) => (await fetch(url)).status, `${APP}/api/boards/files/${pictureId}?ws=${alphaShort}`).catch(() => 0);
   check("…and not for someone from another workspace", strangerPicture !== 200, String(strangerPicture));
   const fetchedAgain = alice.waitForResponse((r) => r.url().includes(`/api/boards/files/${pictureId}`), { timeout: 30000 }).then((r) => r.status()).catch(() => 0);
   await alice.reload();
   const reloadedPicture = await fetchedAgain;
   check("…after reloading the board fetches it again", reloadedPicture === 200, String(reloadedPicture));
+
+
+  // Step Д4: the board on a wiki page — live, sticky notes added in place; search finds its notes.
+  sql(`update public.service_objects set title = 'Retro board', version = version + 1 where id = '${retroId}'`);
+  const boardPage = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Board notes" })).data.id;
+  const boardPageSaved = await aliceClient.rpc("save_page_content", { target_page: boardPage, new_content: [{ id: "b1", type: "boardEmbed", props: { boardId: retroId }, children: [] }], base_version: 1 });
+  check("(setup) a page with a board", boardPageSaved.data?.ok === true, JSON.stringify(boardPageSaved.data));
+  await alice.goto(`${APP}/w/${alphaShort}/p/${boardPage}`);
+  const boardEmbed = alice.locator('[data-board-embed="Retro board"]');
+  await boardEmbed.locator("[data-board-embed-canvas] canvas").first().waitFor({ timeout: 30000 });
+  const stickiesOnRetro = () => Number(sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${retroId}' and e -> 'customData' ->> 'sticky' = 'true'`));
+  const before = stickiesOnRetro();
+  // A narrow board (on a page) shows only the current colour.
+  await boardEmbed.locator("[data-sticky-color]").first().click();
+  check("a board shows on a wiki page and takes a sticky note right there", await until(() => stickiesOnRetro() === before + 1, 20000), `${before} → ${stickiesOnRetro()}`);
+  check("…with a link to the editor", (await boardEmbed.getByRole("link", { name: /Відкрити в редакторі/ }).count()) === 1);
+  await alice.waitForTimeout(1500);
+  sql(`update public.service_objects set title = 'Retro board 2', version = version + 1 where id = '${retroId}'`);
+  await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await alice.locator('[data-board-embed="Retro board 2"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-board-embed="Retro board 2"]').count()) === 1);
+
+  await alice.getByRole("button", { name: /Пошук/ }).first().click();
+  await alice.getByRole("button", { name: "🎨 Дошки" }).click();
+  await alice.getByLabel(/Шукати в назвах/).fill("login page");
+  await alice.locator("[data-board-results]").getByText("Retro board 2").waitFor({ timeout: 15000 }).catch(() => {});
+  check("search “Boards” finds a board by the text of its sticky notes", (await alice.locator("[data-board-results]").getByText("Retro board 2").count()) === 1);
+  await alice.keyboard.press("Escape");
+
+  sql(`update public.service_objects set workspace_role = null where id = '${retroId}'`);
+  sql(`update public.pages set workspace_role = 'viewer' where id = '${boardPage}'`);
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${boardPage}`);
+  await colleague.getByText("Немає доступу до цієї дошки.").waitFor({ timeout: 20000 }).catch(() => {});
+  check("someone without access to a board sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї дошки.").count()) === 1 && (await colleague.getByText("Retro board 2").count()) === 0);
+  sql(`update public.service_objects set workspace_role = 'editor' where id = '${retroId}'`);
 
   await bob.goto(`${APP}/w/${alphaShort}/boards/${boardId}`);
   check("someone from another workspace sees nothing of the board", (await bob.getByText("Retro").count()) === 0);

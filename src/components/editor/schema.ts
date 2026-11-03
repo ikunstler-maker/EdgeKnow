@@ -14,6 +14,7 @@ import { calloutBlock } from "./callout-block";
 import { dropdownChip, pageChip, personChip } from "./chips";
 import { taskChip, tasksBlock } from "./task-blocks";
 import { nodeMapBlock } from "./node-map-block";
+import { boardBlock } from "./board-block";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
 import { linkCardBlock } from "./link-card-block";
@@ -105,6 +106,7 @@ export const schema = BlockNoteSchema.create({
     navigation: navigationBlock(),
     tasks: tasksBlock(),
     nodeMap: nodeMapBlock(),
+    boardEmbed: boardBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

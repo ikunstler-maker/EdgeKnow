@@ -34,6 +34,7 @@ type Element = { id: string; type: string; x: number; y: number; width: number; 
 // drawn over it. Only real changes of the drawing are reported, not zooming or
 // selecting.
 export default function BoardCanvas({
+  compact = false,
   shortId,
   boardId,
   onPictureError,
@@ -47,6 +48,8 @@ export default function BoardCanvas({
   onVote,
   chips,
 }: {
+  // Inside a wiki page (step Д4): no template chooser.
+  compact?: boolean;
   shortId?: string;
   boardId?: string;
   onPictureError?: (message: string) => void;
@@ -67,7 +70,7 @@ export default function BoardCanvas({
   const [color, setColor] = useState<StickyColor>("yellow");
   const [view, setView] = useState({ scrollX: 0, scrollY: 0, zoom: 1 });
   const [elements, setElements] = useState<readonly Element[]>(initial.elements as Element[]);
-  const [chooser, setChooser] = useState(editable && initial.elements.length === 0);
+  const [chooser, setChooser] = useState(editable && !compact && initial.elements.length === 0);
   const box = useRef<HTMLDivElement>(null);
   const last = useRef<string | null>(null);
   const grid = useRef(Boolean(initial.appState.gridModeEnabled));
