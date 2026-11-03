@@ -140,6 +140,31 @@ const STAGES: Stage[] = [
     onConflict: "object_id,group_id",
     replace: true,
   },
+  // Surveys: how each takes answers, the answers and who answered (copied whole each time).
+  {
+    name: "survey settings",
+    table: "survey_settings",
+    columns: "object_id, workspace_id, anonymous, once, editable, accepting, closes_at, max_responses, sheet_id, sheet_name, sheet_columns, sheet_labels, sheet_full, updated_by, updated_at",
+    order: "object_id",
+    onConflict: "object_id",
+    replace: true,
+  },
+  {
+    name: "survey answers",
+    table: "survey_responses",
+    columns: "id, object_id, workspace_id, user_id, answers, sheet_row, created_at, updated_at",
+    order: "id",
+    onConflict: "id",
+    replace: true,
+  },
+  {
+    name: "who answered surveys",
+    table: "survey_respondents",
+    columns: "object_id, workspace_id, user_id",
+    order: "object_id,user_id",
+    onConflict: "object_id,user_id",
+    replace: true,
+  },
   { name: "tasks", table: "tasks", columns: TASK_COLUMNS, order: "id", onConflict: "id", flatten: true },
   { name: "task tree", table: "tasks", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
   // Pages that mention tasks (after both are there; the pages' own trigger can't see tasks yet).
@@ -172,7 +197,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 

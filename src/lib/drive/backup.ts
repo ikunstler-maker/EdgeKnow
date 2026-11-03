@@ -91,6 +91,8 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
     group_members: await rows(of("workspace_group_members", "group_id, user_id, added_at", admin)),
     page_group_access: await rows(of("page_group_access", "page_id, group_id, role, granted_by, created_at")),
     service_objects: await rows(of("service_objects", "id, service, kind, title, data, owner_id, workspace_role, created_at, updated_at, deleted_at")),
+    survey_settings: await rows(of("survey_settings", "object_id, anonymous, once, editable, accepting, closes_at, max_responses, sheet_id, sheet_name, updated_at")),
+    survey_responses: await rows(of("survey_responses", "id, object_id, user_id, answers, created_at, updated_at")),
     task_projects: await rows(of("task_projects", "id, key, name, icon, workspace_role, created_at, archived_at")),
     task_statuses: await rows(of("task_statuses", "id, project_id, name, category, position")),
     task_fields: await rows(of("task_fields", "id, project_id, name, kind, options, required, task_types, position")),
