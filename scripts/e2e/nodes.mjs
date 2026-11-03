@@ -508,7 +508,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   const visitor = await newPage();
   await visitor.goto(url);
   await visitor.locator("[data-public-survey] [data-survey-form]").waitFor({ timeout: 20000 }).catch(() => {});
-  check("someone without an account opens the form through the link", (await visitor.getByText("Pick one").count()) === 1 && !visitor.url().includes("/login"));
+  check("someone without an account opens the form through the link", (await visitor.locator('[data-question="Pick one"]').count()) === 1 && !visitor.url().includes("/login"));
   check("…sees the file question with “sign in to add a file”", (await visitor.locator("[data-survey-file-signin]").count()) === 1 && (await visitor.locator('input[type="file"]').count()) === 0);
   check("…and nothing else of the workspace", (await visitor.locator("aside").count()) === 0 && (await visitor.getByText("Alpha secret").count()) === 0);
   await visitor.getByRole("radio", { name: "Blue" }).check();
