@@ -12,7 +12,7 @@ type RecentTask = { number: number; title: string; project: { key: string } | nu
 // The start page: a tile per service with what was used last; services still
 // being built show as "Soon", so they can be seen (and tried) as they appear.
 export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: SupabaseClient; workspaceId: string; shortId: string; userId: string }) {
-  const [{ data: pages }, { data: tasks }, { count: myOpen }, { data: maps }, { data: boards }, { data: sheets }] = await Promise.all([
+  const [{ data: pages }, { data: tasks }, { count: myOpen }, { data: maps }, { data: boards }, { data: sheets }, { data: surveys }] = await Promise.all([
     db.from("pages").select("id, title, icon").eq("workspace_id", workspaceId).is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
     db
       .from("tasks")
@@ -26,12 +26,14 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
     db.from("service_objects").select("id, title, kind").eq("workspace_id", workspaceId).eq("service", "nodes").is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
     db.from("service_objects").select("id, title").eq("workspace_id", workspaceId).eq("service", "boards").is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
     db.from("service_objects").select("id, title").eq("workspace_id", workspaceId).eq("service", "sheets").is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
+    db.from("service_objects").select("id, title").eq("workspace_id", workspaceId).eq("service", "surveys").is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
   ]);
   const recent: Record<string, { href: string; label: string }[]> = {
     wiki: ((pages ?? []) as RecentPage[]).map((p) => ({ href: pagePath(shortId, p.id), label: `${p.icon ?? "📄"} ${p.title || t.pages.untitled}` })),
     nodes: ((maps ?? []) as { id: string; title: string; kind: string }[]).map((m) => ({ href: workspacePath(shortId, `/nodes/${m.id}`), label: `${m.kind === "flow" ? "🔀" : "🧠"} ${m.title || t.nodes.untitled}` })),
     boards: ((boards ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/boards/${m.id}`), label: `🎨 ${m.title || t.boards.untitled}` })),
     sheets: ((sheets ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/sheets/${m.id}`), label: `📊 ${m.title || t.sheets.untitled}` })),
+    surveys: ((surveys ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/surveys/${m.id}`), label: `📝 ${m.title || t.surveys.untitled}` })),
     tasks: (tasks ?? []).flatMap((task) =>
       task.project ? [{ href: workspacePath(shortId, `/tasks/${task.project.key}/${task.number}`), label: `${task.project.key}-${task.number} ${task.title}` }] : [],
     ),
