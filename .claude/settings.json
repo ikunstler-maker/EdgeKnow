@@ -2,6 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(gh api -X PUT repos/ikunstler-maker/EdgeKnow/pulls/*/merge -f merge_method=merge*)"
+    ],
+    "deny": [
+      "Read(./node_modules/**)",
+      "Read(./.next/**)",
+      "Read(./package-lock.json)",
+      "Read(./public/**/*.webp)",
+      "Read(./public/**/*.png)",
+      "Read(./public/**/*.jpg)",
+      "Read(./public/excalidraw-assets/**)",
+      "Read(./**/*.min.js)",
+      "Read(./**/*.map)"
     ]
   }
 }
