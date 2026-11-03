@@ -335,6 +335,41 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("search reads the table's cells", await until(() => sql(`select search_text from public.service_objects where id = '${sheetId}'`).includes("42"), 10000));
   await colleague.goto(`${APP}/w/${alphaShort}/sheets`);
   check("a colleague sees the team's table in the list", (await colleague.locator('[data-sheet="Budget"]').count()) === 1);
+
+  // Step Т2: saving as Excel and CSV, and a new table from an Excel file.
+  const ExcelJS = (await import("exceljs")).default;
+  const { mkdtempSync, writeFileSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(`${tmpdir()}/sheets-`);
+  const [xlsxDownload] = await Promise.all([alice.waitForEvent("download", { timeout: 20000 }), alice.locator("[data-sheet-files]").getByRole("button", { name: "⬇️ Excel" }).click()]);
+  await xlsxDownload.saveAs(`${dir}/budget.xlsx`);
+  const saved = new ExcelJS.Workbook();
+  await saved.xlsx.load(readFileSync(`${dir}/budget.xlsx`));
+  const total = saved.worksheets[0].getCell("A3").value;
+  check("a table saves as an Excel file with its formulas and results", xlsxDownload.suggestedFilename() === "Budget.xlsx" && total?.formula === "SUM(A1:A2)" && Number(total?.result) === 42, JSON.stringify(total));
+  const [csvDownload] = await Promise.all([alice.waitForEvent("download", { timeout: 20000 }), alice.locator("[data-sheet-files]").getByRole("button", { name: "⬇️ CSV" }).click()]);
+  await csvDownload.saveAs(`${dir}/budget.csv`);
+  const csv = readFileSync(`${dir}/budget.csv`, "utf8").replace(/^\uFEFF/, "").split(/\r?\n/);
+  check("…and the current sheet as CSV", csv[0] === "10" && csv[2] === "42", JSON.stringify(csv.slice(0, 3)));
+
+  const source = new ExcelJS.Workbook();
+  const ws = source.addWorksheet("Витрати");
+  ws.getCell("A1").value = "Стаття";
+  ws.getCell("A1").font = { bold: true };
+  ws.getCell("B1").value = 1200;
+  ws.getCell("B2").value = 300;
+  ws.getCell("B3").value = { formula: "SUM(B1:B2)", result: 1500 };
+  ws.mergeCells("C1:D1");
+  writeFileSync(`${dir}/costs.xlsx`, Buffer.from(await source.xlsx.writeBuffer()));
+  await alice.goto(`${APP}/w/${alphaShort}/sheets`);
+  await alice.locator("[data-open-sheet-file]").setInputFiles(`${dir}/costs.xlsx`);
+  await alice.waitForURL(/\/sheets\/[0-9a-f-]{36}/, { timeout: 30000 });
+  const openedId = alice.url().split("/").pop().split("?")[0];
+  const openedCell = (r, c, field) => sql(`select e -> 'v' ->> '${field}' from public.service_objects o, jsonb_array_elements(o.data -> 'sheets' -> 0 -> 'celldata') e where o.id = '${openedId}' and (e ->> 'r')::int = ${r} and (e ->> 'c')::int = ${c}`);
+  check("an Excel file opens as a new table: name, sheet, values, formula, bold, merged cells", sql(`select title || ' / ' || (data -> 'sheets' -> 0 ->> 'name') from public.service_objects where id = '${openedId}'`) === "costs / Витрати" && openedCell(0, 0, "m") === "Стаття" && openedCell(0, 0, "bl") === "1" && openedCell(2, 1, "f") === "=SUM(B1:B2)" && sql(`select data -> 'sheets' -> 0 -> 'config' -> 'merge' ? '0_2' from public.service_objects where id = '${openedId}'`) === "t", `${openedCell(0, 0, "m")} ${openedCell(2, 1, "f")}`);
+  await alice.locator("[data-sheet] .fortune-sheet-overlay").first().waitFor({ timeout: 30000 });
+  await alice.locator("[data-add-sheet-file]").setInputFiles(`${dir}/costs.xlsx`);
+  check("…and sheets from a file are added to a table", await until(() => sql(`select jsonb_array_length(data -> 'sheets') || ' ' || (data -> 'sheets' -> 1 ->> 'name') from public.service_objects where id = '${openedId}'`) === "2 Витрати (2)", 20000), sql(`select jsonb_array_length(data -> 'sheets') from public.service_objects where id = '${openedId}'`));
 }
 
 await finish("nodes");

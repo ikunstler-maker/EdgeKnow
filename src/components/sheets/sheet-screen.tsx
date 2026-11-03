@@ -9,6 +9,8 @@ import { workspacePath } from "@/lib/paths";
 import type { Person } from "@/lib/tasks";
 import { ObjectAccessButton, type ObjectAccess } from "@/components/access/object-access";
 import { saveSheet, setSheetGroupRole, setSheetMemberRole, setSheetWorkspaceRole, trashSheet } from "@/app/sheet-actions";
+import { useOptionalPages } from "@/components/pages/pages-provider";
+import { ACCEPT, readSheetFile } from "./sheet-files";
 
 const SheetEditor = dynamic(() => import("./sheet-editor"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.sheets.loading}</p> });
 
@@ -39,7 +41,46 @@ export function SheetScreen({
   const router = useRouter();
   const canEdit = role === "owner" || role === "editor";
   const [title, setTitle] = useState(initialTitle);
-  const [initial] = useState(() => readWorkbook(initialData, s.firstSheet));
+  const [initial, setInitial] = useState(() => readWorkbook(initialData, s.firstSheet));
+  // The editor opens again on new data (sheets added from a file).
+  const [round, setRound] = useState(0);
+  const latest = useRef<SheetData>(initial);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // A guest doesn't take the table away as a file.
+  const canExport = useOptionalPages()?.workspace.role !== "guest";
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("cut") === "1") setTimeout(() => setNotice(s.files.cut), 0);
+  }, []);
+
+  const exportAs = async (kind: "xlsx" | "csv") => {
+    const io = await import("@/lib/sheet-io");
+    const name = (title || s.untitled).replace(/[\\/:*?"<>|]/g, " ").trim() || "table";
+    if (kind === "xlsx") return io.download(await io.writeXlsx(latest.current), `${name}.xlsx`);
+    const sheets = latest.current.sheets as { status?: number }[];
+    const current = sheets.find((sheet) => sheet.status === 1) ?? sheets[0];
+    io.download(io.sheetToCsv(current as Record<string, unknown>), `${name}.csv`);
+  };
+
+  const addSheets = async (file: File) => {
+    setNotice(s.files.reading);
+    const read = await readSheetFile(file);
+    if ("error" in read) return setNotice(read.error);
+    const have = latest.current.sheets as { name?: string; order?: number }[];
+    const names = new Set(have.map((sheet) => String(sheet.name).toLowerCase()));
+    const added = (read.data.sheets as { name?: string }[]).map((sheet, i) => {
+      let name = String(sheet.name || s.firstSheet);
+      for (let n = 2; names.has(name.toLowerCase()); n++) name = `${String(sheet.name).slice(0, 27)} (${n})`;
+      names.add(name.toLowerCase());
+      return { ...sheet, name, order: have.length + i, status: 0 };
+    });
+    const next = { sheets: [...have, ...added] } as SheetData;
+    latest.current = next;
+    setInitial(next);
+    setRound((n) => n + 1);
+    schedule({ data: next });
+    setNotice(`${s.files.added(added.length)}${read.cut ? ` ${s.files.cut}` : ""}`);
+  };
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "conflict" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const version = useRef(initialVersion);
@@ -140,6 +181,43 @@ export function SheetScreen({
           </button>
         )}
       </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2" data-sheet-files>
+        {canExport && (
+          <>
+            <button type="button" title={s.files.saveXlsxHint} onClick={() => void exportAs("xlsx")} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+              {s.files.saveXlsx}
+            </button>
+            <button type="button" title={s.files.saveCsvHint} onClick={() => void exportAs("csv")} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+              {s.files.saveCsv}
+            </button>
+          </>
+        )}
+        {canEdit && status !== "conflict" && (
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              accept={ACCEPT}
+              className="hidden"
+              aria-label={s.files.addSheets}
+              data-add-sheet-file
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void addSheets(file);
+              }}
+            />
+            <button type="button" onClick={() => fileInput.current?.click()} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+              {s.files.addSheets}
+            </button>
+          </>
+        )}
+        {notice && (
+          <span role="status" className="text-sm text-muted">
+            {notice}
+          </span>
+        )}
+      </div>
       {!canEdit && <p className="mt-1 text-sm text-muted">{s.readOnly}</p>}
       {status === "conflict" && (
         <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
@@ -155,7 +233,15 @@ export function SheetScreen({
         </p>
       )}
       <div className="mt-3 h-[calc(100dvh-12rem)] min-h-[420px] overflow-hidden rounded-lg border border-border bg-white text-black" data-sheet>
-        <SheetEditor initial={initial} editable={canEdit && status !== "conflict"} onChange={(data) => schedule({ data })} />
+        <SheetEditor
+          key={round}
+          initial={initial}
+          editable={canEdit && status !== "conflict"}
+          onChange={(data) => {
+            latest.current = data;
+            schedule({ data });
+          }}
+        />
       </div>
     </div>
   );

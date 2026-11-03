@@ -5,6 +5,7 @@ import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { SheetBinActions, NewSheetButton } from "@/components/sheets/sheet-list-actions";
+import { OpenSheetFileButton } from "@/components/sheets/sheet-files";
 
 export const metadata: Metadata = { title: `${t.sheets.title} · ${t.app.name}` };
 
@@ -36,8 +37,9 @@ export default async function SheetsPage({ params, searchParams }: PageProps<"/w
       {!bin && (
         <>
           <p className="mt-1 text-muted">{b.intro}</p>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <NewSheetButton shortId={workspace.shortId} />
+            <OpenSheetFileButton shortId={workspace.shortId} />
           </div>
         </>
       )}

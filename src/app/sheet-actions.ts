@@ -20,7 +20,7 @@ async function call<T extends object = object>(shortId: string, fn: string, args
   return data as ActionResult<T>;
 }
 
-export async function createSheet(shortId: string, title?: string) {
+export async function createSheet(shortId: string, title?: string, data?: unknown) {
   const workspace = await getWorkspace(shortId);
   if (!workspace) return { ok: false, error: "forbidden" } as ActionResult<{ id: string }>;
   return call<{ id: string }>(shortId, "create_service_object", {
@@ -28,7 +28,7 @@ export async function createSheet(shortId: string, title?: string) {
     target_service: "sheets",
     new_kind: "sheet",
     new_title: (title ?? "").slice(0, 200),
-    new_data: emptyWorkbook(t.sheets.firstSheet),
+    new_data: data ?? emptyWorkbook(t.sheets.firstSheet),
   });
 }
 
