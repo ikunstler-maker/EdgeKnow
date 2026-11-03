@@ -59,12 +59,16 @@ export default async function PlatformAdminPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: stats }, { data: settings }, { data: domainRequests }, { data: size }] = await Promise.all([
+  const [{ data: stats }, { data: settings }, { data: domainRequests }, { data: size }, { data: mine }] = await Promise.all([
     supabase.rpc("platform_workspaces"),
     supabase.from("platform_settings").select("open_registration, email_domain_proof, require_team_database").maybeSingle(),
     supabase.rpc("platform_domain_requests"),
     supabase.rpc("platform_database_size"),
+    supabase.from("workspace_members").select("workspace_id").eq("user_id", user.id).eq("status", "active"),
   ]);
+  // Workspaces the platform admin is not in show only their ID and numbers:
+  // no name and no owner's email, so a workspace she left or never joined stays private.
+  const memberOf = new Set(((mine ?? []) as { workspace_id: string }[]).map((m) => m.workspace_id));
   const service = createAdminClient();
   const keyStatus = service ? await teamKeyStatus(service) : null;
   const centralSize = size as { database_bytes: number; storage_bytes: number } | null;
@@ -113,12 +117,20 @@ export default async function PlatformAdminPage() {
             {((stats ?? []) as WorkspaceStats[]).map((w) => (
               <tr key={w.id} className="border-t border-border">
                 <td className="px-3 py-2">
-                  <Link href={workspacePath(w.short_id)} className="hover:underline">
-                    {w.name}
-                  </Link>{" "}
-                  <span className="font-mono text-xs text-muted">{w.short_id}</span>
+                  {memberOf.has(w.id) ? (
+                    <>
+                      <Link href={workspacePath(w.short_id)} className="hover:underline">
+                        {w.name}
+                      </Link>{" "}
+                      <span className="font-mono text-xs text-muted">{w.short_id}</span>
+                    </>
+                  ) : (
+                    <span className="font-mono text-xs" title={c.hiddenHint}>
+                      {w.short_id}
+                    </span>
+                  )}
                 </td>
-                <td className="px-3 py-2">{w.owner_email}</td>
+                <td className="px-3 py-2">{memberOf.has(w.id) ? w.owner_email : <span className="text-muted">{c.hidden}</span>}</td>
                 <td className="px-3 py-2 text-right">{w.members}</td>
                 <td className="px-3 py-2 text-right">{w.pages}</td>
                 <td className="px-3 py-2 text-right">
@@ -130,7 +142,7 @@ export default async function PlatformAdminPage() {
                   {w.frozen_at && <span className="block text-xs text-danger">❄️ {w.frozen_reason || c.frozen}</span>}
                 </td>
                 <td className="px-3 py-2">
-                  <WorkspaceControls id={w.id} name={w.name} centralAllowed={w.central_allowed} frozen={Boolean(w.frozen_at)} />
+                  <WorkspaceControls id={w.id} name={memberOf.has(w.id) ? w.name : w.short_id} centralAllowed={w.central_allowed} frozen={Boolean(w.frozen_at)} />
                 </td>
               </tr>
             ))}

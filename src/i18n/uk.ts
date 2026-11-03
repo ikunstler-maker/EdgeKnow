@@ -2030,6 +2030,8 @@ export const uk = {
       frozen: "Заморожено",
       name: "Workspace",
       owner: "Власник",
+      hidden: "приховано",
+      hiddenHint: "Ви не учасник цього workspace: видно лише ID і цифри, без назви й людей.",
       members: "Учасників",
       pages: "Сторінок",
       storage: "Файли",

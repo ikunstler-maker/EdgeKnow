@@ -69,7 +69,9 @@ await alice.goto(`${APP}/admin`);
 check("admin page refused for non platform admin", (await alice.getByText("лише супер-адміністратору").count()) > 0);
 sql("update public.profiles set is_platform_admin = true where email = 'alice@alpha.test'");
 await alice.reload();
-check("admin page lists all workspaces", (await alice.getByRole("cell", { name: /Alpha/ }).count()) > 0 && (await alice.getByRole("cell", { name: /Beta/ }).count()) > 0);
+const betaShortId = sql(`select short_id from public.workspaces where id = '${betaId}'`);
+check("admin page lists all workspaces", (await alice.getByRole("cell", { name: /Alpha/ }).count()) > 0 && (await alice.getByRole("cell", { name: betaShortId }).count()) > 0);
+check("…a workspace she isn't in shows only its ID: no name, no owner's email", (await alice.getByRole("link", { name: "Beta", exact: true }).count()) === 0 && (await alice.getByText("bob@beta.test").count()) === 0);
 check("admin page shows no page titles", (await alice.getByText("Alpha secret").count()) === 0);
 
 // --- Domains proven through DNS ---------------------------------------------------------------

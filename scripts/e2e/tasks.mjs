@@ -24,7 +24,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await bob.goto(`${APP}/w/${betaShort}`);
   check("a frozen workspace tells its members why", frozen.data?.ok === true && (await bob.getByText("Workspace «Beta» заморожено").count()) === 1 && (await bob.getByText("E2E freeze check").count()) === 1);
   await alice.goto(`${APP}/admin`);
-  const betaRow = alice.locator("tr", { has: alice.getByRole("link", { name: "Beta", exact: true }) });
+  // Alice is not in Beta: its row shows only the short ID, no name.
+  const betaRow = alice.locator("tr", { has: alice.getByText(betaShort, { exact: true }) });
   check("…the platform panel shows it frozen", (await betaRow.getByText("❄️ E2E freeze check").count()) === 1);
   check("…and the size of the central database", (await alice.locator("[data-central-usage]").getByText(/Центральна база зараз: [0-9.]+ МБ з 500 МБ/).count()) === 1);
   await betaRow.getByRole("button", { name: "Розморозити" }).click();
