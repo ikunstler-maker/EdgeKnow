@@ -27,6 +27,7 @@
     "@supabase/supabase-js": "^2.118.0",
     "@xyflow/react": "12.11.6",
     "browser-image-compression": "^2.0.2",
+    "chart.js": "4.5.1",
     "exceljs": "4.4.0",
     "jose": "^6.2.13",
     "next": "16.4.3",

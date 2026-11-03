@@ -333,6 +333,16 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…after reloading it is all there", cell(2, "v") === "42" && (await alice.getByLabel("Назва таблиці").inputValue()) === "Budget");
   check("the editor speaks Ukrainian", (await alice.locator("[data-sheet]").getByText("Аркуш1").count()) >= 1);
   check("search reads the table's cells", await until(() => sql(`select search_text from public.service_objects where id = '${sheetId}'`).includes("42"), 10000));
+  // Step Т3: a chart from a range, saved with the table and drawn from its data.
+  await alice.getByRole("button", { name: "📈 Нова діаграма" }).click();
+  const chartForm = alice.locator("[data-chart-form]");
+  await chartForm.getByLabel("Назва діаграми").fill("Totals");
+  await chartForm.getByLabel(/Дані/).fill("A1:A3");
+  await chartForm.getByRole("button", { name: "Зберегти" }).click();
+  check("a chart is made from a range and saved with the table", await until(() => sql(`select data -> 'charts' -> 0 ->> 'range' || ' ' || (data -> 'charts' -> 0 ->> 'title') from public.service_objects where id = '${sheetId}'`) === "A1:A3 Totals", 15000) && (await alice.locator('[data-chart="Totals"] canvas').count()) === 1);
+  await alice.reload();
+  await alice.locator('[data-chart="Totals"] canvas').waitFor({ timeout: 30000 }).catch(() => {});
+  check("…and is there after reloading", (await alice.locator('[data-chart="Totals"] canvas').count()) === 1);
   await colleague.goto(`${APP}/w/${alphaShort}/sheets`);
   check("a colleague sees the team's table in the list", (await colleague.locator('[data-sheet="Budget"]').count()) === 1);
 

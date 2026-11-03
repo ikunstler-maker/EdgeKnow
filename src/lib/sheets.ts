@@ -2,7 +2,9 @@
 // (Fortune-sheet) keeps them: name, order, cells (celldata), sizes, merges,
 // formats, frozen panes, filters and conditional formats.
 
-export type SheetData = { sheets: Record<string, unknown>[] };
+import type { SheetChart } from "./sheet-charts";
+
+export type SheetData = { sheets: Record<string, unknown>[]; charts?: SheetChart[] };
 
 export const newSheet = (name: string) => ({ name, order: 0, row: 100, column: 26, celldata: [], config: {}, status: 1 });
 
@@ -11,7 +13,8 @@ export const emptyWorkbook = (name: string): SheetData => ({ sheets: [newSheet(n
 // Only well-formed sheets survive (a broken save never breaks the editor).
 export function readWorkbook(data: unknown, name: string): SheetData {
   const list = Array.isArray((data as SheetData | null)?.sheets) ? (data as SheetData).sheets.filter((s) => s && typeof s === "object") : [];
-  return list.length ? { sheets: list } : emptyWorkbook(name);
+  const charts = Array.isArray((data as SheetData | null)?.charts) ? (data as SheetData).charts!.filter((c) => c && typeof c.range === "string") : [];
+  return list.length ? { sheets: list, charts } : emptyWorkbook(name);
 }
 
 // What is kept of a sheet: the editor's working copy also holds the whole grid
