@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TASK_FILE_COLUMNS, filesHome, isAt, moveTaskFile, spaceAt, workspaceDestination, type Destination, type TaskFileRow } from "./task-files";
+import { OBJECT_FILE_COLUMNS, TASK_FILE_COLUMNS, filesHome, isAt, moveTaskFile, spaceAt, workspaceDestination, type Destination, type StoredFile } from "./task-files";
 
 // Settings → Storage for task files (step U1): how many are not yet in the
 // workspace's one storage, the space there now and after, moving them, and
@@ -18,13 +18,17 @@ export type TaskFilesStatus = {
   team: boolean;
 };
 
+// Task files and board pictures (step Д3b): both live in the one storage.
 async function allTaskFiles(rows: SupabaseClient, workspaceId: string) {
-  const files: TaskFileRow[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data } = await rows.from("task_files").select(TASK_FILE_COLUMNS).eq("workspace_id", workspaceId).neq("storage_backend", "pending").order("created_at").range(from, from + 999);
-    files.push(...((data ?? []) as TaskFileRow[]));
-    if (!data || data.length < 1000) return files;
+  const files: StoredFile[] = [];
+  for (const [table, columns] of [["task_files", TASK_FILE_COLUMNS], ["object_files", OBJECT_FILE_COLUMNS]] as const) {
+    for (let from = 0; ; from += 1000) {
+      const { data } = await rows.from(table).select(columns).eq("workspace_id", workspaceId).neq("storage_backend", "pending").order("created_at").range(from, from + 999);
+      files.push(...((data ?? []) as unknown as StoredFile[]));
+      if (!data || data.length < 1000) break;
+    }
   }
+  return files;
 }
 
 async function plan(admin: SupabaseClient, workspaceId: string) {
@@ -37,7 +41,7 @@ async function plan(admin: SupabaseClient, workspaceId: string) {
 
 export async function taskFilesStatus(admin: SupabaseClient, workspaceId: string): Promise<TaskFilesStatus> {
   const { team, to, files, moves } = await plan(admin, workspaceId);
-  const sum = (list: TaskFileRow[]) => list.reduce((total, file) => total + Number(file.bytes), 0);
+  const sum = (list: StoredFile[]) => list.reduce((total, file) => total + Number(file.bytes), 0);
   return {
     count: files.length,
     bytes: sum(files),

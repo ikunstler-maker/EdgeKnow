@@ -52,7 +52,13 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000026a1';
 select 'within the limit: ' || (public.register_task_file(:'task', 'a.png', 'image/png', 500000) ->> 'ok');
 select 'over the limit: ' || public.register_task_file(:'task', 'b.png', 'image/png', 600000)::text;
-select 'to the wiki Drive, no limit: ' || (public.update_task_project(:'project', '{"files_target": "wiki"}') ->> 'ok') || ' ' || (public.register_task_file(:'task', 'c.png', 'image/png', 600000) ->> 'target');
+-- The limit is EdgeKnow's: with the workspace's Google Drive connected (all files go there), none.
+reset role;
+insert into public.drive_connections (workspace_id, account_email, root_folder_id, files_folder_id, backups_folder_id, token_encrypted)
+values (:'ws', 'drive@files.test', 'r', 'f', 'b', 'v1.x.y.z');
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000026a1';
+select 'with the Drive connected, no limit: ' || (public.register_task_file(:'task', 'c.png', 'image/png', 600000) ->> 'ok');
 
 -- Viewers neither attach nor remove others' files; the uploader removes their own.
 select public.update_task_project(:'project', '{"workspace_role": "viewer"}') ->> 'ok' as ignored \gset

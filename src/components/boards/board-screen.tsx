@@ -177,6 +177,12 @@ export function BoardScreen({
       />
       <div className="mt-3 h-[calc(100dvh-14rem)] min-h-[420px] overflow-hidden rounded-lg border border-border" data-board>
         <BoardCanvas
+          shortId={shortId}
+          boardId={id}
+          onPictureError={(message) => {
+            setStatus("error");
+            setError(message);
+          }}
           initial={initial}
           editable={canEdit && status !== "conflict"}
           onChange={(data) => schedule({ data })}

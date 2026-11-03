@@ -233,6 +233,40 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-sticky-task]").waitFor({ timeout: 15000 }).catch(() => {});
   check("…shown on the board", (await alice.locator("[data-sticky-task]").count()) === 1);
 
+
+  // Step Д3b: a picture dropped on the board is kept in the workspace's one storage and comes back.
+  await alice.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 300;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#3b82f6";
+    ctx.fillRect(0, 0, 400, 300);
+    ctx.fillStyle = "#fde047";
+    ctx.fillRect(100, 75, 200, 150);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    const file = new File([blob], "drop.png", { type: "image/png" });
+    const target = document.querySelector("[data-board-canvas] .excalidraw__canvas.interactive");
+    const box = target.getBoundingClientRect();
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const at = { clientX: box.left + box.width / 2, clientY: box.top + box.height / 2, bubbles: true, cancelable: true, dataTransfer: transfer };
+    target.dispatchEvent(new DragEvent("dragover", at));
+    target.dispatchEvent(new DragEvent("drop", at));
+  });
+  const pictures = () => sql(`select count(*) from public.object_files f where f.object_id = '${retroId}' and f.storage_backend <> 'pending'`);
+  const pictureLinks = () => sql(`select count(*) from public.service_objects o, jsonb_object_keys(o.data -> 'files') k where o.id = '${retroId}'`);
+  check("a picture dropped on a board is stored in the one storage and saved with the board", await until(() => pictures() === "1" && pictureLinks() === "1", 30000), `${pictures()} ${pictureLinks()}`);
+  const pictureId = sql(`select id from public.object_files where object_id = '${retroId}'`);
+  const served = await alice.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${r.headers.get("content-type")}`; }, `/api/boards/files/${pictureId}?ws=${alphaShort}`);
+  check("…it opens for people who see the board", /^200 image\//.test(served), served);
+  const strangerPicture = await bob.evaluate(async (url) => (await fetch(url)).status, `${APP}/api/boards/files/${pictureId}?ws=${alphaShort}`).catch(() => 0);
+  check("…and not for someone from another workspace", strangerPicture !== 200, String(strangerPicture));
+  const fetchedAgain = alice.waitForResponse((r) => r.url().includes(`/api/boards/files/${pictureId}`), { timeout: 30000 }).then((r) => r.status()).catch(() => 0);
+  await alice.reload();
+  const reloadedPicture = await fetchedAgain;
+  check("…after reloading the board fetches it again", reloadedPicture === 200, String(reloadedPicture));
+
   await bob.goto(`${APP}/w/${alphaShort}/boards/${boardId}`);
   check("someone from another workspace sees nothing of the board", (await bob.getByText("Retro").count()) === 0);
   await colleague.goto(`${APP}/w/${alphaShort}/boards`);

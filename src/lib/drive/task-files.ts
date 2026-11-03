@@ -25,6 +25,13 @@ export type TaskFileRow = {
   uploaded_by: string | null;
   created_at: string;
 };
+// A board picture (object_files) is kept the same way: the same bucket and Drive
+// folder, its own table.
+export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string };
+export const OBJECT_FILE_COLUMNS =
+  "id, workspace_id, object_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
+const tableOf = (row: StoredFile) => (row.object_id ? "object_files" : "task_files");
+
 export const TASK_FILE_COLUMNS =
   "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
 
@@ -57,15 +64,15 @@ export async function workspaceDestination(admin: SupabaseClient, workspaceId: s
   return { kind: "drive", source: "wiki", connection };
 }
 
-const nameOnDrive = (row: Pick<TaskFileRow, "id" | "name">) => `${row.id.slice(0, 8)} ${row.name}`.slice(0, 200);
+const nameOnDrive = (row: Pick<StoredFile, "id" | "name">) => `${row.id.slice(0, 8)} ${row.name}`.slice(0, 200);
 
 // Puts the bytes at the destination and records where (`rows`: the database with the file's record).
-export async function storeTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: TaskFileRow, bytes: Uint8Array, to: Destination) {
+export async function storeTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: StoredFile, bytes: Uint8Array, to: Destination) {
   if (to.kind === "storage") {
     const { error } = await rows.storage.from(TASK_BUCKET).upload(row.storage_path, bytes, { contentType: row.mime_type, upsert: true });
     if (error) throw new Error(`storage: ${error.message}`);
     const { error: updateError } = await rows
-      .from("task_files")
+      .from(tableOf(row))
       .update({ storage_backend: "supabase", drive_source: null, drive_account_id: null, drive_file_id: null })
       .eq("id", row.id);
     if (updateError) throw new Error("record update failed");
@@ -79,13 +86,13 @@ export async function storeTaskFile(admin: SupabaseClient, rows: SupabaseClient,
     throw error;
   }
   const { error } = await rows
-    .from("task_files")
+    .from(tableOf(row))
     .update({ storage_backend: "drive", drive_source: to.source, drive_account_id: to.connection.id, drive_file_id: fileId })
     .eq("id", row.id);
   if (error) throw new Error("record update failed");
 }
 
-export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: TaskFileRow): Promise<Uint8Array> {
+export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: StoredFile): Promise<Uint8Array> {
   if (row.storage_backend === "drive") {
     const connection = row.drive_account_id ? await connectionById(admin, row.drive_account_id) : null;
     if (!connection || !row.drive_file_id) throw new DriveError("connection gone", 404);
@@ -105,7 +112,7 @@ export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
 // Copies a file to another place, then frees the old one (a Drive copy is removed
 // with that Drive's own access; a Drive that is gone has nothing to remove).
 // `keepOld`: a person's own Drive keeps its copy when they leave — it's theirs.
-export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: TaskFileRow, to: Destination, keepOld = false) {
+export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: StoredFile, to: Destination, keepOld = false) {
   const bytes = await readTaskFile(admin, rows, row);
   await storeTaskFile(admin, rows, row, bytes, to);
   if (keepOld) return;
@@ -117,7 +124,7 @@ export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
 }
 
 // Is a file already where the destination says?
-export function isAt(row: TaskFileRow, to: Destination) {
+export function isAt(row: StoredFile, to: Destination) {
   return to.kind === "storage" ? row.storage_backend === "supabase" : row.storage_backend === "drive" && row.drive_account_id === to.connection.id;
 }
 
@@ -136,13 +143,14 @@ export async function spaceAt(admin: SupabaseClient, to: Destination, workspaceI
     const { data } = await admin.from("team_databases").select("storage_bytes").eq("workspace_id", workspaceId).maybeSingle();
     return { limit: 1024 ** 3, used: Number(data?.storage_bytes ?? 0) };
   }
-  const [{ data: ws }, { data: images }, { data: files }] = await Promise.all([
+  const [{ data: ws }, { data: images }, { data: files }, { data: pictures }] = await Promise.all([
     admin.from("workspaces").select("storage_limit_mb").eq("id", workspaceId).maybeSingle(),
     admin.from("attachments").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
     admin.from("task_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
+    admin.from("object_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
   ]);
   const sum = (list: { bytes: number }[] | null) => (list ?? []).reduce((total, r) => total + Number(r.bytes), 0);
-  return { limit: Number(ws?.storage_limit_mb ?? 0) * 1024 * 1024, used: sum(images) + sum(files) };
+  return { limit: Number(ws?.storage_limit_mb ?? 0) * 1024 * 1024, used: sum(images) + sum(files) + sum(pictures) };
 }
 
 // The first bytes must fit the declared type: nothing else is stored or served.

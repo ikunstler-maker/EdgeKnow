@@ -10,6 +10,7 @@ import { useResolvedTheme } from "@/lib/use-theme";
 import { STICKY_COLORS, type BoardData, type StickyColor } from "@/lib/boards";
 import { templateParts, type TemplateKey, type TemplatePart } from "@/lib/board-templates";
 import { useOptionalPages } from "@/components/pages/pages-provider";
+import { prepareImage } from "@/lib/image-compression";
 
 const b = t.boards;
 
@@ -27,12 +28,15 @@ type Chip = { key: string; done: boolean; status: string };
 
 type Element = { id: string; type: string; x: number; y: number; width: number; height: number; isDeleted?: boolean; customData?: Record<string, unknown>; containerId?: string | null; text?: string; link?: string | null };
 
-// The board's canvas (steps Д1 and Д3a): Excalidraw with a clean style by default
+// The board's canvas (steps Д1, Д3a and Д3b): Excalidraw with a clean style by default
 // (no sketchy lines, a plain font) and the pencil for freehand; sticky notes are
 // a button and the S key; templates, votes on sticky notes and task chips are
 // drawn over it. Only real changes of the drawing are reported, not zooming or
 // selecting.
 export default function BoardCanvas({
+  shortId,
+  boardId,
+  onPictureError,
   initial,
   editable,
   onChange,
@@ -43,6 +47,9 @@ export default function BoardCanvas({
   onVote,
   chips,
 }: {
+  shortId?: string;
+  boardId?: string;
+  onPictureError?: (message: string) => void;
   initial: BoardData;
   editable: boolean;
   onChange: (data: BoardData) => void;
@@ -64,6 +71,80 @@ export default function BoardCanvas({
   const box = useRef<HTMLDivElement>(null);
   const last = useRef<string | null>(null);
   const grid = useRef(Boolean(initial.appState.gridModeEnabled));
+  // Pictures (step Д3b): each picture in the scene (its Excalidraw file id) and
+  // where its bytes are kept in the workspace's one storage. Only these links
+  // are saved with the board, never the pictures themselves.
+  const stored = useRef<Record<string, { file: string; mimeType: string }>>({ ...(initial.files as Record<string, { file: string; mimeType: string }>) });
+  const uploading = useRef(new Set<string>());
+  // Pictures that couldn't be kept: not tried again (they have left the board).
+  const failed = useRef(new Set<string>());
+
+  const dataOf = useCallback((next: readonly { id: string; isDeleted?: boolean; type: string; fileId?: string | null }[], appState: { viewBackgroundColor: string; gridModeEnabled: boolean }): BoardData => {
+    const kept = next.filter((e) => !e.isDeleted);
+    const used = new Set(kept.flatMap((e) => (e.type === "image" && e.fileId ? [e.fileId] : [])));
+    return {
+      elements: kept,
+      appState: { viewBackgroundColor: appState.viewBackgroundColor, ...(appState.gridModeEnabled ? { gridModeEnabled: true } : {}) },
+      files: Object.fromEntries(Object.entries(stored.current).filter(([fileId]) => used.has(fileId))),
+    };
+  }, []);
+
+  // The saved pictures come back from the storage when the board opens.
+  useEffect(() => {
+    if (!api || !shortId) return;
+    let alive = true;
+    for (const [fileId, link] of Object.entries(stored.current)) {
+      void fetch(`/api/boards/files/${link.file}?ws=${shortId}`)
+        .then((response) => (response.ok ? response.blob() : null))
+        .then((blob) => (blob ? readAsDataUrl(blob) : null))
+        .then((dataURL) => {
+          if (alive && dataURL) api.addFiles([{ id: fileId as never, dataURL: dataURL as never, mimeType: link.mimeType as never, created: Date.now() }]);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, [api, shortId]);
+
+  // A picture put on the board (inserted, dropped or pasted) is made smaller and
+  // stored; then the board is saved with its link.
+  const upload = useCallback(
+    async (fileId: string, dataURL: string, mimeType: string) => {
+      if (!api || !shortId || !boardId || uploading.current.has(fileId) || failed.current.has(fileId)) return;
+      uploading.current.add(fileId);
+      try {
+        let body: Blob = await (await fetch(dataURL)).blob();
+        let type = mimeType;
+        if (type !== "image/gif") {
+          try {
+            const prepared = await prepareImage(new File([body], "picture", { type }), "fullhd");
+            body = prepared.blob;
+            type = prepared.type;
+          } catch {
+            // Sent as it is; the server checks the size.
+          }
+        }
+        const response = await fetch(`/api/boards/files?ws=${shortId}&board=${boardId}&name=picture`, { method: "POST", headers: { "Content-Type": type }, body });
+        const result = (await response.json().catch(() => null)) as { ok?: boolean; id?: string; error?: string } | null;
+        if (!result?.ok || !result.id) throw new Error(result?.error ?? "upload_failed");
+        stored.current[fileId] = { file: result.id, mimeType: type };
+        onChange(dataOf(api.getSceneElements() as never, api.getAppState()));
+      } catch (error) {
+        failed.current.add(fileId);
+        const code = error instanceof Error ? error.message : "";
+        onPictureError?.(t.tasks.files.errors[code] ?? b.errors[code] ?? t.common.unknownError);
+        // A picture that couldn't be kept leaves the board.
+        api.updateScene({
+          elements: api.getSceneElementsIncludingDeleted().map((e) => (e.type === "image" && e.fileId === fileId ? { ...e, isDeleted: true, version: e.version + 1 } : e)),
+          captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+        });
+      } finally {
+        uploading.current.delete(fileId);
+      }
+    },
+    [api, shortId, boardId, onChange, dataOf, onPictureError],
+  );
 
   // Where something goes: the middle of what is on screen.
   const viewCenter = useCallback(() => {
@@ -209,8 +290,8 @@ export default function BoardCanvas({
         aiEnabled={false}
         UIOptions={{
           canvasActions: { loadScene: false, saveToActiveFile: false, export: false, saveAsImage: canExport, toggleTheme: null, clearCanvas: editable, changeViewBackgroundColor: editable },
-          // Pictures come with step Д3b (stored in the workspace's one storage).
-          tools: { image: false },
+          // Pictures (step Д3b) only where they can be stored.
+          tools: { image: Boolean(shortId && boardId) },
         }}
         onScrollChange={(scrollX, scrollY, zoom) => setView({ scrollX, scrollY, zoom: zoom.value })}
         renderTopRightUI={(isMobile) =>
@@ -236,8 +317,13 @@ export default function BoardCanvas({
             </div>
           ) : null
         }
-        onChange={(next, appState) => {
+        onChange={(next, appState, files) => {
           setElements(next as readonly Element[]);
+          if (editable) {
+            for (const [fileId, file] of Object.entries(files)) {
+              if (!stored.current[fileId] && file.dataURL) void upload(fileId, file.dataURL, file.mimeType);
+            }
+          }
           setView((v) => (v.scrollX === appState.scrollX && v.scrollY === appState.scrollY && v.zoom === appState.zoom.value ? v : { scrollX: appState.scrollX, scrollY: appState.scrollY, zoom: appState.zoom.value }));
           const selected = Object.keys(appState.selectedElementIds).filter((id) => appState.selectedElementIds[id]);
           // A sticky note, or the text inside one, being the only thing selected.
@@ -253,11 +339,7 @@ export default function BoardCanvas({
           }
           if (key === last.current) return;
           last.current = key;
-          onChange({
-            elements: next.filter((e) => !e.isDeleted),
-            appState: { viewBackgroundColor: appState.viewBackgroundColor, ...(appState.gridModeEnabled ? { gridModeEnabled: true } : {}) },
-            files: {},
-          });
+          onChange(dataOf(next, appState));
         }}
       >
         <MainMenu>
@@ -332,3 +414,11 @@ export default function BoardCanvas({
     </div>
   );
 }
+
+const readAsDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });

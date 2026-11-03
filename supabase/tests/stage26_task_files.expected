@@ -14,7 +14,7 @@ unknown target: {"ok": false, "error": "invalid"}
 alice: EdgeKnow storage: true
 within the limit: true
 over the limit: {"ok": false, "error": "quota_exceeded"}
-to the wiki Drive, no limit: true wiki
+with the Drive connected, no limit: true
 viewer attaches: {"ok": false, "error": "forbidden"}
 viewer removes alice's file: {"ok": false, "error": "forbidden"}
 bob removes his own: true

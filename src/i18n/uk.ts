@@ -1253,7 +1253,7 @@ export const uk = {
     oneStorage: "Усі файли workspace — зображення й обкладинки сторінок, файли задач — зберігаються в одному місці, вказаному вище.",
     teamStorage: "Файли зберігаються в сховищі бази вашої команди.",
     pageFiles: (count: number) => `Зображень і обкладинок сторінок: ${count}.`,
-    taskFiles: (count: number, size: string) => `Файлів задач: ${count} (${size}).`,
+    taskFiles: (count: number, size: string) => `Файлів задач і зображень дощок: ${count} (${size}).`,
     notHere: (count: number) => `Ще не тут: ${count}. Вони відкриваються зі старого місця, доки їх не перенесено.`,
     allHere: "Усі файли вже тут.",
     moveAll: "Перенести всі файли сюди",
