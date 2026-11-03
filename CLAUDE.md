@@ -4,6 +4,7 @@
 
 Source of truth: `docs/SPEC.md` (Ukrainian) + owner-approved `docs/decisions.md`. Conflict → ask first.
 Open work: `docs/backlog.md`. DB rules: `.claude/rules/supabase.md`. UI/i18n rules: `.claude/rules/ui-i18n.md`.
+Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries per `docs/MASTER_GUIDE.md` A2). Terms: `docs/GLOSSARY.md`.
 
 ## Communication
 - Owner is a non-developer: reply in plain Ukrainian, formal «ви». Short, no fluff, no code dumps in chat.
