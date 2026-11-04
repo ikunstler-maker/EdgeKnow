@@ -16,7 +16,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## Pricing (plan: `docs/pricing-uk.md`, roadmap stage 4)
 - Approved: Team 6/5 $, Business 12/10 $ from 15 editors, rate 45 $/h, target MRR ≈ 3 650 $.
 - Open (decide after the current roadmap is done): Free limits per service; which cross-service links are PRO.
-- Device limit: 2 devices per email on all tiers, region check, paid extra device (~1 $/mo). Sign-in + personal data → owner's separate approval before coding.
+- Device limit: 2 devices per email on all tiers and all roles (readers included), region check, paid extra device (~1 $/mo). Sign-in + personal data → owner's separate approval before coding.
 - Before payments: verify official prices (Vercel, Supabase, GitHub, Claude, payment provider), taxes with an accountant, actual Actions minutes over 2–3 months.
 - Implementation (later, stage 4): per-workspace feature flags + PRO badge component (greyed, explains, links to pricing); wiki export dialog with all formats (PDF/MD free; JSON/CSV/DOCX/HTML PRO).
 
