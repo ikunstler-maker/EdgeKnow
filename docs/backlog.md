@@ -13,6 +13,11 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - **Corporate calendar (new service).** Events: open (anyone sees, can ask to join → organizer approves), "request to join" switch, invite-only, private (only invitees see). Vacations / time off on the calendar. Meetings with a Google Meet or Zoom link. Two-way sync: Google Calendar, Apple Calendar (ICS/CalDAV), Microsoft (Outlook/Graph). Join requests and approvals go through EdgeKnow. Links: tasks, chat. Big; plan separately (sign-in scopes and secrets → approval).
 - **Video meetings (later, after Chat).** Own alternative to Meet/Zoom inside the ecosystem: from chat channels, synced with the calendar and tasks. Plan separately (likely WebRTC with a hosted SFU; cost/licence check first).
 
+## Pricing (plan: `docs/pricing-uk.md`, roadmap stage 4)
+- Owner to approve: tier prices, Free limits per service, which cross-service links are PRO, hourly rate (35 $ suggested).
+- Before payments: verify official prices (Vercel, Supabase, GitHub, Claude, payment provider), taxes with an accountant, actual Actions minutes over 2–3 months.
+- Implementation (later, stage 4): per-workspace feature flags + PRO badge component (greyed, explains, links to pricing); wiki export dialog with all formats (PDF/MD free; JSON/CSV/DOCX/HTML PRO).
+
 ## Known gaps / follow-ups
 - `platform_workspaces`: hide name/owner email in the DB function itself for workspaces the admin isn't in (now hidden on the page only). Needs a migration + CI run.
 - Team move (`src/lib/team-db/move.ts`) doesn't copy `object_files` (board pictures, survey files) or `board_sessions`/`board_votes`; check and add with tests.
