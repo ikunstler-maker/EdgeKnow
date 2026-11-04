@@ -260,7 +260,49 @@ function Files() {
   );
 }
 
-const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files };
+
+function Calendar() {
+  const events: Record<number, string> = { 2: "bg-sky-400/60", 8: "bg-violet-400/60", 10: "bg-emerald-400/60", 15: "bg-amber-400/60", 16: "bg-amber-400/60", 17: "bg-amber-400/60", 23: "bg-rose-400/60" };
+  return (
+    <div className="flex h-[calc(100%-2rem)] flex-col gap-2">
+      <div className="flex items-center gap-2">
+        {line("25%", 0.4)}
+        <span className="ml-auto h-6 w-16 rounded-full bg-gradient-to-r from-cyan-400/60 to-blue-500/60" />
+      </div>
+      <div className="grid flex-1 grid-cols-7 gap-1.5">
+        {Array.from({ length: 28 }, (_, i) => (
+          <div key={i} className={`flex flex-col gap-1 rounded-lg p-1.5 ${i === 9 ? "ring-1 ring-sky-300/70" : ""} bg-white/[0.05]`}>
+            <span className="h-1 w-3 rounded-full bg-white/30" />
+            {events[i] && <span className={`h-2 rounded ${events[i]}`} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Meet() {
+  const tiles = ["from-sky-400/40 to-indigo-500/30", "from-emerald-400/40 to-teal-500/30", "from-rose-400/40 to-purple-500/30", "from-amber-300/40 to-orange-500/30"];
+  return (
+    <div className="flex h-[calc(100%-2rem)] flex-col gap-3">
+      <div className="grid flex-1 grid-cols-2 gap-3">
+        {tiles.map((g, i) => (
+          <div key={i} className={`relative flex items-center justify-center rounded-2xl bg-gradient-to-br ${g} ${i === 0 ? "ring-2 ring-sky-300/70" : ""}`}>
+            <span className="h-10 w-10 rounded-full bg-white/25" />
+            <span className="absolute bottom-2 left-2 h-1.5 w-12 rounded-full bg-white/40" />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-center gap-3">
+        {["bg-white/15", "bg-white/15", "bg-white/15", "bg-rose-500/80"].map((c, i) => (
+          <span key={i} className={`h-8 w-8 rounded-full ${c}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files, calendar: Calendar, meet: Meet };
 
 export function ServiceMockup({ service, label }: { service: string; label: string }) {
   const Screen = SCREENS[service] ?? Wiki;
