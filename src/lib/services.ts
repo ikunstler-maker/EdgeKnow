@@ -1,6 +1,6 @@
 // The services of the platform, in the order of the start page and the switcher.
 // "ready: false" ones show as "Soon" until they are built (docs/suite-plan-uk.md).
-export type ServiceKey = "wiki" | "tasks" | "boards" | "nodes" | "sheets" | "slides" | "surveys" | "chat" | "files" | "calendar" | "meet";
+export type ServiceKey = "wiki" | "tasks" | "boards" | "nodes" | "sheets" | "slides" | "surveys" | "chat" | "files" | "calendar" | "meet" | "ai" | "sites" | "apps";
 
 export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: string | null }[] = [
   { key: "wiki", icon: "📚", ready: true, path: "" },
@@ -14,4 +14,7 @@ export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: st
   { key: "files", icon: "📁", ready: false, path: null },
   { key: "calendar", icon: "📅", ready: false, path: null },
   { key: "meet", icon: "🎥", ready: false, path: null },
+  { key: "ai", icon: "🤖", ready: false, path: null },
+  { key: "sites", icon: "🌐", ready: false, path: null },
+  { key: "apps", icon: "🧩", ready: false, path: null },
 ];

@@ -10,8 +10,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## New directions (2026-11-05, roadmap stage 2c) — each needs its own plan + OK
 - Wiki: drafts by default + Publish (RLS change → approval); Share button (copy link, export with format list).
 - Tables: user scripts (sandboxed). AI: transcription, dictation, node automations, local LLM / MCP models.
-- Company landing builder (Free blocks, Team custom code), Business: custom-code corporate pages, block business cards (company + profile, Free), FinPulse embedded (Team, org admins only).
-- Show all of these on `/about` as «Скоро» (next PR, after OK).
+- Service «Персональна сторінка»: company landing builder (Free blocks, Team custom code), custom-code corporate pages (Business), block business cards (company + profile, Free).
+- Service «Корпоративні додатки»: owner's ready apps (first: financial monitoring / FinPulse, Team, org admins only) + companies' own embedded apps.
+- Shown on `/about` and the start page as «Скоро» (done 2026-11-05).
 
 ## Requested by the owner (2026-11-04), not planned in detail yet
 - **Tasks: time in each column.** Log every status change (task, column, entered_at, left_at). Per task show one label per column: total time spent there (summed over repeated visits), computed after the fact from the log, not live. Counted for every column (names are free), including the last one if the project turns it on. Columns can be renamed/reordered; the log keeps the column id. Needs a migration (central + team) → owner's approval.
