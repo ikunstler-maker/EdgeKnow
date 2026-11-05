@@ -64,7 +64,7 @@ export function TaskBoard({
   isOwner,
 }: {
   shortId: string;
-  project: { id: string; key: string; card_fields: string[] };
+  project: { id: string; key: string; card_fields: string[]; time_last_column?: boolean };
   statuses: TaskStatus[];
   tasks: TaskRow[];
   members: Person[];
@@ -176,7 +176,19 @@ export function TaskBoard({
         </label>
         <span className="text-xs text-muted">{k.count(shown.length, tasks.length)}</span>
         {isOwner && (
-          <button type="button" className={`${buttonClass} ml-auto`} onClick={() => setCardSettings(true)}>
+          <label className="ml-auto flex min-h-11 items-center gap-2 text-muted md:min-h-9">
+            <input
+              type="checkbox"
+              checked={project.time_last_column === true}
+              disabled={pending}
+              onChange={(e) => run(() => updateTaskProject(project.id, { time_last_column: e.target.checked }))}
+              data-time-last-column
+            />
+            {k.columnTime.countLast}
+          </label>
+        )}
+        {isOwner && (
+          <button type="button" className={buttonClass} onClick={() => setCardSettings(true)}>
             🗂 {b.cardSettings}
           </button>
         )}

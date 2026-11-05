@@ -4,7 +4,7 @@ import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { canComment, canEdit, linkedTasks, loadProject } from "@/lib/tasks-server";
-import { TASK_COLUMNS, taskKey, type TaskLink, type TaskRow } from "@/lib/tasks";
+import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "@/components/tasks/task-relations";
 import type { TaskFileView } from "@/components/tasks/task-files";
 import { getCurrentUser } from "@/lib/auth";
@@ -33,7 +33,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     .maybeSingle()
     .overrideTypes<TaskRow & { description: unknown; deleted_at: string | null }, { merge: false }>();
   if (!task) return notFound;
-  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }, { data: files }, { data: mentions }] = await Promise.all([
+  const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }, { data: files }, { data: mentions }, { data: moves }] = await Promise.all([
     db.from("task_comments").select("id, author_id, body, mentions, created_at, edited_at").eq("task_id", task.id).order("created_at"),
     db.from("task_events").select("id, actor_id, field, old_value, new_value, created_at").eq("task_id", task.id).order("created_at", { ascending: false }).limit(100),
     db.from("tasks").select("id, number, title, status_id, parent_id, type").eq("project_id", view.project.id).is("deleted_at", null).neq("id", task.id),
@@ -41,7 +41,10 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     db.from("task_files").select("id, name, mime_type, bytes, uploaded_by, created_at").eq("task_id", task.id).neq("storage_backend", "pending").order("created_at"),
     // Pages with a chip of this task (only those the reader can open).
     db.from("task_page_links").select("page:pages(id, title, icon)").eq("task_id", task.id).overrideTypes<{ page: { id: string; title: string; icon: string | null } | null }[], { merge: false }>(),
+    // Every column change (not only the latest 100 events): time spent in each column.
+    db.from("task_events").select("old_value, new_value, created_at").eq("task_id", task.id).eq("field", "status_id").order("created_at"),
   ]);
+  const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
   const others = await linkedTasks(db, [...new Set(linkRows.map((l) => (l.source_id === task.id ? l.target_id : l.source_id)))]);
@@ -70,6 +73,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
         members={view.members}
         comments={(comments ?? []) as TaskComment[]}
         events={(events ?? []) as TaskEvent[]}
+        columnTime={view.statuses.flatMap((s) => (spent.has(s.id) ? [{ id: s.id, name: s.name, ms: spent.get(s.id)! }] : []))}
         me={user.id}
         canEdit={canEdit(view.role)}
         canComment={canComment(view.role)}

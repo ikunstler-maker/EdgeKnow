@@ -5,9 +5,12 @@ rename and limit: true
 bad group: {"ok": false, "error": "invalid"}
 card fields: {"ok": true}
 unknown card field: {"ok": false, "error": "invalid"}
+count the last column: {"ok": true}
+bob may not switch it: {"ok": false, "error": "forbidden"}
 remove a column with tasks, nowhere to go: {"ok": false, "error": "invalid_status"}
 remove it, tasks to review: {"ok": true}
 task now in: Code review
 card: key,assignee,due
+last column counted: true
 the others removed: 2
 the last column: {"ok": false, "error": "last_column"}

@@ -194,7 +194,7 @@ reset role;
 update public.profiles set is_platform_admin = true where id = '00000000-0000-0000-0000-000000000004';
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-000000000004';
-select 'stats: ' || string_agg(name || '=' || members || 'm/' || pages || 'p', ',' order by created_at) from public.platform_workspaces();
+select 'stats: ' || string_agg(coalesce(name, '(hidden)') || '=' || members || 'm/' || pages || 'p', ',' order by created_at) from public.platform_workspaces();
 select 'admin sees alpha pages: ' || count(*) from public.pages where workspace_id = :'alpha';
 select 'admin reads platform log: ' || (count(*) > 0) from public.audit_log where workspace_id is null;
 select 'open registration: ' || (public.set_open_registration(true))::text;

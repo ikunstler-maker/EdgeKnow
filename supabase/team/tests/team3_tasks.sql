@@ -68,6 +68,7 @@ set role authenticated;
 :as_alice;
 select 'team file: ' || (public.register_task_file(:'l1', 'plan.pdf', 'application/pdf', 100) ->> 'target');
 select 'team files to the team storage: ' || (public.update_task_project(:'project', '{"files_target": "edgeknow"}') ->> 'ok');
+select 'team: count the last column: ' || (public.update_task_project(:'project', '{"time_last_column": true}') ->> 'ok');
 reset role;
 set role authenticated;
 :as_carol;

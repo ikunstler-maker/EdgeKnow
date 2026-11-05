@@ -666,6 +666,15 @@ export const en: Dictionary = {
     columns: { key: "Key", title: "Title", status: "Status", assignee: "Assignee", priority: "Priority", due: "Due", type: "Type", updated: "Updated" },
     types: { task: "Task", bug: "Bug", idea: "Idea", epic: "Epic" } as Record<string, string>,
     priorities: { highest: "Highest", high: "High", medium: "Medium", low: "Low", lowest: "Lowest" } as Record<string, string>,
+    columnTime: {
+      heading: "Time in columns",
+      duration: (ms: number) => {
+        const m = Math.max(1, Math.round(ms / 60000));
+        const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), min = m % 60;
+        return d ? `${d} d${h ? ` ${h} h` : ""}` : h ? `${h} h${min ? ` ${min} min` : ""}` : `${min} min`;
+      },
+      countLast: "Count time in the last column too",
+    },
     fields: {
       heading: "Task fields",
       status: "Status",

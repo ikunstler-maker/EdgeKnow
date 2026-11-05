@@ -53,6 +53,8 @@ export async function exportMyData(userId: string) {
       service_objects: await rows(db.from("service_objects").select("id, service, kind, title, data, created_at, updated_at").eq("workspace_id", m.workspace_id).eq("created_by", userId)),
       task_files: await rows(db.from("task_files").select("id, task_id, name, mime_type, bytes, drive_source, created_at").eq("workspace_id", m.workspace_id).eq("uploaded_by", userId)),
       board_pictures: await rows(db.from("object_files").select("id, object_id, name, mime_type, bytes, created_at").eq("workspace_id", m.workspace_id).eq("uploaded_by", userId)),
+      // Answer tables are function-only: the database returns just this person's named answers.
+      survey_answers: (await db.rpc("my_survey_answers", { ws: m.workspace_id })).data ?? [],
       statistics: await rows(db.from("page_contributions").select("page_id, chars_added, chars_removed, saves, last_saved_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
     });
   }

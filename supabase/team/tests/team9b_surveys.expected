@@ -2,5 +2,6 @@ team survey text: Pick A B, open as viewer
 connect: true
 bob answers: {"ok": true, "edited": false}
 bob reads: 1
+bob's data export: Team poll B
 the table got a row: 3
-carol (not a member): {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"}
+carol (not a member): {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"} []

@@ -14,6 +14,8 @@ gina can't write: {"ok": false, "error": "forbidden"}
 gina still uses the platform: true
 a stranger is told nothing: null
 platform list: true true true Spam reported
+stranger workspace hides name and owner: null null 2
+own workspace shows its name: Admin own admin@platform-guard.test
 unfreeze: {"ok": true}
 gina after: true
 frank makes more: ok, ok, ok, ok, too_many_today

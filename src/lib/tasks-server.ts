@@ -9,7 +9,7 @@ import { blockedTasks, type LinkedTask, type Person, type ProjectRole, type Task
 // wherever the workspace keeps its data, so RLS decides what shows.
 export type ProjectView = {
   workspace: Workspace;
-  project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean; card_fields: string[] };
+  project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean; card_fields: string[]; time_last_column?: boolean };
   statuses: TaskStatus[];
   fields: TaskField[];
   role: ProjectRole;

@@ -48,6 +48,7 @@ export function TaskDetail({
   members,
   comments,
   events,
+  columnTime,
   me,
   canEdit,
   canComment,
@@ -66,6 +67,7 @@ export function TaskDetail({
   members: Person[];
   comments: TaskComment[];
   events: TaskEvent[];
+  columnTime: { id: string; name: string; ms: number }[];
   me: string;
   canEdit: boolean;
   canComment: boolean;
@@ -237,6 +239,18 @@ export function TaskDetail({
                     onChange={(value) => change({ custom: { [field.id]: value } })}
                   />
                 ))}
+            </div>
+          )}
+          {columnTime.length > 0 && (
+            <div className="col-span-full border-t border-border pt-3" data-column-time>
+              <span className="text-xs text-muted">{k.columnTime.heading}</span>
+              <ul className="mt-1 flex flex-wrap gap-2">
+                {columnTime.map((c) => (
+                  <li key={c.id} className="rounded-full border border-border px-3 py-1 text-xs" data-column-time-item={c.name}>
+                    {c.name} · {k.columnTime.duration(c.ms)}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           <dl className="col-span-full flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-muted">

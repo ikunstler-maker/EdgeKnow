@@ -675,6 +675,15 @@ export const uk = {
     columns: { key: "Ключ", title: "Назва", status: "Статус", assignee: "Виконавець", priority: "Пріоритет", due: "Термін", type: "Тип", updated: "Оновлено" },
     types: { task: "Задача", bug: "Помилка", idea: "Ідея", epic: "Епік" } as Record<string, string>,
     priorities: { highest: "Найвищий", high: "Високий", medium: "Середній", low: "Низький", lowest: "Найнижчий" } as Record<string, string>,
+    columnTime: {
+      heading: "Час у колонках",
+      duration: (ms: number) => {
+        const m = Math.max(1, Math.round(ms / 60000));
+        const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), min = m % 60;
+        return d ? `${d} д${h ? ` ${h} год` : ""}` : h ? `${h} год${min ? ` ${min} хв` : ""}` : `${min} хв`;
+      },
+      countLast: "Рахувати час і в останній колонці",
+    },
     fields: {
       heading: "Поля задачі",
       status: "Статус",

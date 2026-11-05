@@ -143,3 +143,34 @@ export function openChecklistItems(description: unknown): string[] {
   walk(description);
   return items;
 }
+
+// Time a task spent in each column, from its history: every status change is
+// a logged event (column ids, so renaming or reordering columns changes nothing).
+// Repeated visits add up. The column it is in now counts until now, except the
+// last column, which counts only when the project turns that on.
+export type StatusMove = { old_value: unknown; new_value: unknown; created_at: string };
+export function columnTimes(
+  task: { created_at: string; status_id: string },
+  moves: StatusMove[],
+  statuses: { id: string; position: number }[],
+  countLast: boolean,
+  now = Date.now(),
+): Map<string, number> {
+  const sorted = [...moves].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const spent = new Map<string, number>();
+  const add = (status: string, from: number, to: number) => {
+    if (to > from) spent.set(status, (spent.get(status) ?? 0) + (to - from));
+  };
+  let status = typeof sorted[0]?.old_value === "string" ? (sorted[0].old_value as string) : task.status_id;
+  let since = Date.parse(task.created_at);
+  for (const move of sorted) {
+    const at = Date.parse(move.created_at);
+    add(status, since, at);
+    if (typeof move.new_value === "string") status = move.new_value;
+    since = at;
+  }
+  const last = [...statuses].sort((a, b) => a.position - b.position).at(-1)?.id;
+  add(status, since, now);
+  if (!countLast && last) spent.delete(last);
+  return spent;
+}
