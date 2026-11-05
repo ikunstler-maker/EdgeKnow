@@ -480,7 +480,9 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-results]').waitFor({ timeout: 20000 }).catch(() => {});
   check("a survey's form and summary show on a wiki page", (await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-form]').count()) === 1 && (await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-results]').count()) === 1);
   await colleague.goto(`${APP}/w/${alphaShort}/p/${surveyPage}`);
-  await colleague.locator('[data-survey-embed="Lunch poll"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  // Both embeds load their state after the frame shows: wait for what is checked, not the frame.
+  await colleague.locator("[data-survey-answered]").waitFor({ timeout: 20000 }).catch(() => {});
+  await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").waitFor({ timeout: 20000 }).catch(() => {});
   check("…someone who only answers sees the form (answered) but not the summary",
     (await colleague.locator("[data-survey-answered]").count()) === 1 && (await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").count()) === 1);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();

@@ -67,7 +67,7 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 ## Flaky: sheet embed "a change made elsewhere shows up" — e2e (nodes)
 - Symptom: passes on reruns with the same code.
 - Root cause: the page has two embeds of the same table (grid + chart); the test waited for the first to update, then counted both.
-- Fix (done): wait for `.nth(1)`. Same pattern for any multi-embed check.
+- Fix (done): wait for `.nth(1)`. Same pattern for any multi-embed check (also the survey form + summary check: wait for the checked elements, not the frame).
 - Seen: 2026-11-03
 
 ## Main re-runs all tests after merge — CI
