@@ -676,6 +676,7 @@ export const uk = {
     types: { task: "Задача", bug: "Помилка", idea: "Ідея", epic: "Епік" } as Record<string, string>,
     priorities: { highest: "Найвищий", high: "Високий", medium: "Середній", low: "Низький", lowest: "Найнижчий" } as Record<string, string>,
     fields: {
+      heading: "Поля задачі",
       status: "Статус",
       type: "Тип",
       priority: "Пріоритет",

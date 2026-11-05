@@ -667,6 +667,7 @@ export const en: Dictionary = {
     types: { task: "Task", bug: "Bug", idea: "Idea", epic: "Epic" } as Record<string, string>,
     priorities: { highest: "Highest", high: "High", medium: "Medium", low: "Low", lowest: "Lowest" } as Record<string, string>,
     fields: {
+      heading: "Task fields",
       status: "Status",
       type: "Type",
       priority: "Priority",

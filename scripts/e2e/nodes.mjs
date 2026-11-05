@@ -400,7 +400,8 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…with a link to the editor", (await tableEmbed.first().getByRole("link", { name: /Відкрити в редакторі/ }).count()) === 1);
   sql(`update public.service_objects set title = 'Budget 2', version = version + 1 where id = '${sheetId}'`);
   await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await alice.locator('[data-sheet-embed="Budget 2"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  // Two embeds (the table and its chart) read the change separately: wait for both, not the first.
+  await alice.locator('[data-sheet-embed="Budget 2"]').nth(1).waitFor({ timeout: 20000 }).catch(() => {});
   check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-sheet-embed="Budget 2"]').count()) === 2);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
   await alice.getByRole("button", { name: "📊 Таблиці" }).click();

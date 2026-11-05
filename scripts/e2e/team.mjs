@@ -241,6 +241,12 @@ const echoCounts = (where = "workspace_id") => ["pages", "page_access", "comment
 const centralBefore = echoCounts();
 check("Team Echo starts with pages, access, comments, a file and a mention", !echoUpload.error && /pages=2 page_access=[1-9].*comments=2 attachments=1 page_mentions=1/.test(centralBefore), `${centralBefore} ${echoUpload.error?.message ?? ""}`);
 
+// A board with a picture, a voting session and a vote: they go along too.
+const echoAlice = "(select id from public.profiles where email = 'alice@alpha.test')";
+const echoBoard = sql(`insert into public.service_objects (workspace_id, service, kind, title, owner_id, created_by) values ('${echoId}', 'boards', 'board', 'Echo board', ${echoAlice}, ${echoAlice}) returning id`).split("\n")[0];
+sql(`insert into public.object_files (workspace_id, object_id, name, mime_type, bytes, storage_path, uploaded_by) values ('${echoId}', '${echoBoard}', 'dot.png', 'image/png', 1, '${echoId}/objects/${echoBoard}/pending', ${echoAlice})`);
+sql(`insert into public.board_sessions (object_id, workspace_id, votes_per_person, voting_open) values ('${echoBoard}', '${echoId}', 3, true)`);
+sql(`insert into public.board_votes (object_id, workspace_id, element_id, user_id) values ('${echoBoard}', '${echoId}', 'note-1', ${echoAlice})`);
 execFileSync("psql", [status.DB_URL, "-v", "ON_ERROR_STOP=1", "-f", ".team-stacks/team-c/register.sql"]);
 const echoTab = await newPage(aliceCookies);
 await echoTab.goto(`${APP}/w/${echoShort}/p/${echoChapter}`);
@@ -267,6 +273,8 @@ for (let i = 0; i < 20; i++) {
 check("the setup copies the data and checks it", moveSteps.at(-1) === "sign_in" && moveSteps.includes("verify"), moveSteps.join(" "));
 const report = JSON.parse(sql(`select coalesce(move_report, '{}')::text from public.team_databases where workspace_id = '${echoId}'`));
 check("…the check found every row and page", report.ok === true && !report.mismatchedPages?.length && !report.missingFiles?.length, JSON.stringify(report));
+const boardCounts = ["object_files", "board_sessions", "board_votes"].map((table) => `${table}=${moveSql(`select count(*) from public.${table} where workspace_id = '${echoId}'`)}`).join(" ");
+check("…board pictures, sessions and votes are in the team database", boardCounts === "object_files=1 board_sessions=1 board_votes=1", boardCounts);
 const teamCounts = ["pages", "page_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"].map((table) => `${table}=${moveSql(`select count(*) from public.${table} where workspace_id = '${echoId}'`)}`).join(" ");
 check("the team database has the same rows", teamCounts === centralBefore, `${teamCounts} vs ${centralBefore}`);
 check("…the page tree, contents and comment author", moveSql(`select parent_id from public.pages where id = '${echoChapter}'`) === echoHandbook && moveSql(`select content::text from public.pages where id = '${echoChapter}'`) === sql(`select content::text from public.pages where id = '${echoChapter}'`) && moveSql(`select count(*) from public.comments c join public.profiles p on p.id = c.author_id where c.workspace_id = '${echoId}' and p.email = 'alice@alpha.test'`) === "2");

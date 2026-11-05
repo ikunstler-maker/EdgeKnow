@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   KeyboardSensor,
   closestCorners,
+  pointerWithin,
+  type CollisionDetection,
   useDraggable,
   useDroppable,
   useSensor,
@@ -88,7 +90,7 @@ export function TaskBoard({
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   );
@@ -123,6 +125,17 @@ export function TaskBoard({
         : group === "type"
           ? TASK_TYPES.map((p) => ({ id: p, label: `${TYPE_ICONS[p]} ${k.types[p]}`, match: (task: TaskRow) => task.type === p }))
           : [{ id: "all", label: "", match: () => true }];
+
+  // closestCorners alone measures to column corners, so a tall column far away loses to the
+  // card slots of the column the card came from: prefer whatever is under the pointer or finger.
+  const collision: CollisionDetection = (args) => {
+    const under = pointerWithin(args);
+    if (under.length) {
+      const slots = under.filter((hit) => String(hit.id).startsWith("before:"));
+      return slots.length ? slots : under;
+    }
+    return closestCorners(args);
+  };
 
   const onDragStart = (event: DragStartEvent) => setDragging(String(event.active.id));
   const onDragEnd = (event: DragEndEvent) => {
@@ -174,7 +187,7 @@ export function TaskBoard({
         </p>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
+      <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
         <div className="mt-3 space-y-4" data-task-board>
           {lanes.map((lane) => (
             <section key={lane.id} aria-label={lane.label || b.title}>

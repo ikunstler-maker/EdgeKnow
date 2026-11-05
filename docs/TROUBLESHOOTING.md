@@ -66,7 +66,8 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 
 ## Flaky: sheet embed "a change made elsewhere shows up" — e2e (nodes)
 - Symptom: passes on reruns with the same code.
-- Fix: rerun only the failed job (`rerun-failed-jobs`); root cause still open (backlog).
+- Root cause: the page has two embeds of the same table (grid + chart); the test waited for the first to update, then counted both.
+- Fix (done): wait for `.nth(1)`. Same pattern for any multi-embed check.
 - Seen: 2026-11-03
 
 ## Main re-runs all tests after merge — CI
@@ -74,6 +75,10 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Seen: 2026-11-03
 
 ## UI / libraries
+## Task board: drop into another column lands in the old one — dnd-kit
+- Root cause: `closestCorners` measures to a droppable's corners; a tall column loses to card slots near the pointer. PointerSensor also fought touch scrolling.
+- Fix: collision = `pointerWithin` (card slots first), fallback `closestCorners`; MouseSensor + TouchSensor (long press) instead of PointerSensor.
+- Seen: 2026-12-16
 ## Fortune-sheet TRUE/FALSE treated as cell labels; dates as JS strings — Tables
 - Fix: wrapped `_callCellValue` and date serials with `formatForFormula` (`src/lib/sheet-functions.ts`).
 - Seen: 2026-11
