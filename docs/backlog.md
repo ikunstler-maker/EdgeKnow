@@ -7,6 +7,12 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Boards Д2: realtime co-editing (postponed by the owner).
 - Organization level, shared objects between workspaces (later).
 
+## New directions (2026-11-05, roadmap stage 2c) — each needs its own plan + OK
+- Wiki: drafts by default + Publish (RLS change → approval); Share button (copy link, export with format list).
+- Tables: user scripts (sandboxed). AI: transcription, dictation, node automations, local LLM / MCP models.
+- Company landing builder (Free blocks, Team custom code), Business: custom-code corporate pages, block business cards (company + profile, Free), FinPulse embedded (Team, org admins only).
+- Show all of these on `/about` as «Скоро» (next PR, after OK).
+
 ## Requested by the owner (2026-11-04), not planned in detail yet
 - **Tasks: time in each column.** Log every status change (task, column, entered_at, left_at). Per task show one label per column: total time spent there (summed over repeated visits), computed after the fact from the log, not live. Counted for every column (names are free), including the last one if the project turns it on. Columns can be renamed/reordered; the log keeps the column id. Needs a migration (central + team) → owner's approval.
 - **Tasks: drag between columns on the board without opening the task.** Decision 2026-11-23 says it exists (mouse + long press on phone) but the owner reports only in-column drag works → check as a bug first (`src/components/tasks/task-board.tsx`), incl. touch.
