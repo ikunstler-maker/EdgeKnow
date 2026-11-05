@@ -302,7 +302,62 @@ function Meet() {
   );
 }
 
-const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files, calendar: Calendar, meet: Meet };
+function Ai() {
+  const bars = [40, 70, 55, 90, 35, 80, 60, 45, 75, 50, 85, 30];
+  return (
+    <div className="flex h-[calc(100%-2rem)] flex-col gap-3">
+      <div className="flex h-14 items-end gap-1 rounded-xl bg-white/[0.05] p-2">
+        {bars.map((h, i) => (
+          <span key={i} className="flex-1 rounded-full bg-gradient-to-t from-fuchsia-400/60 to-violet-400/60" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+      <div className="flex flex-col gap-1.5">{line("90%", 0.35)}{line("75%", 0.3)}{line("60%", 0.25)}</div>
+      <div className="flex flex-1 items-center justify-between gap-2">
+        {["bg-fuchsia-400/50", "bg-violet-400/50", "bg-sky-400/50"].map((c, i) => (
+          <div key={i} className="flex flex-1 items-center gap-2">
+            <span className={`h-9 flex-1 rounded-xl ${c}`} />
+            {i < 2 && <span className="h-0.5 w-4 bg-white/30" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Sites() {
+  return (
+    <div className="flex h-[calc(100%-2rem)] gap-3">
+      <div className="flex flex-[2] flex-col gap-2 rounded-xl bg-white/[0.05] p-2">
+        <span className="h-12 rounded-lg bg-gradient-to-r from-teal-300/50 to-sky-500/50" />
+        {line("70%", 0.35)}
+        <div className="grid flex-1 grid-cols-3 gap-1.5">
+          {[0, 1, 2].map((i) => <span key={i} className="rounded-lg bg-white/10" />)}
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col items-center gap-2 rounded-xl bg-white/[0.05] p-2">
+        <span className="mt-2 h-10 w-10 rounded-full bg-gradient-to-br from-teal-300/60 to-sky-500/60" />
+        {line("70%", 0.4)}
+        {[0, 1, 2].map((i) => <span key={i} className="h-4 w-full rounded-full bg-white/10" />)}
+      </div>
+    </div>
+  );
+}
+
+function Apps() {
+  const tiles = ["from-lime-300/50 to-emerald-500/40", "from-emerald-300/40 to-teal-500/30", "from-sky-300/40 to-indigo-500/30", "from-amber-300/40 to-orange-500/30", "from-rose-300/40 to-purple-500/30"];
+  return (
+    <div className="grid h-[calc(100%-2rem)] grid-cols-3 gap-3">
+      {tiles.map((g, i) => (
+        <div key={i} className={`flex flex-col justify-end gap-1.5 rounded-2xl bg-gradient-to-br ${g} p-2 ${i === 0 ? "ring-2 ring-lime-200/70" : ""}`}>
+          <span className="h-1.5 w-2/3 rounded-full bg-white/40" />
+        </div>
+      ))}
+      <div className="flex items-center justify-center rounded-2xl border border-dashed border-white/25 text-xl text-white/50">＋</div>
+    </div>
+  );
+}
+
+const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files, calendar: Calendar, meet: Meet, ai: Ai, sites: Sites, apps: Apps };
 
 export function ServiceMockup({ service, label }: { service: string; label: string }) {
   const Screen = SCREENS[service] ?? Wiki;

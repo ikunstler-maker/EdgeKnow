@@ -118,6 +118,9 @@ export const SERVICE_GRADIENTS: Record<string, string> = {
   files: "from-yellow-200 to-orange-500",
   calendar: "from-sky-300 to-cyan-500",
   meet: "from-indigo-300 to-violet-500",
+  ai: "from-fuchsia-300 to-violet-500",
+  sites: "from-teal-200 to-sky-500",
+  apps: "from-lime-200 to-emerald-500",
 };
 
 export function SoonBadge({ label }: { label: string }) {
