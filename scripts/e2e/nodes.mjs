@@ -412,7 +412,8 @@ check("…while a map they may view shows as usual", shownMap, screen);
   sql(`update public.service_objects set workspace_role = null where id = '${sheetId}'`);
   sql(`update public.pages set workspace_role = 'viewer' where id = '${tablePage}'`);
   await colleague.goto(`${APP}/w/${alphaShort}/p/${tablePage}`);
-  await colleague.getByText("Немає доступу до цієї таблиці.").first().waitFor({ timeout: 20000 }).catch(() => {});
+  // Two embeds (table and chart): wait for the second one too, not just the first.
+  await colleague.getByText("Немає доступу до цієї таблиці.").nth(1).waitFor({ timeout: 20000 }).catch(() => {});
   check("someone without access to a table sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї таблиці.").count()) === 2 && (await colleague.getByText("Budget 2").count()) === 0);
   sql(`update public.service_objects set workspace_role = 'editor' where id = '${sheetId}'`);
 }
