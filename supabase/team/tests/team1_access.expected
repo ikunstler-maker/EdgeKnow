@@ -4,9 +4,10 @@ psql: ERROR:  permission denied for function team_sync
 sync: {"ok": true}
 second workspace refused: other_workspace
 save: true
+team: a page with the browser's id, twice: 00000000-0000-0000-0000-00000000aaf1 true
 share with workspace: true
 share with bob: true
-alice sees: Handbook, Private notes
+alice sees: Handbook, Private notes, Quick page
 bob sees: Handbook (viewer), Private notes (editor)
 bob searches: 1
 bob (viewer) may not comment: false

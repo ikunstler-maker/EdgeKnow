@@ -21,6 +21,12 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## Tasks: templates (owner, 2026-12-16) — needs plan + OK (migration)
 - Custom fields already exist per project (`task_fields`). Add task templates: field values + description skeleton, "Save as template", pick a template when creating a task, default template per project.
 
+## Next packages (owner, 2026-12-18) — order: 7 → 8 → 9 → 6 → 3 → 4
+- **7. Tasks:** 4th column type «Перевіряють» (review); project notification rules (event: column type / specific column / assigned / due changed / comment → recipients: person, group, assignee, reporter, owner). Approved (DB).
+- **8. Notifications:** in-app centre (mentions, changes, rules), browser push (needs a push key in Vercel, set by the owner), per-person settings (events, services, quiet hours). Approved (DB).
+- **9. Mascot «Декапентапус»:** 15-legged octopus replaces the fish; menu (notifications, feedback/bugs, AI helper later), draggable anywhere (per device), notifications beside it (side chosen), sounds (library or own short file).
+- **6. Analytics:** per period/person: created, done, passed through, files, comments, text written; manager metrics (lead/cycle time, overdue, created vs done, stuck, load, reopened) on Team; workspace-wide (wiki, surveys, boards/maps/tables, active people). Guests counted; kept after leaving; deleted account → ID only. Needs approval for DB functions.
+
 ## Pricing (plan: `docs/pricing-uk.md`, roadmap stage 4)
 - Approved: Team 6/5 $, Business 12/10 $ from 15 editors, rate 45 $/h, target MRR ≈ 3 650 $.
 - Open (decide after the current roadmap is done): Free limits per service; which cross-service links are PRO.

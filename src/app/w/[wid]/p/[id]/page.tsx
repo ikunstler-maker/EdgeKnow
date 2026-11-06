@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/pages/page-header";
 import { ShareButton } from "@/components/pages/share-dialog";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
+import { ClearNewFlag } from "@/components/pages/clear-new-flag";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -76,11 +77,22 @@ export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">)
   return { title: page ? `${page.title || t.pages.untitled} · ${t.app.name}` : t.app.name };
 }
 
-export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">) {
+// A page just made in this browser opens while the database is still making it
+// (?new=1): wait for it a little instead of showing "not found".
+async function loadNewPage(wid: string, id: string, isNew: boolean) {
+  for (let attempt = 0; ; attempt++) {
+    const page = await loadPage(wid, id);
+    if (page || !isNew || attempt >= 20) return page;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+}
+
+export default async function WikiPage({ params, searchParams }: PageProps<"/w/[wid]/p/[id]">) {
   const { wid, id } = await params;
+  const isNew = (await searchParams).new === "1";
   const [workspace, page, user, comments] = await Promise.all([
     getWorkspace(wid),
-    loadPage(wid, id),
+    loadNewPage(wid, id, isNew),
     getCurrentUser(),
     loadComments(wid, id),
   ]);
@@ -103,6 +115,7 @@ export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">)
     <div className="flex flex-1 flex-col">
     <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editable} />
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
+      {isNew && <ClearNewFlag />}
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
       {!page.deleted_at && (
         <div className="mb-2 flex justify-end">

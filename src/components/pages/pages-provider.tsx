@@ -49,6 +49,8 @@ type PagesContextValue = {
   // The workspace's guests this person sees, marked «Гість» wherever people appear.
   guests: ReadonlySet<string>;
   pending: boolean;
+  // Pages made in this browser that the server hasn't confirmed yet (shown as "creating").
+  creating: ReadonlySet<string>;
   create: (parentId: string | null) => void;
   rename: (id: string, title: string) => void;
   setIcon: (id: string, icon: string | null) => void;
@@ -89,6 +91,11 @@ export function PagesProvider({
   const [optimisticPages, applyOptimistic] = useOptimistic(pages, reducer);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // New pages shown at once, until the server's tree has them.
+  const [added, setAdded] = useState<PageNode[]>([]);
+  const [creating, setCreating] = useState<ReadonlySet<string>>(new Set());
+  const known = useMemo(() => new Set(pages.map((p) => p.id)), [pages]);
+  const shownAdded = added.filter((p) => !known.has(p.id));
 
   // Applies the change on screen right away; the server's answer replaces it
   // (or rolls it back on failure) when the refreshed tree arrives.
@@ -102,15 +109,59 @@ export function PagesProvider({
   const guestSet = useMemo(() => new Set(guests), [guests]);
   const value: PagesContextValue = {
     workspace,
-    pages: optimisticPages,
+    pages: shownAdded.length ? [...optimisticPages, ...shownAdded] : optimisticPages,
     guests: guestSet,
     pending,
-    create: (parentId) =>
-      startTransition(async () => {
-        const result = await createPage(workspace.id, parentId);
-        setError(errorMessage(result));
-        if (result.ok) router.push(pagePath(workspace.shortId, result.id));
-      }),
+    creating,
+    create: (parentId) => {
+      // The page gets its id here, shows in the tree and opens at once; the database
+      // makes it in the meantime (the page waits for it), and the tree is refreshed after.
+      const id = crypto.randomUUID();
+      const siblings = optimisticPages.filter((p) => p.parentId === parentId);
+      const parent = parentId ? optimisticPages.find((p) => p.id === parentId) : null;
+      const node: PageNode = {
+        id,
+        parentId,
+        title: "",
+        icon: null,
+        position: Math.max(0, ...siblings.map((p) => p.position)) + 1,
+        ownerId: "",
+        role: "owner",
+        workspaceRole: parent?.workspaceRole ?? null,
+      };
+      setAdded((list) => [...list, node]);
+      setCreating((set) => new Set(set).add(id));
+      setError(null);
+      // Where to return if the database refuses (not history.back: the new page may not be open yet).
+      const from = window.location.pathname + window.location.search;
+      router.push(`${pagePath(workspace.shortId, id)}?new=1`);
+      createPage(workspace.id, parentId, id).then(
+        (result) => {
+          setCreating((set) => {
+            const next = new Set(set);
+            next.delete(id);
+            return next;
+          });
+          if (result.ok) {
+            router.refresh();
+            return;
+          }
+          setAdded((list) => list.filter((p) => p.id !== id));
+          setError(errorMessage(result));
+          router.replace(from);
+        },
+        () => {
+          setCreating((set) => {
+            const next = new Set(set);
+            next.delete(id);
+            return next;
+          });
+          setAdded((list) => list.filter((p) => p.id !== id));
+          setError(t.pages.errors.offline ?? t.common.unknownError);
+          router.replace(from);
+        },
+      );
+    },
     rename: (id, title) => run({ type: "rename", id, title }, () => renamePage(id, title)),
     setIcon: (id, icon) => run({ type: "icon", id, icon }, () => setPageIcon(id, icon)),
     move: (id, parentId, index) =>
