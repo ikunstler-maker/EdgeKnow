@@ -19,6 +19,9 @@ import { usePages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
 
 const n = t.notifications;
+export const NOTIFICATIONS_EVENT = "ek-notifications";
+export const OPEN_NOTIFICATIONS_EVENT = "ek-open-notifications";
+export type NotificationNews = { unread: number; fresh: { line: string; subject: string; href: string | null }[] };
 const POLL_MS = 30_000;
 
 function hrefOf(shortId: string, item: NotificationItem) {
@@ -56,8 +59,10 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
     const known = seen.current;
     seen.current = new Set(next.items.map((i) => i.id));
     setList(next);
+    const fresh = known ? next.items.filter((i) => !i.read_at && !known.has(i.id)) : [];
+    // Apus shows new ones beside itself (and plays its sound).
+    window.dispatchEvent(new CustomEvent(NOTIFICATIONS_EVENT, { detail: { unread: next.unread, fresh: fresh.map((i) => ({ line: lineOf(i), subject: subjectOf(i), href: hrefOf(workspace.shortId, i) })) } }));
     if (!known) return;
-    const fresh = next.items.filter((i) => !i.read_at && !known.has(i.id));
     const device = readDeviceSettings();
     if (!fresh.length || !device.browser || inQuietHours(device)) return;
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -70,6 +75,13 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
       };
     }
   }, [workspace.id, workspace.shortId]);
+
+  // Apus opens this panel next to itself.
+  useEffect(() => {
+    const open = (event: Event) => setAnchor((event as CustomEvent<HTMLElement>).detail);
+    window.addEventListener(OPEN_NOTIFICATIONS_EVENT, open);
+    return () => window.removeEventListener(OPEN_NOTIFICATIONS_EVENT, open);
+  }, []);
 
   useEffect(() => {
     const first = setTimeout(refresh, 0);

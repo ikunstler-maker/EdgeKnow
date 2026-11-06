@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
-import { AnglerFish } from "./angler-fish";
+import { ApusFigure } from "@/components/apus/apus-figure";
 import { useAppearance } from "./appearance";
 
 // The fish swims to the left of wherever the person is: the current page in the
@@ -101,7 +101,7 @@ export function AnglerGuide({ containerRef }: { containerRef: RefObject<HTMLElem
         transform: `translate(${spot.x - 1}px, ${spot.y - 13}px) rotate(${spot.edge === "up" ? -35 : spot.edge === "down" ? 35 : 0}deg)`,
       }}
     >
-      <AnglerFish swimming={swimming} className="h-full w-full" />
+      <ApusFigure className={`apus-mini h-full w-full ${swimming ? "apus-swimming" : ""}`} />
     </button>
   );
 }

@@ -747,8 +747,9 @@ check("contents/comments switch stays on screen while scrolling", pill !== null 
 
 // --- Feedback ------------------------------------------------------------------------
 
-// The lure sways all the time, so the click does not wait for it to stand still.
-await wide.getByRole("button", { name: "Залишити відгук" }).click({ force: true });
+// Feedback lives in Apus's menu (Apus moves, so the click does not wait for it to stand still).
+await wide.locator("[data-apus-button]").click({ force: true });
+await wide.locator('[data-apus-item="feedback"]').click();
 const feedback = wide.getByRole("dialog", { name: "Відгук про вікі" });
 await feedback.getByLabel("Що це?").selectOption("bug");
 await feedback.getByLabel("Опис").fill("Smoke test feedback");

@@ -64,7 +64,28 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/w/${alphaShort}/trash`);
   await alice.waitForTimeout(900);
   check("…and of the trash link when that is where you are", (await alice.locator("aside [data-angler-here]").first().getAttribute("aria-label")) === "Кошик" && (await beside()));
-  check("the lure replaces the old feedback button", (await alice.locator('[data-lure="bright"]').getByRole("button", { name: "Залишити відгук" }).count()) === 1);
+  // Apus replaces the old «!?» button: its menu leads to feedback; it can be dragged and minimized.
+  check("Apus replaces the old feedback button", (await alice.locator('[data-lure="bright"] [data-apus-button]').count()) === 1);
+  await alice.locator("[data-apus-button]").click();
+  await alice.locator("[data-apus-menu]").waitFor({ timeout: 10000 }).catch(() => {});
+  check("…a click opens its menu with a kiss, and feedback is in it", (await alice.locator('[data-apus-item="feedback"]').count()) === 1);
+  await alice.locator('[data-apus-item="feedback"]').click();
+  check("…which opens the feedback form", (await alice.getByRole("dialog", { name: /відгук/i }).count()) === 1);
+  await alice.keyboard.press("Escape");
+  await alice.locator("[data-apus-button]").click();
+  await alice.locator("[data-apus-minimize]").click();
+  check("…it minimizes into a badge", (await alice.locator("[data-apus-button].h-11").count()) === 1);
+  await alice.locator("[data-apus-minimize]").click();
+  await alice.locator("[data-apus-button]").click();
+  const apusBox = await alice.locator("[data-apus-button]").boundingBox();
+  await alice.mouse.move(apusBox.x + 10, apusBox.y + 10);
+  await alice.mouse.down();
+  await alice.mouse.move(apusBox.x - 200, apusBox.y - 150, { steps: 10 });
+  await alice.mouse.up();
+  await alice.reload();
+  await alice.locator("[data-apus-button]").waitFor({ timeout: 15000 });
+  const movedBox = await alice.locator("[data-apus-button]").boundingBox();
+  check("…it can be dragged anywhere and stays there", movedBox && movedBox.x < apusBox.x - 150, JSON.stringify([apusBox, movedBox]));
   for (let i = 0; i < 3; i++) await fish.click();
   await alice.waitForTimeout(300);
   check("a few clicks on the fish don't open the game", (await alice.locator("[data-depth-game]").count()) === 0);
@@ -78,10 +99,10 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
 
   await alice.goto(`${APP}/w/${alphaShort}/profile`);
   const look = alice.locator("[data-appearance]");
-  await look.getByLabel("Показувати рибу-вудильника").uncheck();
+  await look.getByLabel("Показувати маленького Апуса біля поточної сторінки").uncheck();
   await alice.waitForTimeout(300);
   check("hiding the fish takes it away at once", (await alice.locator("[data-angler]").count()) === 0);
-  await look.getByLabel("Приглушена (напівпрозора біла)").check();
+  await look.getByLabel("Приглушений (напівпрозорий)").check();
   await alice.waitForTimeout(1500);
   check("…the subdued lure is translucent white", (await alice.locator('[data-lure="subtle"]').count()) === 1 && sql("select show_mascot || ' ' || lure from public.profiles where email = 'alice@alpha.test'") === "false subtle");
   await alice.reload();
@@ -92,8 +113,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/help`);
   check("…“Leave feedback” on the help page", (await alice.getByRole("button", { name: "Залишити відгук" }).count()) === 1);
   await alice.goto(`${APP}/w/${alphaShort}/profile`);
-  await look.getByLabel("Показувати рибу-вудильника").check();
-  await look.getByLabel("Яскрава").check();
+  await look.getByLabel("Показувати маленького Апуса біля поточної сторінки").check();
+  await look.getByLabel("Звичайний").check();
   await alice.waitForTimeout(1500);
   check("…turned back on", sql("select show_mascot || ' ' || lure from public.profiles where email = 'alice@alpha.test'") === "true bright");
 }
