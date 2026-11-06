@@ -45,6 +45,8 @@ select 'gina still uses the platform: ' || public.has_platform_access();
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000017e1';
 select 'a stranger is told nothing: ' || coalesce(public.frozen_workspace_notice(:'wsshort')::text, 'null');
 select 'platform list: ' || (select (data_location is null) || ' ' || central_allowed || ' ' || (frozen_at is not null) || ' ' || frozen_reason from public.platform_workspaces() where id = :'ws');
+select 'stranger workspace hides name and owner: ' || (select coalesce(name, 'null') || ' ' || coalesce(owner_email, 'null') || ' ' || members from public.platform_workspaces() where id = :'ws');
+select 'own workspace shows its name: ' || (select name || ' ' || owner_email from public.platform_workspaces() where id = :'adminws');
 select 'unfreeze: ' || public.platform_freeze_workspace(:'ws', false, null)::text;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000017b1';
 select 'gina after: ' || public.is_workspace_member(:'ws');

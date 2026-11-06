@@ -10,6 +10,7 @@ team bulk: 2
 carol sees links: 0, links: forbidden
 team file: personal
 team files to the team storage: true
+team: count the last column: true
 carol sees files: 0, attaches: forbidden
 team mention: 1
 carol sees team mentions: 0

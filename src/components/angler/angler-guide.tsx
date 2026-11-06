@@ -49,7 +49,8 @@ export function AnglerGuide({ containerRef }: { containerRef: RefObject<HTMLElem
           if (y < area.top + 10) [y, edge] = [area.top + 14, "up"];
           else if (y > area.bottom - 10) [y, edge] = [area.bottom - 14, "down"];
         }
-        const next = { x: box.left - navBox.left, y: y - navBox.top, edge };
+        // Just left of the row (30 px: the fish's width), never on top of it.
+        const next = { x: box.left - navBox.left - 30, y: y - navBox.top, edge };
         const before = last.current;
         if (before && Math.abs(before.y - next.y) < 0.5 && Math.abs(before.x - next.x) < 0.5 && before.edge === next.edge) return;
         // A real move (not the first placement) is a swim: the tail goes faster for a moment.

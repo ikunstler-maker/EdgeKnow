@@ -32,11 +32,16 @@ select 'rename and limit: ' || (public.save_task_status(:'project', :'review', '
 select 'bad group: ' || public.save_task_status(:'project', null, 'X', 'later', null, null)::text;
 select 'card fields: ' || public.update_task_project(:'project', '{"card_fields": ["key", "assignee", "due"]}')::text;
 select 'unknown card field: ' || public.update_task_project(:'project', '{"card_fields": ["salary"]}')::text;
+select 'count the last column: ' || public.update_task_project(:'project', '{"time_last_column": true}')::text;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000024b1';
+select 'bob may not switch it: ' || public.update_task_project(:'project', '{"time_last_column": false}')::text;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000024a1';
 select 'remove a column with tasks, nowhere to go: ' || public.delete_task_status(:'doing', null)::text;
 select 'remove it, tasks to review: ' || public.delete_task_status(:'doing', :'review')::text;
 reset role;
 select 'task now in: ' || s.name from public.tasks t join public.task_statuses s on s.id = t.status_id where t.id = :'task';
 select 'card: ' || array_to_string(card_fields, ',') from public.task_projects where id = :'project';
+select 'last column counted: ' || time_last_column from public.task_projects where id = :'project';
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000024a1';
 select 'the others removed: ' || count(*) filter (where (public.delete_task_status(id, :'review') ->> 'ok')::boolean) from public.task_statuses where project_id = :'project' and id <> :'review';

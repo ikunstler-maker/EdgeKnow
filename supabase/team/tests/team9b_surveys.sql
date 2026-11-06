@@ -15,10 +15,11 @@ select 'team survey text: ' || search_text || ', open as ' || workspace_role fro
 select 'connect: ' || (public.link_survey_sheet(:'survey', :'sheet', 'Answers', '{"time": "Time", "person": "Who"}') ->> 'ok');
 select 'bob answers: ' || public.submit_survey_response(:'survey', '{"q": "B"}')::text;
 select 'bob reads: ' || jsonb_array_length(public.survey_answers(:'survey') -> 'responses');
+select 'bob''s data export: ' || (public.my_survey_answers(:'ws') -> 0 ->> 'survey') || ' ' || (public.my_survey_answers(:'ws') -> 0 -> 'answers' ->> 'q');
 reset role;
 select 'the table got a row: ' || count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'sheets') s, jsonb_array_elements(s -> 'celldata') c
 where o.id = :'sheet' and s ->> 'name' = 'Answers' and (c ->> 'r')::integer = 1;
 set role authenticated;
 :as_carol;
-select 'carol (not a member): ' || public.survey_state(:'survey')::text || ' ' || public.submit_survey_response(:'survey', '{"q": "A"}')::text || ' ' || public.survey_answers(:'survey')::text;
+select 'carol (not a member): ' || public.survey_state(:'survey')::text || ' ' || public.submit_survey_response(:'survey', '{"q": "A"}')::text || ' ' || public.survey_answers(:'survey')::text || ' ' || public.my_survey_answers(:'ws')::text;
 reset role;

@@ -219,6 +219,12 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForTimeout(1500);
   const moved = () => sql("select s.name from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 4");
   check("…dragged to “Готово” it is done, there and in the database", (await alice.locator('[data-column="Готово"] [data-card="MAR-4"]').count()) === 1 && moved() === "Готово", moved());
+  // Time in columns, from the task history: the first column counts, the last one is off by default.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/4`);
+  await alice.locator("[data-column-time]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("the task shows time in the column it left, not in the last one", (await alice.locator('[data-column-time-item="Зробити"]').count()) === 1 && (await alice.locator('[data-column-time-item="Готово"]').count()) === 0);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.locator("[data-task-board]").waitFor({ timeout: 15000 });
   await alice.getByRole("button", { name: "Колонка «В роботі»" }).click();
   const columnForm = alice.getByRole("form", { name: "Колонка «В роботі»" });
   await columnForm.getByLabel("Ліміт задач у колонці").fill("1");

@@ -48,6 +48,7 @@ export function TaskDetail({
   members,
   comments,
   events,
+  columnTime,
   me,
   canEdit,
   canComment,
@@ -66,6 +67,7 @@ export function TaskDetail({
   members: Person[];
   comments: TaskComment[];
   events: TaskEvent[];
+  columnTime: { id: string; name: string; ms: number }[];
   me: string;
   canEdit: boolean;
   canComment: boolean;
@@ -110,7 +112,7 @@ export function TaskDetail({
     members.filter((m) => [m.name, m.email.split("@")[0]].some((n) => n && text.toLowerCase().includes(`@${n.toLowerCase().split(" ")[0]}`))).map((m) => m.id);
 
   return (
-    <div className="mt-4 grid gap-8 lg:grid-cols-[1fr_16rem]">
+    <div className="mt-4">
       <div className="min-w-0">
         <p className="font-mono text-sm text-muted">
           {parent && (
@@ -150,6 +152,128 @@ export function TaskDetail({
           </p>
         )}
         <BlockedNotice links={links} />
+
+        {/* All fields at the top, the free description below them (as in issue trackers). */}
+        <section className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3" aria-label={k.fields.heading} data-task-fields>
+          <Field label={k.fields.status}>
+            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => change({ status_id: e.target.value })} className={inputClass}>
+              {statuses.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={k.fields.assignee}>
+            <select value={task.assignee_id ?? ""} disabled={!canEdit || pending} onChange={(e) => change({ assignee_id: e.target.value || null })} className={inputClass}>
+              <option value="">{k.unassigned}</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {personLabel(m)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={k.fields.priority}>
+            <select value={task.priority} disabled={!canEdit || pending} onChange={(e) => change({ priority: e.target.value })} className={inputClass}>
+              {TASK_PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_ICONS[p]} {k.priorities[p]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={k.fields.type}>
+            <select value={task.type} disabled={!canEdit || pending} onChange={(e) => change({ type: e.target.value })} className={inputClass}>
+              {TASK_TYPES.map((value) => (
+                <option key={value} value={value}>
+                  {TYPE_ICONS[value]} {k.types[value]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <ParentPicker task={task} tasks={projectTasks} canEdit={canEdit} projectKey={project.key} />
+          <Field label={k.fields.labels}>
+            <input
+              defaultValue={task.labels.join(", ")}
+              disabled={!canEdit}
+              placeholder={k.fields.labelsHint}
+              onBlur={(e) => {
+                const labels = [...new Set(e.currentTarget.value.split(",").map((l) => l.trim()).filter(Boolean))];
+                if (labels.join(",") !== task.labels.join(",")) change({ labels });
+              }}
+              className={inputClass}
+            />
+          </Field>
+          <Field label={k.fields.startDate}>
+            <input type="date" defaultValue={task.start_date ?? ""} disabled={!canEdit} onChange={(e) => change({ start_date: e.target.value || null })} className={inputClass} />
+          </Field>
+          <Field label={k.fields.dueDate}>
+            <input type="date" defaultValue={task.due_date ?? ""} disabled={!canEdit} onChange={(e) => change({ due_date: e.target.value || null })} className={inputClass} />
+          </Field>
+          <Field label={k.fields.estimate}>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              defaultValue={task.estimate ?? ""}
+              disabled={!canEdit}
+              onBlur={(e) => {
+                const value = e.currentTarget.value === "" ? null : Number(e.currentTarget.value);
+                if (value !== task.estimate) change({ estimate: value });
+              }}
+              className={inputClass}
+            />
+          </Field>
+          {fields.some((field) => fieldApplies(field, task.type)) && (
+            <div className="col-span-full grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={k.customFields.heading} role="group">
+              {fields
+                .filter((field) => fieldApplies(field, task.type))
+                .map((field) => (
+                  <FieldValue
+                    key={field.id}
+                    field={field}
+                    value={task.custom?.[field.id]}
+                    members={members}
+                    disabled={!canEdit || pending}
+                    onChange={(value) => change({ custom: { [field.id]: value } })}
+                  />
+                ))}
+            </div>
+          )}
+          {columnTime.length > 0 && (
+            <div className="col-span-full border-t border-border pt-3" data-column-time>
+              <span className="text-xs text-muted">{k.columnTime.heading}</span>
+              <ul className="mt-1 flex flex-wrap gap-2">
+                {columnTime.map((c) => (
+                  <li key={c.id} className="rounded-full border border-border px-3 py-1 text-xs" data-column-time-item={c.name}>
+                    {c.name} · {k.columnTime.duration(c.ms)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <dl className="col-span-full flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-muted">
+            <div>
+              <dt className="inline">{k.fields.reporter}: </dt>
+              <dd className="inline">{who(task.reporter_id)}</dd>
+            </div>
+            <div>
+              <dt className="inline">{k.fields.created}: </dt>
+              <dd className="inline">{when(task.created_at)}</dd>
+            </div>
+            <div>
+              <dt className="inline">{k.fields.updated}: </dt>
+              <dd className="inline">{when(task.updated_at)}</dd>
+            </div>
+            {task.done_at && (
+              <div>
+                <dt className="inline">{k.fields.done}: </dt>
+                <dd className="inline">{when(task.done_at)}</dd>
+              </div>
+            )}
+          </dl>
+        </section>
 
         <h2 className="mt-6 text-sm font-medium text-muted">{k.description}</h2>
         <div className="mt-2 -mx-3">
@@ -245,128 +369,22 @@ export function TaskDetail({
             </li>
           ))}
         </ul>
-      </div>
 
-      <aside className="space-y-3 text-sm">
-        <Field label={k.fields.status}>
-          <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => change({ status_id: e.target.value })} className={inputClass}>
-            {statuses.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={k.fields.assignee}>
-          <select value={task.assignee_id ?? ""} disabled={!canEdit || pending} onChange={(e) => change({ assignee_id: e.target.value || null })} className={inputClass}>
-            <option value="">{k.unassigned}</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {personLabel(m)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={k.fields.priority}>
-          <select value={task.priority} disabled={!canEdit || pending} onChange={(e) => change({ priority: e.target.value })} className={inputClass}>
-            {TASK_PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_ICONS[p]} {k.priorities[p]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={k.fields.type}>
-          <select value={task.type} disabled={!canEdit || pending} onChange={(e) => change({ type: e.target.value })} className={inputClass}>
-            {TASK_TYPES.map((value) => (
-              <option key={value} value={value}>
-                {TYPE_ICONS[value]} {k.types[value]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <ParentPicker task={task} tasks={projectTasks} canEdit={canEdit} projectKey={project.key} />
-        <Field label={k.fields.labels}>
-          <input
-            defaultValue={task.labels.join(", ")}
-            disabled={!canEdit}
-            placeholder={k.fields.labelsHint}
-            onBlur={(e) => {
-              const labels = [...new Set(e.currentTarget.value.split(",").map((l) => l.trim()).filter(Boolean))];
-              if (labels.join(",") !== task.labels.join(",")) change({ labels });
-            }}
-            className={inputClass}
-          />
-        </Field>
-        <Field label={k.fields.startDate}>
-          <input type="date" defaultValue={task.start_date ?? ""} disabled={!canEdit} onChange={(e) => change({ start_date: e.target.value || null })} className={inputClass} />
-        </Field>
-        <Field label={k.fields.dueDate}>
-          <input type="date" defaultValue={task.due_date ?? ""} disabled={!canEdit} onChange={(e) => change({ due_date: e.target.value || null })} className={inputClass} />
-        </Field>
-        <Field label={k.fields.estimate}>
-          <input
-            type="number"
-            min={0}
-            step={0.5}
-            defaultValue={task.estimate ?? ""}
-            disabled={!canEdit}
-            onBlur={(e) => {
-              const value = e.currentTarget.value === "" ? null : Number(e.currentTarget.value);
-              if (value !== task.estimate) change({ estimate: value });
-            }}
-            className={inputClass}
-          />
-        </Field>
-        {fields.some((field) => fieldApplies(field, task.type)) && (
-          <div className="space-y-3 border-t border-border pt-3" aria-label={k.customFields.heading} role="group">
-            {fields
-              .filter((field) => fieldApplies(field, task.type))
-              .map((field) => (
-                <FieldValue
-                  key={field.id}
-                  field={field}
-                  value={task.custom?.[field.id]}
-                  members={members}
-                  disabled={!canEdit || pending}
-                  onChange={(value) => change({ custom: { [field.id]: value } })}
-                />
-              ))}
-          </div>
-        )}
-        <dl className="space-y-1 border-t border-border pt-3 text-xs text-muted">
-          <div>
-            <dt className="inline">{k.fields.reporter}: </dt>
-            <dd className="inline">{who(task.reporter_id)}</dd>
-          </div>
-          <div>
-            <dt className="inline">{k.fields.created}: </dt>
-            <dd className="inline">{when(task.created_at)}</dd>
-          </div>
-          <div>
-            <dt className="inline">{k.fields.updated}: </dt>
-            <dd className="inline">{when(task.updated_at)}</dd>
-          </div>
-          {task.done_at && (
-            <div>
-              <dt className="inline">{k.fields.done}: </dt>
-              <dd className="inline">{when(task.done_at)}</dd>
-            </div>
+        <div className="mt-8">
+          {canEdit && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (confirm(k.deleteConfirm(taskKey))) run(() => deleteTask(task.id));
+              }}
+              className="min-h-11 text-sm text-danger hover:underline md:min-h-9"
+            >
+              {k.deleteTask}
+            </button>
           )}
-        </dl>
-        {canEdit && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              if (confirm(k.deleteConfirm(taskKey))) run(() => deleteTask(task.id));
-            }}
-            className="min-h-11 text-sm text-danger hover:underline md:min-h-9"
-          >
-            {k.deleteTask}
-          </button>
-        )}
-      </aside>
+        </div>
+      </div>
     </div>
   );
 }

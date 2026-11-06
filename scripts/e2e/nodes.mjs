@@ -400,7 +400,8 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…with a link to the editor", (await tableEmbed.first().getByRole("link", { name: /Відкрити в редакторі/ }).count()) === 1);
   sql(`update public.service_objects set title = 'Budget 2', version = version + 1 where id = '${sheetId}'`);
   await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await alice.locator('[data-sheet-embed="Budget 2"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  // Two embeds (the table and its chart) read the change separately: wait for both, not the first.
+  await alice.locator('[data-sheet-embed="Budget 2"]').nth(1).waitFor({ timeout: 20000 }).catch(() => {});
   check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-sheet-embed="Budget 2"]').count()) === 2);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
   await alice.getByRole("button", { name: "📊 Таблиці" }).click();
@@ -411,7 +412,8 @@ check("…while a map they may view shows as usual", shownMap, screen);
   sql(`update public.service_objects set workspace_role = null where id = '${sheetId}'`);
   sql(`update public.pages set workspace_role = 'viewer' where id = '${tablePage}'`);
   await colleague.goto(`${APP}/w/${alphaShort}/p/${tablePage}`);
-  await colleague.getByText("Немає доступу до цієї таблиці.").first().waitFor({ timeout: 20000 }).catch(() => {});
+  // Two embeds (table and chart): wait for the second one too, not just the first.
+  await colleague.getByText("Немає доступу до цієї таблиці.").nth(1).waitFor({ timeout: 20000 }).catch(() => {});
   check("someone without access to a table sees “no access” on the page, not its name", (await colleague.getByText("Немає доступу до цієї таблиці.").count()) === 2 && (await colleague.getByText("Budget 2").count()) === 0);
   sql(`update public.service_objects set workspace_role = 'editor' where id = '${sheetId}'`);
 }
@@ -479,7 +481,9 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-results]').waitFor({ timeout: 20000 }).catch(() => {});
   check("a survey's form and summary show on a wiki page", (await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-form]').count()) === 1 && (await alice.locator('[data-survey-embed="Lunch poll"] [data-survey-results]').count()) === 1);
   await colleague.goto(`${APP}/w/${alphaShort}/p/${surveyPage}`);
-  await colleague.locator('[data-survey-embed="Lunch poll"]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  // Both embeds load their state after the frame shows: wait for what is checked, not the frame.
+  await colleague.locator("[data-survey-answered]").waitFor({ timeout: 20000 }).catch(() => {});
+  await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").waitFor({ timeout: 20000 }).catch(() => {});
   check("…someone who only answers sees the form (answered) but not the summary",
     (await colleague.locator("[data-survey-answered]").count()) === 1 && (await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").count()) === 1);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();

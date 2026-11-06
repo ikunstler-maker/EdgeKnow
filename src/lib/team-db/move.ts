@@ -88,7 +88,7 @@ const STAGES: Stage[] = [
   {
     name: "task projects",
     table: "task_projects",
-    columns: "id, workspace_id, key, name, icon, workspace_role, sprints, next_number, card_fields, created_by, created_at, archived_at",
+    columns: "id, workspace_id, key, name, icon, workspace_role, sprints, next_number, card_fields, files_target, time_last_column, created_by, created_at, archived_at",
     order: "id",
     onConflict: "id",
   },
@@ -144,15 +144,38 @@ const STAGES: Stage[] = [
   {
     name: "survey settings",
     table: "survey_settings",
-    columns: "object_id, workspace_id, anonymous, once, editable, accepting, closes_at, max_responses, sheet_id, sheet_name, sheet_columns, sheet_labels, sheet_full, updated_by, updated_at",
+    columns: "object_id, workspace_id, anonymous, once, editable, accepting, closes_at, max_responses, sheet_id, sheet_name, sheet_columns, sheet_labels, sheet_full, updated_by, updated_at, public_enabled, public_token",
     order: "object_id",
     onConflict: "object_id",
     replace: true,
   },
   {
+    // Board pictures and files in survey answers: before the answers that name them.
+    name: "object files",
+    table: "object_files",
+    columns: "id, workspace_id, object_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at",
+    order: "id",
+    onConflict: "id",
+    files: "task-files",
+  },
+  {
+    name: "board sessions",
+    table: "board_sessions",
+    columns: "object_id, workspace_id, votes_per_person, voting_open, timer_ends_at, timer_seconds, updated_by, updated_at",
+    order: "object_id",
+    onConflict: "object_id",
+  },
+  {
+    name: "board votes",
+    table: "board_votes",
+    columns: "object_id, workspace_id, element_id, user_id, created_at",
+    order: "object_id,element_id,user_id",
+    onConflict: "object_id,element_id,user_id",
+  },
+  {
     name: "survey answers",
     table: "survey_responses",
-    columns: "id, object_id, workspace_id, user_id, answers, sheet_row, created_at, updated_at",
+    columns: "id, object_id, workspace_id, user_id, answers, sheet_row, created_at, updated_at, public, respondent_name, respondent_email",
     order: "id",
     onConflict: "id",
     replace: true,
@@ -197,7 +220,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -391,7 +414,11 @@ export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws
   const missingFiles: string[] = [];
   const { data: files } = await from.from("attachments").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
   const { data: taskFiles } = await from.from("task_files").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
-  const checks = [...(files ?? []).map((f) => ({ ...f, bucket: "attachments" })), ...(taskFiles ?? []).map((f) => ({ ...f, bucket: "task-files" }))];
+  const { data: objectFiles } = await from.from("object_files").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
+  const checks = [
+    ...(files ?? []).map((f) => ({ ...f, bucket: "attachments" })),
+    ...[...(taskFiles ?? []), ...(objectFiles ?? [])].map((f) => ({ ...f, bucket: "task-files" })),
+  ];
   for (const file of checks) {
     const { data: atSource } = await from.storage.from(file.bucket).exists(file.storage_path);
     if (!atSource) continue;

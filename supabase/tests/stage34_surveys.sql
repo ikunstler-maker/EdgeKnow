@@ -79,6 +79,10 @@ select 'still one answer: ' || count(*) || ', ' || max(answers::text) from publi
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000034d1';
 select 'dan sees his own: ' || (public.survey_state(:'survey') -> 'mine')::text;
+select 'dan''s data export: ' || jsonb_array_length(public.my_survey_answers(:'ws')) || ' ' || (public.my_survey_answers(:'ws') -> 0 -> 'answers' ->> 'q1');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000034c1';
+select 'a stranger''s export of that workspace: ' || public.my_survey_answers(:'ws')::text;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000034d1';
 select 'dan connects a table: ' || public.link_survey_sheet(:'survey', null, null, null)::text;
 
 reset role;
@@ -114,6 +118,10 @@ select 'outsider: ' || public.survey_state(:'survey')::text || ' ' || public.sub
        || ' ' || public.survey_answers(:'survey')::text || ' ' || public.link_survey_sheet(:'survey', null, null, null)::text;
 select 'outsider sees surveys: ' || count(*) from public.service_objects where service = 'surveys';
 select 'nobody reads the tables directly: ' || (select count(*) from public.survey_settings) + (select count(*) from public.survey_respondents);
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000034d1';
+select 'anonymous answers stay out of dan''s export: ' || jsonb_array_length(public.my_survey_answers(:'ws'));
 reset role;
 set role anon;
 select 'anon answers: ' || public.submit_survey_response(:'survey', '{"q1": "No"}')::text;

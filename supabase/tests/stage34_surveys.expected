@@ -21,6 +21,8 @@ connect: true
 dan changes his answer: {"ok": true, "edited": true}
 still one answer: 1, {"q1": "Yes", "q2": ["Soup", "Cake"], "q3": 5, "q4": "2026-12-01", "q5": "vegan"}
 dan sees his own: {"q1": "Yes", "q2": ["Soup", "Cake"], "q3": 5, "q4": "2026-12-01", "q5": "vegan"}
+dan's data export: 1 Yes
+a stranger's export of that workspace: []
 dan connects a table: {"ok": false, "error": "forbidden"}
 table cells: B1=Who C1=Coming? D1=Dishes E1=Hunger F1=When G1=Note B2=Dan C2=Yes D2=Soup, Cake E2=5 F2=01.12.2026 G2=vegan
 table sheets: Main, Answers, version 3
@@ -38,4 +40,5 @@ closed now: true
 outsider: {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"} {"ok": false, "error": "forbidden"}
 outsider sees surveys: 0
 psql: ERROR:  permission denied for table survey_settings
+anonymous answers stay out of dan's export: 1
 psql: ERROR:  permission denied for function submit_survey_response
