@@ -1,5 +1,6 @@
 "use client";
 
+import { ApusWidget } from "@/components/apus/apus-widget";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
@@ -203,6 +204,7 @@ export function AppShell({
         {children}
       </div>
       <FeedbackButton />
+      <ApusWidget />
       <AnglerGame />
     </div>
     </AppearanceProvider>

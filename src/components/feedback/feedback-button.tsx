@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
 import { FEEDBACK_MAX, FEEDBACK_TYPES, type FeedbackType } from "@/lib/feedback";
-import { useAppearance } from "@/components/angler/appearance";
 
 const f = t.feedback;
 
@@ -16,7 +15,6 @@ export const OPEN_FEEDBACK_EVENT = "ek-open-feedback";
 // rising from the bottom edge, gently swaying. It can be subdued (translucent
 // white) or hidden in Profile → Appearance; the form goes to the owner's sheet.
 export function FeedbackButton() {
-  const { appearance } = useAppearance();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const show = () => setOpen(true);
@@ -25,27 +23,7 @@ export function FeedbackButton() {
   }, []);
   return (
     <>
-      {appearance.lure !== "hidden" && (
-        <div
-          className={`ek-lure pointer-events-none fixed bottom-0 left-3 z-30 h-16 w-10 md:left-[16.75rem] ${
-            appearance.lure === "subtle" ? "ek-lure-subtle" : ""
-          }`}
-          data-lure={appearance.lure}
-        >
-          <svg viewBox="0 0 40 64" className="absolute inset-0 h-full w-full" aria-hidden="true">
-            <path className="ek-lure-rod" d="M22 64 C 25 52, 14 44, 19 32 C 20 29, 20 27, 20 24" fill="none" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label={f.button}
-            title={f.button}
-            className="ek-lure-orb pointer-events-auto absolute left-1/2 top-0 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full text-[11px] font-bold leading-none"
-          >
-            !?
-          </button>
-        </div>
-      )}
+      {/* The button itself is Apus now (components/apus); this keeps the form. */}
       {open && <FeedbackDialog onClose={() => setOpen(false)} />}
     </>
   );
