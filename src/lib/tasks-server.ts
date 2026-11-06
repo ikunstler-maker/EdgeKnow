@@ -2,15 +2,17 @@ import "server-only";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, type Workspace } from "@/lib/workspace";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { blockedTasks, type LinkedTask, type Person, type ProjectRole, type TaskField, type TaskLink, type TaskStatus } from "@/lib/tasks";
+import { blockedTasks, type LinkedTask, type Person, type ProjectRole, type TaskBoardInfo, type TaskField, type TaskLink, type TaskStatus } from "@/lib/tasks";
 
 // A project by its key, with what every task screen needs: columns, the
 // person's role and the workspace's members (for assignees). Reads go to
 // wherever the workspace keeps its data, so RLS decides what shows.
 export type ProjectView = {
   workspace: Workspace;
-  project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean; card_fields: string[]; time_last_column?: boolean };
+  project: { id: string; key: string; name: string; icon: string | null; workspace_role: string | null; sprints: boolean; card_fields: string[]; time_last_column?: boolean; frozen_moves_admin?: boolean };
   statuses: TaskStatus[];
+  boards: TaskBoardInfo[];
+  groups: { id: string; name: string }[];
   fields: TaskField[];
   role: ProjectRole;
   members: Person[];
@@ -27,8 +29,8 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     .eq("key", key.toUpperCase())
     .maybeSingle();
   if (!project) return null;
-  const [{ data: statuses }, { data: role }, { data: members }, { data: fields }] = await Promise.all([
-    db.from("task_statuses").select("id, name, category, position, wip_limit").eq("project_id", project.id).order("position"),
+  const [{ data: statuses }, { data: role }, { data: members }, { data: fields }, { data: boards }, { data: groups }] = await Promise.all([
+    db.from("task_statuses").select("id, name, category, position, wip_limit, board_id, freezes").eq("project_id", project.id).order("position"),
     db.rpc("task_project_role", { target_project: project.id }),
     db
       .from("workspace_members")
@@ -37,6 +39,8 @@ export async function loadProject(shortId: string, key: string): Promise<Project
       .eq("status", "active")
       .overrideTypes<{ user_id: string; role: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
     db.from("task_fields").select("id, name, kind, options, required, task_types, position").eq("project_id", project.id).order("position"),
+    db.from("task_boards").select("id, name, group_id, position, access:task_board_access(group_id)").eq("project_id", project.id).order("position"),
+    db.from("workspace_groups").select("id, name").eq("workspace_id", workspace.id).order("name"),
   ]);
   if (!role) return null;
   return {
@@ -44,6 +48,9 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     // card_fields may be missing while the board migration rolls out.
     project: { ...project, card_fields: project.card_fields ?? ["key", "type", "priority", "assignee", "due", "labels"] },
     statuses: (statuses ?? []) as TaskStatus[],
+    // Missing while the boards migration rolls out.
+    boards: ((boards ?? []) as unknown as (Omit<TaskBoardInfo, "access"> & { access: { group_id: string }[] | null })[]).map((b) => ({ ...b, access: (b.access ?? []).map((a) => a.group_id) })),
+    groups: (groups ?? []) as { id: string; name: string }[],
     fields: (fields ?? []) as TaskField[],
     role: role as ProjectRole,
     members: (members ?? [])

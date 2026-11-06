@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
 import { RULE_EVENTS, RULE_ROLES, type RuleEvent, type RuleRole, type TaskRule } from "@/lib/notifications";
-import { personLabel, type Person, type StatusCategory, type TaskStatus } from "@/lib/tasks";
+import { personLabel, type Person, type StatusCategory, type TaskBoardInfo, type TaskStatus } from "@/lib/tasks";
 import { deleteTaskRule, loadTaskRules, saveTaskRule } from "@/app/notification-actions";
 import { usePages } from "@/components/pages/pages-provider";
 
@@ -17,11 +17,13 @@ const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 
 export function TaskRulesDialog({
   projectId,
   statuses,
+  boards = [],
   members,
   onClose,
 }: {
   projectId: string;
   statuses: TaskStatus[];
+  boards?: TaskBoardInfo[];
   members: Person[];
   onClose: () => void;
 }) {
@@ -35,6 +37,7 @@ export function TaskRulesDialog({
   const [roles, setRoles] = useState<RuleRole[]>([]);
   const [users, setUsers] = useState<string[]>([]);
   const [groupIds, setGroupIds] = useState<string[]>([]);
+  const [moveTo, setMoveTo] = useState("");
 
   const reload = useCallback(async () => {
     const data = await loadTaskRules(workspace.shortId, projectId, workspace.id);
@@ -52,6 +55,20 @@ export function TaskRulesDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Columns grouped by board, so a rule can hand a task to another team's board.
+  const boardName = (id: string | null | undefined) => boards.find((x) => x.id === id)?.name ?? t.tasks.boards.main;
+  const statusOptions = [null, ...boards.map((x) => x.id)].map((board) => {
+    const columns = statuses.filter((s) => (s.board_id ?? null) === board);
+    return columns.length ? (
+      <optgroup key={board ?? "main"} label={boardName(board)}>
+        {columns.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </optgroup>
+    ) : null;
+  });
   const toggle = <T,>(list: T[], value: T, on: boolean) => (on ? [...list, value] : list.filter((v) => v !== value));
   const nameOf = (id: string) => {
     const m = members.find((p) => p.id === id);
@@ -69,11 +86,12 @@ export function TaskRulesDialog({
       ...rule.notify_users.map(nameOf),
       ...rule.notify_groups.map((g) => groups.find((x) => x.id === g)?.name ?? "—"),
     ].join(", ");
-    return { when, who };
+    const moved = rule.move_to_status ? statuses.find((s) => s.id === rule.move_to_status) : null;
+    return { when, who: [who, moved ? `${t.tasks.boards.moveTo}: ${boardName(moved.board_id)} / ${moved.name}` : ""].filter(Boolean).join(" · ") };
   };
 
   const add = async () => {
-    if (!roles.length && !users.length && !groupIds.length) return setError(r.needSomeone);
+    if (!roles.length && !users.length && !groupIds.length && !moveTo) return setError(r.needSomeone);
     const result = await saveTaskRule(workspace.shortId, projectId, {
       event,
       ...(event === "enter_category" ? { category } : {}),
@@ -81,12 +99,14 @@ export function TaskRulesDialog({
       roles,
       users,
       groups: groupIds,
+      ...(moveTo ? { move_to_status: moveTo } : {}),
     });
     if (!result.ok) return setError(k.errors[result.error] ?? t.common.unknownError);
     setError(null);
     setRoles([]);
     setUsers([]);
     setGroupIds([]);
+    setMoveTo("");
     reload();
   };
   const remove = async (id: string) => {
@@ -191,6 +211,15 @@ export function TaskRulesDialog({
                 </label>
               ))}
             </details>
+            {(event === "enter_category" || event === "enter_status") && (
+              <label className="flex flex-col gap-1 pt-1">
+                {t.tasks.boards.moveTo}
+                <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)} className={inputClass} data-rule-move>
+                  <option value="">{t.tasks.boards.noMove}</option>
+                  {statusOptions}
+                </select>
+              </label>
+            )}
             <button type="button" onClick={add} className="min-h-11 rounded-lg bg-accent px-4 font-medium text-white md:min-h-9" data-rule-add>
               {r.add}
             </button>

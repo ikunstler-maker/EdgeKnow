@@ -151,3 +151,38 @@ export async function setTaskPrivate(taskId: string, makePrivate: boolean) {
 export async function setTaskParticipants(taskId: string, people: { user_id: string; role: "co_assignee" | "responsible" }[]) {
   return call("set_task_participants", { target: taskId, people });
 }
+
+// Boards per team (package 11): a task stands on several boards, each in its own column;
+// the project owner manages boards, who may open them and which columns freeze.
+export async function saveTaskBoard(projectId: string, boardId: string | null, name: string, groupId: string | null, extraGroups: string[] = []) {
+  return call<{ id: string }>("save_task_board", { target_project: projectId, target_board: boardId, new_name: name, team: groupId, extra_groups: extraGroups });
+}
+
+export async function deleteTaskBoard(boardId: string, moveTo: string) {
+  return call("delete_task_board", { target_board: boardId, move_to: moveTo });
+}
+
+export async function addColumnOnBoard(projectId: string, boardId: string | null, name: string) {
+  const saved = await call<{ id: string }>("save_task_status", {
+    target_project: projectId,
+    target_status: null,
+    new_name: name,
+    new_category: "doing",
+    new_wip_limit: null,
+    new_position: null,
+  });
+  if (!saved.ok || !boardId) return saved;
+  return call("set_task_status_board", { target_status: saved.id, target_board: boardId, freezing: false });
+}
+
+export async function setColumnFreezes(statusId: string, boardId: string | null, freezes: boolean) {
+  return call("set_task_status_board", { target_status: statusId, target_board: boardId, freezing: freezes });
+}
+
+export async function moveTaskOnBoard(taskId: string, columnId: string) {
+  return call("move_task_on_board", { target: taskId, column_id: columnId });
+}
+
+export async function setFrozenMovesAdmin(projectId: string, adminOnly: boolean) {
+  return call("set_frozen_moves_admin", { target_project: projectId, admin_only: adminOnly });
+}

@@ -4,7 +4,7 @@ import { workspacePath } from "@/lib/paths";
 import { t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
 import { blockedIn, canEdit, loadProject } from "@/lib/tasks-server";
-import { TASK_COLUMNS, personLabel, type Person, type TaskRow } from "@/lib/tasks";
+import { TASK_COLUMNS, personLabel, type Person, type TaskPlacement, type TaskRow } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
 import { TaskBoard } from "@/components/tasks/task-board";
@@ -90,6 +90,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           shortId={view.workspace.shortId}
           project={view.project}
           statuses={view.statuses}
+          boards={view.boards}
+          groups={view.groups}
+          placements={((await db.from("task_placements").select("task_id, board_id, status_id, frozen_at, snapshot").in("status_id", view.statuses.map((s) => s.id))).data ?? []) as TaskPlacement[]}
           tasks={tasks ?? []}
           members={view.members}
           fields={view.fields}

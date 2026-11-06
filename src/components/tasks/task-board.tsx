@@ -36,9 +36,11 @@ import {
   type TaskField,
   type TaskPriority,
   type TaskRow,
+  type TaskBoardInfo,
+  type TaskPlacement,
   type TaskStatus,
 } from "@/lib/tasks";
-import { createTask, deleteTaskStatus, saveTaskStatus, updateTask, updateTaskProject } from "@/app/task-actions";
+import { addColumnOnBoard, createTask, deleteTaskBoard, deleteTaskStatus, moveTaskOnBoard, saveTaskBoard, saveTaskStatus, setColumnFreezes, setFrozenMovesAdmin, updateTask, updateTaskProject } from "@/app/task-actions";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { TaskRulesDialog } from "./task-rules";
 
@@ -55,7 +57,10 @@ type Group = "none" | "assignee" | "priority" | "type";
 export function TaskBoard({
   shortId,
   project,
-  statuses,
+  statuses: allStatuses,
+  boards = [],
+  groups = [],
+  placements: initialPlacements = [],
   tasks: initialTasks,
   members,
   fields,
@@ -65,8 +70,11 @@ export function TaskBoard({
   isOwner,
 }: {
   shortId: string;
-  project: { id: string; key: string; card_fields: string[]; time_last_column?: boolean };
+  project: { id: string; key: string; card_fields: string[]; time_last_column?: boolean; frozen_moves_admin?: boolean };
   statuses: TaskStatus[];
+  boards?: TaskBoardInfo[];
+  groups?: { id: string; name: string }[];
+  placements?: TaskPlacement[];
   tasks: TaskRow[];
   members: Person[];
   fields: TaskField[];
@@ -76,6 +84,9 @@ export function TaskBoard({
   isOwner: boolean;
 }) {
   const router = useRouter();
+  // The board shown (null: the project's main board); columns belong to one board.
+  const [boardId, setBoardId] = useState<string | null>(null);
+  const statuses = allStatuses.filter((s) => (s.board_id ?? null) === (boards.some((x) => x.id === boardId) ? boardId : null));
   const [tasks, setTasks] = useState(initialTasks);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -86,10 +97,24 @@ export function TaskBoard({
   const [rulesOpen, setRulesOpen] = useState(false);
   // The server's answer replaces the local copy whenever the page refreshes.
   const [fromServer, setFromServer] = useState(initialTasks);
+  const [placements, setPlacements] = useState(initialPlacements);
   if (fromServer !== initialTasks) {
     setFromServer(initialTasks);
     setTasks(initialTasks);
+    setPlacements(initialPlacements);
   }
+  // A task stands on each board in its own column; where it is frozen for this person
+  // only the snapshot arrives (no live row).
+  const currentBoard = boards.some((x) => x.id === boardId) ? boardId : null;
+  const boardRows: TaskRow[] = placements.length
+    ? placements
+        .filter((p) => (p.board_id ?? null) === currentBoard)
+        .flatMap((p): TaskRow[] => {
+          const live = tasks.find((x) => x.id === p.task_id);
+          if (live) return [{ ...live, status_id: p.status_id, frozen: !!p.frozen_at }];
+          return p.snapshot ? [snapshotRow(p)] : [];
+        })
+    : tasks;
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -98,9 +123,9 @@ export function TaskBoard({
   );
   const personOf = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const labels = useMemo(() => [...new Set(tasks.flatMap((task) => task.labels))].sort(), [tasks]);
-  const progress = useMemo(() => progressOf(tasks, statuses), [tasks, statuses]);
+  const progress = useMemo(() => progressOf(tasks, allStatuses), [tasks, allStatuses]);
   const blocked = useMemo(() => new Set(blockedList), [blockedList]);
-  const shown = applyFilters(tasks, filters, { me, projectKey: project.key, statuses });
+  const shown = applyFilters(boardRows, filters, { me, projectKey: project.key, statuses: allStatuses });
   const ordered = [...shown].sort((a, b) => a.position - b.position || a.number - b.number);
 
   const run = (action: () => Promise<ActionResult>, rollback?: () => void) =>
@@ -142,11 +167,11 @@ export function TaskBoard({
   const onDragStart = (event: DragStartEvent) => setDragging(String(event.active.id));
   const onDragEnd = (event: DragEndEvent) => {
     setDragging(null);
-    const task = tasks.find((x) => x.id === event.active.id);
+    const task = boardRows.find((x) => x.id === event.active.id && !x.snapshot);
     const over = event.over?.data.current as { status: string; before?: string } | undefined;
     if (!task || !over) return;
     // The new place: before the card it was dropped on, or at the end of the column.
-    const column = tasks.filter((x) => x.status_id === over.status && x.id !== task.id).sort((a, b) => a.position - b.position);
+    const column = boardRows.filter((x) => x.status_id === over.status && x.id !== task.id).sort((a, b) => a.position - b.position);
     let position: number;
     if (over.before) {
       const index = column.findIndex((x) => x.id === over.before);
@@ -156,8 +181,17 @@ export function TaskBoard({
     } else position = (column.at(-1)?.position ?? 0) + 1;
     if (task.status_id === over.status && Math.abs(task.position - position) < 1e-9) return;
     const before = tasks;
-    setTasks(tasks.map((x) => (x.id === task.id ? { ...x, status_id: over.status, position } : x)));
-    run(() => updateTask(task.id, { status_id: over.status, position }), () => setTasks(before));
+    const beforePlaces = placements;
+    const home = (allStatuses.find((x) => x.id === tasks.find((t) => t.id === task.id)?.status_id)?.board_id ?? null) === currentBoard;
+    setPlacements(placements.map((p) => (p.task_id === task.id && (p.board_id ?? null) === currentBoard ? { ...p, status_id: over.status } : p)));
+    if (home) setTasks(tasks.map((x) => (x.id === task.id ? { ...x, status_id: over.status, position } : x)));
+    const undo = () => {
+      setTasks(before);
+      setPlacements(beforePlaces);
+    };
+    // Another column: the database places it (rules, freezing); the same column: only the order.
+    if (task.status_id !== over.status) run(() => moveTaskOnBoard(task.id, over.status), undo);
+    else if (home) run(() => updateTask(task.id, { position }), undo);
   };
 
   const cardFields = new Set(project.card_fields);
@@ -189,6 +223,18 @@ export function TaskBoard({
             {k.columnTime.countLast}
           </label>
         )}
+        {isOwner && boards.length > 0 && (
+          <label className="flex min-h-11 items-center gap-2 text-muted md:min-h-9">
+            <input
+              type="checkbox"
+              checked={project.frozen_moves_admin !== false}
+              disabled={pending}
+              onChange={(e) => run(() => setFrozenMovesAdmin(project.id, e.target.checked))}
+              data-frozen-admin
+            />
+            {t.tasks.boards.frozenAdminOnly}
+          </label>
+        )}
         {isOwner && (
           <button type="button" className={buttonClass} onClick={() => setRulesOpen(true)} data-open-rules>
             ⚡ {t.notifications.rules.button}
@@ -206,6 +252,21 @@ export function TaskBoard({
         </p>
       )}
 
+      <BoardTabs
+        boards={boards}
+        groups={groups}
+        boardId={boardId}
+        onPick={setBoardId}
+        isOwner={isOwner}
+        pending={pending}
+        onSave={(id, name, groupId, extra) => run(() => saveTaskBoard(project.id, id, name, groupId, extra))}
+        onRemove={(id) => {
+          const target = allStatuses.find((s) => !s.board_id);
+          if (!target || !confirm(t.tasks.boards.removeConfirm)) return;
+          setBoardId(null);
+          run(() => deleteTaskBoard(id, target.id));
+        }}
+      />
       <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
         <div className="mt-3 space-y-4" data-task-board>
           {lanes.map((lane) => (
@@ -221,7 +282,7 @@ export function TaskBoard({
                     count={statuses.length}
                     statuses={statuses}
                     tasks={ordered.filter((task) => task.status_id === status.id && lane.match(task))}
-                    total={tasks.filter((task) => task.status_id === status.id).length}
+                    total={boardRows.filter((task) => task.status_id === status.id).length}
                     projectId={project.id}
                     canEdit={canEdit}
                     isOwner={isOwner && lane.id === lanes[0].id}
@@ -250,7 +311,7 @@ export function TaskBoard({
                     )}
                   />
                 ))}
-                {isOwner && lane.id === lanes[0].id && <AddColumn projectId={project.id} run={run} pending={pending} />}
+                {isOwner && lane.id === lanes[0].id && <AddColumn projectId={project.id} boardId={boards.some((x) => x.id === boardId) ? boardId : null} run={run} pending={pending} />}
               </div>
             </section>
           ))}
@@ -265,7 +326,7 @@ export function TaskBoard({
         </DragOverlay>
       </DndContext>
 
-      {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={statuses} members={members} onClose={() => setRulesOpen(false)} />}
+      {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (
         <CardSettings
           selected={project.card_fields}
@@ -425,7 +486,7 @@ function BoardCard({
   canEdit: boolean;
   onPriority?: (priority: TaskPriority) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canEdit });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || !!task.snapshot });
   const today = new Date().toISOString().slice(0, 10);
   const overdue = task.due_date && task.due_date < today && status.category !== "done";
   const assignee = personOf.get(task.assignee_id ?? "");
@@ -442,6 +503,11 @@ function BoardCard({
         {fields.has("type") && <span title={k.types[task.type]}>{TYPE_ICONS[task.type]}</span>}
         {fields.has("key") && <span className="font-mono">{key}</span>}
         <span className="flex-1" />
+        {task.frozen && (
+          <span title={task.snapshot ? t.tasks.boards.snapshotHint : t.tasks.boards.frozenHint} aria-label={t.tasks.boards.frozen} data-card-frozen>
+            ❄
+          </span>
+        )}
         {task.private && (
           <span title={k.privacy.privateHint} aria-label={k.privacy.private} data-card-private>
             🔒
@@ -595,6 +661,7 @@ function ColumnMenu({
   const [name, setName] = useState(status.name);
   const [category, setCategory] = useState<StatusCategory>(status.category);
   const [limit, setLimit] = useState(status.wip_limit ? String(status.wip_limit) : "");
+  const [freezes, setFreezes] = useState(!!status.freezes);
   const [moveTo, setMoveTo] = useState(statuses.find((s) => s.id !== status.id)?.id ?? "");
   return (
     <form
@@ -602,7 +669,10 @@ function ColumnMenu({
       aria-label={b.columnMenu(status.name)}
       onSubmit={(e) => {
         e.preventDefault();
-        run(() => saveTaskStatus(projectId, status.id, name, category, limit ? Number(limit) : null, null));
+        run(async () => {
+          const saved = await saveTaskStatus(projectId, status.id, name, category, limit ? Number(limit) : null, null);
+          return saved.ok && freezes !== !!status.freezes ? setColumnFreezes(status.id, status.board_id ?? null, freezes) : saved;
+        });
         onClose();
       }}
     >
@@ -618,6 +688,13 @@ function ColumnMenu({
           <option value="review">{k.categories.review}</option>
           <option value="done">{k.categories.done}</option>
         </select>
+      </label>
+      <label className="flex items-start gap-2" title={t.tasks.boards.freezesHint}>
+        <input type="checkbox" checked={freezes} onChange={(e) => setFreezes(e.target.checked)} className="mt-1" data-column-freezes />
+        <span>
+          ❄ {t.tasks.boards.freezes}
+          <span className="block text-xs text-muted">{t.tasks.boards.freezesHint}</span>
+        </span>
       </label>
       <label className="flex flex-col gap-1">
         {b.wipLimit}
@@ -664,7 +741,7 @@ function ColumnMenu({
   );
 }
 
-function AddColumn({ projectId, run, pending }: { projectId: string; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
+function AddColumn({ projectId, boardId, run, pending }: { projectId: string; boardId: string | null; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
   const [name, setName] = useState("");
   return (
     <form
@@ -672,7 +749,7 @@ function AddColumn({ projectId, run, pending }: { projectId: string; run: (actio
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
-        run(() => saveTaskStatus(projectId, null, name, "doing", null, null));
+        run(() => addColumnOnBoard(projectId, boardId, name));
         setName("");
       }}
     >
@@ -719,4 +796,142 @@ function CardSettings({ selected, fields, onClose, onSave }: { selected: string[
       </div>
     </div>
   );
+}
+
+// Tabs: the project's main board and the teams' boards; the owner adds and removes boards.
+function BoardTabs({
+  boards,
+  groups,
+  boardId,
+  onPick,
+  isOwner,
+  pending,
+  onSave,
+  onRemove,
+}: {
+  boards: TaskBoardInfo[];
+  groups: { id: string; name: string }[];
+  boardId: string | null;
+  onPick: (id: string | null) => void;
+  isOwner: boolean;
+  pending: boolean;
+  onSave: (id: string | null, name: string, groupId: string | null, extra: string[]) => void;
+  onRemove: (id: string) => void;
+}) {
+  const bt = t.tasks.boards;
+  // null: closed; "new": adding; a board id: editing that board's name and access.
+  const [editing, setEditing] = useState<string | null>(null);
+  const adding = editing !== null;
+  const [name, setName] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [extra, setExtra] = useState<string[]>([]);
+  const open = (board: TaskBoardInfo | null) => {
+    setEditing(board?.id ?? "new");
+    setName(board?.name ?? "");
+    setGroupId(board?.group_id ?? "");
+    setExtra(board?.access ?? []);
+  };
+  if (!boards.length && !isOwner) return null;
+  const groupName = (id: string | null) => groups.find((g) => g.id === id)?.name;
+  const tab = (id: string | null, label: string) => (
+    <button
+      key={id ?? "main"}
+      type="button"
+      onClick={() => onPick(id)}
+      aria-pressed={boardId === id}
+      className={`min-h-11 rounded-md px-3 text-sm md:min-h-9 ${boardId === id ? "bg-surface font-medium" : "text-muted hover:text-foreground"}`}
+      data-board-tab={label}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1 border-b border-border pb-1" data-board-tabs>
+      {tab(null, bt.main)}
+      {boards.map((board) => tab(board.id, groupName(board.group_id) ? `${board.name} · ${groupName(board.group_id)}` : board.name))}
+      {isOwner && boardId && !adding && (
+        <button type="button" onClick={() => open(boards.find((x) => x.id === boardId) ?? null)} className="min-h-11 px-2 text-xs text-muted hover:text-foreground hover:underline md:min-h-9" data-board-access>
+          {bt.editAccess}
+        </button>
+      )}
+      {isOwner && boardId && (
+        <button type="button" disabled={pending} onClick={() => onRemove(boardId)} className="min-h-11 px-2 text-xs text-danger hover:underline md:min-h-9">
+          {bt.remove}
+        </button>
+      )}
+      {isOwner &&
+        (adding ? (
+          <form
+            className="flex flex-wrap items-center gap-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!name.trim()) return;
+              onSave(editing === "new" ? null : editing, name.trim(), groupId || null, extra.filter((g) => g !== groupId));
+              setEditing(null);
+            }}
+          >
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder={bt.name} aria-label={bt.name} className={inputClass} autoFocus data-board-name />
+            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} aria-label={bt.team} className={inputClass}>
+              <option value="">{bt.noTeam}</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+            {groups.length > 0 && (
+              <select
+                multiple
+                value={extra}
+                onChange={(e) => setExtra([...e.target.selectedOptions].map((o) => o.value))}
+                aria-label={bt.access}
+                title={bt.access}
+                className={`${inputClass} min-h-16`}
+                data-board-extra
+              >
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button type="submit" disabled={pending} className={buttonClass} data-board-save>
+              {t.common.save}
+            </button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => open(null)} className="min-h-11 px-2 text-sm text-muted hover:text-foreground md:min-h-9" data-board-add>
+            ＋ {bt.add}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+// A card from a snapshot: the task as it was when it froze on this board.
+function snapshotRow(p: TaskPlacement): TaskRow {
+  const s = (p.snapshot ?? {}) as Partial<TaskRow>;
+  return {
+    id: p.task_id,
+    number: s.number ?? 0,
+    title: s.title ?? "",
+    status_id: p.status_id,
+    type: s.type ?? "task",
+    priority: s.priority ?? "medium",
+    assignee_id: s.assignee_id ?? null,
+    reporter_id: s.reporter_id ?? null,
+    labels: s.labels ?? [],
+    start_date: s.start_date ?? null,
+    due_date: s.due_date ?? null,
+    estimate: s.estimate ?? null,
+    parent_id: null,
+    position: 0,
+    created_at: p.frozen_at ?? "",
+    updated_at: p.frozen_at ?? "",
+    done_at: null,
+    custom: (s.custom as Record<string, unknown>) ?? {},
+    frozen: true,
+    snapshot: true,
+  };
 }
