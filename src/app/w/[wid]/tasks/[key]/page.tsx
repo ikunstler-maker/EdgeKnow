@@ -90,6 +90,8 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           shortId={view.workspace.shortId}
           project={view.project}
           statuses={view.statuses}
+          boards={view.boards}
+          groups={view.groups}
           tasks={tasks ?? []}
           members={view.members}
           fields={view.fields}

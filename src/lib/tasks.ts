@@ -13,7 +13,9 @@ export const TYPE_ICONS: Record<TaskType, string> = { task: "✅", bug: "🐞", 
 export const PRIORITY_ICONS: Record<TaskPriority, string> = { highest: "⏫", high: "🔼", medium: "▪️", low: "🔽", lowest: "⏬" };
 
 export type ProjectSummary = { id: string; key: string; name: string; icon: string | null };
-export type TaskStatus = { id: string; name: string; category: StatusCategory; position: number; wip_limit: number | null };
+export type TaskStatus = { id: string; name: string; category: StatusCategory; position: number; wip_limit: number | null; board_id?: string | null };
+// Extra boards of a project, each for a team (package 11); columns without a board are on the main one.
+export type TaskBoardInfo = { id: string; name: string; group_id: string | null; position: number };
 // `guest`: shown with the mark «Гість» wherever the person appears.
 export type Person = { id: string; name: string | null; email: string; guest?: boolean };
 

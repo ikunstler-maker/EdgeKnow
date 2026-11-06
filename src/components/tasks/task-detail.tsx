@@ -15,6 +15,7 @@ import {
   personLabel,
   fieldApplies,
   type Person,
+  type TaskBoardInfo,
   type TaskField,
   type TaskRow,
   type TaskStatus,
@@ -50,6 +51,7 @@ export function TaskDetail({
   events,
   columnTime,
   participants,
+  boards = [],
   me,
   canEdit,
   canComment,
@@ -70,6 +72,7 @@ export function TaskDetail({
   events: TaskEvent[];
   columnTime: { id: string; name: string; ms: number }[];
   participants: { user_id: string; role: "co_assignee" | "responsible" }[];
+  boards?: TaskBoardInfo[];
   me: string;
   canEdit: boolean;
   canComment: boolean;
@@ -158,12 +161,24 @@ export function TaskDetail({
         {/* All fields at the top, the free description below them (as in issue trackers). */}
         <section className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3" aria-label={k.fields.heading} data-task-fields>
           <Field label={k.fields.status}>
-            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => change({ status_id: e.target.value })} className={inputClass}>
-              {statuses.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => change({ status_id: e.target.value })} className={inputClass} data-task-status>
+              {/* Columns of every board: picking another team's column moves the task to its board. */}
+              {[null, ...boards.map((x) => x.id)].map((board) => {
+                const columns = statuses.filter((s) => (s.board_id ?? null) === board);
+                if (!columns.length) return null;
+                const options = columns.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ));
+                return boards.length ? (
+                  <optgroup key={board ?? "main"} label={boards.find((x) => x.id === board)?.name ?? t.tasks.boards.main}>
+                    {options}
+                  </optgroup>
+                ) : (
+                  options
+                );
+              })}
             </select>
           </Field>
           <Field label={k.fields.assignee}>

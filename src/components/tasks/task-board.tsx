@@ -36,9 +36,10 @@ import {
   type TaskField,
   type TaskPriority,
   type TaskRow,
+  type TaskBoardInfo,
   type TaskStatus,
 } from "@/lib/tasks";
-import { createTask, deleteTaskStatus, saveTaskStatus, updateTask, updateTaskProject } from "@/app/task-actions";
+import { addColumnOnBoard, createTask, deleteTaskBoard, deleteTaskStatus, saveTaskBoard, saveTaskStatus, updateTask, updateTaskProject } from "@/app/task-actions";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { TaskRulesDialog } from "./task-rules";
 
@@ -55,7 +56,9 @@ type Group = "none" | "assignee" | "priority" | "type";
 export function TaskBoard({
   shortId,
   project,
-  statuses,
+  statuses: allStatuses,
+  boards = [],
+  groups = [],
   tasks: initialTasks,
   members,
   fields,
@@ -67,6 +70,8 @@ export function TaskBoard({
   shortId: string;
   project: { id: string; key: string; card_fields: string[]; time_last_column?: boolean };
   statuses: TaskStatus[];
+  boards?: TaskBoardInfo[];
+  groups?: { id: string; name: string }[];
   tasks: TaskRow[];
   members: Person[];
   fields: TaskField[];
@@ -76,6 +81,9 @@ export function TaskBoard({
   isOwner: boolean;
 }) {
   const router = useRouter();
+  // The board shown (null: the project's main board); columns belong to one board.
+  const [boardId, setBoardId] = useState<string | null>(null);
+  const statuses = allStatuses.filter((s) => (s.board_id ?? null) === (boards.some((x) => x.id === boardId) ? boardId : null));
   const [tasks, setTasks] = useState(initialTasks);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -98,9 +106,9 @@ export function TaskBoard({
   );
   const personOf = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
   const labels = useMemo(() => [...new Set(tasks.flatMap((task) => task.labels))].sort(), [tasks]);
-  const progress = useMemo(() => progressOf(tasks, statuses), [tasks, statuses]);
+  const progress = useMemo(() => progressOf(tasks, allStatuses), [tasks, allStatuses]);
   const blocked = useMemo(() => new Set(blockedList), [blockedList]);
-  const shown = applyFilters(tasks, filters, { me, projectKey: project.key, statuses });
+  const shown = applyFilters(tasks, filters, { me, projectKey: project.key, statuses: allStatuses });
   const ordered = [...shown].sort((a, b) => a.position - b.position || a.number - b.number);
 
   const run = (action: () => Promise<ActionResult>, rollback?: () => void) =>
@@ -206,6 +214,21 @@ export function TaskBoard({
         </p>
       )}
 
+      <BoardTabs
+        boards={boards}
+        groups={groups}
+        boardId={boardId}
+        onPick={setBoardId}
+        isOwner={isOwner}
+        pending={pending}
+        onAdd={(name, groupId) => run(() => saveTaskBoard(project.id, null, name, groupId))}
+        onRemove={(id) => {
+          const target = allStatuses.find((s) => !s.board_id);
+          if (!target || !confirm(t.tasks.boards.removeConfirm)) return;
+          setBoardId(null);
+          run(() => deleteTaskBoard(id, target.id));
+        }}
+      />
       <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragging(null)}>
         <div className="mt-3 space-y-4" data-task-board>
           {lanes.map((lane) => (
@@ -250,7 +273,7 @@ export function TaskBoard({
                     )}
                   />
                 ))}
-                {isOwner && lane.id === lanes[0].id && <AddColumn projectId={project.id} run={run} pending={pending} />}
+                {isOwner && lane.id === lanes[0].id && <AddColumn projectId={project.id} boardId={boards.some((x) => x.id === boardId) ? boardId : null} run={run} pending={pending} />}
               </div>
             </section>
           ))}
@@ -265,7 +288,7 @@ export function TaskBoard({
         </DragOverlay>
       </DndContext>
 
-      {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={statuses} members={members} onClose={() => setRulesOpen(false)} />}
+      {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (
         <CardSettings
           selected={project.card_fields}
@@ -664,7 +687,7 @@ function ColumnMenu({
   );
 }
 
-function AddColumn({ projectId, run, pending }: { projectId: string; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
+function AddColumn({ projectId, boardId, run, pending }: { projectId: string; boardId: string | null; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
   const [name, setName] = useState("");
   return (
     <form
@@ -672,7 +695,7 @@ function AddColumn({ projectId, run, pending }: { projectId: string; run: (actio
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim()) return;
-        run(() => saveTaskStatus(projectId, null, name, "doing", null, null));
+        run(() => addColumnOnBoard(projectId, boardId, name));
         setName("");
       }}
     >
@@ -717,6 +740,88 @@ function CardSettings({ selected, fields, onClose, onSave }: { selected: string[
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Tabs: the project's main board and the teams' boards; the owner adds and removes boards.
+function BoardTabs({
+  boards,
+  groups,
+  boardId,
+  onPick,
+  isOwner,
+  pending,
+  onAdd,
+  onRemove,
+}: {
+  boards: TaskBoardInfo[];
+  groups: { id: string; name: string }[];
+  boardId: string | null;
+  onPick: (id: string | null) => void;
+  isOwner: boolean;
+  pending: boolean;
+  onAdd: (name: string, groupId: string | null) => void;
+  onRemove: (id: string) => void;
+}) {
+  const bt = t.tasks.boards;
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [groupId, setGroupId] = useState("");
+  if (!boards.length && !isOwner) return null;
+  const groupName = (id: string | null) => groups.find((g) => g.id === id)?.name;
+  const tab = (id: string | null, label: string) => (
+    <button
+      key={id ?? "main"}
+      type="button"
+      onClick={() => onPick(id)}
+      aria-pressed={boardId === id}
+      className={`min-h-11 rounded-md px-3 text-sm md:min-h-9 ${boardId === id ? "bg-surface font-medium" : "text-muted hover:text-foreground"}`}
+      data-board-tab={label}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1 border-b border-border pb-1" data-board-tabs>
+      {tab(null, bt.main)}
+      {boards.map((board) => tab(board.id, groupName(board.group_id) ? `${board.name} · ${groupName(board.group_id)}` : board.name))}
+      {isOwner && boardId && (
+        <button type="button" disabled={pending} onClick={() => onRemove(boardId)} className="min-h-11 px-2 text-xs text-danger hover:underline md:min-h-9">
+          {bt.remove}
+        </button>
+      )}
+      {isOwner &&
+        (adding ? (
+          <form
+            className="flex flex-wrap items-center gap-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!name.trim()) return;
+              onAdd(name.trim(), groupId || null);
+              setName("");
+              setGroupId("");
+              setAdding(false);
+            }}
+          >
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder={bt.name} aria-label={bt.name} className={inputClass} autoFocus data-board-name />
+            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} aria-label={bt.team} className={inputClass}>
+              <option value="">{bt.noTeam}</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+            <button type="submit" disabled={pending} className={buttonClass} data-board-save>
+              {t.common.save}
+            </button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setAdding(true)} className="min-h-11 px-2 text-sm text-muted hover:text-foreground md:min-h-9" data-board-add>
+            ＋ {bt.add}
+          </button>
+        ))}
     </div>
   );
 }

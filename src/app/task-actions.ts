@@ -151,3 +151,26 @@ export async function setTaskPrivate(taskId: string, makePrivate: boolean) {
 export async function setTaskParticipants(taskId: string, people: { user_id: string; role: "co_assignee" | "responsible" }[]) {
   return call("set_task_participants", { target: taskId, people });
 }
+
+// Boards per team (package 11): the project owner adds, renames or removes boards;
+// a new column goes on the board it was added to.
+export async function saveTaskBoard(projectId: string, boardId: string | null, name: string, groupId: string | null) {
+  return call<{ id: string }>("save_task_board", { target_project: projectId, target_board: boardId, new_name: name, team: groupId });
+}
+
+export async function deleteTaskBoard(boardId: string, moveTo: string) {
+  return call("delete_task_board", { target_board: boardId, move_to: moveTo });
+}
+
+export async function addColumnOnBoard(projectId: string, boardId: string | null, name: string) {
+  const saved = await call<{ id: string }>("save_task_status", {
+    target_project: projectId,
+    target_status: null,
+    new_name: name,
+    new_category: "doing",
+    new_wip_limit: null,
+    new_position: null,
+  });
+  if (!saved.ok || !boardId) return saved;
+  return call("set_task_status_board", { target_status: saved.id, target_board: boardId });
+}

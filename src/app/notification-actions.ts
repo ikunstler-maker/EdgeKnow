@@ -48,7 +48,7 @@ export async function deleteTaskRule(shortId: string, ruleId: string) {
 export async function loadTaskRules(shortId: string, projectId: string, workspaceId: string) {
   const supabase = await dataClient(shortId);
   const [{ data: rules }, { data: groups }] = await Promise.all([
-    supabase.from("task_rules").select("id, event, category, status_id, notify_roles, notify_users, notify_groups").eq("project_id", projectId).order("created_at"),
+    supabase.from("task_rules").select("id, event, category, status_id, notify_roles, notify_users, notify_groups, move_to_status").eq("project_id", projectId).order("created_at"),
     supabase.from("workspace_groups").select("id, name").eq("workspace_id", workspaceId).order("name"),
   ]);
   return { rules: (rules ?? []) as TaskRule[], groups: (groups ?? []) as { id: string; name: string }[] };

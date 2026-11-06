@@ -29,6 +29,7 @@ export type TaskRule = {
   notify_roles: RuleRole[];
   notify_users: string[];
   notify_groups: string[];
+  move_to_status?: string | null;
 };
 export type TaskRuleInput = {
   event: RuleEvent;
@@ -37,6 +38,7 @@ export type TaskRuleInput = {
   roles: RuleRole[];
   users: string[];
   groups: string[];
+  move_to_status?: string;
 };
 
 // Quiet hours and browser pop-ups are kept on this device only.

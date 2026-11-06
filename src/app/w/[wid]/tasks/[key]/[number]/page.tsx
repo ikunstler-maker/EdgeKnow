@@ -70,6 +70,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
         mentionedOn={(mentions ?? []).flatMap((m) => (m.page ? [m.page] : []))}
         task={task}
         statuses={view.statuses}
+        boards={view.boards}
         fields={view.fields}
         members={view.members}
         comments={(comments ?? []) as TaskComment[]}

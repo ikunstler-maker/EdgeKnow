@@ -260,6 +260,15 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const savedRule = sql("select event || ' ' || array_to_string(notify_roles, ',') from public.task_rules");
   check("the project owner adds a notification rule", savedRule === "comment reporter", savedRule);
   await alice.keyboard.press("Escape");
+
+  // A team's own board: a tab of its own, with its own columns.
+  await alice.locator("[data-board-add]").click();
+  await alice.locator("[data-board-name]").fill("QA");
+  await alice.locator("[data-board-save]").click();
+  await alice.locator('[data-board-tab="QA"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.locator('[data-board-tab="QA"]').click().catch(() => {});
+  check("the owner adds a team board, which starts with no columns", sql("select name from public.task_boards") === "QA" && (await alice.locator("[data-column]").count()) === 0, sql("select count(*) from public.task_boards"));
+  await alice.locator('[data-board-tab="Основна дошка"]').click();
   const marOneId = sql("select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   const aliceUserId = sql("select id from public.profiles where email = 'alice@alpha.test'");
   // The colleague (signed out above, and only a viewer now) acts through the database for a moment.
