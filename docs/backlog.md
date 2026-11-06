@@ -30,6 +30,16 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - **CRM (service 15):** shown as «Soon» (done); plan separately.
 - **6. Analytics:** DONE (gating to the Team plan comes with payments). Was: per period/person: created, done, passed through, files, comments, text written; manager metrics (lead/cycle time, overdue, created vs done, stuck, load, reopened) on Team; workspace-wide (wiki, surveys, boards/maps/tables, active people). Guests counted; kept after leaving; deleted account → ID only. Needs approval for DB functions.
 
+## New requests (owner, 2026-12-28) — each needs its own plan + OK
+- **Wiki: media galleries.** A block with images, YouTube videos and audio; layouts: (1) featured — large viewer + thumbnail strip; (2) carousel/slider; (3) list — small thumbnails or text only; (4) grid/masonry with adjustable thumbnail size. Layout chosen per block.
+- **Own icons everywhere.** Redraw all system icons (now emoji) as our own drawn set, so nothing depends on third-party emoji artwork; same look in every OS. Mascot style; light/dark.
+- **Mini-game «territory» with Apus.** Original game in the paint-the-ground genre: Apus leaves painted trail; enclosing area claims it; cutting/enclosing opponents' trails knocks them out.
+  - Modes: offline vs bots; online real-time — joins active sessions of the same workspace, guests too (admin switch «guests may play», off → guests can't join). Needs realtime (cost/limits to check) and access change → separate approval.
+  - Look: isometric 3D, clean cute minimal, warm sunlight, bright highlights.
+  - Maps (procedural): (1) Ocean surface — islands, rocks (obstacles), whirlpools (traps); (2) Rooftops — irregular skyscraper roofs like continents joined by narrow bridges, city far below, edges are borders (no falling), AC/vent units as moving hazards.
+  - Anti-addiction: only live stats in the session (painted %, current rank); everything resets at the end — no leaderboards, history or achievements.
+  - Customisation before a game: wide palette of solid high-contrast colours + contrasting pattern overlay (pink hearts, yellow waves, light-blue dots, red crosses, white stripes…) that stays readable on the chosen colour.
+
 ## Rename EdgeKnow → Synkvela (owner, 2026-12-22) — plan separately
 - UI texts (both languages), page titles, landing, emails, help, docs; logo/favicon; domain and auth redirect URLs (Vercel + Supabase settings by the owner); keep old links working (redirects).
 - Service logos replace the numbered squircles on the start page (owner provides or we draw).
