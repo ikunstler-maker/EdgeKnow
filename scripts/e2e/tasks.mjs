@@ -282,6 +282,13 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the project owner adds a notification rule", savedRule === "comment reporter", savedRule);
   await alice.keyboard.press("Escape");
 
+  // Analytics: the owner sees the team and every person (only counts).
+  await alice.goto(`${APP}/w/${alphaShort}/analytics?days=30`);
+  await alice.locator("[data-analytics-team]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("the owner sees the team's analytics and everyone's numbers", (await alice.locator("[data-analytics-team]").count()) === 1 && (await alice.locator("[data-analytics-person]").count()) >= 2);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.locator("[data-task-board]").waitFor({ timeout: 15000 });
+
   // A team's own board: a tab of its own, with its own columns.
   await alice.locator("[data-board-add]").click();
   await alice.locator("[data-board-name]").fill("QA");

@@ -53,6 +53,7 @@ reset role;
 set role authenticated;
 :as_alice;
 select 'team: alice adds a team board: ' || (public.save_task_board(:'project', null, 'Second team', null, null) ->> 'ok');
+select 'team: analytics for the owner: ' || (public.workspace_analytics(:'ws', now() - interval '1 day', now() + interval '1 day') ->> 'admin');
 select 'team: tasks stand on the main board: ' || ((select count(*) from public.task_placements where board_id is null) > 0);
 reset role;
 set role authenticated;

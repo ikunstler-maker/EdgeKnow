@@ -7,6 +7,7 @@ team: bob doesn't see alice's private task: 0
 team: alice publishes it: true
 team: now bob sees it: 1
 team: alice adds a team board: true
+team: analytics for the owner: true
 team: tasks stand on the main board: true
 carol (not a member) sees: 0
 sync without bob: true

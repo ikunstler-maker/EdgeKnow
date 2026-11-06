@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
@@ -29,6 +30,9 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <h1 className="text-2xl font-semibold">👤 {t.profile.title}</h1>
       <p className="mt-2 text-muted">{t.profile.intro(stats.name, workspace.name)}</p>
+      <Link href={workspacePath(workspace.shortId, "/analytics")} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9" data-analytics-link>
+        {t.analytics.link}
+      </Link>
       <VisibilitySwitch workspaceId={workspace.id} initial={stats.visibility} shareUrl={shareUrl} />
       <ProfileView stats={stats} />
       <AppearanceSettings />
