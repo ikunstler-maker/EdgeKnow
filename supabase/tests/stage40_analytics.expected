@@ -1,0 +1,9 @@
+bob comments: true
+bob finishes: true
+bob sees only himself: bob@analytix.test created 0 completed 1 passed 1 comments 1 chars 9, team: none
+alice sees everyone: alice@analytix.test 2/0, bob@analytix.test 0/1
+alice sees the team: created 2, completed 1, open 1, active 2, weeks 1
+no period: {"ok": false, "error": "invalid"}
+a period too long: {"ok": false, "error": "invalid"}
+eve, outside: {"ok": false, "error": "forbidden"}
+psql: ERROR:  permission denied for function workspace_analytics
