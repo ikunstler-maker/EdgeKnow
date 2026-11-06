@@ -24,3 +24,5 @@ team mention: 1
 carol sees team mentions: 0
 team map saved: 2
 carol sees team maps: 0, saves: forbidden
+team: alice saves a personal template: true
+team: bob sees templates: 0, saves: forbidden

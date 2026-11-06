@@ -127,3 +127,13 @@ set role authenticated;
 :as_carol;
 select 'carol sees team maps: ' || count(*) || ', saves: ' || (public.save_service_object(:'team_map', 'x', null, 2) ->> 'error') from public.service_objects;
 reset role;
+
+-- Task templates in the team database: alice's own one stays hers; bob (gone) gets nothing.
+set role authenticated;
+:as_alice;
+select 'team: alice saves a personal template: ' || (public.save_task_template(:'project', null, true, 'Mine', '{"type": "bug"}', true) ->> 'ok');
+reset role;
+set role authenticated;
+:as_bob;
+select 'team: bob sees templates: ' || count(*) || ', saves: ' || (public.save_task_template(:'project', null, true, 'x', '{}', false) ->> 'error') from public.task_templates;
+reset role;

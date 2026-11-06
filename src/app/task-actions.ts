@@ -5,6 +5,7 @@ import type { ActionResult } from "@/lib/action-result";
 import { t } from "@/i18n";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { openChecklistItems, parseTaskKey } from "@/lib/tasks";
+import type { TaskTemplate, TemplateData } from "@/lib/task-templates";
 
 // Tasks: every check (roles, fields, the workspace) is in the database
 // functions; these forward the call to wherever the workspace keeps its data.
@@ -185,4 +186,29 @@ export async function moveTaskOnBoard(taskId: string, columnId: string) {
 
 export async function setFrozenMovesAdmin(projectId: string, adminOnly: boolean) {
   return call("set_frozen_moves_admin", { target_project: projectId, admin_only: adminOnly });
+}
+
+// Task templates: the project's and one's own (the database shows nobody else's).
+export async function loadTaskTemplates(projectId: string): Promise<TaskTemplate[]> {
+  const { data } = await (await dataClient())
+    .from("task_templates")
+    .select("id, owner_id, name, data, is_default")
+    .eq("project_id", projectId)
+    .order("name");
+  return (data ?? []) as TaskTemplate[];
+}
+
+export async function saveTaskTemplate(projectId: string, templateId: string | null, personal: boolean, name: string, data: TemplateData, makeDefault: boolean) {
+  return call<{ id: string }>("save_task_template", {
+    target_project: projectId,
+    target: templateId,
+    personal,
+    new_name: name,
+    new_data: data,
+    make_default: makeDefault,
+  });
+}
+
+export async function deleteTaskTemplate(templateId: string) {
+  return call("delete_task_template", { target: templateId });
 }

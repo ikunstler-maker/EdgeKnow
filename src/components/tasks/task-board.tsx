@@ -43,6 +43,8 @@ import {
 import { addColumnOnBoard, createTask, deleteTaskBoard, deleteTaskStatus, moveTaskOnBoard, saveTaskBoard, saveTaskStatus, setColumnFreezes, setFrozenMovesAdmin, updateTask, updateTaskProject } from "@/app/task-actions";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { TaskRulesDialog } from "./task-rules";
+import { TemplatePicker, useTemplates } from "./task-templates";
+import { fromTemplate, type TaskTemplate } from "@/lib/task-templates";
 
 const k = t.tasks;
 const b = t.tasks.board;
@@ -95,6 +97,7 @@ export function TaskBoard({
   const [dragging, setDragging] = useState<string | null>(null);
   const [cardSettings, setCardSettings] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const templates = useTemplates(project.id, canEdit);
   // The server's answer replaces the local copy whenever the page refreshes.
   const [fromServer, setFromServer] = useState(initialTasks);
   const [placements, setPlacements] = useState(initialPlacements);
@@ -211,6 +214,7 @@ export function TaskBoard({
           </select>
         </label>
         <span className="text-xs text-muted">{k.count(shown.length, tasks.length)}</span>
+        {canEdit && <TemplatePicker templates={templates.templates} chosen={templates.chosen} onPick={templates.pick} />}
         {isOwner && (
           <label className="ml-auto flex min-h-11 items-center gap-2 text-muted md:min-h-9">
             <input
@@ -287,6 +291,8 @@ export function TaskBoard({
                     canEdit={canEdit}
                     isOwner={isOwner && lane.id === lanes[0].id}
                     showQuickAdd={canEdit && lane.id === lanes[0].id}
+                    template={templates.chosen}
+                    fieldIds={fields.map((f) => f.id)}
                     pending={pending}
                     run={run}
                     render={(task) => (
@@ -354,6 +360,8 @@ function BoardColumn({
   canEdit,
   isOwner,
   showQuickAdd,
+  template,
+  fieldIds,
   pending,
   run,
   render,
@@ -369,6 +377,8 @@ function BoardColumn({
   canEdit: boolean;
   isOwner: boolean;
   showQuickAdd: boolean;
+  template: TaskTemplate | null;
+  fieldIds: string[];
   pending: boolean;
   run: (action: () => Promise<ActionResult>, rollback?: () => void) => void;
   render: (task: TaskRow) => React.ReactNode;
@@ -432,7 +442,7 @@ function BoardColumn({
             const value = title.trim();
             if (!value) return;
             setTitle("");
-            run(() => createTask(projectId, { title: value, status_id: status.id }));
+            run(() => createTask(projectId, { ...fromTemplate(template, value, fieldIds), status_id: status.id }));
             input.current?.focus();
           }}
         >
