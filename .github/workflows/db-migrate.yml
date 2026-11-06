@@ -141,6 +141,10 @@ jobs:
           prepare=$!
           supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
           if ! wait $prepare; then tail -n 40 prepare.log; exit 1; fi
+      # Table formulas against Excel's results (no browser needed; nodes part only).
+      - name: Table formulas
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings scripts/test-sheet-formulas.mjs
       # The people and workspaces every part starts from (the API test leaves them).
       - name: Seed through the API isolation test
         run: |
