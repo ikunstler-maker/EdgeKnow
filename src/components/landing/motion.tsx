@@ -1,5 +1,6 @@
 "use client";
 
+import { SERVICE_BRANDS, brandGradients, type ServiceKey } from "@/lib/services";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ServiceMockup } from "./mockups";
 
@@ -105,23 +106,13 @@ export function CountUp({ value, suffix = "" }: { value: number; suffix?: string
 
 type Service = { key: string; icon: string; name: string; like: string; soon: boolean; headline: string; points: string[] };
 
-// Each service's own colours, for its headline.
-export const SERVICE_GRADIENTS: Record<string, string> = {
-  wiki: "from-sky-300 to-blue-500",
-  tasks: "from-emerald-300 to-teal-500",
-  boards: "from-amber-300 to-pink-500",
-  nodes: "from-violet-300 to-fuchsia-500",
-  sheets: "from-lime-300 to-emerald-500",
-  surveys: "from-orange-300 to-rose-500",
-  slides: "from-rose-300 to-purple-500",
-  chat: "from-cyan-300 to-indigo-500",
-  files: "from-yellow-200 to-orange-500",
-  calendar: "from-sky-300 to-cyan-500",
-  meet: "from-indigo-300 to-violet-500",
-  ai: "from-fuchsia-300 to-violet-500",
-  sites: "from-teal-200 to-sky-500",
-  apps: "from-lime-200 to-emerald-500",
-};
+
+// The service's own colours (lib/services), as CSS variables for .ek-brand-*.
+function brandStyle(key: string) {
+  if (!(key in SERVICE_BRANDS)) return undefined;
+  const g = brandGradients(key as ServiceKey);
+  return { "--brand-dark": g.dark, "--brand-light": g.light } as React.CSSProperties;
+}
 
 export function SoonBadge({ label }: { label: string }) {
   return <span className="ml-2 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-2 py-0.5 align-middle text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">{label}</span>;
@@ -155,11 +146,16 @@ export function ServiceTour({ services, soon }: { services: Service[]; soon: str
             data-landing-service={service.name}
             className={`flex flex-col justify-center py-10 transition-opacity duration-500 md:min-h-[72vh] ${active === i ? "opacity-100" : "md:opacity-30"}`}
           >
-            <p className="text-sm font-medium text-white/50">
-              <span aria-hidden="true">{service.icon}</span> {service.name} · {service.like}
+            <p className="text-sm font-medium text-white/50" style={brandStyle(service.key)}>
+              <span className="ek-brand-text text-base font-extrabold" data-landing-brand>
+                {SERVICE_BRANDS[service.key as ServiceKey]?.name ?? service.name}
+              </span>{" "}
+              · {service.name} · {service.like}
               {service.soon && <SoonBadge label={soon} />}
             </p>
-            <h3 className={`mt-3 bg-gradient-to-r bg-clip-text pb-1 text-3xl font-bold tracking-tight text-transparent md:text-5xl ${SERVICE_GRADIENTS[service.key] ?? "from-white to-white"}`}>{service.headline}</h3>
+            <h3 className="ek-brand-text mt-3 pb-1 text-3xl font-bold tracking-tight md:text-5xl" style={brandStyle(service.key)}>
+              {service.headline}
+            </h3>
             <ul className="mt-6 flex flex-col gap-3 text-lg text-white/70">
               {service.points.map((point) => (
                 <li key={point} className="flex gap-3">
