@@ -1,0 +1,24 @@
+a review column: true
+rule: review tells the reviewers: true
+rule: a column tells the reporter: true
+a rule for nobody: {"ok": false, "error": "invalid"}
+a person from elsewhere: {"ok": false, "error": "invalid"}
+bob may not add rules: {"ok": false, "error": "forbidden"}
+bob moves it to doing: true
+bob moves it to review: true
+bob mentions carol: true
+notifications: alice:rule, bob:assigned, carol:mention, carol:rule
+carol sees: 2 unread, NTF-1
+carol reads all: true
+carol, unread after: 0
+carol sees only her own rows: 2
+carol mutes comments and mentions: true
+a kind that does not exist: {"ok": false, "error": "invalid"}
+bob mentions carol again: true
+carol, muted, got nothing new: 0
+project closed to the workspace: true
+alice moves it back to doing: true
+alice moves it to review again: true
+carol, without access, hears nothing (alice moved it herself): nobody
+eve, not a member: {"items": [], "unread": 0}
+psql: ERROR:  permission denied for function my_notifications

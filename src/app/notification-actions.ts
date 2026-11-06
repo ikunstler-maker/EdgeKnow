@@ -1,0 +1,55 @@
+"use server";
+
+import type { ActionResult } from "@/lib/action-result";
+import { dataClient, writeClient } from "@/lib/team-db/data";
+import type { NotificationKind, NotificationList, TaskRule, TaskRuleInput } from "@/lib/notifications";
+
+// Notifications and task rules: the database decides who hears what and what
+// they may still see; these forward the calls to wherever the workspace keeps its data.
+// No page re-render here: the bell polls, and rules refresh their own dialog.
+
+async function call<T extends object = object>(shortId: string, fn: string, args: Record<string, unknown>): Promise<ActionResult<T>> {
+  const supabase = await writeClient(shortId);
+  if (!supabase) return { ok: false, error: "team_setup" };
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error || !data) return { ok: false, error: "unknown" };
+  return data as ActionResult<T>;
+}
+
+export async function loadNotifications(shortId: string, workspaceId: string): Promise<NotificationList | null> {
+  const supabase = await dataClient(shortId);
+  const { data, error } = await supabase.rpc("my_notifications", { ws: workspaceId, max_rows: 40 });
+  if (error || !data) return null;
+  return data as NotificationList;
+}
+
+export async function markNotificationsRead(shortId: string, workspaceId: string, ids: string[] | null) {
+  return call(shortId, "mark_notifications_read", { ws: workspaceId, ids });
+}
+
+export async function loadNotificationPrefs(shortId: string, workspaceId: string): Promise<NotificationKind[]> {
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.from("notification_prefs").select("muted").eq("workspace_id", workspaceId).maybeSingle();
+  return ((data?.muted as NotificationKind[] | undefined) ?? []);
+}
+
+export async function setNotificationPrefs(shortId: string, workspaceId: string, muted: NotificationKind[]) {
+  return call(shortId, "set_notification_prefs", { ws: workspaceId, new_muted: muted });
+}
+
+export async function saveTaskRule(shortId: string, projectId: string, rule: TaskRuleInput) {
+  return call<{ id: string }>(shortId, "save_task_rule", { target_project: projectId, rule });
+}
+
+export async function deleteTaskRule(shortId: string, ruleId: string) {
+  return call(shortId, "delete_task_rule", { target_rule: ruleId });
+}
+
+export async function loadTaskRules(shortId: string, projectId: string, workspaceId: string) {
+  const supabase = await dataClient(shortId);
+  const [{ data: rules }, { data: groups }] = await Promise.all([
+    supabase.from("task_rules").select("id, event, category, status_id, notify_roles, notify_users, notify_groups").eq("project_id", projectId).order("created_at"),
+    supabase.from("workspace_groups").select("id, name").eq("workspace_id", workspaceId).order("name"),
+  ]);
+  return { rules: (rules ?? []) as TaskRule[], groups: (groups ?? []) as { id: string; name: string }[] };
+}

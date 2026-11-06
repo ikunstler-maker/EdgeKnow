@@ -1,0 +1,64 @@
+// Notifications (package 8) and project rules (package 7): shapes shared by the
+// server actions and the screens.
+
+export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due"] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+export type NotificationItem = {
+  id: string;
+  kind: NotificationKind;
+  created_at: string;
+  read_at: string | null;
+  actor: string | null;
+  // Present only while the person may still see it.
+  task: { id: string; key: string; project: string; number: number; title: string; status: string | null } | null;
+  page: { id: string; title: string } | null;
+};
+export type NotificationList = { unread: number; items: NotificationItem[] };
+
+export const RULE_EVENTS = ["enter_category", "enter_status", "assigned", "comment", "due_changed"] as const;
+export type RuleEvent = (typeof RULE_EVENTS)[number];
+export const RULE_ROLES = ["assignee", "reporter", "owner"] as const;
+export type RuleRole = (typeof RULE_ROLES)[number];
+
+export type TaskRule = {
+  id: string;
+  event: RuleEvent;
+  category: string | null;
+  status_id: string | null;
+  notify_roles: RuleRole[];
+  notify_users: string[];
+  notify_groups: string[];
+};
+export type TaskRuleInput = {
+  event: RuleEvent;
+  category?: string;
+  status_id?: string;
+  roles: RuleRole[];
+  users: string[];
+  groups: string[];
+};
+
+// Quiet hours and browser pop-ups are kept on this device only.
+export type DeviceNotificationSettings = { browser: boolean; quietFrom: string; quietTo: string };
+export const DEVICE_SETTINGS_KEY = "ek-notify-device";
+
+export function readDeviceSettings(): DeviceNotificationSettings {
+  try {
+    const raw = window.localStorage.getItem(DEVICE_SETTINGS_KEY);
+    if (raw) return { browser: false, quietFrom: "", quietTo: "", ...JSON.parse(raw) };
+  } catch {
+    // Storage blocked: defaults.
+  }
+  return { browser: false, quietFrom: "", quietTo: "" };
+}
+
+export function inQuietHours(settings: DeviceNotificationSettings, now = new Date()) {
+  if (!settings.quietFrom || !settings.quietTo) return false;
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const [fh, fm] = settings.quietFrom.split(":").map(Number);
+  const [th, tm] = settings.quietTo.split(":").map(Number);
+  const from = fh * 60 + fm;
+  const to = th * 60 + tm;
+  return from <= to ? minutes >= from && minutes < to : minutes >= from || minutes < to;
+}

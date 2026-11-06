@@ -198,7 +198,7 @@ export function TaskList({
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
-                      <span className={`rounded px-2 py-0.5 text-xs ${s?.category === "done" ? "bg-emerald-500/15" : s?.category === "doing" ? "bg-sky-500/15" : "bg-surface"}`}>
+                      <span className={`rounded px-2 py-0.5 text-xs ${s?.category === "done" ? "bg-emerald-500/15" : s?.category === "doing" ? "bg-sky-500/15" : s?.category === "review" ? "bg-violet-500/15" : "bg-surface"}`}>
                         {s?.name}
                       </span>
                     </td>

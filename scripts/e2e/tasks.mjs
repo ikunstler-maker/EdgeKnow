@@ -104,7 +104,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   // The start page: a tile per service; those still being built say "Soon".
   await alice.goto(`${APP}/w/${alphaShort}`);
   await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
-  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 14 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 8);
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 15 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 9);
   check("…as a launcher: no page buttons at the top", (await alice.locator("main").getByRole("button", { name: /Нова сторінка/ }).count()) === 0);
   await alice.locator('[data-service="tasks"]').getByRole("link", { name: "Задачі" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
@@ -250,6 +250,26 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the priority changes right on the card", await until(() => marOnePriority() === "highest", 15000), marOnePriority());
   await alice.locator('[data-card="MAR-1"] [data-card-priority]').selectOption(priorityBefore);
   await until(() => marOnePriority() === priorityBefore, 15000);
+
+  // Notification rules (the project owner) and the bell.
+  await alice.locator("[data-open-rules]").click();
+  await alice.locator("[data-rule-event]").selectOption("comment");
+  await alice.locator('[data-rule-role="reporter"]').check();
+  await alice.locator("[data-rule-add]").click();
+  await alice.locator("[data-task-rule]").first().waitFor({ timeout: 10000 }).catch(() => {});
+  const savedRule = sql("select event || ' ' || array_to_string(notify_roles, ',') from public.task_rules");
+  check("the project owner adds a notification rule", savedRule === "comment reporter", savedRule);
+  await alice.keyboard.press("Escape");
+  const marOneId = sql("select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
+  const aliceUserId = sql("select id from public.profiles where email = 'alice@alpha.test'");
+  const pinged = await colleagueTasks.rpc("add_task_comment", { target_task: marOneId, body: "Ping", mention_ids: [aliceUserId] });
+  await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await alice.locator("[data-notification-bell] [data-unread]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("…a colleague's mention lights the bell", pinged.data?.ok === true && (await alice.locator("[data-notification-bell] [data-unread]").count()) === 1, JSON.stringify(pinged.data));
+  await alice.locator("[data-notification-bell]").click();
+  await alice.locator('[data-notification="mention"]').first().waitFor({ timeout: 10000 }).catch(() => {});
+  check("…and the list names the task", ((await alice.locator('[data-notification="mention"]').first().innerText().catch(() => "")) || "").includes("MAR-1"));
+  await alice.keyboard.press("Escape");
   const boardWidth = await alice.locator("[data-project-main]").evaluate((el) => el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width);
   check("the board uses the whole width next to the sidebar", boardWidth > 0.95, String(boardWidth));
   await alice.getByRole("button", { name: "Лише мої" }).click();
