@@ -1,0 +1,19 @@
+bob comments: true
+bob adds carol as co-assignee: true
+bob sees: 1
+carol (co-assignee) sees it and its comment: 1 1
+carol may edit: true
+dan sees: 0 tasks, 0 comments
+dan edits: {"ok": false, "error": "forbidden"}
+dan comments: {"ok": false, "error": "forbidden"}
+dan publishes: {"ok": false, "error": "forbidden"}
+dan, not an admin, gets no list: []
+alice (owner) sees: 0
+alice sees only the key and the people: PRV-1 2 people, title shown: false
+alice lets admins see private tasks: true
+alice now sees it: 1
+alice switches it off again: true
+carol (not the author) publishes: {"ok": false, "error": "forbidden"}
+carol may not change the admin switch: {"ok": false, "error": "forbidden"}
+bob publishes: true
+dan sees it now: 1
