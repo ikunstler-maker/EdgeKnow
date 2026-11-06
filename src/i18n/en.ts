@@ -667,6 +667,15 @@ export const en: Dictionary = {
     columns: { key: "Key", title: "Title", status: "Status", assignee: "Assignee", priority: "Priority", due: "Due", type: "Type", updated: "Updated" },
     types: { task: "Task", bug: "Bug", idea: "Idea", epic: "Epic" } as Record<string, string>,
     priorities: { highest: "Highest", high: "High", medium: "Medium", low: "Low", lowest: "Lowest" } as Record<string, string>,
+    privacy: {
+      private: "Private",
+      privateHint: "Only the author, assignee, co-assignees and the responsible see it.",
+      publish: "Publish to the project",
+      makePrivate: "Make private",
+      onlyMe: "🔒 Just for me",
+      roles: { co_assignee: "Co-assignees", responsible: "Responsible" },
+      othersPrivate: (n: number) => `🔒 Others' private tasks: ${n}`,
+    },
     columnTime: {
       heading: "Time in columns",
       duration: (ms: number) => {
@@ -2187,6 +2196,8 @@ export const en: Dictionary = {
     general: {
       nameLabel: "Workspace name",
       idLabel: "Permanent ID (for links)",
+      privateTasksAdmin: "Admins see the contents of private tasks",
+      privateTasksAdminHint: "Off: admins see only a private task's key and the people on it.",
       loginLink: "Sign-in link for this workspace",
       copy: "Copy",
       copied: "Copied",

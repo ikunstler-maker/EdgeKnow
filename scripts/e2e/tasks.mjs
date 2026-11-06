@@ -274,6 +274,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator('[data-notification="mention"]').first().waitFor({ timeout: 10000 }).catch(() => {});
   check("…and the list names the task", ((await alice.locator('[data-notification="mention"]').first().innerText().catch(() => "")) || "").includes("MAR-1"));
   await alice.keyboard.press("Escape");
+
   const boardWidth = await alice.locator("[data-project-main]").evaluate((el) => el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width);
   check("the board uses the whole width next to the sidebar", boardWidth > 0.95, String(boardWidth));
   await alice.getByRole("button", { name: "Лише мої" }).click();
@@ -387,6 +388,13 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.getByRole("button", { name: "Прибрати файл «brief.pdf»" }).click();
   await alice.locator('[data-task-file="brief.pdf"]').waitFor({ state: "detached", timeout: 15000 });
   check("a removed file waits for the daily cleanup", sql(`select count(*) from public.attachment_tombstones where storage_path like '%/${fileId}'`) === "1");
+
+  // A colleague's private task: the workspace owner sees only its key and people.
+  asColleague(`public.create_task((select id from public.task_projects where key = 'MAR'), '{"title": "Colleague secret", "private": true}')`);
+  const secret = { data: { ok: sql("select count(*) from public.tasks where title = 'Colleague secret' and private") === "1" } };
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.locator("[data-private-others]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("a private task stays hidden from the owner, who sees only its key", secret.data?.ok === true && (await alice.getByText("Colleague secret").count()) === 0 && (await alice.locator("[data-private-others]").count()) === 1, JSON.stringify(secret.data));
 }
 
 // Someone leaves: their task files on their own Drive are copied first — to the

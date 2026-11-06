@@ -442,6 +442,11 @@ function BoardCard({
         {fields.has("type") && <span title={k.types[task.type]}>{TYPE_ICONS[task.type]}</span>}
         {fields.has("key") && <span className="font-mono">{key}</span>}
         <span className="flex-1" />
+        {task.private && (
+          <span title={k.privacy.privateHint} aria-label={k.privacy.private} data-card-private>
+            🔒
+          </span>
+        )}
         {blocked && status.category !== "done" && (
           <span title={k.hierarchy.blocked} aria-label={k.hierarchy.blockedShort} className="text-danger" data-card-blocked>
             🔒

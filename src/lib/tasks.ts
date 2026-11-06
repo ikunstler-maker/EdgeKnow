@@ -37,6 +37,8 @@ export type TaskRow = {
   done_at: string | null;
   // The project's own fields: {"<field id>": value}.
   custom: Record<string, unknown>;
+  // Seen only by its author, assignee and participants (package 10).
+  private?: boolean;
 };
 
 export type FieldKind = "text" | "longtext" | "number" | "select" | "multiselect" | "checkbox" | "toggle" | "date" | "color" | "url" | "person";
@@ -59,7 +61,7 @@ export const fieldApplies = (field: TaskField, type: TaskType) => !field.task_ty
 export const isEmptyValue = (value: unknown) => value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 
 export const TASK_COLUMNS =
-  "id, number, title, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, done_at, custom";
+  "id, number, title, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, done_at, custom, private";
 
 export const PROJECT_KEY = /^[A-Z][A-Z0-9]{1,9}$/;
 

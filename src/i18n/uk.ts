@@ -676,6 +676,15 @@ export const uk = {
     columns: { key: "Ключ", title: "Назва", status: "Статус", assignee: "Виконавець", priority: "Пріоритет", due: "Термін", type: "Тип", updated: "Оновлено" },
     types: { task: "Задача", bug: "Помилка", idea: "Ідея", epic: "Епік" } as Record<string, string>,
     priorities: { highest: "Найвищий", high: "Високий", medium: "Середній", low: "Низький", lowest: "Найнижчий" } as Record<string, string>,
+    privacy: {
+      private: "Приватна",
+      privateHint: "Бачать лише автор, виконавець, співвиконавці й відповідальні.",
+      publish: "Опублікувати в проєкті",
+      makePrivate: "Зробити приватною",
+      onlyMe: "🔒 Лише для мене",
+      roles: { co_assignee: "Співвиконавці", responsible: "Відповідальні" },
+      othersPrivate: (n: number) => `🔒 Приватні задачі інших: ${n}`,
+    },
     columnTime: {
       heading: "Час у колонках",
       duration: (ms: number) => {
@@ -2204,6 +2213,8 @@ export const uk = {
     general: {
       nameLabel: "Назва workspace",
       idLabel: "Постійний ID (для посилань)",
+      privateTasksAdmin: "Адміністратори бачать зміст приватних задач",
+      privateTasksAdminHint: "Вимкнено: адміністратори бачать лише номер приватної задачі й людей, залучених до неї.",
       loginLink: "Посилання для входу в цей workspace",
       copy: "Скопіювати",
       copied: "Скопійовано",

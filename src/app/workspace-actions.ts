@@ -124,3 +124,8 @@ export async function reassignMemberPages(ws: string, fromUser: string, toUser: 
   revalidatePath("/", "layout");
   return data as ActionResult;
 }
+
+// Whether the workspace's owner and admins see the contents of private tasks.
+export async function setPrivateTasksAdmin(ws: string, allowed: boolean) {
+  return callWorkspaceRpc("set_private_tasks_admin", { ws, allowed });
+}
