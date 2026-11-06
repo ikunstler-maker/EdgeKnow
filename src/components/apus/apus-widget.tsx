@@ -152,7 +152,7 @@ export function ApusWidget() {
   return (
     <div
       ref={root}
-      className={`fixed z-40 select-none ${place ? "" : "bottom-4 left-4 md:bottom-6 md:left-auto md:right-6"}`}
+      className={`fixed z-40 select-none ${place ? "" : "bottom-4 left-4 md:left-[17rem] xl:bottom-6 xl:left-auto xl:right-6"}`}
       style={place}
       data-apus
       data-lure={appearance.lure}
