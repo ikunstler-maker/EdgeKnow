@@ -141,3 +141,13 @@ export async function checklistToSubtasks(taskId: string): Promise<ActionResult<
   }
   return { ok: true, created };
 }
+
+// Private tasks (package 10): the author makes a task private or publishes it;
+// whoever may edit it sets its co-assignees and the responsible.
+export async function setTaskPrivate(taskId: string, makePrivate: boolean) {
+  return call("set_task_private", { target: taskId, make_private: makePrivate });
+}
+
+export async function setTaskParticipants(taskId: string, people: { user_id: string; role: "co_assignee" | "responsible" }[]) {
+  return call("set_task_participants", { target: taskId, people });
+}

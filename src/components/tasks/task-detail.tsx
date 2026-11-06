@@ -22,7 +22,7 @@ import {
 import { FieldValue } from "./field-value";
 import { TaskFiles, type TaskFileView } from "./task-files";
 import { BlockedNotice, ParentPicker, Subtasks, TaskLinks, type ProjectTask, type TaskLinkView } from "./task-relations";
-import { addTaskComment, deleteTask, editTaskComment, updateTask } from "@/app/task-actions";
+import { addTaskComment, deleteTask, editTaskComment, setTaskParticipants, setTaskPrivate, updateTask } from "@/app/task-actions";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 
@@ -49,6 +49,7 @@ export function TaskDetail({
   comments,
   events,
   columnTime,
+  participants,
   me,
   canEdit,
   canComment,
@@ -68,6 +69,7 @@ export function TaskDetail({
   comments: TaskComment[];
   events: TaskEvent[];
   columnTime: { id: string; name: string; ms: number }[];
+  participants: { user_id: string; role: "co_assignee" | "responsible" }[];
   me: string;
   canEdit: boolean;
   canComment: boolean;
@@ -225,6 +227,31 @@ export function TaskDetail({
               className={inputClass}
             />
           </Field>
+          <Participants
+            people={participants}
+            members={members}
+            disabled={!canEdit || pending}
+            onChange={(next) => run(() => setTaskParticipants(task.id, next))}
+          />
+          <div className="col-span-full flex flex-wrap items-center gap-2 text-sm" data-task-privacy>
+            {task.private ? (
+              <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300" data-task-private>
+                🔒 {k.privacy.private}
+              </span>
+            ) : null}
+            {task.reporter_id === me && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => run(() => setTaskPrivate(task.id, !task.private))}
+                className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
+                data-toggle-private
+              >
+                {task.private ? k.privacy.publish : k.privacy.makePrivate}
+              </button>
+            )}
+            {task.private && <span className="text-xs text-muted">{k.privacy.privateHint}</span>}
+          </div>
           {fields.some((field) => fieldApplies(field, task.type)) && (
             <div className="col-span-full grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={k.customFields.heading} role="group">
               {fields
@@ -395,5 +422,49 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-xs text-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+const PARTICIPANT_ROLES = ["co_assignee", "responsible"] as const;
+
+// Co-assignees and the responsible: they see the task even when it is private.
+function Participants({
+  people,
+  members,
+  disabled,
+  onChange,
+}: {
+  people: { user_id: string; role: "co_assignee" | "responsible" }[];
+  members: Person[];
+  disabled: boolean;
+  onChange: (next: { user_id: string; role: "co_assignee" | "responsible" }[]) => void;
+}) {
+  return (
+    <>
+      {PARTICIPANT_ROLES.map((role) => {
+        const chosen = people.filter((p) => p.role === role).map((p) => p.user_id);
+        return (
+          <label key={role} className="flex flex-col gap-1" data-participants={role}>
+            <span className="text-xs text-muted">{k.privacy.roles[role]}</span>
+            <select
+              multiple
+              value={chosen}
+              disabled={disabled}
+              onChange={(e) => {
+                const picked = [...e.target.selectedOptions].map((o) => o.value);
+                onChange([...people.filter((p) => p.role !== role && !picked.includes(p.user_id)), ...picked.map((user_id) => ({ user_id, role }))]);
+              }}
+              className="min-h-20 rounded-md border border-border bg-background px-2 text-base md:text-sm"
+            >
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {personLabel(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+        );
+      })}
+    </>
   );
 }

@@ -38,6 +38,7 @@ export function TaskList({
 }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const [onlyMe, setOnlyMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [filters, setFilters] = useFilters(project.id);
@@ -84,7 +85,7 @@ export function TaskList({
             const value = title.trim();
             if (!value) return;
             startTransition(async () => {
-              const result = await createTask(project.id, { title: value });
+              const result = await createTask(project.id, { title: value, ...(onlyMe ? { private: true } : {}) });
               if (!result.ok) return setError(k.errors[result.error] ?? t.common.unknownError);
               setError(null);
               setTitle("");
@@ -100,6 +101,10 @@ export function TaskList({
             maxLength={300}
             className={`${inputClass} min-w-0 flex-1`}
           />
+          <label className="flex min-h-11 shrink-0 items-center gap-1 text-sm text-muted md:min-h-9" title={k.privacy.privateHint}>
+            <input type="checkbox" checked={onlyMe} onChange={(e) => setOnlyMe(e.target.checked)} data-only-me />
+            {k.privacy.onlyMe}
+          </label>
           <button type="submit" disabled={pending || !title.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9">
             {k.create}
           </button>

@@ -247,6 +247,9 @@ export default async function WorkspaceSettingsPage({
           <>
             <GeneralPanel
               workspace={workspace}
+              privateTasksAdmin={
+                (await supabase.from("workspaces").select("private_tasks_admin").eq("id", workspace.id).maybeSingle()).data?.private_tasks_admin === true
+              }
               members={memberItems.filter((m) => m.userId !== user.id && m.role !== "guest")}
             />
             {/* An admin (for example a former owner) can step away too; only the owner can't. */}

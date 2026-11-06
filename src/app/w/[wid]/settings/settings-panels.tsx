@@ -13,6 +13,7 @@ import {
   removeDomain,
   removeMember,
   renameWorkspace,
+  setPrivateTasksAdmin,
   revokeInvitation,
   setDomainActive,
   setGuestAccessUntil,
@@ -103,7 +104,7 @@ function useOrigin() {
   return useSyncExternalStore(noop, () => window.location.origin, () => "");
 }
 
-export function GeneralPanel({ workspace, members }: { workspace: Workspace; members: MemberItem[] }) {
+export function GeneralPanel({ workspace, members, privateTasksAdmin = false }: { workspace: Workspace; members: MemberItem[]; privateTasksAdmin?: boolean }) {
   const { pending, run, errorLine } = useAction();
   const [name, setName] = useState(workspace.name);
   const [newOwner, setNewOwner] = useState("");
@@ -129,6 +130,21 @@ export function GeneralPanel({ workspace, members }: { workspace: Workspace; mem
             {t.common.save}
           </button>
         </form>
+        {(workspace.role === "owner" || workspace.role === "admin") && (
+          <label className="mt-4 flex min-h-11 items-start gap-2 text-sm md:min-h-9" data-private-tasks-admin>
+            <input
+              type="checkbox"
+              defaultChecked={privateTasksAdmin}
+              disabled={pending}
+              onChange={(e) => run(() => setPrivateTasksAdmin(workspace.id, e.target.checked))}
+              className="mt-1"
+            />
+            <span>
+              {s.general.privateTasksAdmin}
+              <span className="block text-xs text-muted">{s.general.privateTasksAdminHint}</span>
+            </span>
+          </label>
+        )}
         <p className="mt-4 text-sm text-muted">
           {s.general.idLabel}: <span className="font-mono">{workspace.shortId}</span>
         </p>

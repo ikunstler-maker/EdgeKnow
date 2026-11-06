@@ -4,7 +4,7 @@ import { workspacePath } from "@/lib/paths";
 import { t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
 import { blockedIn, canEdit, loadProject } from "@/lib/tasks-server";
-import { TASK_COLUMNS, type TaskRow } from "@/lib/tasks";
+import { TASK_COLUMNS, personLabel, type Person, type TaskRow } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
 import { TaskBoard } from "@/components/tasks/task-board";
@@ -84,6 +84,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           </Link>
         ))}
       </nav>
+      <PrivateOthers items={((await db.rpc("private_task_people", { target_project: view.project.id })).data ?? []) as { id: string; key: string; people: string[] | null }[]} members={view.members} />
       {mode === "board" ? (
         <TaskBoard
           shortId={view.workspace.shortId}
@@ -111,5 +112,26 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
         />
       )}
     </main>
+  );
+}
+
+// For the workspace's owner and admins: others' private tasks, only their key and people.
+function PrivateOthers({ items, members }: { items: { id: string; key: string; people: string[] | null }[]; members: Person[] }) {
+  if (!items.length) return null;
+  const name = (id: string) => {
+    const m = members.find((p) => p.id === id);
+    return m ? personLabel(m) : "—";
+  };
+  return (
+    <details className="mt-3 rounded-lg border border-border px-3 py-2 text-sm" data-private-others>
+      <summary className="min-h-9 cursor-pointer py-1 text-muted">{t.tasks.privacy.othersPrivate(items.length)}</summary>
+      <ul className="mt-1 space-y-1">
+        {items.map((item) => (
+          <li key={item.id}>
+            <span className="font-mono">{item.key}</span> · {(item.people ?? []).map(name).join(", ")}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
