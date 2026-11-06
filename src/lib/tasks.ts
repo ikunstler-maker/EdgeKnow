@@ -4,7 +4,7 @@ import { t } from "@/i18n";
 
 export type TaskType = "task" | "bug" | "idea" | "epic";
 export type TaskPriority = "lowest" | "low" | "medium" | "high" | "highest";
-export type StatusCategory = "todo" | "doing" | "done";
+export type StatusCategory = "todo" | "doing" | "review" | "done";
 export type ProjectRole = "owner" | "editor" | "commenter" | "viewer";
 
 export const TASK_TYPES: TaskType[] = ["task", "bug", "idea", "epic"];

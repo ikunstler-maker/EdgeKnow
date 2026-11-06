@@ -20,6 +20,7 @@ import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { AnglerGuide } from "@/components/angler/angler-guide";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useAppearance } from "@/components/angler/appearance";
 
 export function currentPageId(pathname: string): string | null {
@@ -82,6 +83,7 @@ export function Sidebar({
       <ServiceSwitcher shortId={workspace.shortId} pathname={pathname} onNavigate={onNavigate} />
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
+      <NotificationBell onNavigate={onNavigate} />
 
       <button
         type="button"

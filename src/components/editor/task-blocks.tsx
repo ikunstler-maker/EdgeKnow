@@ -17,6 +17,7 @@ const pillClass =
 const CATEGORY_CLASS: Record<StatusCategory, string> = {
   todo: "bg-surface text-muted",
   doing: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  review: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
   done: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
 };
 const taskHref = (shortId: string, key: string) => {

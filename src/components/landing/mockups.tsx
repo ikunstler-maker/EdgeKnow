@@ -357,7 +357,26 @@ function Apps() {
   );
 }
 
-const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files, calendar: Calendar, meet: Meet, ai: Ai, sites: Sites, apps: Apps };
+function Crm() {
+  const stages = [3, 2, 2, 1];
+  return (
+    <div className="grid h-[calc(100%-2rem)] grid-cols-4 gap-2">
+      {stages.map((n, c) => (
+        <div key={c} className="flex flex-col gap-1.5 rounded-xl bg-white/5 p-1.5">
+          <span className="h-1.5 w-1/2 rounded-full bg-white/40" />
+          {Array.from({ length: n }, (_, i) => (
+            <div key={i} className={`rounded-lg bg-gradient-to-br from-orange-300/40 to-rose-500/30 p-1.5 ${c === 1 && i === 0 ? "ring-2 ring-orange-200/70" : ""}`}>
+              <span className="block h-1.5 w-3/4 rounded-full bg-white/50" />
+              <span className="mt-1 block h-1 w-1/3 rounded-full bg-white/30" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const SCREENS: Record<string, () => React.ReactElement> = { wiki: Wiki, tasks: Tasks, boards: Boards, nodes: Nodes, sheets: Sheets, surveys: Surveys, slides: Slides, chat: Chat, files: Files, calendar: Calendar, meet: Meet, ai: Ai, sites: Sites, apps: Apps, crm: Crm };
 
 export function ServiceMockup({ service, label }: { service: string; label: string }) {
   const Screen = SCREENS[service] ?? Wiki;

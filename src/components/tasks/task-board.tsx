@@ -40,6 +40,7 @@ import {
 } from "@/lib/tasks";
 import { createTask, deleteTaskStatus, saveTaskStatus, updateTask, updateTaskProject } from "@/app/task-actions";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
+import { TaskRulesDialog } from "./task-rules";
 
 const k = t.tasks;
 const b = t.tasks.board;
@@ -82,6 +83,7 @@ export function TaskBoard({
   const [group, setGroup] = useState<Group>("none");
   const [dragging, setDragging] = useState<string | null>(null);
   const [cardSettings, setCardSettings] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   // The server's answer replaces the local copy whenever the page refreshes.
   const [fromServer, setFromServer] = useState(initialTasks);
   if (fromServer !== initialTasks) {
@@ -188,6 +190,11 @@ export function TaskBoard({
           </label>
         )}
         {isOwner && (
+          <button type="button" className={buttonClass} onClick={() => setRulesOpen(true)} data-open-rules>
+            ⚡ {t.notifications.rules.button}
+          </button>
+        )}
+        {isOwner && (
           <button type="button" className={buttonClass} onClick={() => setCardSettings(true)}>
             🗂 {b.cardSettings}
           </button>
@@ -258,6 +265,7 @@ export function TaskBoard({
         </DragOverlay>
       </DndContext>
 
+      {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={statuses} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (
         <CardSettings
           selected={project.card_fields}
@@ -324,7 +332,7 @@ function BoardColumn({
       className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 ${isOver ? "border-accent bg-accent/5" : "border-border bg-surface/50"}`}
     >
       <div className="flex items-center gap-2 px-1 pb-2">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${status.category === "done" ? "bg-emerald-500" : status.category === "doing" ? "bg-sky-500" : "bg-slate-400"}`} />
+        <span className={`h-2 w-2 shrink-0 rounded-full ${status.category === "done" ? "bg-emerald-500" : status.category === "doing" ? "bg-sky-500" : status.category === "review" ? "bg-violet-500" : "bg-slate-400"}`} />
         <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">{status.name}</h4>
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
           {status.wip_limit !== null ? `${total}/${status.wip_limit}` : total}
@@ -602,6 +610,7 @@ function ColumnMenu({
         <select value={category} onChange={(e) => setCategory(e.target.value as StatusCategory)} className={inputClass}>
           <option value="todo">{k.categories.todo}</option>
           <option value="doing">{k.categories.doing}</option>
+          <option value="review">{k.categories.review}</option>
           <option value="done">{k.categories.done}</option>
         </select>
       </label>
