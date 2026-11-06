@@ -7,6 +7,7 @@ import { blockedIn, canEdit, loadProject } from "@/lib/tasks-server";
 import { TASK_COLUMNS, personLabel, type Person, type TaskPlacement, type TaskRow } from "@/lib/tasks";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskList } from "@/components/tasks/task-list";
+import { TemplatesButton } from "@/components/tasks/task-templates";
 import { TaskBoard } from "@/components/tasks/task-board";
 import { ProjectAccessButton, type ProjectAccess } from "@/components/tasks/project-access";
 
@@ -69,6 +70,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             {t.tasks.customFields.link}
           </Link>
         )}
+        {canEdit(view.role) && <TemplatesButton projectId={view.project.id} isOwner={view.role === "owner"} />}
         {access && <ProjectAccessButton project={view.project} access={access} members={view.members} />}
       </div>
       {!canEdit(view.role) && <p className="mt-2 text-sm text-muted">{t.tasks.readOnly}</p>}

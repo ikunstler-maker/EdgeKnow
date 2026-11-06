@@ -8,6 +8,8 @@ import { workspacePath } from "@/lib/paths";
 import { PRIORITY_ICONS, TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, personLabel, progressOf, taskKey, type Person, type TaskField, type TaskRow, type TaskStatus } from "@/lib/tasks";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { bulkUpdateTasks, createTask } from "@/app/task-actions";
+import { fromTemplate } from "@/lib/task-templates";
+import { TemplatePicker, useTemplates } from "./task-templates";
 
 const k = t.tasks;
 const inputClass = "min-h-11 rounded-md border border-border bg-background px-3 text-base md:min-h-9 md:text-sm";
@@ -39,6 +41,7 @@ export function TaskList({
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [onlyMe, setOnlyMe] = useState(false);
+  const templates = useTemplates(project.id, canEdit);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [filters, setFilters] = useFilters(project.id);
@@ -85,7 +88,7 @@ export function TaskList({
             const value = title.trim();
             if (!value) return;
             startTransition(async () => {
-              const result = await createTask(project.id, { title: value, ...(onlyMe ? { private: true } : {}) });
+              const result = await createTask(project.id, { ...fromTemplate(templates.chosen, value, fields.map((f) => f.id)), ...(onlyMe ? { private: true } : {}) });
               if (!result.ok) return setError(k.errors[result.error] ?? t.common.unknownError);
               setError(null);
               setTitle("");
@@ -93,6 +96,7 @@ export function TaskList({
             });
           }}
         >
+          <TemplatePicker templates={templates.templates} chosen={templates.chosen} onPick={templates.pick} />
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}

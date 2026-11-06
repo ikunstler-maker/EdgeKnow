@@ -1,0 +1,12 @@
+project template saved: true
+second default replaces the first: true, defaults: 1
+bad values refused: invalid, unknown keys: invalid, unknown field: invalid_field
+bob makes a project template: forbidden, changes one: forbidden, deletes one: forbidden
+bob sees: Bug (project), Idea (project), My bug (mine)
+bob passes off his template as alice's: forbidden
+alice sees: Bug, Idea
+alice changes bob's: forbidden, deletes it: forbidden
+eve sees: 0
+eve saves: forbidden, deletes: forbidden
+alice deletes: true
+bob deletes his: true

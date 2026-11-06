@@ -286,6 +286,28 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/w/${alphaShort}/analytics?days=30`);
   await alice.locator("[data-analytics-team]").waitFor({ timeout: 15000 }).catch(() => {});
   check("the owner sees the team's analytics and everyone's numbers", (await alice.locator("[data-analytics-team]").count()) === 1 && (await alice.locator("[data-analytics-person]").count()) >= 2);
+  // Templates: «Save as template» from a task; the project's default fills in a new task.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
+  await alice.locator("[data-save-template]").click();
+  await alice.locator("[data-template-name]").fill("Відео");
+  await alice.getByLabel("Початок назви задачі (необов’язково)").fill("Відео: ");
+  await alice.locator('[data-template-scope="project"]').check();
+  await alice.getByLabel("Підставляти в нові задачі автоматично").check();
+  await alice.locator("[data-template-save]").click();
+  check("a task is saved as the project's default template", await until(() => sql("select name || ' ' || is_default || ' ' || (owner_id is null) from public.task_templates") === "Відео true true", 15000), sql("select count(*) from public.task_templates"));
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
+  await alice.locator("[data-template-picker]", { hasText: "Відео" }).waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.getByLabel("Нова задача", { exact: true }).fill("Ролик");
+  await alice.getByLabel("Нова задача", { exact: true }).press("Enter");
+  const fromTemplate = () => sql("select t.priority = (select priority from public.tasks x join public.task_projects q on q.id = x.project_id where q.key = 'MAR' and x.number = 1) from public.tasks t where t.title = 'Відео: Ролик'");
+  check("…and a new task starts from it", await until(() => fromTemplate() === "t", 15000), fromTemplate());
+  await alice.locator("[data-template-picker]").click();
+  await alice.locator('[data-template-tab="mine"]').click();
+  check("…personal templates are on their own tab", (await alice.locator('[data-template-option="Відео"]').count()) === 0);
+  await alice.keyboard.press("Escape");
+  // Clean up so the tasks below keep their numbers and plain titles.
+  sql("delete from public.task_templates; delete from public.tasks where title = 'Відео: Ролик'; update public.task_projects set next_number = next_number - 1 where key = 'MAR'");
+
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
   await alice.locator("[data-task-board]").waitFor({ timeout: 15000 });
 

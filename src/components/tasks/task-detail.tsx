@@ -22,6 +22,8 @@ import {
 } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
 import { TaskFiles, type TaskFileView } from "./task-files";
+import { SaveTemplateDialog } from "./task-templates";
+import { templateOf } from "@/lib/task-templates";
 import { BlockedNotice, ParentPicker, Subtasks, TaskLinks, type ProjectTask, type TaskLinkView } from "./task-relations";
 import { addTaskComment, deleteTask, editTaskComment, moveTaskOnBoard, setTaskParticipants, setTaskPrivate, updateTask } from "@/app/task-actions";
 
@@ -82,6 +84,7 @@ export function TaskDetail({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
   const parent = projectTasks.find((other) => other.id === task.parent_id);
   const personOf = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
@@ -412,7 +415,13 @@ export function TaskDetail({
           ))}
         </ul>
 
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          {canEdit && (
+            <button type="button" onClick={() => setSavingTemplate(true)} className="min-h-11 text-sm hover:underline md:min-h-9" data-save-template>
+              📋 {k.templates.saveAs}
+            </button>
+          )}
+          {savingTemplate && <SaveTemplateDialog projectId={project.id} isOwner={isOwner} data={templateOf(task)} onClose={() => setSavingTemplate(false)} />}
           {canEdit && (
             <button
               type="button"
