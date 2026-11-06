@@ -543,12 +543,9 @@ body {
 /* Feedback "!?" button: translucent yellow, solid on hover. */
 /* The angler fish (sidebar) and its lure (the feedback button). */
 /* The fish swims in a left margin of its own: rows never move, so nesting indents stay as they are. */
-nav[data-angler-on] {
-  padding-left: 30px;
-}
-/* The bottom icon row never holds the fish: it keeps the full width so it stays one row. */
-nav[data-angler-on] > [data-sidebar-bottom] {
-  margin-left: -22px;
+/* The bottom icon row keeps its full width (one row), so the margin is on the other parts only. */
+nav[data-angler-on] > :not([data-sidebar-bottom]):not(.ek-angler-guide) {
+  margin-left: 22px;
 }
 .ek-angler-guide {
   transition: transform 0.6s cubic-bezier(0.45, 0.05, 0.25, 1);
