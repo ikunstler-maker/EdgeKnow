@@ -448,6 +448,24 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator('[data-task-file="brief.pdf"]').waitFor({ state: "detached", timeout: 15000 });
   check("a removed file waits for the daily cleanup", sql(`select count(*) from public.attachment_tombstones where storage_path like '%/${fileId}'`) === "1");
 
+  // A frozen task opens for the frozen board's people as a read-only snapshot page.
+  sql("insert into public.task_statuses (project_id, workspace_id, name, category, position, freezes) select id, workspace_id, 'Handed over', 'doing', 99, true from public.task_projects where key = 'MAR'");
+  asColleague(`public.create_task((select id from public.task_projects where key = 'MAR'), '{"title": "Freeze me"}')`);
+  const frozenNumber = sql("select number from public.tasks where title = 'Freeze me'");
+  sql("update public.tasks set status_id = (select id from public.task_statuses where name = 'Handed over') where title = 'Freeze me'");
+  sql("update public.tasks set title = 'Changed after freezing' where title = 'Freeze me'");
+  await colleague.goto(`${APP}/w/${alphaShort}/tasks/MAR/${frozenNumber}`);
+  await colleague.locator("[data-snapshot-badge]").waitFor({ timeout: 15000 }).catch(() => {});
+  check(
+    "a frozen task opens as a read-only snapshot: as it was, nothing to change",
+    (await colleague.locator("[data-task-snapshot]").getByText("Freeze me").count()) === 1 &&
+      (await colleague.getByText("Changed after freezing").count()) === 0 &&
+      (await colleague.locator("textarea, [data-save-template], [data-toggle-private]").count()) === 0,
+  );
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/${frozenNumber}`);
+  check("…while the project owner sees the live task", (await alice.locator("[data-task-snapshot]").count()) === 0 && (await alice.getByText("Changed after freezing").count()) >= 1);
+  sql("update public.tasks set deleted_at = now() where title = 'Changed after freezing'");
+
   // A colleague's private task: the workspace owner sees only its key and people.
   asColleague(`public.create_task((select id from public.task_projects where key = 'MAR'), '{"title": "Colleague secret", "private": true}')`);
   const secret = { data: { ok: sql("select count(*) from public.tasks where title = 'Colleague secret' and private") === "1" } };

@@ -708,6 +708,12 @@ export const en: Dictionary = {
     columns: { key: "Key", title: "Title", status: "Status", assignee: "Assignee", priority: "Priority", due: "Due", type: "Type", updated: "Updated" },
     types: { task: "Task", bug: "Bug", idea: "Idea", epic: "Epic" } as Record<string, string>,
     priorities: { highest: "Highest", high: "High", medium: "Medium", low: "Low", lowest: "Lowest" } as Record<string, string>,
+    snapshotPage: {
+      badge: (when: string) => `❄️ Snapshot of ${when}`,
+      intro: "Another team is working on this task now. Here it is as it was when it froze; when it comes back to your board, it updates.",
+      files: "Files",
+      none: "—",
+    },
     templates: {
       button: "Templates",
       pick: "Template",

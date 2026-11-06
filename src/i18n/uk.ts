@@ -717,6 +717,12 @@ export const uk = {
     columns: { key: "Ключ", title: "Назва", status: "Статус", assignee: "Виконавець", priority: "Пріоритет", due: "Термін", type: "Тип", updated: "Оновлено" },
     types: { task: "Задача", bug: "Помилка", idea: "Ідея", epic: "Епік" } as Record<string, string>,
     priorities: { highest: "Найвищий", high: "Високий", medium: "Середній", low: "Низький", lowest: "Найнижчий" } as Record<string, string>,
+    snapshotPage: {
+      badge: (when: string) => `❄️ Знімок на ${when}`,
+      intro: "Задача зараз у роботі в іншої команди. Тут вона така, якою була в момент заморожування; коли повернеться на вашу дошку — оновиться.",
+      files: "Файли",
+      none: "—",
+    },
     templates: {
       button: "Шаблони",
       pick: "Шаблон",
