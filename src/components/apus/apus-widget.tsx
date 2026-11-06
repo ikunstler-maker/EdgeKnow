@@ -90,6 +90,13 @@ export function ApusWidget() {
     flash("hearts", 1300);
     action();
   };
+  // Opens another panel (notifications, feedback, the game): joy, then the menu steps aside.
+  const go = (action: () => void) => {
+    flash("hearts", 1300);
+    setMenu(false);
+    setTab("menu");
+    action();
+  };
 
   // Dragging: pointer events on the figure; a short press without movement is a click.
   const onPointerDown = (event: React.PointerEvent) => {
@@ -207,10 +214,10 @@ export function ApusWidget() {
           {tab === "menu" ? (
             <>
               <p className="px-2 pb-1 font-semibold">{a.name}</p>
-              <MenuButton onClick={() => act(() => window.dispatchEvent(new CustomEvent(OPEN_NOTIFICATIONS_EVENT, { detail: root.current })))} label={`🔔 ${t.notifications.title}${unread ? ` (${unread})` : ""}`} data="notifications" />
-              <MenuButton onClick={() => act(() => window.dispatchEvent(new Event(OPEN_FEEDBACK_EVENT)))} label={`💬 ${a.feedback}`} data="feedback" />
+              <MenuButton onClick={() => go(() => window.dispatchEvent(new CustomEvent(OPEN_NOTIFICATIONS_EVENT, { detail: root.current })))} label={`🔔 ${t.notifications.title}${unread ? ` (${unread})` : ""}`} data="notifications" />
+              <MenuButton onClick={() => go(() => window.dispatchEvent(new Event(OPEN_FEEDBACK_EVENT)))} label={`💬 ${a.feedback}`} data="feedback" />
               <MenuButton disabled label={`🤖 ${a.helper}`} hint={t.services.soon} data="helper" />
-              <MenuButton onClick={() => act(() => window.dispatchEvent(new Event(ANGLER_GAME_EVENT)))} label={`🌊 ${a.game}`} data="game" />
+              <MenuButton onClick={() => go(() => window.dispatchEvent(new Event(ANGLER_GAME_EVENT)))} label={`🌊 ${a.game}`} data="game" />
               <MenuButton onClick={() => act(() => setTab("settings"))} label={`⚙️ ${a.settings}`} data="settings" />
               <div className="mt-1 flex gap-1 border-t border-border pt-1">
                 <button type="button" onClick={() => act(() => update({ minimized: !settings.minimized }))} className="min-h-11 flex-1 rounded-lg px-2 hover:bg-surface md:min-h-9" data-apus-minimize>
