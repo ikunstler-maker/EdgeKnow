@@ -30,6 +30,10 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - **CRM (service 15):** shown as «Soon» (done); plan separately.
 - **6. Analytics:** per period/person: created, done, passed through, files, comments, text written; manager metrics (lead/cycle time, overdue, created vs done, stuck, load, reopened) on Team; workspace-wide (wiki, surveys, boards/maps/tables, active people). Guests counted; kept after leaving; deleted account → ID only. Needs approval for DB functions.
 
+## Rename EdgeKnow → Synkvela (owner, 2026-12-22) — plan separately
+- UI texts (both languages), page titles, landing, emails, help, docs; logo/favicon; domain and auth redirect URLs (Vercel + Supabase settings by the owner); keep old links working (redirects).
+- Service logos replace the numbered squircles on the start page (owner provides or we draw).
+
 ## Pricing (plan: `docs/pricing-uk.md`, roadmap stage 4)
 - Approved: Team 6/5 $, Business 12/10 $ from 15 editors, rate 45 $/h, target MRR ≈ 3 650 $.
 - Open (decide after the current roadmap is done): Free limits per service; which cross-service links are PRO.

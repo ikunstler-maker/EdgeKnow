@@ -19,3 +19,37 @@ export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: st
   { key: "apps", icon: "🧩", ready: false, path: null },
   { key: "crm", icon: "🤝", ready: false, path: null },
 ];
+
+// Each service's own name (the platform's prefix left out) and colours.
+// A near-white first stop would vanish on a light page, so light themes start from
+// the next colour (`light`).
+export const SERVICE_BRANDS: Record<ServiceKey, { name: string; colors: string[] }> = {
+  wiki: { name: "Wika", colors: ["#E5E7EB", "#2563EB"] },
+  tasks: { name: "Rukh", colors: ["#059669", "#A3E635"] },
+  boards: { name: "Bordy", colors: ["#EC4899", "#FBBF24"] },
+  nodes: { name: "Nodo", colors: ["#6D28D9", "#F43F5E"] },
+  sheets: { name: "Sota", colors: ["#F3F4F6", "#10B981"] },
+  slides: { name: "Kadry", colors: ["#EF4444", "#9333EA"] },
+  surveys: { name: "Questa", colors: ["#CBD5E1", "#0D9488"] },
+  chat: { name: "Toker", colors: ["#8B5CF6", "#FB7185"] },
+  files: { name: "Vault", colors: ["#F8FAFC", "#94A3B8"] },
+  calendar: { name: "Doba", colors: ["#E2E8F0", "#FB923C", "#38BDF8"] },
+  meet: { name: "Visio", colors: ["#06B6D4", "#3B82F6"] },
+  ai: { name: "Apus AI", colors: ["#F1F5F9", "#EC4899", "#4F46E5"] },
+  sites: { name: "Showy", colors: ["#E4E4E7", "#8B5CF6"] },
+  apps: { name: "Obriy", colors: ["#FBBF24", "#14B8A6"] },
+  crm: { name: "Spilno", colors: ["#E7E5E4", "#E11D48"] },
+};
+
+const isPale = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 200;
+};
+const gradient = (colors: string[]) => `linear-gradient(135deg, ${colors.length === 1 ? `${colors[0]}, ${colors[0]}` : colors.join(", ")})`;
+
+export function brandGradients(key: ServiceKey) {
+  const { colors } = SERVICE_BRANDS[key];
+  const strong = colors.filter((c) => !isPale(c));
+  // Pale greys only (files): darken for light pages.
+  return { dark: gradient(colors), light: gradient(strong.length ? strong : ["#64748B", "#334155"]) };
+}

@@ -711,3 +711,27 @@ nav[data-angler-on] > :not([data-sidebar-bottom]):not(.ek-angler-guide) {
   color: transparent;
   padding-bottom: 0.08em;
 }
+
+/* Service brands: each service's own gradient (start page, landing). Light pages
+   start from the stronger colours so a pale first stop doesn't vanish. */
+.ek-brand-text {
+  background-image: var(--brand-light);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ek-brand-fill {
+  background-image: var(--brand-light);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ek-brand-text,
+  :root:not([data-theme="light"]) .ek-brand-fill {
+    background-image: var(--brand-dark);
+  }
+}
+:root[data-theme="dark"] .ek-brand-text,
+:root[data-theme="dark"] .ek-brand-fill,
+.ek-landing .ek-brand-text,
+.ek-landing .ek-brand-fill {
+  background-image: var(--brand-dark);
+}
