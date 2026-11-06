@@ -133,17 +133,19 @@ export function ApusWidget() {
       : undefined;
   // Panels open towards the middle of the screen, on the side chosen.
   const { low, rightHalf } = where;
+  // A side that doesn't fit (Apus by that edge) turns to the other one.
+  const side = settings.side === "left" && !rightHalf ? "right" : settings.side === "right" && rightHalf ? "left" : settings.side;
   const sideClass = {
     left: `right-full mr-2 ${low ? "bottom-0" : "top-0"}`,
     right: `left-full ml-2 ${low ? "bottom-0" : "top-0"}`,
     top: `bottom-full mb-2 ${rightHalf ? "right-0" : "left-0"}`,
     bottom: `top-full mt-2 ${rightHalf ? "right-0" : "left-0"}`,
-  }[settings.side];
+  }[side];
 
   return (
     <div
       ref={root}
-      className={`fixed z-40 select-none ${place ? "" : "bottom-4 right-4 md:bottom-6 md:right-6"}`}
+      className={`fixed z-40 select-none ${place ? "" : "bottom-4 left-4 md:bottom-6 md:left-auto md:right-6"}`}
       style={place}
       data-apus
       data-lure={appearance.lure}
