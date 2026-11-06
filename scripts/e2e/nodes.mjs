@@ -320,13 +320,15 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.getByLabel("Назва таблиці").fill("Budget");
   const box = await overlay.boundingBox();
   await alice.mouse.click(box.x + 46 + 40, box.y + 20 + 10);
-  for (const value of ["10", "32", "=SUM(A1:A2)", "=XLOOKUP(32,A1:A2,A1:A2)", "=IF(TRUE,\"yes\",\"no\")"]) {
+  for (const value of ["10", "32", "=SUM(A1:A2)", "=XLOOKUP(32,A1:A2,A1:A2)", "=IF(TRUE,\"yes\",\"no\")", "=SUM({1,2,3})", "=ROW(A7)+LET(x,2,x*3)", "=SUM(FILTER(A1:A2,A1:A2>20))"]) {
     await alice.keyboard.type(value);
     await alice.keyboard.press("Enter");
   }
   const cell = (r, field) => sql(`select e -> 'v' ->> '${field}' from public.service_objects o, jsonb_array_elements(o.data -> 'sheets' -> 0 -> 'celldata') e where o.id = '${sheetId}' and (e ->> 'r')::int = ${r} and (e ->> 'c')::int = 0`);
   check("a table takes values and Excel formulas, and saves them with its name", await until(() => cell(2, "v") === "42" && cell(3, "v") === "32" && cell(4, "v") === "yes" && sql(`select title from public.service_objects where id = '${sheetId}'`) === "Budget", 20000), `${cell(2, "v")} ${cell(3, "v")} ${cell(4, "v")}`);
   check("…the formula itself is kept", cell(2, "f") === "=SUM(A1:A2)", cell(2, "f"));
+  // Package 4: array literals, ROW of a reference, LET and FILTER inside a formula, as in Excel.
+  check("…{1,2,3}, ROW(A7), LET and FILTER give Excel's results", await until(() => cell(5, "v") === "6" && cell(6, "v") === "13" && cell(7, "v") === "32", 15000), `${cell(5, "v")} ${cell(6, "v")} ${cell(7, "v")}`);
   await alice.reload();
   await alice.locator("[data-sheet] .fortune-sheet-overlay").first().waitFor({ timeout: 30000 });
   await alice.waitForTimeout(1000);

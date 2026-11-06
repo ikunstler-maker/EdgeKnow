@@ -81,6 +81,19 @@ const take = (matrix: Value[][], count: number, columns: boolean) => {
 
 const sumOf = (list: Value[]) => list.map(num).filter((n) => !Number.isNaN(n)).reduce((a, b) => a + b, 0);
 
+const transpose = (matrix: Value[][]) => (matrix[0] ?? []).map((_, c) => matrix.map((row) => row[c]));
+// Excel's sort order: numbers, then text (case-insensitive), then booleans; blanks last.
+const rank = (v: Value) => (isEmpty(v) ? 4 : typeof v === "number" ? 0 : typeof v === "string" ? 1 : typeof v === "boolean" ? 2 : 3);
+function sortOrder(x: Value, y: Value) {
+  const a = rank(x);
+  const b = rank(y);
+  if (a !== b) return a - b;
+  if (typeof x === "number" && typeof y === "number") return x - y;
+  if (typeof x === "string" && typeof y === "string") return x.localeCompare(y, undefined, { sensitivity: "base" });
+  if (typeof x === "boolean" && typeof y === "boolean") return Number(x) - Number(y);
+  return 0;
+}
+
 export const EXTRA_FUNCTIONS: Record<string, (params: unknown[]) => unknown> = {
   // Criteria as in Excel (comparisons, <> and the * ? ~ wildcards).
   COUNTIF: ([range, criterion]) => flat(range).filter(matcher(criterion as Value)).length,
@@ -240,6 +253,70 @@ export const EXTRA_FUNCTIONS: Record<string, (params: unknown[]) => unknown> = {
     const c = Number(columnCount ?? matrix[0]?.length ?? 1);
     return Array.from({ length: r }, (_, i) => Array.from({ length: c }, (_, j) => matrix[i]?.[j] ?? pad ?? NA()));
   },
+  // Package 4: dynamic-array functions used inside other formulas (the cell shows the result as before).
+  ARRAYLITERAL: ([columns, ...values]) => {
+    const width = Math.max(1, Number(columns));
+    const out: Value[][] = [];
+    for (let i = 0; i < values.length; i += width) out.push(values.slice(i, i + width) as Value[]);
+    return out;
+  },
+  SORT: ([array, index, order, byColumn]) => {
+    const matrix = byColumn === true ? transpose(rows(array)) : rows(array);
+    const at = Number(index ?? 1) - 1;
+    const sign = Number(order ?? 1) === -1 ? -1 : 1;
+    if (at < 0 || at >= (matrix[0]?.length ?? 0)) return VALUE();
+    const sorted = [...matrix].sort((x, y) => sign * sortOrder(x[at], y[at]));
+    return byColumn === true ? transpose(sorted) : sorted;
+  },
+  SORTBY: ([array, ...pairs]) => {
+    const matrix = rows(array);
+    const keys: { values: Value[]; sign: number }[] = [];
+    for (let i = 0; i < pairs.length; i += 2) keys.push({ values: flat(pairs[i]), sign: Number(pairs[i + 1] ?? 1) === -1 ? -1 : 1 });
+    if (keys.some((key) => key.values.length !== matrix.length)) return VALUE();
+    const order = matrix.map((_, i) => i).sort((x, y) => {
+      for (const key of keys) {
+        const c = sortOrder(key.values[x], key.values[y]);
+        if (c) return key.sign * c;
+      }
+      return 0;
+    });
+    return order.map((i) => matrix[i]);
+  },
+  FILTER: ([array, include, ifEmpty]) => {
+    const matrix = rows(array);
+    const keep = flat(include);
+    if (isError(keep.find((v) => isError(v)))) return keep.find((v) => isError(v));
+    // A column of conditions keeps rows; a row of them keeps columns.
+    const byColumn = keep.length !== matrix.length;
+    if (byColumn && keep.length !== (matrix[0]?.length ?? 0)) return VALUE();
+    const truthy = (v: Value) => (typeof v === "number" ? v !== 0 : v === true || (typeof v === "string" && v.toUpperCase() === "TRUE"));
+    const out = byColumn ? matrix.map((row) => row.filter((_, j) => truthy(keep[j]))) : matrix.filter((_, i) => truthy(keep[i]));
+    if (!out.length || !out[0].length) return ifEmpty === undefined ? new Error("#CALC!") : ifEmpty;
+    return out;
+  },
+  UNIQUE: ([array, byColumn, exactlyOnce]) => {
+    const matrix = byColumn === true ? transpose(rows(array)) : rows(array);
+    const keyOf = (row: Value[]) => JSON.stringify(row.map((v) => (typeof v === "string" ? v.toLowerCase() : v ?? "")));
+    const counts = new Map<string, number>();
+    for (const row of matrix) counts.set(keyOf(row), (counts.get(keyOf(row)) ?? 0) + 1);
+    const seen = new Set<string>();
+    const out = matrix.filter((row) => {
+      const key = keyOf(row);
+      if (seen.has(key) || (exactlyOnce === true && counts.get(key) !== 1)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!out.length) return new Error("#CALC!");
+    return byColumn === true ? transpose(out) : out;
+  },
+  SEQUENCE: ([rowCount, columnCount, start, step]) => {
+    const r = Number(rowCount ?? 1);
+    const c = Number(columnCount ?? 1);
+    const from = Number(start ?? 1);
+    const by = Number(step ?? 1);
+    if (!(r >= 1) || !(c >= 1)) return new Error("#CALC!");
+    return Array.from({ length: r }, (_, i) => Array.from({ length: c }, (_, j) => from + (i * c + j) * by));
+  },
   "STDEV.S": (values) => {
     const list = values.flatMap((v) => flat(v)).map(num).filter((n) => !Number.isNaN(n));
     if (list.length < 2) return new Error("#DIV/0!");
@@ -293,6 +370,131 @@ export function formatForFormula(formula: unknown): { fa: string; t: string } | 
   return DATE_FUNCTIONS.has(head) ? { fa: "dd\\.mm\\.yyyy", t: "d" } : null;
 }
 
+// --- Package 4: what the engine's grammar lacks, rewritten before it parses ---------------------------
+// The stored formula keeps its own text; only the engine sees the rewritten one.
+
+const CELL = String.raw`\$?([A-Za-z]{1,3})\$?(\d+)`;
+const SHEET = String.raw`(?:(?:'[^']+'|[\p{L}\w.]+)!)?`;
+const columnNumber = (label: string) => [...label.toUpperCase()].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+
+// Text in quotes is set aside (as placeholders) so nothing inside it is rewritten.
+function protectStrings(formula: string) {
+  const strings: string[] = [];
+  const text = formula.replace(/"(?:[^"]|"")*"/g, (m) => `\u0000${strings.push(m) - 1}\u0000`);
+  return { text, restore: (value: string) => value.replace(/\u0000(\d+)\u0000/g, (_, i) => strings[Number(i)]) };
+}
+
+// The arguments of the call whose "(" is at `open`, split at top-level commas.
+function argumentsAt(text: string, open: number) {
+  const args: string[] = [];
+  let depth = 0;
+  let start = open + 1;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "(" || ch === "{") depth++;
+    else if (ch === ")" || ch === "}") {
+      depth--;
+      if (depth === 0) {
+        args.push(text.slice(start, i));
+        return { args, end: i };
+      }
+    } else if (ch === "," && depth === 1) {
+      args.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  return null;
+}
+
+// ROW(B5) → 5, COLUMN(C1) → 3, ROWS(A1:A4) → 4, COLUMNS(A1:C1) → 3 (with a reference written out).
+function rewriteReferences(text: string) {
+  const pattern = new RegExp(String.raw`(?<![\p{L}\w.])(ROWS|COLUMNS|ROW|COLUMN)\(\s*${SHEET}${CELL}(?:\s*:\s*${CELL})?\s*\)`, "giu");
+  return text.replace(pattern, (whole, fn: string, c1: string, r1: string, c2?: string, r2?: string) => {
+    const name = fn.toUpperCase();
+    if (name === "ROW") return String(Math.min(Number(r1), Number(r2 ?? r1)));
+    if (name === "COLUMN") return String(Math.min(columnNumber(c1), columnNumber(c2 ?? c1)));
+    if (name === "ROWS") return String(Math.abs(Number(r2 ?? r1) - Number(r1)) + 1);
+    return String(Math.abs(columnNumber(c2 ?? c1) - columnNumber(c1)) + 1);
+  });
+}
+
+// {1,2;3,4} → ARRAYLITERAL(2,1,2,3,4): rows split by ";", columns by ",".
+function rewriteArrays(text: string) {
+  return text.replace(/\{([^{}]*)\}/g, (whole, body: string) => {
+    const table = body.split(";").map((row) => row.split(",").map((v) => v.trim()));
+    const width = table[0].length;
+    if (table.some((row) => row.length !== width || row.some((v) => v === ""))) return whole;
+    return `ARRAYLITERAL(${width},${table.flat().join(",")})`;
+  });
+}
+
+// LET(name, value, …, result): each name replaced by its value in brackets, innermost LET first.
+function rewriteLet(text: string): string {
+  const pattern = /(?<![\p{L}\w.])LET\(/giu;
+  for (let guard = 0; guard < 20; guard++) {
+    const starts = [...text.matchAll(pattern)].map((m) => m.index! + m[0].length - 1);
+    if (!starts.length) return text;
+    const open = starts[starts.length - 1];
+    const call = argumentsAt(text, open);
+    if (!call || call.args.length < 3 || call.args.length % 2 === 0) return text;
+    let result = call.args[call.args.length - 1];
+    const pairs: [string, string][] = [];
+    for (let i = 0; i < call.args.length - 1; i += 2) pairs.push([call.args[i].trim(), call.args[i + 1]]);
+    if (pairs.some(([name]) => !/^[\p{L}_][\p{L}\w.]*$/u.test(name) || new RegExp(`^${CELL}$`, "u").test(name))) return text;
+    const substitute = (expression: string, upTo: number) => {
+      let out = expression;
+      for (let i = upTo - 1; i >= 0; i--) {
+        const [name, value] = pairs[i];
+        const escaped = name.replace(/[.]/g, "\\.");
+        out = out.replace(new RegExp(`(?<![\\p{L}\\w.$!])${escaped}(?![\\p{L}\\w.(!])`, "giu"), () => `(${substitute(value, i)})`);
+      }
+      return out;
+    };
+    result = substitute(result, pairs.length);
+    text = `${text.slice(0, open - 3)}(${result})${text.slice(call.end + 1)}`;
+  }
+  return text;
+}
+
+// --(…) turns TRUE/FALSE into 1/0 (the engine's minus can't take a range): 1*(…) does the same.
+const rewriteDoubleMinus = (text: string) => text.replace(/(^|[(,=<>+*/^&\s])--\(/g, "$11*(");
+
+export function rewriteFormula(formula: string) {
+  if (!/[{]|ROW|COLUMN|LET|--/i.test(formula)) return formula;
+  const { text, restore } = protectStrings(formula);
+  return restore(rewriteDoubleMinus(rewriteLet(rewriteArrays(rewriteReferences(text)))));
+}
+
+// Operators on ranges work cell by cell, as Excel's dynamic arrays do: A1:A4>2, A1:A4*B1:B4.
+type Operators = { evaluateByOperator: (op: string, params: unknown[]) => unknown; invertNumber: (n: unknown) => unknown; __ekArrays?: boolean };
+function spreadOperators(yy: Operators) {
+  if (yy.__ekArrays) return;
+  yy.__ekArrays = true;
+  const original = yy.evaluateByOperator;
+  // TRUE and FALSE count as 1 and 0 in arithmetic, as in Excel.
+  const arithmetic = new Set(["+", "-", "*", "/", "^"]);
+  const one = (self: unknown, op: string, params: unknown[]) => {
+    try {
+      return original.call(self, op, arithmetic.has(op) ? params.map((p) => (typeof p === "boolean" ? Number(p) : p)) : params);
+    } catch (error) {
+      return error instanceof Error ? error : VALUE();
+    }
+  };
+  yy.evaluateByOperator = function (op, params) {
+    if (!params.some(Array.isArray)) return arithmetic.has(op) && params.some((p) => typeof p === "boolean") ? one(this, op, params) : original.call(this, op, params);
+    const grids = params.map((p) => rows(p));
+    const height = Math.max(...grids.map((g) => g.length));
+    const width = Math.max(...grids.map((g) => g[0]?.length ?? 1));
+    const at = (g: Value[][], i: number, j: number) => g[g.length === 1 ? 0 : i]?.[g[0].length === 1 ? 0 : j] ?? NA();
+    return Array.from({ length: height }, (_, i) => Array.from({ length: width }, (_, j) => one(this, op, grids.map((g) => at(g, i, j)))));
+  };
+  const invert = yy.invertNumber;
+  const negate = (self: unknown, v: unknown) => invert.call(self, typeof v === "boolean" ? Number(v) : v);
+  yy.invertNumber = function (n) {
+    return Array.isArray(n) ? rows(n).map((row) => row.map((v) => negate(this, v))) : negate(this, n);
+  };
+}
+
 let installed = false;
 // Our functions answer first; everything else goes to the engine as before.
 export function installSheetFunctions() {
@@ -307,6 +509,14 @@ export function installSheetFunctions() {
     // formula.js gives dates as JavaScript dates: shown as Excel shows them (a date in the cell).
     const builtin = (formulajs as unknown as Record<string, unknown>)[upper] as ((...args: unknown[]) => unknown) | undefined;
     return builtin ? (params: unknown[]) => asExcelDate(builtin(...params)) : undefined;
+  };
+  // Package 4: array literals, ROW/COLUMN of a reference, LET; operators on ranges.
+  // The editor passes the cell being calculated after the formula: it goes on unchanged.
+  const parsing = Parser.prototype as unknown as { parse: (this: { parser?: { yy?: Operators } }, formula: string, ...rest: unknown[]) => unknown };
+  const originalParse = parsing.parse;
+  parsing.parse = function (formula: string, ...rest: unknown[]) {
+    if (this.parser?.yy) spreadOperators(this.parser.yy);
+    return originalParse.call(this, typeof formula === "string" ? rewriteFormula(formula) : formula, ...rest);
   };
   // TRUE and FALSE written as words, as in Excel (the engine reads them as cell addresses).
   const cells = Parser.prototype as unknown as { _callCellValue: (this: unknown, label: string) => unknown };
