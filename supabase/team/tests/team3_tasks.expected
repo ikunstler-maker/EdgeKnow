@@ -6,6 +6,8 @@ team: alice is told: 1 assigned
 team: bob doesn't see alice's private task: 0
 team: alice publishes it: true
 team: now bob sees it: 1
+team: alice adds a team board: true
+psql: ERROR:  operator does not exist: text > integer at character 120
 carol (not a member) sees: 0
 sync without bob: true
 bob after: 0 tasks, makes one: forbidden
