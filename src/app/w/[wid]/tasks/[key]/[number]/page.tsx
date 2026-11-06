@@ -9,6 +9,7 @@ import type { ProjectTask, TaskLinkView } from "@/components/tasks/task-relation
 import type { TaskFileView } from "@/components/tasks/task-files";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskDetail, type TaskComment, type TaskEvent } from "@/components/tasks/task-detail";
+import { TaskSnapshot, type TaskSnapshotData } from "@/components/tasks/task-snapshot";
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[key]/[number]">): Promise<Metadata> {
   const { key, number } = await params;
@@ -32,7 +33,42 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     .eq("number", Number(number))
     .maybeSingle()
     .overrideTypes<TaskRow & { description: unknown; deleted_at: string | null }, { merge: false }>();
-  if (!task) return notFound;
+  if (!task) {
+    // Someone whose board froze the task sees it as it was then (read only).
+    const { data: frozen } = await db
+      .from("task_placements")
+      .select("task_id, frozen_at, snapshot")
+      .in("status_id", view.statuses.map((x) => x.id))
+      .not("snapshot", "is", null)
+      .eq("snapshot->>number", number)
+      .order("frozen_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!frozen?.snapshot || !frozen.frozen_at) return notFound;
+    const [{ data: comments }, { data: events }, { data: files }] = await Promise.all([
+      db.from("task_comments").select("id, author_id, body, mentions, created_at, edited_at").eq("task_id", frozen.task_id).order("created_at"),
+      db.from("task_events").select("id, actor_id, field, old_value, new_value, created_at").eq("task_id", frozen.task_id).order("created_at", { ascending: false }).limit(100),
+      db.from("task_files").select("id, name, created_at").eq("task_id", frozen.task_id).neq("storage_backend", "pending").order("created_at"),
+    ]);
+    return (
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+        <Link href={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)} className="text-sm text-muted hover:text-foreground hover:underline">
+          {t.tasks.backToProject(view.project.name)}
+        </Link>
+        <TaskSnapshot
+          shortId={view.workspace.shortId}
+          taskKey={taskKey(view.project.key, Number(number))}
+          snapshot={{ ...(frozen.snapshot as TaskSnapshotData), id: frozen.task_id }}
+          frozenAt={frozen.frozen_at}
+          fields={view.fields}
+          members={view.members}
+          comments={(comments ?? []) as TaskComment[]}
+          events={(events ?? []) as TaskEvent[]}
+          files={(files ?? []) as { id: string; name: string; created_at: string }[]}
+        />
+      </main>
+    );
+  }
   const [{ data: comments }, { data: events }, { data: projectTasks }, { data: links }, { data: files }, { data: mentions }, { data: moves }, { data: participants }] = await Promise.all([
     db.from("task_comments").select("id, author_id, body, mentions, created_at, edited_at").eq("task_id", task.id).order("created_at"),
     db.from("task_events").select("id, actor_id, field, old_value, new_value, created_at").eq("task_id", task.id).order("created_at", { ascending: false }).limit(100),
