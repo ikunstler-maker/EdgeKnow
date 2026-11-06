@@ -50,6 +50,7 @@ set role authenticated;
 select public.create_page(:'ws', null, 'Handbook') ->> 'id' as page \gset
 select 'save: ' || (public.save_page_content(:'page', '[{"id":"b1","type":"paragraph","props":{},"content":[{"type":"text","text":"Welcome to the team","styles":{}}],"children":[]}]', 1, false) ->> 'ok');
 select public.create_page(:'ws', null, 'Private notes') ->> 'id' as private_page \gset
+select 'team: a page with the browser''s id, twice: ' || (public.create_page_at(:'ws', null, 'Quick page', '00000000-0000-0000-0000-00000000aaf1') ->> 'id') || ' ' || (public.create_page_at(:'ws', null, 'Quick page', '00000000-0000-0000-0000-00000000aaf1') ->> 'ok');
 select 'share with workspace: ' || (public.set_page_workspace_role(:'page', 'viewer') ->> 'ok');
 select 'share with bob: ' || (public.set_page_member_role(:'private_page', :'bob', 'editor') ->> 'ok');
 select 'alice sees: ' || string_agg(title, ', ' order by title) from public.pages;

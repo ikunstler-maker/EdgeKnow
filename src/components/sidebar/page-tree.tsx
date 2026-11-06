@@ -219,7 +219,7 @@ function TreeRow({
   onNavigate: (event: React.MouseEvent) => void;
 }) {
   const { page, depth, hasChildren } = item;
-  const { workspace, pages, create, rename, move, trash } = usePages();
+  const { workspace, pages, creating, create, rename, move, trash } = usePages();
   const editable = canEdit(page.role);
   const owner = page.role === "owner";
   // Moving needs edit rights on the page itself.
@@ -302,6 +302,11 @@ function TreeRow({
           >
             <span className="shrink-0">{page.icon ?? "📄"}</span>
             <span className="truncate">{title}</span>
+            {creating.has(page.id) && (
+              <span className="ml-auto shrink-0 animate-pulse text-xs text-muted" data-page-creating>
+                {t.pages.creating}
+              </span>
+            )}
           </Link>
         )}
 

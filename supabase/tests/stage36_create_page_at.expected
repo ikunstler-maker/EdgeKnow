@@ -1,0 +1,9 @@
+alice makes a page with her id: {"id": "00000000-0000-0000-0000-0000000036f1", "ok": true}
+the same request again: {"id": "00000000-0000-0000-0000-0000000036f1", "ok": true}
+a child page: true
+no id: {"ok": false, "error": "invalid"}
+bob reuses alice's id: {"ok": false, "error": "forbidden"}
+eve, not a member: {"ok": false, "error": "forbidden"}
+eve under alice's page: {"ok": false, "error": "forbidden"}
+psql: ERROR:  permission denied for function create_page_at
+pages: (untitled) by alice, Child by alice

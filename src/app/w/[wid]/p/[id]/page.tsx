@@ -76,11 +76,22 @@ export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">)
   return { title: page ? `${page.title || t.pages.untitled} · ${t.app.name}` : t.app.name };
 }
 
-export default async function WikiPage({ params }: PageProps<"/w/[wid]/p/[id]">) {
+// A page just made in this browser opens while the database is still making it
+// (?new=1): wait for it a little instead of showing "not found".
+async function loadNewPage(wid: string, id: string, isNew: boolean) {
+  for (let attempt = 0; ; attempt++) {
+    const page = await loadPage(wid, id);
+    if (page || !isNew || attempt >= 20) return page;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+}
+
+export default async function WikiPage({ params, searchParams }: PageProps<"/w/[wid]/p/[id]">) {
   const { wid, id } = await params;
+  const isNew = (await searchParams).new === "1";
   const [workspace, page, user, comments] = await Promise.all([
     getWorkspace(wid),
-    loadPage(wid, id),
+    loadNewPage(wid, id, isNew),
     getCurrentUser(),
     loadComments(wid, id),
   ]);

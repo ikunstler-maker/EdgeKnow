@@ -24,10 +24,15 @@ check("page title loads", (await alice.locator("textarea").inputValue()) === "Al
 check("page shows author and dates", (await alice.getByText("Автор: alice@alpha.test").count()) > 0 && (await alice.getByText("Створено").count()) > 0);
 
 // New page from the sidebar, renamed, survives a reload.
+const clickedAt = Date.now();
 await alice.getByRole("button", { name: "Нова сторінка" }).first().click();
-await alice.waitForURL(new RegExp(`/w/${alphaShort}/p/[0-9a-f-]{36}$`));
+// The row is added and the address changes in the same moment, before the server answers.
+await alice.waitForURL(new RegExp(`/w/${alphaShort}/p/[0-9a-f-]{36}(\\?new=1)?$`));
+const rowAfter = Date.now() - clickedAt;
 // Wait for the new, empty page to be on screen before typing (as a person would).
 await alice.waitForFunction(() => document.querySelector("textarea")?.value === "");
+const openAfter = Date.now() - clickedAt;
+check("a new page shows in the tree at once and opens soon after", rowAfter < 1000 && openAfter < 5000, `address ${rowAfter} ms, page ${openAfter} ms`);
 await alice.locator("textarea").fill("Created in browser");
 await alice.locator("textarea").blur();
 await alice.waitForTimeout(1500);

@@ -21,8 +21,8 @@ const teamSql = (query) => execFileSync("psql", [teamStatus.DB_URL, "-Atc", quer
 const gammaTab = await newPage(aliceCookies);
 await gammaTab.goto(`${APP}/w/${gammaShort}`);
 await gammaTab.getByRole("button", { name: "Нова сторінка" }).first().click();
-await gammaTab.waitForURL(new RegExp(`/w/${gammaShort}/p/[0-9a-f-]{36}$`));
-const gammaPage = gammaTab.url().split("/p/")[1];
+await gammaTab.waitForURL(new RegExp(`/w/${gammaShort}/p/[0-9a-f-]{36}(\\?new=1)?$`));
+const gammaPage = gammaTab.url().split("/p/")[1].split("?")[0];
 await gammaTab.waitForFunction(() => document.querySelector("textarea")?.value === "");
 await gammaTab.locator("textarea").fill("Team-owned page");
 await gammaTab.locator("textarea").blur();
@@ -158,8 +158,10 @@ check("a team workspace's tasks are in its own database, not centrally", teamSql
   const leaver = await newPage(leaverCookies);
   await leaver.goto(`${APP}/w/${gammaShort}`);
   await leaver.getByRole("button", { name: "Нова сторінка" }).first().click();
-  await leaver.waitForURL(new RegExp(`/w/${gammaShort}/p/[0-9a-f-]{36}$`));
-  const leaverTeamPage = leaver.url().split("/p/")[1];
+  await leaver.waitForURL(new RegExp(`/w/${gammaShort}/p/[0-9a-f-]{36}(\\?new=1)?$`));
+  const leaverTeamPage = leaver.url().split("/p/")[1].split("?")[0];
+  // The page opens while the database makes it: wait for it to be on screen.
+  await leaver.waitForSelector("textarea");
   check("(setup) someone with pages centrally and in a team database", signup.ok && Boolean(leaverPage) && teamSql(`select owner_id from public.pages where id = '${leaverTeamPage}'`) === leaverId, `${signup.status}`);
   const cookie = leaverCookies.map((c) => `${c.name}=${c.value}`).join("; ");
   const exported = await fetch(`${APP}/api/me/export`, { headers: { cookie } });

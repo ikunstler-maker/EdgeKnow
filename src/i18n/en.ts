@@ -1056,6 +1056,7 @@ export const en: Dictionary = {
   },
   pages: {
     untitled: "Untitled",
+    creating: "Creating…",
     titlePlaceholder: "Untitled",
     addIcon: "Add icon",
     changeIcon: "Change icon",
@@ -1076,6 +1077,7 @@ export const en: Dictionary = {
       cancel: "Cancel",
     },
     errors: {
+      offline: "Couldn't reach the server — the page wasn't created. Please try again.",
       guest_role: "A page can't be handed to a guest, nor a guest made its owner.",
       rate_limited: "Too many requests in a short time. Wait a minute and try again.",
       team_database_required: "Connect your own database first: Settings → “Database”.",

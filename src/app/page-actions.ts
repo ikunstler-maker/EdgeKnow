@@ -19,12 +19,14 @@ async function callPageRpc<T extends object = object>(
   return data as ActionResult<T>;
 }
 
-export async function createPage(workspaceId: string, parentId: string | null) {
-  return callPageRpc<{ id: string }>("create_page", {
-    ws: workspaceId,
-    parent: parentId,
-    new_title: "",
-  });
+// A new page takes the id the browser already chose (it shows the page at once),
+// and nothing is re-rendered here: the browser opens the page and refreshes the tree itself.
+export async function createPage(workspaceId: string, parentId: string | null, id: string): Promise<ActionResult<{ id: string }>> {
+  const supabase = await writeClient();
+  if (!supabase) return { ok: false, error: "team_setup" };
+  const { data, error } = await supabase.rpc("create_page_at", { ws: workspaceId, parent: parentId, new_title: "", page_id: id });
+  if (error || !data) return { ok: false, error: "unknown" };
+  return data as ActionResult<{ id: string }>;
 }
 
 export async function renamePage(id: string, title: string) {
