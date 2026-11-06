@@ -88,7 +88,7 @@ const STAGES: Stage[] = [
   {
     name: "task projects",
     table: "task_projects",
-    columns: "id, workspace_id, key, name, icon, workspace_role, sprints, next_number, card_fields, files_target, time_last_column, created_by, created_at, archived_at",
+    columns: "id, workspace_id, key, name, icon, workspace_role, sprints, next_number, card_fields, files_target, time_last_column, frozen_moves_admin, created_by, created_at, archived_at",
     order: "id",
     onConflict: "id",
   },
@@ -100,7 +100,8 @@ const STAGES: Stage[] = [
     onConflict: "id",
   },
   { name: "task boards", table: "task_boards", columns: "id, workspace_id, project_id, name, group_id, position, created_by, created_at", order: "id", onConflict: "id" },
-  { name: "task columns", table: "task_statuses", columns: "id, project_id, workspace_id, name, category, position, wip_limit, board_id, created_at", order: "id", onConflict: "id" },
+  { name: "board access", table: "task_board_access", columns: "board_id, workspace_id, group_id", order: "board_id,group_id", onConflict: "board_id,group_id" },
+  { name: "task columns", table: "task_statuses", columns: "id, project_id, workspace_id, name, category, position, wip_limit, board_id, freezes, created_at", order: "id", onConflict: "id" },
   {
     name: "task rules",
     table: "task_rules",
@@ -207,6 +208,7 @@ const STAGES: Stage[] = [
     onConflict: "page_id,task_id",
     replace: true,
   },
+  { name: "task places on boards", table: "task_placements", columns: "task_id, workspace_id, board_key, board_id, status_id, frozen_at, snapshot, updated_at", order: "task_id,board_key", onConflict: "task_id,board_key" },
   { name: "task participants", table: "task_participants", columns: "task_id, workspace_id, user_id, role, added_by, added_at", order: "task_id,user_id", onConflict: "task_id,user_id" },
   { name: "task links", table: "task_links", columns: "id, workspace_id, source_id, target_id, kind, created_by, created_at", order: "id", onConflict: "id" },
   {
@@ -237,7 +239,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 

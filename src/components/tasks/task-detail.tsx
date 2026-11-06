@@ -23,7 +23,7 @@ import {
 import { FieldValue } from "./field-value";
 import { TaskFiles, type TaskFileView } from "./task-files";
 import { BlockedNotice, ParentPicker, Subtasks, TaskLinks, type ProjectTask, type TaskLinkView } from "./task-relations";
-import { addTaskComment, deleteTask, editTaskComment, setTaskParticipants, setTaskPrivate, updateTask } from "@/app/task-actions";
+import { addTaskComment, deleteTask, editTaskComment, moveTaskOnBoard, setTaskParticipants, setTaskPrivate, updateTask } from "@/app/task-actions";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 
@@ -161,7 +161,7 @@ export function TaskDetail({
         {/* All fields at the top, the free description below them (as in issue trackers). */}
         <section className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3" aria-label={k.fields.heading} data-task-fields>
           <Field label={k.fields.status}>
-            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => change({ status_id: e.target.value })} className={inputClass} data-task-status>
+            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => run(() => moveTaskOnBoard(task.id, e.target.value))} className={inputClass} data-task-status>
               {/* Columns of every board: picking another team's column moves the task to its board. */}
               {[null, ...boards.map((x) => x.id)].map((board) => {
                 const columns = statuses.filter((s) => (s.board_id ?? null) === board);
