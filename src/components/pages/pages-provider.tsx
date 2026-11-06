@@ -132,6 +132,8 @@ export function PagesProvider({
       setAdded((list) => [...list, node]);
       setCreating((set) => new Set(set).add(id));
       setError(null);
+      // Where to return if the database refuses (not history.back: the new page may not be open yet).
+      const from = window.location.pathname + window.location.search;
       router.push(`${pagePath(workspace.shortId, id)}?new=1`);
       createPage(workspace.id, parentId, id).then(
         (result) => {
@@ -141,15 +143,12 @@ export function PagesProvider({
             return next;
           });
           if (result.ok) {
-            // The "just made" mark is no longer needed in the address (links and bookmarks stay clean).
-            const path = pagePath(workspace.shortId, id);
-            if (window.location.pathname === path && window.location.search) window.history.replaceState(null, "", path);
             router.refresh();
             return;
           }
           setAdded((list) => list.filter((p) => p.id !== id));
           setError(errorMessage(result));
-          router.back();
+          router.replace(from);
         },
         () => {
           setCreating((set) => {
@@ -159,7 +158,7 @@ export function PagesProvider({
           });
           setAdded((list) => list.filter((p) => p.id !== id));
           setError(t.pages.errors.offline ?? t.common.unknownError);
-          router.back();
+          router.replace(from);
         },
       );
     },

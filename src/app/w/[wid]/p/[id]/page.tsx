@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/pages/page-header";
 import { ShareButton } from "@/components/pages/share-dialog";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
+import { ClearNewFlag } from "@/components/pages/clear-new-flag";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -114,6 +115,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
     <div className="flex flex-1 flex-col">
     <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editable} />
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
+      {isNew && <ClearNewFlag />}
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
       {!page.deleted_at && (
         <div className="mb-2 flex justify-end">
