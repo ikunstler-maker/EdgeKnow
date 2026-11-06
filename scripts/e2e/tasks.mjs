@@ -262,7 +262,11 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.keyboard.press("Escape");
   const marOneId = sql("select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   const aliceUserId = sql("select id from public.profiles where email = 'alice@alpha.test'");
-  const pinged = await colleagueTasks.rpc("add_task_comment", { target_task: marOneId, body: "Ping", mention_ids: [aliceUserId] });
+  // The colleague (signed out above, and only a viewer now) acts through the database for a moment.
+  const asColleague = (call) =>
+    sql(`begin; update public.task_projects set workspace_role = 'editor' where key = 'MAR'; set local role authenticated; set local request.jwt.claim.sub = '${colleagueId2}'; select ${call}; reset role; update public.task_projects set workspace_role = 'viewer' where key = 'MAR'; commit;`);
+  asColleague(`public.add_task_comment('${marOneId}', 'Ping', array['${aliceUserId}']::uuid[])`);
+  const pinged = { data: { ok: sql(`select count(*) from public.task_comments where task_id = '${marOneId}' and body = 'Ping'`) === "1" } };
   await alice.evaluate(() => window.dispatchEvent(new Event("focus")));
   await alice.locator("[data-notification-bell] [data-unread]").waitFor({ timeout: 15000 }).catch(() => {});
   check("…a colleague's mention lights the bell", pinged.data?.ok === true && (await alice.locator("[data-notification-bell] [data-unread]").count()) === 1, JSON.stringify(pinged.data));
