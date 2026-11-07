@@ -61,7 +61,7 @@ export function isPublicAddress(ip: string): boolean {
 }
 
 // Used as the socket's DNS lookup: the address checked is the one connected to.
-function safeLookup(
+export function safeLookup(
   hostname: string,
   options: object,
   callback: (error: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void,

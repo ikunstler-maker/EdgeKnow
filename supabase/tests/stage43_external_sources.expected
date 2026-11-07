@@ -1,0 +1,4 @@
+psql: ERROR:  new row for relation "external_sources" violates check constraint "external_sources_url_check"
+psql: ERROR:  permission denied for table external_sources
+psql: ERROR:  permission denied for table external_sources
+rows left: 0
