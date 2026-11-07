@@ -21,6 +21,7 @@ export const en: Dictionary = {
     redirecting: "Taking you to Google…",
   },
   changelog: {
+    newBadge: "new updates",
     title: "What's new",
     intro: "The update history: what was added, improved and fixed.",
     version: (v: string) => `Version ${v}`,

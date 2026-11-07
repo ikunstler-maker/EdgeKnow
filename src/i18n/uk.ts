@@ -30,6 +30,7 @@ export const uk = {
     redirecting: "Переходимо до Google…",
   },
   changelog: {
+    newBadge: "є оновлення",
     title: "Що нового",
     intro: "Історія оновлень: що з'явилося, покращилося й виправилося.",
     version: (v: string) => `Версія ${v}`,

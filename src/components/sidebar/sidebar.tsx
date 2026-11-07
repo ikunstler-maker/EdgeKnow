@@ -12,6 +12,7 @@ import type { WorkspaceSummary } from "@/lib/workspace";
 import type { ProjectSummary } from "@/lib/tasks";
 import { usePages } from "@/components/pages/pages-provider";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ChangelogLink } from "@/components/changelog/changelog-link";
 import { expandAll } from "./expanded-store";
 import { HeadingList, useActiveHeading, type Heading } from "@/components/editor/table-of-contents";
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
@@ -123,6 +124,7 @@ export function Sidebar({
           {iconLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
           {user.isPlatformAdmin && iconLink("/admin", t.platform.link, "🛰️")}
           {iconLink("/help", t.help.link, "❓")}
+          <ChangelogLink onNavigate={onNavigate} current={pathname === "/changelog"} />
           <span className="ml-auto">
             <SignOutButton icon />
           </span>
