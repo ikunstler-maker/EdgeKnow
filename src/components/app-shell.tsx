@@ -6,6 +6,7 @@ import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import type { WorkspaceSummary } from "@/lib/workspace";
 import type { ProjectSummary, BoardSummary, ObjectSummary } from "@/lib/tasks";
+import type { Collections } from "@/components/sidebar/collections";
 import { usePages } from "@/components/pages/pages-provider";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
@@ -59,6 +60,7 @@ export function AppShell({
   projects,
   boards,
   objects,
+  collections,
   children,
 }: {
   user: CurrentUser;
@@ -66,6 +68,7 @@ export function AppShell({
   projects: ProjectSummary[];
   boards: BoardSummary[];
   objects: ObjectSummary[];
+  collections: Collections;
   children: ReactNode;
 }) {
   const { workspace } = usePages();
@@ -128,7 +131,7 @@ export function AppShell({
         style={{ width }}
         data-sidebar-width={width}
       >
-        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} />
+        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} />
         <div
           role="separator"
           aria-orientation="vertical"
@@ -184,7 +187,7 @@ export function AppShell({
             aria-label={t.sidebar.pagesHeading}
             className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-background shadow-xl"
           >
-            <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} onNavigate={close} />
+            <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} onNavigate={close} />
           </aside>
         </div>
       )}

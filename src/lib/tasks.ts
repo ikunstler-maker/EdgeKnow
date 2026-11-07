@@ -16,6 +16,8 @@ export type ProjectSummary = { id: string; key: string; name: string; icon: stri
 // For the sidebar: a project's extra boards, and the objects of the other services.
 export type BoardSummary = { id: string; project_id: string; name: string };
 export type ObjectSummary = { id: string; title: string; service: string };
+export type CollectionSummary = { id: string; service: string; name: string; position: number };
+export type CollectionItem = { collection_id: string; object_id: string; position: number };
 export type TaskStatus = { id: string; name: string; category: StatusCategory; position: number; wip_limit: number | null; board_id?: string | null; freezes?: boolean };
 // Extra boards of a project, each for a team (package 11); columns without a board are on the main one.
 export type TaskBoardInfo = { id: string; name: string; group_id: string | null; position: number; access?: string[] };

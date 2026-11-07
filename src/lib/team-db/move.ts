@@ -165,6 +165,14 @@ const STAGES: Stage[] = [
     onConflict: "object_id",
     replace: true,
   },
+  { name: "collections", table: "object_collections", columns: "id, workspace_id, service, name, position, created_by, created_at", order: "id", onConflict: "id" },
+  {
+    name: "collection entries",
+    table: "object_collection_items",
+    columns: "collection_id, object_id, workspace_id, position",
+    order: "collection_id,object_id",
+    onConflict: "collection_id,object_id",
+  },
   {
     // Board pictures and files in survey answers: before the answers that name them.
     name: "object files",
@@ -246,7 +254,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -351,7 +359,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["notifications", "task_rules", "task_templates", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
+const BY_ID = ["notifications", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
-import type { BoardSummary, ObjectSummary, ProjectSummary } from "@/lib/tasks";
+import type { BoardSummary, CollectionItem, CollectionSummary, ObjectSummary, ProjectSummary } from "@/lib/tasks";
 import { workspaceData } from "@/lib/team-db/data";
 import { checkWorkspaceHealth } from "@/lib/team-db/health";
 import { createClient } from "@/lib/supabase/server";
@@ -62,7 +62,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     .order("position")
     .overrideTypes<PageRow[], { merge: false }>();
   // For the sidebar (RLS): task projects with their boards, and the other services' objects.
-  const [{ data: projects }, { data: boards }, { data: objects }] = await Promise.all([
+  const [{ data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }] = await Promise.all([
     supabase
       .from("task_projects")
       .select("id, key, name, icon")
@@ -79,6 +79,13 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
       .order("title")
       .limit(1000)
       .overrideTypes<ObjectSummary[], { merge: false }>(),
+    supabase.from("object_collections").select("id, service, name, position").eq("workspace_id", workspace.id).order("position").overrideTypes<CollectionSummary[], { merge: false }>(),
+    supabase
+      .from("object_collection_items")
+      .select("collection_id, object_id, position")
+      .eq("workspace_id", workspace.id)
+      .order("position")
+      .overrideTypes<CollectionItem[], { merge: false }>(),
   ]);
 
   // Guests this person sees (RLS), to mark them wherever people appear.
@@ -105,7 +112,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
 
   return (
     <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)} guests={(guestRows ?? []).map((g) => g.user_id as string)}>
-      <AppShell user={user} workspaces={workspaces} projects={projects ?? []} boards={boards ?? []} objects={objects ?? []}>
+      <AppShell user={user} workspaces={workspaces} projects={projects ?? []} boards={boards ?? []} objects={objects ?? []} collections={{ list: collections ?? [], items: collectionItems ?? [] }}>
         {/* Moving into the team's own database (path C): changes wait until it is done. */}
         {(data!.location === "setup" || data!.location === "returning") && (
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">
