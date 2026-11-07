@@ -668,7 +668,7 @@ export const en: Dictionary = {
     deviceOnly: "These settings and Apus's place are for this device only.",
   },
   angler: {
-    here: "Angler fish: you are here",
+    here: "Apus: you are here",
     above: "You are on a page further up — scroll up",
     below: "You are on a page further down — scroll down",
     appearance: "Appearance",
@@ -1177,6 +1177,11 @@ export const en: Dictionary = {
     switchAccount: "Use another account",
   },
   sidebar: {
+    mainBoard: "Main board",
+    projectTasks: "Project tasks",
+    noTasks: "No tasks yet",
+    noObjects: "Nothing here yet",
+    allOf: (service: string) => `All: ${service}`,
     openMenu: "Open menu",
     closeMenu: "Close menu",
     pagesHeading: "Pages",

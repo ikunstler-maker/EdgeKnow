@@ -1,15 +1,16 @@
 "use client";
 
 import { ServiceSwitcher } from "@/components/services/service-switcher";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import { ancestorsOf } from "@/lib/pages";
 import { workspacePath } from "@/lib/paths";
 import type { WorkspaceSummary } from "@/lib/workspace";
-import type { ProjectSummary } from "@/lib/tasks";
+import type { BoardSummary, ObjectSummary, ProjectSummary } from "@/lib/tasks";
+import { sidebarTasks } from "@/app/task-actions";
 import { usePages } from "@/components/pages/pages-provider";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ChangelogLink } from "@/components/changelog/changelog-link";
@@ -28,19 +29,34 @@ export function currentPageId(pathname: string): string | null {
   return pathname.match(/^\/w\/[a-z0-9]{8}\/p\/([0-9a-f-]{36})/)?.[1] ?? null;
 }
 
+// Which service the sidebar shows: the one the person is in (the wiki elsewhere).
+const OBJECT_SERVICES = ["boards", "nodes", "sheets", "surveys"] as const;
+type Section = "wiki" | "tasks" | (typeof OBJECT_SERVICES)[number];
+export function sectionOf(pathname: string, shortId: string): Section {
+  const rest = pathname.slice(workspacePath(shortId).length);
+  const first = rest.split("/")[1] ?? "";
+  if (first === "tasks") return "tasks";
+  return (OBJECT_SERVICES as readonly string[]).includes(first) ? (first as Section) : "wiki";
+}
+
 export function Sidebar({
   user,
   workspaces,
   projects,
+  boards,
+  objects,
   onNavigate,
 }: {
   user: CurrentUser;
   workspaces: WorkspaceSummary[];
   projects: ProjectSummary[];
+  boards: BoardSummary[];
+  objects: ObjectSummary[];
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const { workspace, pages, create, pending } = usePages();
+  const section = sectionOf(pathname, workspace.shortId);
   const currentId = currentPageId(pathname);
   // A page with comments may ask to show its contents here instead of the tree.
   const sidebarToc = useSidebarToc();
@@ -86,6 +102,7 @@ export function Sidebar({
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
       <NotificationBell onNavigate={onNavigate} />
 
+      {section === "wiki" && (
       <button
         type="button"
         onClick={() => {
@@ -98,9 +115,14 @@ export function Sidebar({
         <span className="w-5 text-center">＋</span>
         {t.sidebar.newPage}
       </button>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
-        {sidebarToc && (
+        {section === "tasks" && <TaskProjects projects={projects} boards={boards} pathname={pathname} onNavigate={onNavigate} />}
+        {section !== "wiki" && section !== "tasks" && (
+          <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} pathname={pathname} onNavigate={onNavigate} />
+        )}
+        {section === "wiki" && sidebarToc && (
           <button
             type="button"
             onClick={() => setSidebarShowsTree(!sidebarToc.showTree)}
@@ -109,12 +131,12 @@ export function Sidebar({
             {sidebarToc.showTree ? `☰ ${t.toc.showToc}` : `🗂 ${t.toc.showTree}`}
           </button>
         )}
-        {sidebarToc && !sidebarToc.showTree ? (
-          <SidebarContents headings={sidebarToc.headings} onPick={onNavigate} />
-        ) : (
-          <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
-        )}
-        <TaskProjects projects={projects} pathname={pathname} onNavigate={onNavigate} />
+        {section === "wiki" &&
+          (sidebarToc && !sidebarToc.showTree ? (
+            <SidebarContents headings={sidebarToc.headings} onPick={onNavigate} />
+          ) : (
+            <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
+          ))}
       </div>
 
       <div className="flex flex-col gap-1 border-t border-border pt-2" data-sidebar-bottom>
@@ -149,12 +171,29 @@ function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: (
   );
 }
 
-// Task projects (stage 2a): the section heading opens all projects; the current one is marked for the fish.
-function TaskProjects({ projects, pathname, onNavigate }: { projects: ProjectSummary[]; pathname: string; onNavigate?: () => void }) {
+const linkClass = (here: boolean) => `flex min-h-11 items-center gap-2 rounded-md px-3 text-sm hover:bg-surface md:min-h-9 ${here ? "bg-surface font-medium" : ""}`;
+
+// Tasks: projects; the open project shows its boards and its tasks.
+function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: ProjectSummary[]; boards: BoardSummary[]; pathname: string; onNavigate?: () => void }) {
   const { workspace } = usePages();
   const base = workspacePath(workspace.shortId, "/tasks");
+  const openKey = pathname.startsWith(`${base}/`) ? pathname.slice(base.length + 1).split("/")[0] : null;
+  const open = projects.find((p) => p.key === openKey) ?? null;
+  const [tasks, setTasks] = useState<{ project: string; list: { id: string; number: number; title: string }[] } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    sidebarTasks(open.id).then(
+      (list) => live && setTasks({ project: open.id, list }),
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [open, pathname]);
+  const board = useSearchParams().get("board");
   return (
-    <section aria-label={t.tasks.section} className="mb-2">
+    <section aria-label={t.tasks.section} className="mb-2" data-sidebar-section="tasks">
       <Link
         href={base}
         onClick={onNavigate}
@@ -166,18 +205,78 @@ function TaskProjects({ projects, pathname, onNavigate }: { projects: ProjectSum
       <ul>
         {projects.map((project) => {
           const href = `${base}/${project.key}`;
-          const here = pathname === href || pathname.startsWith(`${href}/`);
+          const here = project.id === open?.id;
+          const own = boards.filter((b) => b.project_id === project.id);
+          const list = tasks?.project === project.id ? tasks.list : null;
           return (
             <li key={project.id}>
-              <Link
-                href={href}
-                onClick={onNavigate}
-                data-angler-here={here ? "" : undefined}
-                className={`flex min-h-11 items-center gap-2 rounded-md px-3 text-sm hover:bg-surface md:min-h-9 ${here ? "bg-surface font-medium" : ""}`}
-              >
+              <Link href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
                 <span className="shrink-0">{project.icon ?? "📋"}</span>
                 <span className="truncate">{project.name}</span>
                 <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
+              </Link>
+              {here && (
+                <div className="ml-4 border-l border-border pl-1">
+                  {own.length > 0 && (
+                    <ul aria-label={t.sidebar.mainBoard}>
+                      <li>
+                        <Link href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
+                          🗂 <span className="truncate">{t.sidebar.mainBoard}</span>
+                        </Link>
+                      </li>
+                      {own.map((b) => (
+                        <li key={b.id}>
+                          <Link href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
+                            🗂 <span className="truncate">{b.name}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="px-3 pb-1 pt-2 text-xs text-muted">{t.sidebar.projectTasks}</p>
+                  {list && list.length === 0 && <p className="px-3 text-xs text-muted">{t.sidebar.noTasks}</p>}
+                  <ul>
+                    {list?.map((task) => {
+                      const taskHref = `${href}/${task.number}`;
+                      return (
+                        <li key={task.id}>
+                          <Link href={taskHref} onClick={onNavigate} data-angler-here={pathname === taskHref ? "" : undefined} className={linkClass(pathname === taskHref)} data-sidebar-task>
+                            <span className="shrink-0 font-mono text-xs text-muted">{project.key}-{task.number}</span>
+                            <span className="truncate">{task.title}</span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// Tables, whiteboards, maps, surveys: the list of the service's objects.
+function ServiceObjects({ service, objects, pathname, onNavigate }: { service: string; objects: ObjectSummary[]; pathname: string; onNavigate?: () => void }) {
+  const { workspace } = usePages();
+  const base = workspacePath(workspace.shortId, `/${service}`);
+  const name = t.services.items[service as keyof typeof t.services.items]?.name ?? service;
+  return (
+    <section aria-label={name} className="mb-2" data-sidebar-section={service}>
+      <Link href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
+        {t.sidebar.allOf(name)}
+      </Link>
+      {objects.length === 0 && <p className="px-3 text-xs text-muted">{t.sidebar.noObjects}</p>}
+      <ul>
+        {objects.map((o) => {
+          const href = `${base}/${o.id}`;
+          const here = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <li key={o.id}>
+              <Link href={href} onClick={onNavigate} data-angler-here={here ? "" : undefined} className={linkClass(here)} data-sidebar-object>
+                <span className="truncate">{o.title || t.pages.untitled}</span>
               </Link>
             </li>
           );

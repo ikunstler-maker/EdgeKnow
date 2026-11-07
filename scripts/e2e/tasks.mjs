@@ -143,6 +143,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks/MAR$`), { timeout: 15000 });
   check("an admin makes a project and lands on it", (await alice.getByRole("heading", { name: /Маркетинг/ }).count()) === 1);
   check("…it is in the sidebar, with the fish beside it", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Маркетинг"));
+  check("…and in tasks the sidebar shows only tasks (no wiki tree, no “New page”)", (await alice.locator('aside [data-sidebar-section="tasks"]').count()) === 1 && (await alice.locator("aside").getByRole("button", { name: "Нова сторінка" }).count()) === 0 && (await alice.locator("aside").getByRole("tree").count()) === 0);
   check("…and opens on the board", (await alice.locator("[data-task-board]").count()) === 1 && (await alice.locator('[data-column="Зробити"]').count()) === 1);
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
   await newTask(alice, "Draw the logo");
