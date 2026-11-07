@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
-import { SLIDE_H, SLIDE_W, emptySlide, makeNode, newId, type Deck, type NodeType, type Slide, type SlideNode } from "@/lib/slides";
+import { SLIDE_H, SLIDE_W, makeNode, newId, type Deck, type NodeType, type Slide, type SlideNode } from "@/lib/slides";
+import { THEMES, TEMPLATES, applyTheme, templateSlide, themeOf, type SlideTemplate } from "@/lib/slide-themes";
+import { align, boxOf, distribute, intersects, snap, unionBox, type AlignMode, type Guide } from "@/lib/slide-guides";
+import { DesignPanel } from "./inspector";
+import { LayersPanel } from "./layers-panel";
 import { NodeShape, SlideView } from "./slide-view";
 
 const s = t.slides;
@@ -12,12 +16,12 @@ type Drag =
   | { kind: "move"; start: { x: number; y: number }; before: Deck; origin: Map<string, { x: number; y: number }> }
   | { kind: "resize"; handle: string; start: { x: number; y: number }; before: Deck; node: SlideNode }
   | { kind: "rotate"; before: Deck; node: SlideNode }
-  | { kind: "draw"; start: { x: number; y: number }; before: Deck; id: string };
+  | { kind: "draw"; start: { x: number; y: number }; before: Deck; id: string }
+  | { kind: "marquee"; start: { x: number; y: number }; add: string[] };
 
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
 const LINEAR = (type: NodeType) => type === "LINE" || type === "ARROW";
 const iconButton = "flex h-11 min-w-11 items-center justify-center rounded-md border border-border px-2 text-sm hover:bg-surface disabled:opacity-40 md:h-9 md:min-w-9";
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
 const HISTORY = 100;
 
 // The slide editor: slides on the left (drag to reorder), the slide on a canvas that
@@ -34,6 +38,10 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
   const [zoom, setZoom] = useState(1);
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [sideTab, setSideTab] = useState<"design" | "layers">("design");
+  const [template, setTemplate] = useState<SlideTemplate>("titleText");
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -167,17 +175,28 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
       (event.target as Element).setPointerCapture?.(event.pointerId);
       return;
     }
-    setSelected([]);
     setEditing(null);
+    // A drag on empty space selects what the frame touches (Shift adds).
+    drag.current = { kind: "marquee", start: at, add: event.shiftKey ? selected : [] };
+    if (!event.shiftKey) setSelected([]);
+    (event.target as Element).setPointerCapture?.(event.pointerId);
+  };
+
+  // A layer in a group brings the whole group.
+  const withGroups = (ids: string[]) => {
+    const groups = new Set(slide.nodes.filter((n) => ids.includes(n.id) && n.groupId).map((n) => n.groupId));
+    return slide.nodes.filter((n) => ids.includes(n.id) || (n.groupId && groups.has(n.groupId))).map((n) => n.id);
   };
 
   const onNodeDown = (event: React.PointerEvent, node: SlideNode) => {
     event.stopPropagation();
     wrapRef.current?.focus();
     if (event.button !== 0) return;
-    if (!editable || tool !== "select") return onCanvasDown(event);
+    // Locked layers are picked only in the layers panel; a click passes through them.
+    if (!editable || tool !== "select" || node.locked) return onCanvasDown(event);
     if (editing === node.id) return;
-    const ids = event.shiftKey ? (selected.includes(node.id) ? selected.filter((x) => x !== node.id) : [...selected, node.id]) : selected.includes(node.id) ? selected : [node.id];
+    const group = withGroups([node.id]);
+    const ids = event.shiftKey ? (selected.includes(node.id) ? selected.filter((x) => !group.includes(x)) : [...selected, ...group]) : selected.includes(node.id) ? selected : group;
     setSelected(ids);
     const origin = new Map(slide.nodes.filter((n) => ids.includes(n.id)).map((n) => [n.id, { x: n.x, y: n.y }]));
     drag.current = { kind: "move", start: point(event), before: deckRef.current, origin };
@@ -195,9 +214,23 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
     const d = drag.current;
     if (!d) return;
     const at = point(event);
-    if (d.kind === "move") {
-      const dx = at.x - d.start.x;
-      const dy = at.y - d.start.y;
+    if (d.kind === "marquee") {
+      const box = { x: Math.min(at.x, d.start.x), y: Math.min(at.y, d.start.y), width: Math.abs(at.x - d.start.x), height: Math.abs(at.y - d.start.y) };
+      setMarquee(box);
+      const hit = slide.nodes.filter((n) => !n.hidden && !n.locked && intersects(box, boxOf(n))).map((n) => n.id);
+      setSelected([...new Set([...d.add, ...withGroups(hit)])]);
+    } else if (d.kind === "move") {
+      let dx = at.x - d.start.x;
+      let dy = at.y - d.start.y;
+      // Smart guides: edges and centres meet those of the slide and the other layers (Alt: off).
+      const moving = slide.nodes.filter((n) => d.origin.has(n.id)).map((n) => ({ ...n, x: d.origin.get(n.id)!.x + dx, y: d.origin.get(n.id)!.y + dy }));
+      const box = unionBox(moving);
+      if (box && !event.altKey) {
+        const found = snap(box, slide.nodes.filter((n) => !d.origin.has(n.id) && !n.hidden), 8 / scale);
+        dx += found.dx;
+        dy += found.dy;
+        setGuides(found.guides);
+      } else setGuides([]);
       updateNodes([...d.origin.keys()], (n) => ({ ...n, x: Math.round(d.origin.get(n.id)!.x + dx), y: Math.round(d.origin.get(n.id)!.y + dy) }), false);
     } else if (d.kind === "draw") {
       updateNodes([d.id], (n) =>
@@ -253,7 +286,9 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
   const onUp = () => {
     const d = drag.current;
     drag.current = null;
-    if (!d) return;
+    setGuides([]);
+    setMarquee(null);
+    if (!d || d.kind === "marquee") return;
     if (d.kind === "draw") {
       const made = deckRef.current.slides[slideIndex].nodes.find((n) => n.id === d.id);
       // A click without a drag makes a layer of a usual size.
@@ -277,6 +312,10 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
     if (!editable) return;
     if (mod && key === "c") return void (clipboard.current = slide.nodes.filter((n) => selected.includes(n.id)));
     if (mod && key === "d") return (event.preventDefault(), paste(slide.nodes.filter((n) => selected.includes(n.id))));
+    if (mod && key === "a") return (event.preventDefault(), setSelected(slide.nodes.filter((n) => !n.hidden && !n.locked).map((n) => n.id)));
+    if (mod && key === "g" && event.shiftKey) return (event.preventDefault(), ungroup());
+    if (mod && key === "g") return (event.preventDefault(), group());
+    if (mod && (event.key === "]" || event.key === "[")) return (event.preventDefault(), reorder(event.key === "]" ? "front" : "back"));
     if (event.key === "Delete" || event.key === "Backspace") return (event.preventDefault(), removeSelected());
     if (event.key === "Escape") return (setSelected([]), setTool("select"));
     if (event.key === "Enter" && one?.type === "TEXT") return (event.preventDefault(), setEditing(one.id));
@@ -292,10 +331,36 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
     if (tools[key]) setTool(tools[key]);
   };
 
+  // Groups, order, alignment (step П-2).
+  const group = () => {
+    if (selected.length < 2) return;
+    const id = newId();
+    updateNodes(selected, (n) => ({ ...n, groupId: id }));
+  };
+  const ungroup = () => updateNodes(selected, (n) => ({ ...n, groupId: undefined }));
+  const reorder = (to: "front" | "back") => {
+    if (!selected.length) return;
+    updateSlide((x) => {
+      const picked = x.nodes.filter((n) => selected.includes(n.id));
+      const rest = x.nodes.filter((n) => !selected.includes(n.id));
+      return { ...x, nodes: to === "front" ? [...rest, ...picked] : [...picked, ...rest] };
+    });
+  };
+  const moveLayer = (id: string, toIndex: number) =>
+    updateSlide((x) => {
+      const nodes = x.nodes.filter((n) => n.id !== id);
+      const moved = x.nodes.find((n) => n.id === id)!;
+      nodes.splice(Math.max(0, Math.min(nodes.length, toIndex)), 0, moved);
+      return { ...x, nodes };
+    });
+  const place = (spots: Map<string, { x: number; y: number }>) => spots.size && updateNodes([...spots.keys()], (n) => ({ ...n, ...spots.get(n.id)! }));
+  const picked = slide.nodes.filter((n) => selected.includes(n.id));
+
   // Slides: add after the current one, duplicate, delete, reorder.
+  const placeholders = { title: s.placeholders.title, subtitle: s.placeholders.subtitle, text: s.placeholders.text, caption: s.placeholders.caption };
   const addSlide = () => {
     const next = [...deck.slides];
-    next.splice(slideIndex + 1, 0, emptySlide());
+    next.splice(slideIndex + 1, 0, templateSlide(template, themeOf(deck), placeholders));
     commit({ ...deck, slides: next });
     setCurrent(slideIndex + 1);
     setSelected([]);
@@ -378,6 +443,23 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
           <button type="button" title={s.zoomIn} aria-label={s.zoomIn} onClick={() => setZoom((z) => Math.min(8, z * 1.25))} className={iconButton}>
             +
           </button>
+          <span className="mx-1 h-6 w-px bg-border" />
+          <label className="flex items-center gap-1 text-sm">
+            <span className="sr-only md:not-sr-only">{s.theme}</span>
+            <select
+              value={themeOf(deck).id}
+              onChange={(e) => commit(applyTheme(deckRef.current, THEMES.find((x) => x.id === e.target.value) ?? THEMES[0]))}
+              className="min-h-11 rounded-md border border-border bg-background px-2 text-sm md:min-h-9"
+              aria-label={s.theme}
+              data-theme-select
+            >
+              {THEMES.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {s.themes[x.id]}
+                </option>
+              ))}
+            </select>
+          </label>
           {notice && (
             <span role="status" className="ml-2 text-sm text-muted">
               {notice}
@@ -395,6 +477,13 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
             ))}
             {editable && (
               <div className="flex shrink-0 gap-1 md:flex-col">
+                <select value={template} onChange={(e) => setTemplate(e.target.value as SlideTemplate)} aria-label={s.templateLabel} title={s.templateLabel} className="min-h-11 rounded-md border border-border bg-background px-1 text-xs md:min-h-9" data-slide-template>
+                  {TEMPLATES.map((x) => (
+                    <option key={x} value={x}>
+                      {s.templates[x]}
+                    </option>
+                  ))}
+                </select>
                 <button type="button" onClick={addSlide} className={iconButton} data-add-slide>
                   {s.addSlide}
                 </button>
@@ -438,7 +527,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
               aria-label={s.slideN(slideIndex + 1)}
             >
               <rect x={0} y={0} width={SLIDE_W} height={SLIDE_H} fill={slide.background} />
-              {slide.nodes.map((node) => (
+              {slide.nodes.filter((node) => !node.hidden).map((node) => (
                 <g
                   key={node.id}
                   onPointerDown={(e) => onNodeDown(e, node)}
@@ -493,6 +582,15 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
                   )}
                 </g>
               ))}
+              {/* Smart guides and the selection frame */}
+              {guides.map((g, i) =>
+                g.axis === "x" ? (
+                  <line key={i} x1={g.at} y1={0} x2={g.at} y2={SLIDE_H} stroke="#f43f5e" strokeWidth={1.5 / scale} pointerEvents="none" data-guide />
+                ) : (
+                  <line key={i} x1={0} y1={g.at} x2={SLIDE_W} y2={g.at} stroke="#f43f5e" strokeWidth={1.5 / scale} pointerEvents="none" data-guide />
+                ),
+              )}
+              {marquee && <rect x={marquee.x} y={marquee.y} width={marquee.width} height={marquee.height} fill="#3b82f622" stroke="#3b82f6" strokeWidth={1.5 / scale} pointerEvents="none" data-marquee />}
               {/* Selection */}
               {slide.nodes
                 .filter((n) => selected.includes(n.id))
@@ -552,65 +650,70 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
           </div>
         </div>
 
-        {/* Look of the selection (or the slide) */}
+        {/* Design and layers */}
         {editable && (
-          <aside className="shrink-0 space-y-3 text-sm md:w-56" aria-label={one ? one.name : s.background} data-deck-inspector>
-            {selected.length === 0 && (
-              <label className="flex flex-col gap-1">
-                {s.background}
-                <input type="color" value={slide.background} onChange={(e) => updateSlide((x) => ({ ...x, background: e.target.value }))} className="h-11 w-full rounded-md border border-border md:h-9" />
-              </label>
-            )}
-            {one && (one.type === "RECTANGLE" || one.type === "ELLIPSE") && (
-              <>
-                <label className="flex flex-col gap-1">
-                  {s.fill}
-                  <input type="color" value={one.fill && one.fill !== "none" ? one.fill : "#ffffff"} onChange={(e) => updateNodes([one.id], (n) => ({ ...n, fill: e.target.value }))} className="h-11 w-full rounded-md border border-border md:h-9" data-fill />
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="h-5 w-5" checked={one.fill === "none"} onChange={(e) => updateNodes([one.id], (n) => ({ ...n, fill: e.target.checked ? "none" : "#60a5fa" }))} />
-                  {s.noFill}
-                </label>
-              </>
-            )}
-            {one && one.type !== "TEXT" && one.type !== "IMAGE" && (
-              <div className="grid grid-cols-2 gap-2">
-                <label className="flex flex-col gap-1">
-                  {s.stroke}
-                  <input type="color" value={one.stroke && one.stroke !== "none" ? one.stroke : "#111827"} onChange={(e) => updateNodes([one.id], (n) => ({ ...n, stroke: e.target.value, strokeWidth: n.strokeWidth || 4 }))} className="h-11 w-full rounded-md border border-border md:h-9" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  {s.strokeWidth}
-                  <input type="number" min={0} max={200} value={one.strokeWidth ?? 0} onChange={(e) => updateNodes([one.id], (n) => ({ ...n, strokeWidth: Math.max(0, Math.min(200, Number(e.target.value) || 0)) }))} className={inputClass} />
-                </label>
-              </div>
-            )}
-            {one?.type === "TEXT" && (
-              <>
-                <label className="flex flex-col gap-1">
-                  {s.textColor}
-                  <input type="color" value={one.color ?? "#111827"} onChange={(e) => updateNodes([one.id], (n) => ({ ...n, color: e.target.value }))} className="h-11 w-full rounded-md border border-border md:h-9" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  {s.fontSize}
-                  <input type="number" min={8} max={400} value={one.fontSize ?? 64} onChange={(e) => updateNodes([one.id], (n) => ({ ...n, fontSize: Math.max(8, Math.min(400, Number(e.target.value) || 64)) }))} className={inputClass} data-font-size />
-                </label>
-                <div className="flex gap-1">
-                  <button type="button" aria-pressed={!!one.bold} onClick={() => updateNodes([one.id], (n) => ({ ...n, bold: !n.bold }))} className={`${iconButton} font-bold ${one.bold ? "border-accent bg-accent/10" : ""}`} title={s.bold} aria-label={s.bold}>
-                    B
-                  </button>
-                  {(["left", "center", "right"] as const).map((a) => (
-                    <button key={a} type="button" aria-pressed={(one.align ?? "left") === a} onClick={() => updateNodes([one.id], (n) => ({ ...n, align: a }))} className={`${iconButton} ${(one.align ?? "left") === a ? "border-accent bg-accent/10" : ""}`} aria-label={a}>
-                      {a === "left" ? "⇤" : a === "center" ? "↔" : "⇥"}
+          <aside className="shrink-0 space-y-3 overflow-y-auto text-sm md:max-h-[calc(100dvh-12rem)] md:w-64" aria-label={s.sideTabs[sideTab]} data-deck-inspector>
+            <div className="flex gap-1" role="tablist">
+              {(["design", "layers"] as const).map((tab) => (
+                <button key={tab} type="button" role="tab" aria-selected={sideTab === tab} onClick={() => setSideTab(tab)} className={`min-h-11 flex-1 rounded-md border text-sm md:min-h-9 ${sideTab === tab ? "border-accent bg-accent/10" : "border-border"}`} data-side-tab={tab}>
+                  {s.sideTabs[tab]}
+                </button>
+              ))}
+            </div>
+            {sideTab === "layers" ? (
+              <LayersPanel
+                slide={slide}
+                selected={selected}
+                onSelect={(ids, add) => setSelected(add ? [...new Set([...selected, ...ids])] : ids)}
+                onNode={(id, change) => updateNodes([id], change)}
+                onReorder={moveLayer}
+              />
+            ) : picked.length > 1 ? (
+              <div className="space-y-3">
+                <p className="text-muted">{s.selectedCount(picked.length)}</p>
+                <fieldset className="space-y-2">
+                  <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">{s.alignTitle}</legend>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(["left", "centerX", "right", "top", "middle", "bottom"] as AlignMode[]).map((m) => (
+                      <button key={m} type="button" onClick={() => place(align(picked, m))} className={iconButton} title={s.aligns[m]} aria-label={s.aligns[m]} data-align={m}>
+                        {{ left: "⇤", centerX: "↔", right: "⇥", top: "⤒", middle: "↕", bottom: "⤓" }[m]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button type="button" disabled={picked.length < 3} onClick={() => place(distribute(picked, "x"))} className={iconButton} title={s.distributeX} aria-label={s.distributeX}>
+                      ⋯
                     </button>
-                  ))}
-                </div>
-              </>
+                    <button type="button" disabled={picked.length < 3} onClick={() => place(distribute(picked, "y"))} className={iconButton} title={s.distributeY} aria-label={s.distributeY}>
+                      ⋮
+                    </button>
+                  </div>
+                </fieldset>
+              </div>
+            ) : (
+              <DesignPanel node={one ?? null} slide={slide} onNode={(change) => one && updateNodes([one.id], change)} onSlide={(change) => updateSlide(change)} />
             )}
-            {selected.length > 0 && (
-              <button type="button" onClick={removeSelected} className={`${iconButton} w-full text-danger`} data-delete-node>
-                🗑 {s.deleteNode}
-              </button>
+            {picked.length > 0 && (
+              <fieldset className="space-y-2 border-t border-border pt-3">
+                <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">{s.arrange}</legend>
+                <div className="grid grid-cols-2 gap-1">
+                  <button type="button" onClick={group} disabled={picked.length < 2} className={iconButton} data-group>
+                    ▣ {s.group.split(" (")[0]}
+                  </button>
+                  <button type="button" onClick={ungroup} disabled={!picked.some((n) => n.groupId)} className={iconButton} data-ungroup>
+                    ▢ {s.ungroup.split(" (")[0]}
+                  </button>
+                  <button type="button" onClick={() => reorder("front")} className={iconButton} title={s.toFront} aria-label={s.toFront}>
+                    ⬆
+                  </button>
+                  <button type="button" onClick={() => reorder("back")} className={iconButton} title={s.toBack} aria-label={s.toBack}>
+                    ⬇
+                  </button>
+                </div>
+                <button type="button" onClick={removeSelected} className={`${iconButton} w-full text-danger`} data-delete-node>
+                  🗑 {s.deleteNode}
+                </button>
+              </fieldset>
             )}
           </aside>
         )}
