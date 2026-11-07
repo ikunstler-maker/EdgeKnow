@@ -1,0 +1,7 @@
+mp3 path: .mp3
+m4a, ogg, wav: true, true, true
+audio over 20 MB: too_large
+image over 2 MB: too_large
+other types: unsupported_type, unsupported_type
+outsider uploads audio: forbidden
+drive: 4 MB drive, more: too_large

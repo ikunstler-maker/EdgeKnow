@@ -265,6 +265,37 @@ check("HTML in text stays text", (await alice.locator(".bn-editor img").count())
 check("non-YouTube embeds are not rendered", (await alice.locator("iframe").count()) === 0 && (await alice.getByText("Fake").count()) === 0);
 check("nothing executed", !alerted);
 
+// --- Galleries: images, YouTube and audio; four layouts; only safe sources ------------------
+const galleryPage = (await aliceClient.rpc("create_page", { ws: sql("select id from public.workspaces where name = 'Alpha'"), parent: null, new_title: "Gallery" })).data.id;
+await aliceClient.rpc("save_page_content", {
+  target_page: galleryPage,
+  base_version: 1,
+  new_content: [
+    {
+      type: "gallery",
+      props: {
+        layout: "featured",
+        items: JSON.stringify([
+          { id: "v", kind: "youtube", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", caption: "Clip" },
+          { id: "x", kind: "image", url: "javascript:alert(1)", caption: "Bad" },
+          { id: "y", kind: "audio", url: "http://evil.example/a.mp3", caption: "Bad audio" },
+        ]),
+      },
+    },
+  ],
+});
+await alice.goto(`${APP}/w/${alphaShort}/p/${galleryPage}`);
+await alice.locator('[data-gallery="featured"]').waitFor({ timeout: 20000 });
+check("a gallery shows its items, never unsafe sources", (await alice.locator('[data-gallery] [data-gallery-strip] button').count()) === 3 && (await alice.locator('[data-gallery] [src^="javascript"], [data-gallery] [src^="http://"]').count()) === 0);
+await alice.locator('[data-gallery-layout="grid"]').click();
+const galleryLayout = () => sql(`select b -> 'props' ->> 'layout' from public.pages p, jsonb_array_elements(p.content) b where p.id = '${galleryPage}' and b ->> 'type' = 'gallery'`);
+check("…its layout changes and is saved", await until(() => galleryLayout() === "grid", 15000), galleryLayout());
+// A small MP3 (an ID3 header) uploads as the page's own audio file.
+await alice.locator('[data-gallery-file="audio"]').setInputFiles({ name: "chime.mp3", mimeType: "audio/mpeg", buffer: Buffer.concat([Buffer.from("ID3"), Buffer.alloc(997)]) });
+check("…audio uploads into the page's files", await until(() => sql(`select count(*) from public.attachments where page_id = '${galleryPage}' and mime_type = 'audio/mpeg'`) === "1", 20000));
+await alice.locator("[data-gallery-grid] figure").nth(3).waitFor({ timeout: 15000 }).catch(() => {});
+check("…and is in the gallery with a player", (await alice.locator("[data-gallery-grid] audio").count()) === 2);
+
 // --- Stage 4: images ------------------------------------------------------------
 
 const pngBuffer = await makeTestPng(alice);
