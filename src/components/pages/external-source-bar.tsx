@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { EXTERNAL_LANG_COOKIE } from "@/lib/external-lang";
 import { dateLocale, t } from "@/i18n";
 import {
   connectExternalSource,
@@ -18,8 +19,6 @@ export type ExternalSourceInfo = {
   lang: string | null;
 };
 
-// The reader's chosen language of external pages (set here, read by the server).
-export const EXTERNAL_LANG_COOKIE = "external_lang";
 
 function rememberLanguage(lang: string) {
   document.cookie = `${EXTERNAL_LANG_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
