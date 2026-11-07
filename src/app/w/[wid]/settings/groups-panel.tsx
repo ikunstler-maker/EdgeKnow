@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
-import { createGroup, deleteGroup, moveGroup, renameGroup, setGroupMember } from "@/app/workspace-actions";
+import { createGroup, deleteGroup, moveGroup, renameGroup, setGroupLead, setGroupMember } from "@/app/workspace-actions";
 
-export type GroupItem = { id: string; name: string; memberIds: string[]; parentId: string | null; position: number };
+export type GroupItem = { id: string; name: string; memberIds: string[]; leadIds?: string[]; parentId: string | null; position: number };
 export type GroupPerson = { userId: string; name: string | null; email: string };
 
 const g = t.settings.groups;
@@ -176,7 +176,19 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
                     <li key={p.userId} className="flex min-h-11 items-center gap-2">
                       <span className="min-w-0 flex-1 truncate" title={p.email}>
                         {label(p)}
+                        {group.leadIds?.includes(p.userId) && <span className="ml-1 rounded bg-accent/15 px-1 text-xs text-accent" data-group-lead>{g.lead}</span>}
                       </span>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        className={buttonClass}
+                        aria-pressed={!!group.leadIds?.includes(p.userId)}
+                        title={g.leadHint}
+                        onClick={() => run(() => setGroupLead(workspaceId, group.id, p.userId, !group.leadIds?.includes(p.userId)))}
+                        data-group-lead-toggle
+                      >
+                        {group.leadIds?.includes(p.userId) ? g.unsetLead : g.setLead}
+                      </button>
                       <button
                         type="button"
                         disabled={pending}

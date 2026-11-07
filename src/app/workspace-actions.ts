@@ -60,6 +60,11 @@ export async function createGroup(ws: string, name: string, parent: string | nul
   return callWorkspaceRpc("create_workspace_group", parent ? { ws, new_name: name, parent } : { ws, new_name: name });
 }
 
+// Company structure, stage 3: a lead sees what is given to their unit and the units under it.
+export async function setGroupLead(ws: string, groupId: string, userId: string, lead: boolean) {
+  return callWorkspaceRpc("set_group_lead", { ws, target_group: groupId, member: userId, lead });
+}
+
 // Company structure: a unit goes inside another (or to the top level).
 export async function moveGroup(ws: string, groupId: string, parent: string | null, position: number | null) {
   return callWorkspaceRpc("move_workspace_group", { ws, target_group: groupId, new_parent: parent, new_position: position });

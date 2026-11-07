@@ -11,7 +11,8 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## Next (owner, 2027-01-05)
 - PR А: add a task field right in the task / new-task window — DONE (#111).
 - PR Б-1: unit tree — DONE (#112).
-- PR Б-2: custom roles (rights + content ceiling) — in review. Next: stage 3 (access follows the tree, role per unit).
+- PR Б-2: custom roles — DONE (#113).
+- PR Б-3: access follows the tree (down: everyone; up: leads only), unit leads manage their branch — in review.
 - PR Б (stages, each its own PR, RLS → approval per stage): company hierarchy (groups → tree of units), custom named roles with workspace rights + content level, access by structure (up: higher units see; down: a unit's sub-units see), current admin/member become built-in roles. Owner agreed on all 4 questions.
 
 ## Next by plan

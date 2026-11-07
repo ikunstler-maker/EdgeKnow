@@ -72,8 +72,12 @@ export default async function WorkspaceSettingsPage({
   const [canInvite, canStructure] = rightsClient
     ? await Promise.all(["invite", "manage_structure"].map(async (perm) => (await rightsClient.rpc("role_allows", { ws: workspace.id, perm })).data === true))
     : [true, true];
+  // A unit's lead manages their own branch of the structure (stage 3).
+  const isLead = rightsClient && !canStructure
+    ? ((await rightsClient.from("workspace_group_members").select("group_id", { count: "exact", head: true }).eq("workspace_id", workspace.id).eq("user_id", user.id).eq("is_lead", true)).count ?? 0) > 0
+    : false;
   const shownTabs = TABS.filter((key) =>
-    admin ? key !== "roles" || isOwner : (key === "members" && canInvite) || (key === "groups" && canStructure),
+    admin ? key !== "roles" || isOwner : (key === "members" && canInvite) || (key === "groups" && (canStructure || isLead)),
   );
   const tab: Tab = shownTabs.includes(tabParam as Tab) ? (tabParam as Tab) : (shownTabs[0] ?? "general");
 
@@ -205,15 +209,16 @@ export default async function WorkspaceSettingsPage({
     tab === "groups"
       ? await supabase
           .from("workspace_groups")
-          .select("id, name, parent_id, position, members:workspace_group_members(user_id)")
+          .select("id, name, parent_id, position, members:workspace_group_members(user_id, is_lead)")
           .eq("workspace_id", workspace.id)
           .order("name")
-          .overrideTypes<{ id: string; name: string; parent_id: string | null; position: number; members: { user_id: string }[] }[], { merge: false }>()
+          .overrideTypes<{ id: string; name: string; parent_id: string | null; position: number; members: { user_id: string; is_lead: boolean }[] }[], { merge: false }>()
       : null;
   const groupItems: GroupItem[] = (groupRows?.data ?? []).map((row) => ({
     id: row.id,
     name: row.name,
     memberIds: row.members.map((m) => m.user_id),
+    leadIds: row.members.filter((m) => m.is_lead).map((m) => m.user_id),
     parentId: row.parent_id,
     position: row.position,
   }));
