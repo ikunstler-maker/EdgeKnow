@@ -318,7 +318,14 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.getByLabel("Назва презентації").fill("Pitch");
   const svg = alice.locator("[data-deck-canvas] svg");
   await svg.waitFor({ timeout: 30000 });
+  // The canvas fits itself to the window just after it appears: measure once it has settled.
   let box = await svg.boundingBox();
+  for (let i = 0; i < 20; i++) {
+    await alice.waitForTimeout(250);
+    const again = await svg.boundingBox();
+    if (again && Math.abs(again.width - box.width) < 1 && Math.abs(again.y - box.y) < 1) break;
+    box = again;
+  }
   const at = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];
   await alice.locator('[data-tool="RECTANGLE"]').click();
   await alice.mouse.move(...at(0.1, 0.1));
