@@ -74,6 +74,9 @@ export function isExternalImageUrl(url: string): boolean {
 
 export async function resolveAttachmentUrl(url: string): Promise<string> {
   if (isExternalImageUrl(url)) return url;
+  // Pictures of an external wiki source go through our own proxy (members only, see
+  // src/app/api/external/[id]/image); nothing else on this site is let through.
+  if (/^\/api\/external\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/image\?u=[^"'\s<>]+$/.test(url)) return url;
   // Anything else that isn't our own file (http:, data:, javascript:…) is not shown.
   if (!url.startsWith(ATTACHMENT_SCHEME)) return "";
   // Our server checks the page access and serves the file from Supabase or the
