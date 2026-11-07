@@ -170,14 +170,79 @@ function SortableField({ id, name, disabled, children }: { id: string; name: str
   );
 }
 
-function DraftForm({ draft, setDraft, onSave, pending }: { draft: Draft; setDraft: (d: Draft | null) => void; onSave: (d: Draft) => void; pending: boolean }) {
+// "＋ Field" right where a task is filled in (project owners and workspace admins):
+// the same short form; the new field joins the project and shows at once.
+export function QuickAddField({ projectId, nested = false }: { projectId: string; nested?: boolean }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  if (!draft)
+    return (
+      <button
+        type="button"
+        className={`${buttonClass} justify-self-start`}
+        onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "" })}
+        data-quick-add-field
+      >
+        ＋ {f.quickAdd}
+      </button>
+    );
+  return (
+    <div className="col-span-full space-y-2">
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <DraftForm
+        draft={draft}
+        setDraft={setDraft}
+        pending={pending}
+        nested={nested}
+        onSave={(d) =>
+          startTransition(async () => {
+            const result = await saveTaskField(projectId, null, {
+              name: d.name,
+              kind: d.kind,
+              options: LISTS.includes(d.kind) ? d.options.filter((o) => o.label.trim()) : [],
+              required: d.required,
+              task_types: d.types,
+              hint: d.hint.trim(),
+            });
+            if (!result.ok) return setError(t.tasks.errors[result.error] ?? t.common.unknownError);
+            setError(null);
+            setDraft(null);
+            router.refresh();
+          })
+        }
+      />
+    </div>
+  );
+}
+
+function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft: Draft; setDraft: (d: Draft | null) => void; onSave: (d: Draft) => void; pending: boolean; nested?: boolean }) {
   const set = (changes: Partial<Draft>) => setDraft({ ...draft, ...changes });
   const isNew = draft.id === null;
+  // Inside another form (the new-task window) it is a group, saved by its button.
+  const Wrapper = nested ? "div" : "form";
   return (
-    <form
+    <Wrapper
+      {...(nested
+        ? {
+            role: "group",
+            // Enter saves the field, not the outer form (the task).
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+                e.preventDefault();
+                if (draft.name.trim()) onSave(draft);
+              }
+            },
+          }
+        : {})}
       className="space-y-3 rounded-lg border border-accent p-3 text-sm"
       aria-label={isNew ? f.add : f.edit}
-      onSubmit={(e) => {
+      onSubmit={(e: React.FormEvent) => {
         e.preventDefault();
         onSave(draft);
       }}
@@ -272,13 +337,13 @@ function DraftForm({ draft, setDraft, onSave, pending }: { draft: Draft; setDraf
       </label>
 
       <div className="flex gap-2">
-        <button type="submit" disabled={pending || !draft.name.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9">
+        <button type={nested ? "button" : "submit"} onClick={nested ? () => onSave(draft) : undefined} disabled={pending || !draft.name.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9">
           {t.common.save}
         </button>
         <button type="button" onClick={() => setDraft(null)} className={buttonClass}>
           {t.common.cancel}
         </button>
       </div>
-    </form>
+    </Wrapper>
   );
 }

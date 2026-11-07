@@ -968,6 +968,7 @@ export const en: Dictionary = {
       requiredHint: "an empty one is marked, but never blocks saving",
       hint: "Hint (optional)",
       hintPlaceholder: "What to put in this field",
+      quickAdd: "Field",
       dragHandle: (name: string) => `Drag to reorder the field “${name}”`,
       toFill: "fill in",
       clear: "Clear",

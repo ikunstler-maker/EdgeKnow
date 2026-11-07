@@ -977,6 +977,7 @@ export const uk = {
       requiredHint: "незаповнене поле позначається, але зберігати не заважає",
       hint: "Підказка (необов'язково)",
       hintPlaceholder: "Що вписати в це поле",
+      quickAdd: "Поле",
       dragHandle: (name: string) => `Перетягніть, щоб змінити порядок поля «${name}»`,
       toFill: "заповніть",
       clear: "Очистити",

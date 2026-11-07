@@ -28,6 +28,7 @@ export function TaskList({
   blocked: blockedList,
   me,
   canEdit,
+  isOwner = false,
 }: {
   shortId: string;
   project: { id: string; key: string };
@@ -38,6 +39,7 @@ export function TaskList({
   blocked: string[];
   me: string;
   canEdit: boolean;
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -99,6 +101,8 @@ export function TaskList({
       {creating && (
         <NewTaskDialog
           onCreate={drafts.create}
+          projectId={project.id}
+          canAddFields={isOwner}
           statuses={statuses.filter((s) => !s.board_id)}
           statusId={null}
           members={members}
