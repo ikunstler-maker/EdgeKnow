@@ -20,6 +20,7 @@ import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-stor
 import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
+import { ServiceCollections, type Collections } from "./collections";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { AnglerGuide } from "@/components/angler/angler-guide";
 import { NotificationBell } from "@/components/notifications/notification-bell";
@@ -45,6 +46,7 @@ export function Sidebar({
   projects,
   boards,
   objects,
+  collections,
   onNavigate,
 }: {
   user: CurrentUser;
@@ -52,6 +54,7 @@ export function Sidebar({
   projects: ProjectSummary[];
   boards: BoardSummary[];
   objects: ObjectSummary[];
+  collections: Collections;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -120,7 +123,7 @@ export function Sidebar({
       <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
         {section === "tasks" && <TaskProjects projects={projects} boards={boards} pathname={pathname} onNavigate={onNavigate} />}
         {section !== "wiki" && section !== "tasks" && (
-          <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} pathname={pathname} onNavigate={onNavigate} />
+          <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} collections={collections} pathname={pathname} onNavigate={onNavigate} />
         )}
         {section === "wiki" && sidebarToc && (
           <button
@@ -259,7 +262,7 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
 }
 
 // Tables, whiteboards, maps, surveys: the list of the service's objects.
-function ServiceObjects({ service, objects, pathname, onNavigate }: { service: string; objects: ObjectSummary[]; pathname: string; onNavigate?: () => void }) {
+function ServiceObjects({ service, objects, collections, pathname, onNavigate }: { service: string; objects: ObjectSummary[]; collections: Collections; pathname: string; onNavigate?: () => void }) {
   const { workspace } = usePages();
   const base = workspacePath(workspace.shortId, `/${service}`);
   const name = t.services.items[service as keyof typeof t.services.items]?.name ?? service;
@@ -268,20 +271,17 @@ function ServiceObjects({ service, objects, pathname, onNavigate }: { service: s
       <Link href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
         {t.sidebar.allOf(name)}
       </Link>
+      <ServiceCollections
+        workspaceId={workspace.id}
+        service={service}
+        base={base}
+        objects={objects}
+        collections={collections}
+        canManage={workspace.role !== "guest"}
+        pathname={pathname}
+        onNavigate={onNavigate}
+      />
       {objects.length === 0 && <p className="px-3 text-xs text-muted">{t.sidebar.noObjects}</p>}
-      <ul>
-        {objects.map((o) => {
-          const href = `${base}/${o.id}`;
-          const here = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <li key={o.id}>
-              <Link href={href} onClick={onNavigate} data-angler-here={here ? "" : undefined} className={linkClass(here)} data-sidebar-object>
-                <span className="truncate">{o.title || t.pages.untitled}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
     </section>
   );
 }

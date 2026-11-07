@@ -1,0 +1,24 @@
+bad service: {"ok": false, "error": "invalid"}
+empty name: {"ok": false, "error": "invalid_name"}
+m1 in A: true
+m1 in B: true
+m1 in A again: true
+entries of m1: 2
+objects stay one: 2
+other workspace object: {"ok": false, "error": "forbidden"}
+bob sees collections: 2
+bob renames: true
+bob sees entries: 2
+guest sees collections: 2
+guest makes: {"ok": false, "error": "forbidden"}
+guest deletes: {"ok": false, "error": "not_found"}
+guest adds: {"ok": false, "error": "not_found"}
+outsider sees collections: 0
+outsider sees entries: 0
+outsider makes: {"ok": false, "error": "forbidden"}
+outsider deletes: {"ok": false, "error": "not_found"}
+psql: ERROR:  permission denied for table object_collections
+m1 out of A: true
+delete B: true
+entries left: 0
+maps left: 2
