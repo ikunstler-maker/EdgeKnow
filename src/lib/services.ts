@@ -8,7 +8,7 @@ export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: st
   { key: "boards", icon: "🎨", ready: true, path: "/boards" },
   { key: "nodes", icon: "🧠", ready: true, path: "/nodes" },
   { key: "sheets", icon: "📊", ready: true, path: "/sheets" },
-  { key: "slides", icon: "🖼️", ready: false, path: null },
+  { key: "slides", icon: "🖼️", ready: true, path: "/slides" },
   { key: "surveys", icon: "📝", ready: true, path: "/surveys" },
   { key: "chat", icon: "💬", ready: false, path: null },
   { key: "files", icon: "📁", ready: false, path: null },
