@@ -1,5 +1,6 @@
 "use server";
 
+import { withPaths } from "@/lib/groups";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import type { GrantRole, PageRole } from "@/lib/pages";
@@ -97,7 +98,18 @@ export async function getPageSharing(id: string): Promise<ActionResult<PageShari
   const { data: guestRows } = await supabase.from("workspace_members").select("user_id").eq("role", "guest").eq("status", "active");
   const guests = new Set((guestRows ?? []).map((g) => g.user_id as string));
   const mark = <T extends SharingPerson>(person: T): T => (guests.has(person.user_id) ? { ...person, guest: true } : person);
-  return { ...result, owner: mark(result.owner), entries: result.entries.map(mark), members: result.members.map(mark) };
+  // Units are named by their path in the company structure.
+  const { data: units } = await supabase.from("workspace_groups").select("id, name, parent_id");
+  const pathOf = new Map(withPaths((units ?? []) as { id: string; name: string; parent_id: string | null }[]).map((u) => [u.id, u.name]));
+  const named = <T extends { group_id: string; name: string }>(g: T): T => ({ ...g, name: pathOf.get(g.group_id) ?? g.name });
+  return {
+    ...result,
+    owner: mark(result.owner),
+    entries: result.entries.map(mark),
+    members: result.members.map(mark),
+    groups: (result.groups ?? []).map(named),
+    all_groups: (result.all_groups ?? []).map(named).sort((x, y) => x.name.localeCompare(y.name)),
+  };
 }
 
 export async function setPageMemberRole(id: string, userId: string, role: GrantRole | null) {

@@ -183,15 +183,17 @@ export default async function WorkspaceSettingsPage({
     tab === "groups"
       ? await supabase
           .from("workspace_groups")
-          .select("id, name, members:workspace_group_members(user_id)")
+          .select("id, name, parent_id, position, members:workspace_group_members(user_id)")
           .eq("workspace_id", workspace.id)
           .order("name")
-          .overrideTypes<{ id: string; name: string; members: { user_id: string }[] }[], { merge: false }>()
+          .overrideTypes<{ id: string; name: string; parent_id: string | null; position: number; members: { user_id: string }[] }[], { merge: false }>()
       : null;
   const groupItems: GroupItem[] = (groupRows?.data ?? []).map((row) => ({
     id: row.id,
     name: row.name,
     memberIds: row.members.map((m) => m.user_id),
+    parentId: row.parent_id,
+    position: row.position,
   }));
   // Domains asked for and waiting for their DNS record (step: domains through DNS).
   const [claimRows, platformSettings] =

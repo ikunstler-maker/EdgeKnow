@@ -1,4 +1,5 @@
 import "server-only";
+import { withPaths } from "@/lib/groups";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, type Workspace } from "@/lib/workspace";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -40,7 +41,7 @@ export async function loadProject(shortId: string, key: string): Promise<Project
       .overrideTypes<{ user_id: string; role: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
     db.from("task_fields").select("id, name, kind, options, required, task_types, position, hint").eq("project_id", project.id).order("position"),
     db.from("task_boards").select("id, name, group_id, position, access:task_board_access(group_id)").eq("project_id", project.id).order("position"),
-    db.from("workspace_groups").select("id, name").eq("workspace_id", workspace.id).order("name"),
+    db.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", workspace.id).order("name"),
   ]);
   if (!role) return null;
   return {
@@ -50,7 +51,7 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     statuses: (statuses ?? []) as TaskStatus[],
     // Missing while the boards migration rolls out.
     boards: ((boards ?? []) as unknown as (Omit<TaskBoardInfo, "access"> & { access: { group_id: string }[] | null })[]).map((b) => ({ ...b, access: (b.access ?? []).map((a) => a.group_id) })),
-    groups: (groups ?? []) as { id: string; name: string }[],
+    groups: withPaths((groups ?? []) as { id: string; name: string; parent_id: string | null }[]),
     fields: (fields ?? []) as TaskField[],
     role: role as ProjectRole,
     members: (members ?? [])

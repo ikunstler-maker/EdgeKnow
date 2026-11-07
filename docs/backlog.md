@@ -9,7 +9,8 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
 ## Next (owner, 2027-01-05)
-- PR А: add a task field right in the task / new-task window (owners, admins) — in review.
+- PR А: add a task field right in the task / new-task window — DONE (#111).
+- PR Б-1: unit tree (company structure), no access change — in review.
 - PR Б (stages, each its own PR, RLS → approval per stage): company hierarchy (groups → tree of units), custom named roles with workspace rights + content level, access by structure (up: higher units see; down: a unit's sub-units see), current admin/member become built-in roles. Owner agreed on all 4 questions.
 
 ## Next by plan

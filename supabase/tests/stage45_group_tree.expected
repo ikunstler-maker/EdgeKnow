@@ -1,0 +1,17 @@
+tree: Company<-, Design team<Marketing, Marketing<Company
+cycle: {"ok": false, "error": "group_cycle"}
+into itself: {"ok": false, "error": "group_cycle"}
+unknown parent: {"ok": false, "error": "not_found"}
+ninth level: {"ok": false, "error": "group_too_deep"}
+L9 not kept: 0
+deep move: {"ok": false, "error": "group_cycle"}
+move to top: true
+L4 at top: true 3
+bob sees units: 8
+bob moves: {"ok": false, "error": "forbidden"}
+bob creates: {"ok": false, "error": "forbidden"}
+psql: ERROR:  permission denied for table workspace_groups
+delete marketing: true
+design now under: Company
+team copy has parents: 7
+units left: 0
