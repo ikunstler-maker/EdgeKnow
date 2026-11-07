@@ -6,7 +6,8 @@ import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { TEAM_BUCKET, teamAdmin, teamDataFor, teamOfPath, teamStorage } from "@/lib/team-db/files";
 
-const MAX_BYTES = 2 * 1024 * 1024;
+// Images up to 2 MB; gallery audio up to 4 MB (the most a server request may hold).
+const maxBytes = (mimeType: string) => (mimeType.startsWith("audio/") ? 4 : 2) * 1024 * 1024;
 
 // Uploads an already compressed image to the workspace's Google Drive, or for a
 // team workspace (path C) to the team's own Supabase Storage. The path must have
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
   }
 
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > MAX_BYTES || bytes.length !== row.bytes || !looksLike(row.mime_type, bytes)) {
+  if (bytes.length === 0 || bytes.length > maxBytes(row.mime_type) || bytes.length !== row.bytes || !looksLike(row.mime_type, bytes)) {
     return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
   }
 

@@ -80,3 +80,39 @@ export async function resolveAttachmentUrl(url: string): Promise<string> {
   // workspace's Google Drive, wherever it lives now.
   return `/api/files/${url.slice(ATTACHMENT_SCHEME.length)}`;
 }
+
+// Gallery audio: the browser's type (or the file's ending) as the one name the database knows.
+export const AUDIO_TYPES: Record<string, "audio/mpeg" | "audio/mp4" | "audio/ogg" | "audio/wav"> = {
+  "audio/mpeg": "audio/mpeg",
+  "audio/mp3": "audio/mpeg",
+  "audio/mp4": "audio/mp4",
+  "audio/x-m4a": "audio/mp4",
+  "audio/m4a": "audio/mp4",
+  "audio/aac": "audio/mp4",
+  "audio/ogg": "audio/ogg",
+  "audio/wav": "audio/wav",
+  "audio/x-wav": "audio/wav",
+  "audio/wave": "audio/wav",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  wav: "audio/wav",
+};
+export const AUDIO_ACCEPT = ".mp3,.m4a,.ogg,.oga,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/wav";
+
+// Uploads an audio file to the page's storage as it is (no re-encoding).
+export async function uploadAudio(pageId: string, file: File) {
+  const type = AUDIO_TYPES[file.type] ?? AUDIO_TYPES[file.name.split(".").pop()?.toLowerCase() ?? ""];
+  if (!type) throw new UploadError("unsupported_type");
+  const registered = await registerAttachment({ pageId, type, bytes: file.size, width: 0, height: 0 });
+  if (!registered.ok) throw new UploadError(registered.error);
+  if (registered.backend === "drive" || registered.backend === "team") {
+    const response = await fetch(`/api/files/upload?path=${encodeURIComponent(registered.path)}`, { method: "POST", headers: { "Content-Type": type }, body: file });
+    if (!response.ok) throw new UploadError("upload_failed");
+  } else {
+    const upload = await createClient().storage.from(BUCKET).upload(registered.path, file, { contentType: type, upsert: false });
+    if (upload.error) throw new UploadError("upload_failed");
+  }
+  return `${ATTACHMENT_SCHEME}${registered.path}`;
+}

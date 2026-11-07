@@ -24,6 +24,7 @@ import { navigationBlock } from "./navigation-block";
 import { monoStyle } from "./mono-style";
 import { subtitleBlock } from "./subtitle-block";
 import { youTubeBlock } from "./youtube-block";
+import { galleryBlock } from "./gallery-block";
 
 // Code blocks with a "Copy" button next to the language picker.
 function codeBlockWithCopy() {
@@ -103,6 +104,7 @@ export const schema = BlockNoteSchema.create({
     image: lazyImage(),
     callout: calloutBlock(),
     youtube: youTubeBlock(),
+    gallery: galleryBlock(),
     diagram: diagramBlock(),
     linkCard: linkCardBlock(),
     navigation: navigationBlock(),

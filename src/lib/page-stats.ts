@@ -74,6 +74,15 @@ function walk(list: Block[], stats: PageStats, texts: string[]) {
     }
     if (block.type === "heading" && text.trim()) stats.headings += 1;
     if (block.type === "image" && block.props?.url) stats.images += 1;
+    if (block.type === "gallery") {
+      try {
+        const list = JSON.parse(String(block.props?.items || "[]")) as { kind?: string }[];
+        stats.images += list.filter((x) => x.kind === "image").length;
+        stats.links += list.filter((x) => x.kind !== "image").length;
+      } catch {
+        // Nothing counted from a broken gallery.
+      }
+    }
     if (block.type === "linkCard" || block.type === "youtube") stats.links += 1;
     if (block.type === "table") stats.tables += 1;
     if (block.type === "diagram") stats.diagrams += 1;

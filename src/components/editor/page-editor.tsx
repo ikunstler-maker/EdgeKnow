@@ -119,8 +119,16 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "youtube" }),
   };
   const lastMedia = mediaGroup ? items.findLastIndex((item) => item.group === mediaGroup) : -1;
-  if (lastMedia >= 0) items.splice(lastMedia + 1, 0, youtube);
-  else items.push(youtube);
+  const gallery: DefaultReactSuggestionItem = {
+    title: t.editor.gallery.title,
+    subtext: t.editor.gallery.subtext,
+    aliases: t.editor.gallery.aliases,
+    group: mediaGroup ?? t.editor.groups.media,
+    icon: <span aria-hidden="true">🖼</span>,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "gallery" }),
+  };
+  if (lastMedia >= 0) items.splice(lastMedia + 1, 0, youtube, gallery);
+  else items.push(youtube, gallery);
   const diagram: DefaultReactSuggestionItem = {
     title: t.editor.diagram.title,
     subtext: t.editor.diagram.subtext,

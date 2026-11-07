@@ -82,6 +82,19 @@ function blocks(list: Block[], depth: number, out: string[]) {
       case "image":
         out.push(`![${String(p.name ?? "")}](${String(p.url ?? "")})`, "");
         break;
+      case "gallery":
+        // Each item as a line: images as pictures, videos and audio as links.
+        try {
+          const list = JSON.parse(String(p.items || "[]")) as { kind?: string; url?: string; caption?: string; title?: string }[];
+          for (const item of list) {
+            const name = String(item.caption || item.title || "");
+            out.push(item.kind === "image" ? `![${name}](${String(item.url ?? "")})` : `- [${name || String(item.url ?? "")}](${String(item.url ?? "")})`);
+          }
+          out.push("");
+        } catch {
+          // A broken gallery adds nothing.
+        }
+        break;
       case "youtube":
       case "linkCard":
         out.push(`[${String(p.title || p.url || "")}](${String(p.url ?? "")})`, "");
