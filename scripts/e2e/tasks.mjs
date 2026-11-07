@@ -600,6 +600,11 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await card.getByLabel("Додати людину в групу «Reviewers»").selectOption({ label: await card.locator("option", { hasText: "colleague@alpha.test" }).first().innerText() });
   await card.getByText("учасників: 1").waitFor({ timeout: 15000 }).catch(() => {});
   check("the admin makes a group and adds a colleague", sql(`select count(*) from public.workspace_group_members gm join public.workspace_groups g on g.id = gm.group_id where g.name = 'Reviewers' and g.workspace_id = '${alphaId}'`) === "1");
+  // Company structure, stage 3: a person in a unit can be its lead.
+  await card.locator("[data-group-lead-toggle]").first().click();
+  await card.locator("[data-group-lead]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("…marks a colleague as the unit's lead", sql(`select count(*) from public.workspace_group_members gm join public.workspace_groups g on g.id = gm.group_id where g.name = 'Reviewers' and gm.is_lead`) === "1");
+  sql(`update public.workspace_group_members set is_lead = false where group_id in (select id from public.workspace_groups where name = 'Reviewers')`);
   // Company structure: a unit inside another shows one level deeper.
   await alice.getByLabel("Назва нової групи").fill("Reviewers QA");
   await alice.getByLabel("Всередині").selectOption({ label: "Reviewers" });

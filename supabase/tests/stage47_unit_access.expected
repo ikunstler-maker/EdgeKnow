@@ -1,0 +1,17 @@
+max leads marketing: true
+design member on marketing page (down): editor
+design member on marketing project (down): editor
+sales on marketing page: none
+sales on marketing project: none
+marketing lead on design page (up): commenter
+company member on design page (no up for members): none
+company member on marketing page: none
+lead adds to design: true
+lead adds to sales: {"ok": false, "error": "forbidden"}
+lead makes a sub-unit: true
+lead makes a top unit: {"ok": false, "error": "forbidden"}
+lead moves design under sales: {"ok": false, "error": "forbidden"}
+lead renames sales: {"ok": false, "error": "forbidden"}
+lead makes a lead below: true
+member sets a lead: {"ok": false, "error": "forbidden"}
+team copy has leads: 2

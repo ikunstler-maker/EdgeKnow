@@ -207,6 +207,7 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
               {showGroups && (
                 <div className="space-y-2 border-t border-border pt-4 text-sm">
                   <p className="font-medium">{t.share.groups}</p>
+                  <p className="text-xs text-muted">{t.share.groupsReach}</p>
                   {isOwner && (
                     <div className="flex flex-wrap gap-2">
                       <select
