@@ -148,3 +148,12 @@ export async function finish(part) {
   process.exit(failed.length ? 1 : 0);
 
 }
+
+// Creating a task through its window: the "new task" button (or a column's), a title, Enter.
+export async function newTask(page, title, column = null) {
+  await (column ? page.getByLabel(`Нова задача в колонці «${column}»`) : page.locator("[data-new-task-open]").first()).click();
+  const dialog = page.getByRole("dialog", { name: "Нова задача" });
+  await dialog.getByLabel("Назва").fill(title);
+  await dialog.getByLabel("Назва").press("Enter");
+  await dialog.waitFor({ state: "detached", timeout: 15000 });
+}

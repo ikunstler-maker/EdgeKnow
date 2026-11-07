@@ -59,6 +59,7 @@ export type TaskField = {
   required: boolean;
   task_types: TaskType[] | null;
   position: number;
+  hint?: string | null;
 };
 // What a board card can show; the project's own fields join by id.
 export const CARD_FIELDS = ["key", "type", "priority", "assignee", "reporter", "labels", "due", "start", "created", "updated", "estimate", "subtasks"] as const;

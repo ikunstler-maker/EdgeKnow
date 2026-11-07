@@ -33,8 +33,11 @@ export function FieldValue({
   if (field.kind === "checkbox" || field.kind === "toggle") {
     const on = value === true;
     return (
-      <label className="flex min-h-11 items-center justify-between gap-2 md:min-h-9" data-field={field.name}>
-        {label}
+      <label className="flex min-h-11 items-center justify-between gap-2 md:min-h-9" data-field={field.name} title={field.hint ?? undefined}>
+        <span className="flex flex-col">
+          {label}
+          {field.hint && <span className="text-xs text-muted" data-field-hint>{field.hint}</span>}
+        </span>
         {field.kind === "checkbox" ? (
           <input type="checkbox" checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="h-5 w-5" />
         ) : (
@@ -57,6 +60,7 @@ export function FieldValue({
   return (
     <label className="flex flex-col gap-1" data-field={field.name}>
       {label}
+      {field.hint && <span className="text-xs text-muted" data-field-hint>{field.hint}</span>}
       {field.kind === "select" ? (
         <select value={text} disabled={disabled} onChange={(e) => onChange(e.target.value || null)} className={inputClass}>
           <option value="">—</option>

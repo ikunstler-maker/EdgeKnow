@@ -1,6 +1,11 @@
 bob defines a field: {"ok": false, "error": "forbidden"}
 bug template field: true
 duplicate items: {"ok": false, "error": "invalid_options"}
+hint saved: Short summary
+hint clear: true
+hint now: none
+delete brief: true
+hint too long: {"ok": false, "error": "invalid"}
 unknown kind: {"ok": false, "error": "invalid"}
 fields: Format:select, Approved:toggle, Brand colour:color, Reference:url, Reviewer:person, Frames:number, Platforms:multiselect, Steps:longtext[bug]
 with fields: DES-1

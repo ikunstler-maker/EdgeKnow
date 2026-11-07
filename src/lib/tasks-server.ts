@@ -38,7 +38,7 @@ export async function loadProject(shortId: string, key: string): Promise<Project
       .eq("workspace_id", workspace.id)
       .eq("status", "active")
       .overrideTypes<{ user_id: string; role: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
-    db.from("task_fields").select("id, name, kind, options, required, task_types, position").eq("project_id", project.id).order("position"),
+    db.from("task_fields").select("id, name, kind, options, required, task_types, position, hint").eq("project_id", project.id).order("position"),
     db.from("task_boards").select("id, name, group_id, position, access:task_board_access(group_id)").eq("project_id", project.id).order("position"),
     db.from("workspace_groups").select("id, name").eq("workspace_id", workspace.id).order("name"),
   ]);
