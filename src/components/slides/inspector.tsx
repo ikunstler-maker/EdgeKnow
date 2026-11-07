@@ -184,7 +184,7 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
         </Section>
       )}
 
-      {node.type !== "TEXT" && (
+      {node.type !== "TEXT" && node.type !== "EMBED" && (
         <Section title={s.stroke}>
           <div className="grid grid-cols-2 gap-2">
             <input
@@ -206,7 +206,14 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
         </Section>
       )}
 
-      {(node.type === "RECTANGLE" || node.type === "IMAGE") && (
+      {node.type === "EMBED" && (
+        <Section title={t.slides.embeds.kinds[node.embed?.kind ?? "page"]}>
+          <NumberField label={t.slides.embeds.zoom} value={node.zoom ?? 2} min={0.5} max={6} step={0.25} onChange={(zoom) => set({ zoom })} data="zoom" />
+          <p className="text-xs text-muted">{t.slides.embeds.editHint}</p>
+        </Section>
+      )}
+
+      {(node.type === "RECTANGLE" || node.type === "IMAGE" || node.type === "EMBED") && (
         <Section title={d.corners}>
           <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9">
             <input type="checkbox" className="h-5 w-5" checked={perCorner} onChange={(e) => set({ radius: e.target.checked ? corners : corners[0] })} data-per-corner />

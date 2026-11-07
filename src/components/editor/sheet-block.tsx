@@ -40,7 +40,7 @@ export const sheetBlock = createReactBlockSpec(
   },
 );
 
-function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId: string; chartId: string; pageEditable: boolean; onPick: (sheetId: string, chartId: string) => void }) {
+export function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId: string; chartId: string; pageEditable: boolean; onPick: (sheetId: string, chartId: string) => void }) {
   const pages = useOptionalPages();
   const shortId = pages?.workspace.shortId ?? "";
   const [view, setView] = useState<SheetView | null | undefined>(undefined);

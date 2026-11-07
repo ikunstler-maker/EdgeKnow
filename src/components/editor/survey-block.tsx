@@ -38,7 +38,7 @@ export const surveyBlock = createReactBlockSpec(
   },
 );
 
-function SurveyEmbed({
+export function SurveyEmbed({
   surveyId,
   view: mode,
   pageEditable,

@@ -79,7 +79,7 @@ export function DeckPlayer({ deck, deckId, shortId, title, presenter, startAt = 
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.target as HTMLElement).tagName === "TEXTAREA") return;
+      if (["TEXTAREA", "INPUT", "SELECT"].includes((event.target as HTMLElement).tagName)) return;
       const key = event.key;
       if (key === "ArrowRight" || key === "PageDown" || key === " " || key === "Enter") {
         event.preventDefault();
@@ -108,23 +108,23 @@ export function DeckPlayer({ deck, deckId, shortId, title, presenter, startAt = 
   const stage = (
     <div className="relative h-full w-full overflow-hidden" data-player-stage>
       {anim && anim.to.transition?.kind === "smart" ? (
-        <SlideView slide={{ ...anim.to, nodes: smartFrame(anim.from, anim.to, eased) }} shortId={shortId} size={size} prefix="p" className="absolute inset-0 h-full w-full" />
+        <SlideView slide={{ ...anim.to, nodes: smartFrame(anim.from, anim.to, eased) }} shortId={shortId} size={size} prefix="p" className="absolute inset-0 h-full w-full" embeds="live" />
       ) : anim ? (
         (() => {
           const o = slideOffsets(anim.to.transition!, eased);
           return (
             <>
               <div className="absolute inset-0" style={{ transform: `translate(${o.from.x}%, ${o.from.y}%)`, opacity: o.from.opacity }}>
-                <SlideView slide={anim.from} shortId={shortId} size={size} prefix="pa" className="h-full w-full" />
+                <SlideView slide={anim.from} shortId={shortId} size={size} prefix="pa" className="h-full w-full" embeds="live" />
               </div>
               <div className="absolute inset-0" style={{ transform: `translate(${o.to.x}%, ${o.to.y}%)`, opacity: o.to.opacity }}>
-                <SlideView slide={anim.to} shortId={shortId} size={size} prefix="pb" className="h-full w-full" />
+                <SlideView slide={anim.to} shortId={shortId} size={size} prefix="pb" className="h-full w-full" embeds="live" />
               </div>
             </>
           );
         })()
       ) : (
-        <SlideView slide={slide} shortId={shortId} size={size} prefix="p" className="absolute inset-0 h-full w-full" />
+        <SlideView slide={slide} shortId={shortId} size={size} prefix="p" className="absolute inset-0 h-full w-full" embeds="live" />
       )}
     </div>
   );

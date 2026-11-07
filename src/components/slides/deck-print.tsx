@@ -37,7 +37,7 @@ export function DeckPrint({ deck, shortId, title, notes }: { deck: Deck; shortId
       {deck.slides.map((slide, i) => (
         <div key={slide.id}>
           <div data-print-page>
-            <SlideView slide={slide} shortId={shortId} size={size} prefix={`pr${i}`} className="block h-full w-full" />
+            <SlideView slide={slide} shortId={shortId} size={size} prefix={`pr${i}`} className="block h-full w-full" embeds="live" />
           </div>
           {notes && (
             <div data-print-page className="bg-white p-16 text-black" style={{ fontSize: Math.round(size.h / 30) }}>

@@ -6,7 +6,12 @@
 export const SLIDE_W = 1920;
 export const SLIDE_H = 1080;
 
-export type NodeType = "TEXT" | "RECTANGLE" | "ELLIPSE" | "LINE" | "ARROW" | "IMAGE";
+export type NodeType = "TEXT" | "RECTANGLE" | "ELLIPSE" | "LINE" | "ARROW" | "IMAGE" | "EMBED";
+
+// A live object of another service on a slide (step П-3б), read with the viewer's access.
+export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map"] as const;
+export type EmbedKind = (typeof EMBED_KINDS)[number];
+export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary" };
 
 export type Gradient = { kind: "linear" | "radial"; angle: number; stops: { offset: number; color: string }[] };
 export type Shadow = { x: number; y: number; blur: number; color: string };
@@ -47,6 +52,9 @@ export type SlideNode = {
   hidden?: boolean;
   locked?: boolean;
   groupId?: string;
+  // Live embed and how large its contents are drawn (1 = page size; 2 = twice).
+  embed?: Embed;
+  zoom?: number;
 };
 
 export type Slide = { id: string; background: string; nodes: SlideNode[]; notes?: string; transition?: Transition };
@@ -62,7 +70,7 @@ export const emptyDeck = (): Deck => ({ version: 1, slides: [emptySlide()] });
 
 const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
 const str = (value: unknown) => (typeof value === "string" ? value : undefined);
-const TYPES: NodeType[] = ["TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "IMAGE"];
+const TYPES: NodeType[] = ["TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "IMAGE", "EMBED"];
 
 // Whatever is stored (older or hand-made data) becomes a valid deck.
 export function readDeck(data: unknown): Deck {
@@ -146,6 +154,17 @@ function readLook(node: Record<string, unknown>): Partial<SlideNode> {
   if (node.hidden === true) out.hidden = true;
   if (node.locked === true) out.locked = true;
   if (typeof node.groupId === "string") out.groupId = node.groupId;
+  const e = node.embed as Record<string, unknown> | undefined;
+  if (e && (EMBED_KINDS as readonly string[]).includes(e.kind as string)) {
+    out.embed = {
+      kind: e.kind as EmbedKind,
+      id: typeof e.id === "string" && /^[0-9a-f-]{0,36}$/.test(e.id) ? e.id : "",
+      ...(typeof e.chartId === "string" ? { chartId: e.chartId.slice(0, 80) } : {}),
+      ...(e.mine === true ? { mine: true } : {}),
+      ...(e.view === "summary" ? { view: "summary" as const } : {}),
+    };
+  }
+  if (typeof node.zoom === "number") out.zoom = clamp(node.zoom, 0.5, 6);
   return out;
 }
 
@@ -164,6 +183,8 @@ export function makeNode(type: NodeType, x: number, y: number, width: number, he
       return { ...base, stroke: "#111827", strokeWidth: 8 };
     case "IMAGE":
       return base;
+    case "EMBED":
+      return { ...base, zoom: 2, fill: "#ffffff", radius: 16 };
   }
 }
 

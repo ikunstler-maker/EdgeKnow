@@ -9,6 +9,7 @@ import { align, boxOf, distribute, intersects, snap, unionBox, type AlignMode, t
 import { DesignPanel } from "./inspector";
 import { LayersPanel } from "./layers-panel";
 import { SizePicker } from "./size-picker";
+import { EMBED_KINDS, type EmbedKind } from "@/lib/slides";
 import { NodeShape, SlideView } from "./slide-view";
 
 const s = t.slides;
@@ -43,6 +44,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [sideTab, setSideTab] = useState<"design" | "layers">("design");
   const [template, setTemplate] = useState<SlideTemplate>("titleText");
+  const [embedMenu, setEmbedMenu] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -120,6 +122,17 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
     const copies = nodes.map((n) => ({ ...n, id: newId(), x: n.x + 40, y: n.y + 40 }));
     updateSlide((x) => ({ ...x, nodes: [...x.nodes, ...copies] }));
     setSelected(copies.map((n) => n.id));
+  };
+
+  // A live embed of another service, picked inside it (step П-3б).
+  const addEmbed = (kind: EmbedKind) => {
+    const w = Math.min(SLIDE_W * 0.7, 1300);
+    const h = Math.min(SLIDE_H * 0.7, 760);
+    const node = { ...makeNode("EMBED", Math.round((SLIDE_W - w) / 2), Math.round((SLIDE_H - h) / 2), Math.round(w), Math.round(h), s.names), name: s.embeds.kinds[kind], embed: { kind, id: "" } };
+    updateSlide((x) => ({ ...x, nodes: [...x.nodes, node] }));
+    setSelected([node.id]);
+    setEditing(node.id);
+    setEmbedMenu(false);
   };
 
   // Pictures: uploaded as the deck's files, then placed in the middle of the slide.
@@ -430,6 +443,21 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
               if (file) void addImage(file);
             }}
           />
+          <span className="relative">
+            <button type="button" onClick={() => setEmbedMenu(!embedMenu)} aria-expanded={embedMenu} className={iconButton} data-embed-add>
+              {s.embeds.add}
+            </button>
+            {embedMenu && (
+              <div className="absolute left-0 z-40 mt-1 w-60 rounded-lg border border-border bg-background p-1 shadow-xl" role="menu" aria-label={s.embeds.title}>
+                {EMBED_KINDS.map((k) => (
+                  <button key={k} type="button" role="menuitem" onClick={() => addEmbed(k)} className="flex min-h-11 w-full items-center gap-2 rounded px-2 text-left text-sm hover:bg-surface md:min-h-9" data-embed-kind={k}>
+                    <span>{s.embeds.icons[k]}</span>
+                    {s.embeds.kinds[k]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
           <span className="mx-1 h-6 w-px bg-border" />
           <button type="button" title={s.undo} aria-label={s.undo} disabled={!past.length} onClick={undo} className={iconButton} data-undo>
             ↶
@@ -542,17 +570,17 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
                 <g
                   key={node.id}
                   onPointerDown={(e) => onNodeDown(e, node)}
-                  onDoubleClick={() => editable && node.type === "TEXT" && setEditing(node.id)}
+                  onDoubleClick={() => editable && (node.type === "TEXT" || node.type === "EMBED") && setEditing(node.id)}
                   className={editable && tool === "select" ? "cursor-move" : undefined}
                   data-node={node.type}
                 >
-                  <NodeShape node={node} shortId={shortId} editingText={editing === node.id} />
+                  <NodeShape node={node} shortId={shortId} editingText={editing === node.id} embeds={node.type === "EMBED" && editing === node.id && editable ? "setup" : "view"} onEmbed={(embed) => updateNodes([node.id], (n) => ({ ...n, embed }))} />
                   {/* A wider invisible stroke so thin lines are easy to grab. */}
                   {LINEAR(node.type) && <line x1={node.x} y1={node.y} x2={node.x + node.width} y2={node.y + node.height} stroke="transparent" strokeWidth={Math.max(24, (node.strokeWidth ?? 8) + 16)} />}
                   {node.type === "TEXT" && !node.text && editing !== node.id && (
                     <rect x={node.x} y={node.y} width={node.width} height={node.height} fill="transparent" stroke="#94a3b8" strokeDasharray="12 8" strokeWidth={2 / scale} />
                   )}
-                  {editing === node.id && (
+                  {editing === node.id && node.type === "TEXT" && (
                     <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} transform={node.rotation ? `rotate(${node.rotation} ${node.x + node.width / 2} ${node.y + node.height / 2})` : undefined}>
                       <textarea
                         autoFocus

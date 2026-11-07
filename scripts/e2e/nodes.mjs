@@ -361,6 +361,19 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.keyboard.press("ArrowRight");
   await alice.waitForTimeout(800);
   check("…and is shown in its own page, slide by slide", first.trim() === "1 / 2" && (await alice.locator("[data-player-count]").innerText()).trim() === "2 / 2", first);
+  // Step П-3б: a wiki page embedded live on a slide, shown in the show.
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-embed-add]").click();
+  await alice.locator('[data-embed-kind="page"]').click();
+  await alice.locator('[data-embed-picker="page"] button').first().click();
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const embedded = sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'slides') s, jsonb_array_elements(s -> 'nodes') n where o.id = '${deckId}' and n ->> 'type' = 'EMBED' and length(n #>> '{embed,id}') = 36`);
+  check("…takes a live wiki page card (step П-3б)", embedded === "1", embedded);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  await alice.locator("[data-embed-page]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and shows the card in the show", (await alice.locator("[data-embed-page]").count()) >= 1);
 }
 
 // --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------
