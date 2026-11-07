@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { overLimit, tooManyRequests } from "@/lib/rate-limit";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { writeClient } from "@/lib/team-db/data";
 
@@ -18,6 +19,13 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   }
 
   if (await overLimit(await createClient(), "save")) return tooManyRequests();
+
+  // A page fed by an external source is written only by the server (its next refresh).
+  const admin = createAdminClient();
+  if (admin) {
+    const { data: source } = await admin.from("external_sources").select("id").eq("page_id", id).maybeSingle();
+    if (source) return NextResponse.json({ ok: false, error: "external_source" }, { status: 409 });
+  }
 
   // The page's workspace comes from the editor (?w=<short id>); membership is checked there.
   const supabase = await writeClient(request.nextUrl.searchParams.get("w") ?? undefined);

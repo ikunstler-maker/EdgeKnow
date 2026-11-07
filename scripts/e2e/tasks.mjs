@@ -564,6 +564,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await embed.locator('[data-embed-column="Готово"] [data-embed-task="MAR-2"]').waitFor({ timeout: 15000 });
   check("…and it turns into a board (kept in the page)", await untilAsync(async () => JSON.stringify(pageContent(planPage)).includes('"view":"board"'), 10000));
 
+  // The board above can push the last line below the fold: bring it into view before clicking by position.
+  await alice.locator('[data-id="z3"] .bn-inline-content').first().scrollIntoViewIfNeeded();
   const lastLine = await alice.locator('[data-id="z3"] .bn-inline-content').first().boundingBox();
   await alice.mouse.click(lastLine.x + 5, lastLine.y + lastLine.height / 2);
   await alice.keyboard.type("@Brand new idea");

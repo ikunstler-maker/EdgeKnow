@@ -12,6 +12,7 @@ import type { WorkspaceSummary } from "@/lib/workspace";
 import type { ProjectSummary } from "@/lib/tasks";
 import { usePages } from "@/components/pages/pages-provider";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ChangelogLink } from "@/components/changelog/changelog-link";
 import { expandAll } from "./expanded-store";
 import { HeadingList, useActiveHeading, type Heading } from "@/components/editor/table-of-contents";
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
@@ -127,8 +128,11 @@ export function Sidebar({
             <SignOutButton icon />
           </span>
         </div>
-        <div className="px-1">
-          <PreferencesSwitch compact />
+        <div className="flex items-center gap-1 px-1">
+          <div className="min-w-0 flex-1">
+            <PreferencesSwitch compact />
+          </div>
+          <ChangelogLink onNavigate={onNavigate} current={pathname === "/changelog"} />
         </div>
       </div>
     </nav>

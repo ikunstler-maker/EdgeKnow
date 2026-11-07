@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { t } from "@/i18n";
+import { cookies } from "next/headers";
+import { after } from "next/server";
+import { refreshIfStale } from "@/lib/external-source";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { EXTERNAL_LANG_COOKIE } from "@/lib/external-lang";
+import { ExternalSourceBar, type ExternalSourceInfo } from "@/components/pages/external-source-bar";
+import { currentLocale, t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
 import { getCurrentUser } from "@/lib/auth";
 import { THREAD_COLUMNS, toThread, type PeopleNames, type ThreadRow } from "@/lib/comments";
 import { canEdit, type PageRole } from "@/lib/pages";
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { PageBody } from "@/components/editor/page-body";
 import { PageCover } from "@/components/pages/page-cover";
 import { PageHeader } from "@/components/pages/page-header";
@@ -71,6 +77,36 @@ async function loadComments(wid: string, pageId: string) {
   return { threads, people };
 }
 
+// The page's external source, if any (decision 2026-12-31). Read with the secret
+// key because the table is server-only; the key itself is never selected.
+async function loadSource(workspaceId: string, pageId: string) {
+  const admin = createAdminClient();
+  if (!admin) return null;
+  const { data } = await admin
+    .from("external_sources")
+    .select("id, url, languages, translations, synced_at, last_error")
+    .eq("workspace_id", workspaceId)
+    .eq("page_id", pageId)
+    .maybeSingle();
+  if (!data) return null;
+  const languages = (data.languages ?? []) as string[];
+  const translations = (data.translations ?? {}) as Record<string, unknown>;
+  // Shown language: the reader's own choice, else the interface language, else the main one.
+  const available = languages.filter((l, i) => i === 0 || l in translations);
+  const chosen = (await cookies()).get(EXTERNAL_LANG_COOKIE)?.value;
+  const lang = [chosen, currentLocale()].find((l) => l && available.includes(l)) ?? languages[0] ?? null;
+  const info: ExternalSourceInfo = {
+    host: new URL(data.url.replaceAll("{lang}", "xx")).host,
+    syncedAt: data.synced_at,
+    lastError: data.last_error,
+    languages: available,
+    lang,
+  };
+  // The main language is the page itself; another one replaces only what is shown.
+  const content = lang && lang !== languages[0] ? translations[lang] : undefined;
+  return { id: data.id as string, info, content };
+}
+
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">): Promise<Metadata> {
   const { wid, id } = await params;
   const page = await loadPage(wid, id);
@@ -107,18 +143,25 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
     );
   }
 
-  // Owners and editors edit; commenters and viewers only read, and so does everyone in the trash.
-  const editable = canEdit(page.my_role) && !page.deleted_at;
+  const source = await loadSource(workspace.id, page.id);
+  // Opening the page refreshes its source at most once an hour, after the response.
+  if (source && !page.deleted_at) after(() => refreshIfStale(createAdminClient()!, source.id));
+
+  // Owners and editors edit; commenters and viewers only read, and so does everyone
+  // in the trash. A page fed by an external source is never edited by hand.
+  const editableMeta = canEdit(page.my_role) && !page.deleted_at;
+  const editable = editableMeta && !source;
   const canComment = page.my_role !== "viewer" && !page.deleted_at;
 
   return (
     <div className="flex flex-1 flex-col">
-    <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editable} />
+    <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editableMeta} />
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
       {isNew && <ClearNewFlag />}
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
       {!page.deleted_at && (
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex flex-wrap justify-end gap-2">
+          <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
           <ShareButton pageId={page.id} />
         </div>
       )}
@@ -127,7 +170,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
         id={page.id}
         initialTitle={page.title}
         initialIcon={page.icon}
-        readOnly={!editable}
+        readOnly={!editableMeta}
       />
       <PageMeta
         author={page.author?.name || page.author?.email || null}
@@ -136,9 +179,9 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
       />
       <div className="mt-6">
         <PageBody
-          key={page.id}
+          key={`${page.id}-${source?.info.lang ?? ""}`}
           pageId={page.id}
-          initialContent={page.content}
+          initialContent={source?.content ?? page.content}
           initialVersion={page.version}
           editable={editable}
           canComment={canComment}

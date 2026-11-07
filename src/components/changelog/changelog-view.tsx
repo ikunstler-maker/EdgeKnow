@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { markChangelogSeen } from "./changelog-link";
 import { createPortal } from "react-dom";
 import { dateLocale, t } from "@/i18n";
 import { ACTION_TYPES, releaseAnchor, type ServiceScope, type UpdateActionType } from "@/lib/changelog";
@@ -35,6 +36,8 @@ const readParams = () => {
 // The timeline with its filters: where, what kind, and a search, all kept in the address.
 export function ChangelogView({ releases }: { releases: ShownRelease[] }) {
   const [scope, setScope] = useState("all");
+  // Opening the changelog stops the sidebar button's glow.
+  useEffect(() => markChangelogSeen(), []);
   const [type, setType] = useState("all");
   const [query, setQuery] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
