@@ -4,7 +4,7 @@ import { dateLocale, t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
-import { BoardBinActions, NewBoardButton } from "@/components/boards/board-list-actions";
+import { BoardBinActions, NewBoardButton, NewDesignButton } from "@/components/boards/board-list-actions";
 
 export const metadata: Metadata = { title: `${t.boards.title} · ${t.app.name}` };
 
@@ -38,6 +38,7 @@ export default async function BoardsPage({ params, searchParams }: PageProps<"/w
           <p className="mt-1 text-muted">{b.intro}</p>
           <div className="mt-4">
             <NewBoardButton shortId={workspace.shortId} />
+            <NewDesignButton shortId={workspace.shortId} />
           </div>
         </>
       )}

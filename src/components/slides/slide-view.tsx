@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_SIZE, type Embed, type Gradient, type Size, type Slide, type SlideNode } from "@/lib/slides";
+import { DEFAULT_SIZE, type Embed, type Gradient, type Paint, type PathPoint, type Size, type Slide, type SlideNode } from "@/lib/slides";
 import { t } from "@/i18n";
 import { SlideEmbed } from "./slide-embed";
 
@@ -60,6 +60,63 @@ const dashArray = (node: SlideNode) => {
   return node.dash === "dash" ? `${w * 3} ${w * 2}` : node.dash === "dot" ? `0 ${w * 2}` : undefined;
 };
 
+// A pen path through points with handles (absolute coordinates).
+export function pointsPath(points: PathPoint[], closed?: boolean): string {
+  if (!points.length) return "";
+  const seg = (a: PathPoint, b: PathPoint) => `C${a.outX ?? a.x},${a.outY ?? a.y} ${b.inX ?? b.x},${b.inY ?? b.y} ${b.x},${b.y}`;
+  let d = `M${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length; i++) d += ` ${seg(points[i - 1], points[i])}`;
+  if (closed && points.length > 2) d += ` ${seg(points[points.length - 1], points[0])} Z`;
+  return d;
+}
+
+// The outline of a filled layer, as one SVG element with the given paint.
+function outline(node: SlideNode, paint: string, extra: Record<string, unknown>) {
+  const cx = node.x + node.width / 2;
+  const cy = node.y + node.height / 2;
+  if (node.type === "ELLIPSE") return <ellipse cx={cx} cy={cy} rx={node.width / 2} ry={node.height / 2} fill={paint} {...extra} />;
+  if (node.type === "VECTOR") {
+    if (node.d) return <path d={node.d} transform={`translate(${node.x} ${node.y}) scale(${node.width / (node.dW ?? 1)} ${node.height / (node.dH ?? 1)})`} fill={paint} vectorEffect="non-scaling-stroke" {...extra} />;
+    return <path d={pointsPath(node.points ?? [], node.closed)} fill={node.closed ? paint : "none"} strokeLinecap="round" strokeLinejoin="round" {...extra} />;
+  }
+  const r = radii(node);
+  return r.every((v) => v === r[0]) ? <rect x={node.x} y={node.y} width={node.width} height={node.height} rx={r[0]} fill={paint} {...extra} /> : <path d={roundedPath(node.x, node.y, node.width, node.height, r)} fill={paint} {...extra} />;
+}
+
+function PaintDefs({ node, prefix, shortId }: { node: SlideNode; prefix: string; shortId: string }) {
+  return (
+    <defs>
+      {(node.fills ?? []).map((f, i) =>
+        f.kind === "linear" || f.kind === "radial" ? (
+          <GradientDef key={i} id={`${prefix}pf${i}-${node.id}`} gradient={f} />
+        ) : f.kind === "image" ? (
+          <pattern key={i} id={`${prefix}pf${i}-${node.id}`} patternUnits={f.fit === "tile" ? "userSpaceOnUse" : "objectBoundingBox"} width={f.fit === "tile" ? 200 : 1} height={f.fit === "tile" ? 200 : 1} x={f.fit === "tile" ? node.x : 0} y={f.fit === "tile" ? node.y : 0}>
+            <image href={imageUrl(shortId, f.imageId)} width={f.fit === "tile" ? 200 : node.width} height={f.fit === "tile" ? 200 : node.height} preserveAspectRatio={f.fit === "fit" ? "xMidYMid meet" : "xMidYMid slice"} />
+          </pattern>
+        ) : null,
+      )}
+      {node.innerShadow && (
+        <filter id={`${prefix}is-${node.id}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feComponentTransfer in="SourceAlpha">
+            <feFuncA type="table" tableValues="1 0" />
+          </feComponentTransfer>
+          <feGaussianBlur stdDeviation={node.innerShadow.blur / 2} />
+          <feOffset dx={node.innerShadow.x} dy={node.innerShadow.y} result="offset" />
+          <feFlood floodColor={node.innerShadow.color} />
+          <feComposite in2="offset" operator="in" />
+          <feComposite in2="SourceAlpha" operator="in" result="inner" />
+          <feMerge>
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="inner" />
+          </feMerge>
+        </filter>
+      )}
+    </defs>
+  );
+}
+
+const paintRef = (prefix: string, node: SlideNode, i: number, f: Paint) => (f.kind === "solid" ? f.color : `url(#${prefix}pf${i}-${node.id})`);
+
 export function NodeShape({ node, shortId, editingText, prefix = "", embeds = "placeholder", onEmbed }: { node: SlideNode; shortId: string; editingText?: boolean; prefix?: string; embeds?: EmbedMode; onEmbed?: (embed: Embed) => void }) {
   const cx = node.x + node.width / 2;
   const cy = node.y + node.height / 2;
@@ -71,17 +128,33 @@ export function NodeShape({ node, shortId, editingText, prefix = "", embeds = "p
   const strokeProps = { stroke, strokeWidth: stroke ? node.strokeWidth : 0, strokeDasharray: stroke ? dashArray(node) : undefined, strokeLinecap: node.dash === "dot" ? ("round" as const) : undefined };
   let body: React.ReactNode;
   switch (node.type) {
-    case "RECTANGLE": {
-      const r = radii(node);
-      body = r.every((v) => v === r[0]) ? (
-        <rect x={node.x} y={node.y} width={node.width} height={node.height} rx={r[0]} fill={fill} {...strokeProps} {...common} />
-      ) : (
-        <path d={roundedPath(node.x, node.y, node.width, node.height, r)} fill={fill} {...strokeProps} {...common} />
+    case "RECTANGLE":
+    case "ELLIPSE":
+    case "FRAME":
+    case "VECTOR": {
+      const extraStroke = (node.strokes ?? []).filter((x) => !x.hidden);
+      body = (
+        <g {...common}>
+          <PaintDefs node={node} prefix={prefix} shortId={shortId} />
+          {node.bgBlur ? (
+            <foreignObject x={node.x} y={node.y} width={node.width} height={node.height}>
+              <div style={{ width: "100%", height: "100%", backdropFilter: `blur(${node.bgBlur}px)`, WebkitBackdropFilter: `blur(${node.bgBlur}px)`, borderRadius: radii(node)[0] }} />
+            </foreignObject>
+          ) : null}
+          <g filter={node.innerShadow ? `url(#${prefix}is-${node.id})` : undefined}>
+            {outline(node, fill, node.fills?.length || extraStroke.length ? {} : strokeProps)}
+            {(node.fills ?? []).map((f, i) => (f.hidden ? null : <g key={i} opacity={f.opacity ?? 1}>{outline(node, paintRef(prefix, node, i, f), {})}</g>))}
+          </g>
+          {(node.fills?.length || extraStroke.length) && stroke ? outline(node, "none", strokeProps) : null}
+          {extraStroke.map((st, i) => (
+            <g key={`s${i}`}>{outline(node, "none", { stroke: st.color, strokeWidth: st.width, strokeDasharray: st.dash === "dash" ? `${st.width * 3} ${st.width * 2}` : st.dash === "dot" ? `0 ${st.width * 2}` : undefined, strokeLinecap: st.dash === "dot" ? "round" : undefined })}</g>
+          ))}
+        </g>
       );
       break;
     }
-    case "ELLIPSE":
-      body = <ellipse cx={cx} cy={cy} rx={node.width / 2} ry={node.height / 2} fill={fill} {...strokeProps} {...common} />;
+    case "GROUP":
+      body = null;
       break;
     case "LINE":
     case "ARROW": {

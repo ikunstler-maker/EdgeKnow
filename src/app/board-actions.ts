@@ -6,6 +6,7 @@ import { dataClient, writeClient } from "@/lib/team-db/data";
 import { workspacePath } from "@/lib/paths";
 import { t } from "@/i18n";
 import { getWorkspace } from "@/lib/workspace";
+import { emptyDesign } from "@/lib/design";
 import { EMPTY_BOARD } from "@/lib/boards";
 
 // Boards (step Д1): objects of the service "boards" in the shared objects table.
@@ -30,6 +31,19 @@ export async function createBoard(shortId: string, title?: string) {
     new_kind: "board",
     new_title: (title ?? "").slice(0, 200),
     new_data: EMPTY_BOARD,
+  });
+}
+
+// Bordy «Дизайн» (step Д-1): a whiteboard of the kind "design" (frames, layers, prototypes).
+export async function createDesign(shortId: string, title?: string) {
+  const workspace = await getWorkspace(shortId);
+  if (!workspace) return { ok: false, error: "forbidden" } as ActionResult<{ id: string }>;
+  return call<{ id: string }>(shortId, "create_service_object", {
+    ws: workspace.id,
+    target_service: "boards",
+    new_kind: "design",
+    new_title: (title ?? "").slice(0, 200),
+    new_data: emptyDesign(t.design.pageName(1)),
   });
 }
 
