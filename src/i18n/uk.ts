@@ -729,6 +729,13 @@ export const uk = {
       noMove: "Не переміщати",
     },
     quickCreate: "Нова задача — назва і Enter",
+    drafts: {
+      saving: "Зберігається…",
+      notSaved: "Не збережено.",
+      offline: "Немає зв'язку з сервером.",
+      retry: "Повторити",
+      dismiss: "Відкинути",
+    },
     newTask: {
       open: "＋ Нова задача",
       openIn: (column: string) => `Нова задача в колонці «${column}»`,

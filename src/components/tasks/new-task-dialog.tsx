@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
-import { createTask } from "@/app/task-actions";
 import { fromTemplate, type TaskTemplate } from "@/lib/task-templates";
 import { TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, PRIORITY_ICONS, fieldApplies, isEmptyValue, personLabel, type Person, type TaskField, type TaskStatus, type TaskType } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
@@ -21,25 +19,23 @@ const toDescription = (text: string) =>
 // Creating a task in its own window: Esc, a click outside or ✕ closes it
 // (asking first when something was typed).
 export function NewTaskDialog({
-  projectId,
   statuses,
   statusId,
   members,
   fields,
   template,
+  onCreate,
   onClose,
 }: {
-  projectId: string;
   statuses: TaskStatus[];
   statusId: string | null;
   members: Person[];
   fields: TaskField[];
   template: TaskTemplate | null;
+  // Takes the new task's fields; the window closes at once (the task saves in the background).
+  onCreate: (fields: Record<string, unknown>) => void;
   onClose: () => void;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const preset = template ? fromTemplate(template, "", fields.map((f) => f.id)) : {};
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState(statusId ?? statuses[0]?.id ?? "");
@@ -63,26 +59,21 @@ export function NewTaskDialog({
     if (!value) return;
     const base = template ? fromTemplate(template, value, fields.map((f) => f.id)) : { title: value };
     const shown = Object.fromEntries(Object.entries(custom).filter(([id, v]) => !isEmptyValue(v) && fields.some((f) => f.id === id && fieldApplies(f, type))));
-    startTransition(async () => {
-      const result = await createTask(projectId, {
-        ...base,
-        type,
-        priority,
-        status_id: status || null,
-        assignee_id: assignee || null,
-        due_date: due || null,
-        custom: shown,
-        ...(description.trim() ? { description: toDescription(description) } : {}),
-        ...(onlyMe ? { private: true } : {}),
-      });
-      if (!result.ok) return setError(t.tasks.errors[result.error] ?? t.common.unknownError);
-      router.refresh();
-      if (!again) return onClose();
-      setError(null);
-      setTitle("");
-      setDescription("");
-      titleInput.current?.focus();
+    onCreate({
+      ...base,
+      type,
+      priority,
+      status_id: status || null,
+      assignee_id: assignee || null,
+      due_date: due || null,
+      custom: shown,
+      ...(description.trim() ? { description: toDescription(description) } : {}),
+      ...(onlyMe ? { private: true } : {}),
     });
+    if (!again) return onClose();
+    setTitle("");
+    setDescription("");
+    titleInput.current?.focus();
   };
 
   return (
@@ -164,7 +155,7 @@ export function NewTaskDialog({
             </label>
           </div>
           {fields.filter((f) => fieldApplies(f, type)).map((field) => (
-            <FieldValue key={field.id} field={field} value={custom[field.id]} members={members} disabled={pending} onChange={(v) => setCustom({ ...custom, [field.id]: v })} />
+            <FieldValue key={field.id} field={field} value={custom[field.id]} members={members} disabled={false} onChange={(v) => setCustom({ ...custom, [field.id]: v })} />
           ))}
           <label className="flex flex-col gap-1">
             {n.description}
@@ -174,17 +165,12 @@ export function NewTaskDialog({
             <input type="checkbox" checked={onlyMe} onChange={(e) => setOnlyMe(e.target.checked)} className="h-5 w-5" />
             {t.tasks.privacy.onlyMe}
           </label>
-          {error && (
-            <p role="alert" className="text-danger">
-              {error}
-            </p>
-          )}
         </div>
         <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
-          <button type="submit" disabled={pending || !title.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9">
+          <button type="submit" disabled={!title.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9">
             {n.create}
           </button>
-          <button type="button" disabled={pending || !title.trim()} onClick={() => submit(true)} className={buttonClass}>
+          <button type="button" disabled={!title.trim()} onClick={() => submit(true)} className={buttonClass}>
             {n.createAnother}
           </button>
           <button type="button" onClick={close} className={buttonClass}>

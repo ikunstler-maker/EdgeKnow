@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
+import { whenCreated } from "@/lib/pending-creates";
 
 export type SaveStatus = "saved" | "dirty" | "saving" | "offline" | "error" | "too_large" | "conflict";
 
@@ -67,6 +68,13 @@ export function useAutosave({
       changedDuringSave.current = false;
       update("saving");
       let result: SaveResponse;
+      // A page made a moment ago in this browser: wait until the database has it.
+      if (!(await whenCreated(pageId))) {
+        inFlight.current = false;
+        update("error");
+        schedule(RETRY_DELAY_MS);
+        return;
+      }
       try {
         const response = await fetch(contentUrl(pageId), {
           method: "POST",
