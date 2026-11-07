@@ -1258,11 +1258,8 @@ export const uk = {
         blocked_address: "Ця адреса недоступна для вікі.",
         unreachable: "Сайт не відповів. Спробуйте пізніше.",
         too_large: "Файл завеликий (понад 2 МБ).",
-<<<<<<< HEAD
         login_required: "Сайт попросив вхід: відкрийте доступ за ключем.",
         redirect_other_site: "Сайт переадресував на інший сайт; ключ туди не надсилається.",
-=======
->>>>>>> origin/claude/exciting-pasteur-ktbpba
         unauthorized: "Сайт не прийняв ключ.",
         not_markdown: "За адресою не Markdown.",
         page_missing: "Сторінку не знайдено.",
