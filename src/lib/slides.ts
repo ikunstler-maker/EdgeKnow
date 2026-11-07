@@ -6,7 +6,36 @@
 export const SLIDE_W = 1920;
 export const SLIDE_H = 1080;
 
-export type NodeType = "TEXT" | "RECTANGLE" | "ELLIPSE" | "LINE" | "ARROW" | "IMAGE" | "EMBED";
+export type NodeType = "TEXT" | "RECTANGLE" | "ELLIPSE" | "LINE" | "ARROW" | "IMAGE" | "EMBED" | "FRAME" | "GROUP" | "VECTOR";
+
+// Design (Bordy «Дизайн», steps Д-1…Д-3): containers, layout, paths and prototypes.
+export type AutoLayout = {
+  dir: "row" | "column" | "wrap";
+  gap: number;
+  spaceBetween?: boolean;
+  padding: [number, number, number, number]; // top, right, bottom, left
+  alignMain: "start" | "center" | "end";
+  alignCross: "start" | "center" | "end";
+};
+export type Sizing = "fixed" | "hug" | "fill";
+export type Constraints = { h: "left" | "right" | "leftRight" | "center" | "scale"; v: "top" | "bottom" | "topBottom" | "center" | "scale" };
+export type Paint =
+  | { kind: "solid"; color: string; opacity?: number; hidden?: boolean }
+  | { kind: "linear" | "radial"; angle: number; stops: { offset: number; color: string }[]; opacity?: number; hidden?: boolean }
+  | { kind: "image"; imageId: string; fit: "fill" | "fit" | "tile"; opacity?: number; hidden?: boolean };
+export type StrokePaint = { color: string; width: number; dash?: "solid" | "dash" | "dot"; hidden?: boolean };
+export type PathPoint = { x: number; y: number; inX?: number; inY?: number; outX?: number; outY?: number };
+export type Interaction = {
+  id: string;
+  trigger: "click" | "hover" | "press" | "key" | "delay";
+  key?: string;
+  delay?: number;
+  action: "navigate" | "overlay" | "swap" | "close" | "back" | "scroll" | "url";
+  target?: string;
+  url?: string;
+  transition?: Transition;
+  overlay?: { position: "center" | "top" | "bottom"; backdrop: number; closeOutside: boolean };
+};
 
 // A live object of another service on a slide (step П-3б), read with the viewer's access.
 export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map"] as const;
@@ -55,6 +84,26 @@ export type SlideNode = {
   // Live embed and how large its contents are drawn (1 = page size; 2 = twice).
   embed?: Embed;
   zoom?: number;
+  // Design
+  parentId?: string;
+  clip?: boolean;
+  device?: string;
+  autoLayout?: AutoLayout;
+  sizeW?: Sizing;
+  sizeH?: Sizing;
+  constraints?: Constraints;
+  points?: PathPoint[];
+  closed?: boolean;
+  d?: string; // a path from an imported SVG, drawn in the box (dW × dH units)
+  dW?: number;
+  dH?: number;
+  fills?: Paint[]; // over `fill`, bottom first
+  strokes?: StrokePaint[];
+  innerShadow?: Shadow;
+  bgBlur?: number;
+  interactions?: Interaction[];
+  scroll?: "none" | "vertical" | "horizontal" | "both";
+  fixed?: boolean;
 };
 
 export type Slide = { id: string; background: string; nodes: SlideNode[]; notes?: string; transition?: Transition };
@@ -70,44 +119,47 @@ export const emptyDeck = (): Deck => ({ version: 1, slides: [emptySlide()] });
 
 const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
 const str = (value: unknown) => (typeof value === "string" ? value : undefined);
-const TYPES: NodeType[] = ["TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "IMAGE", "EMBED"];
+const TYPES: NodeType[] = ["TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "IMAGE", "EMBED", "FRAME", "GROUP", "VECTOR"];
 
 // Whatever is stored (older or hand-made data) becomes a valid deck.
+// One layer as stored, made valid (unknown kinds are dropped).
+export function readNode(n: unknown): SlideNode[] {
+      if (!n || typeof n !== "object") return [];
+  const node = n as Record<string, unknown>;
+  const type = TYPES.includes(node.type as NodeType) ? (node.type as NodeType) : null;
+  if (!type) return [];
+  return [
+    {
+      id: str(node.id) ?? newId(),
+      type,
+      name: str(node.name) ?? type,
+      x: num(node.x, 0),
+      y: num(node.y, 0),
+      // Lines and arrows run from (x, y) by (width, height), either way.
+      width: type === "LINE" || type === "ARROW" ? num(node.width, 100) : Math.max(1, num(node.width, 100)),
+      height: type === "LINE" || type === "ARROW" ? num(node.height, 0) : Math.max(1, num(node.height, 100)),
+      rotation: num(node.rotation, 0),
+      fill: str(node.fill),
+      stroke: str(node.stroke),
+      strokeWidth: typeof node.strokeWidth === "number" ? node.strokeWidth : undefined,
+      text: str(node.text),
+      fontSize: typeof node.fontSize === "number" ? node.fontSize : undefined,
+      color: str(node.color),
+      bold: node.bold === true,
+      align: node.align === "center" || node.align === "right" ? node.align : node.align === "left" ? "left" : undefined,
+      imageId: str(node.imageId),
+      ...readLook(node),
+    },
+  ];
+}
+
 export function readDeck(data: unknown): Deck {
   const raw = (data && typeof data === "object" ? data : {}) as { slides?: unknown };
   const slides = Array.isArray(raw.slides) ? raw.slides : [];
   const read = slides.flatMap((s): Slide[] => {
     if (!s || typeof s !== "object") return [];
     const slide = s as Record<string, unknown>;
-    const nodes = (Array.isArray(slide.nodes) ? slide.nodes : []).flatMap((n): SlideNode[] => {
-      if (!n || typeof n !== "object") return [];
-      const node = n as Record<string, unknown>;
-      const type = TYPES.includes(node.type as NodeType) ? (node.type as NodeType) : null;
-      if (!type) return [];
-      return [
-        {
-          id: str(node.id) ?? newId(),
-          type,
-          name: str(node.name) ?? type,
-          x: num(node.x, 0),
-          y: num(node.y, 0),
-          // Lines and arrows run from (x, y) by (width, height), either way.
-          width: type === "LINE" || type === "ARROW" ? num(node.width, 100) : Math.max(1, num(node.width, 100)),
-          height: type === "LINE" || type === "ARROW" ? num(node.height, 0) : Math.max(1, num(node.height, 100)),
-          rotation: num(node.rotation, 0),
-          fill: str(node.fill),
-          stroke: str(node.stroke),
-          strokeWidth: typeof node.strokeWidth === "number" ? node.strokeWidth : undefined,
-          text: str(node.text),
-          fontSize: typeof node.fontSize === "number" ? node.fontSize : undefined,
-          color: str(node.color),
-          bold: node.bold === true,
-          align: node.align === "center" || node.align === "right" ? node.align : node.align === "left" ? "left" : undefined,
-          imageId: str(node.imageId),
-          ...readLook(node),
-        },
-      ];
-    });
+    const nodes = (Array.isArray(slide.nodes) ? slide.nodes : []).flatMap(readNode);
     const tr = slide.transition as Record<string, unknown> | undefined;
     const kinds = ["none", "fade", "slide", "push", "smart"];
     const transition: Transition | undefined =
@@ -165,6 +217,103 @@ function readLook(node: Record<string, unknown>): Partial<SlideNode> {
     };
   }
   if (typeof node.zoom === "number") out.zoom = clamp(node.zoom, 0.5, 6);
+  Object.assign(out, readDesignLook(node));
+  return out;
+}
+
+const pick = <T extends string>(v: unknown, allowed: readonly T[]): T | undefined => (allowed.includes(v as T) ? (v as T) : undefined);
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+function readPaint(v: unknown): Paint | null {
+  if (!isObj(v)) return null;
+  const extra = { ...(typeof v.opacity === "number" ? { opacity: clamp(v.opacity, 0, 1) } : {}), ...(v.hidden === true ? { hidden: true } : {}) };
+  if (v.kind === "solid" && isColor(v.color)) return { kind: "solid", color: v.color, ...extra };
+  if ((v.kind === "linear" || v.kind === "radial") && Array.isArray(v.stops)) {
+    const stops = v.stops.flatMap((x) => (isObj(x) && isColor(x.color) ? [{ offset: clamp(num(x.offset, 0), 0, 1), color: x.color }] : []));
+    return stops.length >= 2 ? { kind: v.kind, angle: num(v.angle, 135), stops: stops.slice(0, 6), ...extra } : null;
+  }
+  if (v.kind === "image" && typeof v.imageId === "string") return { kind: "image", imageId: v.imageId, fit: pick(v.fit, ["fill", "fit", "tile"] as const) ?? "fill", ...extra };
+  return null;
+}
+
+// The design-only parts of a layer (frames, layout, paths, prototypes).
+function readDesignLook(node: Record<string, unknown>): Partial<SlideNode> {
+  const out: Partial<SlideNode> = {};
+  if (typeof node.parentId === "string") out.parentId = node.parentId;
+  if (node.clip === true) out.clip = true;
+  if (typeof node.device === "string") out.device = node.device.slice(0, 40);
+  const al = node.autoLayout;
+  if (isObj(al)) {
+    const pad = Array.isArray(al.padding) && al.padding.length === 4 ? (al.padding.map((x) => Math.max(0, num(x, 0))) as [number, number, number, number]) : ([16, 16, 16, 16] as [number, number, number, number]);
+    out.autoLayout = {
+      dir: pick(al.dir, ["row", "column", "wrap"] as const) ?? "column",
+      gap: Math.max(0, num(al.gap, 12)),
+      ...(al.spaceBetween === true ? { spaceBetween: true } : {}),
+      padding: pad,
+      alignMain: pick(al.alignMain, ["start", "center", "end"] as const) ?? "start",
+      alignCross: pick(al.alignCross, ["start", "center", "end"] as const) ?? "start",
+    };
+  }
+  const sw = pick(node.sizeW, ["fixed", "hug", "fill"] as const);
+  if (sw) out.sizeW = sw;
+  const sh = pick(node.sizeH, ["fixed", "hug", "fill"] as const);
+  if (sh) out.sizeH = sh;
+  if (isObj(node.constraints)) {
+    out.constraints = {
+      h: pick(node.constraints.h, ["left", "right", "leftRight", "center", "scale"] as const) ?? "left",
+      v: pick(node.constraints.v, ["top", "bottom", "topBottom", "center", "scale"] as const) ?? "top",
+    };
+  }
+  if (Array.isArray(node.points)) {
+    out.points = node.points.flatMap((p) => {
+      if (!isObj(p)) return [];
+      const pt: PathPoint = { x: num(p.x, 0), y: num(p.y, 0) };
+      for (const k of ["inX", "inY", "outX", "outY"] as const) if (typeof p[k] === "number") pt[k] = p[k] as number;
+      return [pt];
+    }).slice(0, 2000);
+  }
+  if (node.closed === true) out.closed = true;
+  if (typeof node.d === "string" && node.d.length < 200000 && /^[MmLlHhVvCcSsQqTtAaZz0-9eE.,\s+-]*$/.test(node.d)) {
+    out.d = node.d;
+    out.dW = Math.max(1, num(node.dW, 100));
+    out.dH = Math.max(1, num(node.dH, 100));
+  }
+  if (Array.isArray(node.fills)) out.fills = node.fills.flatMap((f) => readPaint(f) ?? []).slice(0, 8);
+  if (Array.isArray(node.strokes))
+    out.strokes = node.strokes
+      .flatMap((x) => (isObj(x) && isColor(x.color) ? [{ color: x.color, width: Math.max(0, num(x.width, 1)), ...(pick(x.dash, ["solid", "dash", "dot"] as const) ? { dash: x.dash as StrokePaint["dash"] } : {}), ...(x.hidden === true ? { hidden: true } : {}) }] : []))
+      .slice(0, 8);
+  const ish = node.innerShadow;
+  if (isObj(ish) && isColor(ish.color)) out.innerShadow = { x: num(ish.x, 0), y: num(ish.y, 4), blur: Math.max(0, num(ish.blur, 8)), color: ish.color };
+  if (typeof node.bgBlur === "number" && node.bgBlur > 0) out.bgBlur = Math.min(200, node.bgBlur);
+  if (Array.isArray(node.interactions)) {
+    out.interactions = node.interactions.flatMap((x): Interaction[] => {
+      if (!isObj(x)) return [];
+      const trigger = pick(x.trigger, ["click", "hover", "press", "key", "delay"] as const);
+      const action = pick(x.action, ["navigate", "overlay", "swap", "close", "back", "scroll", "url"] as const);
+      if (!trigger || !action) return [];
+      const tr = isObj(x.transition) ? x.transition : null;
+      const ov = isObj(x.overlay) ? x.overlay : null;
+      return [
+        {
+          id: typeof x.id === "string" ? x.id : newId(),
+          trigger,
+          action,
+          ...(typeof x.key === "string" ? { key: x.key.slice(0, 20) } : {}),
+          ...(typeof x.delay === "number" ? { delay: clamp(x.delay, 0, 60000) } : {}),
+          ...(typeof x.target === "string" ? { target: x.target } : {}),
+          ...(typeof x.url === "string" && /^https?:\/\//.test(x.url) ? { url: x.url.slice(0, 2000) } : {}),
+          ...(tr && pick(tr.kind, ["none", "fade", "slide", "push", "smart"] as const)
+            ? { transition: { kind: tr.kind as Transition["kind"], direction: pick(tr.direction, ["left", "right", "up", "down"] as const), duration: clamp(num(tr.duration, 300), 0, 10000), easing: pick(tr.easing, ["linear", "ease", "ease-in", "ease-out", "ease-in-out"] as const) } }
+            : {}),
+          ...(ov ? { overlay: { position: pick(ov.position, ["center", "top", "bottom"] as const) ?? "center", backdrop: clamp(num(ov.backdrop, 0.4), 0, 1), closeOutside: ov.closeOutside !== false } } : {}),
+        },
+      ];
+    }).slice(0, 20);
+  }
+  const sc = pick(node.scroll, ["none", "vertical", "horizontal", "both"] as const);
+  if (sc && sc !== "none") out.scroll = sc;
+  if (node.fixed === true) out.fixed = true;
   return out;
 }
 
@@ -185,6 +334,12 @@ export function makeNode(type: NodeType, x: number, y: number, width: number, he
       return base;
     case "EMBED":
       return { ...base, zoom: 2, fill: "#ffffff", radius: 16 };
+    case "FRAME":
+      return { ...base, fill: "#ffffff", clip: true };
+    case "GROUP":
+      return base;
+    case "VECTOR":
+      return { ...base, stroke: "#111827", strokeWidth: 2, points: [] };
   }
 }
 

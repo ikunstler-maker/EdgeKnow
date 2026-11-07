@@ -4,9 +4,31 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
-import { createBoard, deleteBoardForever, trashBoard } from "@/app/board-actions";
+import { createBoard, createDesign, deleteBoardForever, trashBoard } from "@/app/board-actions";
 
 const buttonClass = "inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+
+// Bordy «Дизайн»: a design file next to the idea boards.
+export function NewDesignButton({ shortId }: { shortId: string }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const made = await createDesign(shortId);
+          if (made.ok) router.push(workspacePath(shortId, `/boards/${made.id}`));
+        })
+      }
+      className="inline-flex min-h-11 items-center rounded-lg border border-accent px-4 text-sm font-medium text-accent disabled:opacity-60 md:min-h-9"
+      data-new-design
+    >
+      {t.design.newDesign}
+    </button>
+  );
+}
 
 export function NewBoardButton({ shortId }: { shortId: string }) {
   const router = useRouter();

@@ -7,11 +7,12 @@ import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import type { ObjectAccess } from "@/components/access/object-access";
 import { BoardScreen } from "@/components/boards/board-screen";
+import { DesignScreen } from "@/components/design/design-screen";
 import type { Person } from "@/lib/tasks";
 
 export const metadata: Metadata = { title: `${t.boards.title} · ${t.app.name}` };
 
-type Row = { id: string; title: string; data: unknown; version: number; workspace_role: string | null; deleted_at: string | null };
+type Row = { id: string; kind: string; title: string; data: unknown; version: number; workspace_role: string | null; deleted_at: string | null };
 
 export default async function BoardPage({ params }: PageProps<"/w/[wid]/boards/[id]">) {
   const { wid, id } = await params;
@@ -24,7 +25,7 @@ export default async function BoardPage({ params }: PageProps<"/w/[wid]/boards/[
   if (!workspace || !/^[0-9a-f-]{36}$/.test(id)) return notFound;
   const db = await dataClient(wid);
   const [{ data }, { data: role }] = await Promise.all([
-    db.from("service_objects").select("id, title, data, version, workspace_role, deleted_at").eq("id", id).eq("service", "boards").maybeSingle(),
+    db.from("service_objects").select("id, kind, title, data, version, workspace_role, deleted_at").eq("id", id).eq("service", "boards").maybeSingle(),
     db.rpc("service_object_role", { target_object: id }),
   ]);
   const board = data as Row | null;
@@ -59,17 +60,31 @@ export default async function BoardPage({ params }: PageProps<"/w/[wid]/boards/[
       <Link href={workspacePath(workspace.shortId, "/boards")} className="text-sm text-muted hover:text-foreground hover:underline">
         {t.boards.back}
       </Link>
-      <BoardScreen
-        key={board.id}
-        shortId={workspace.shortId}
-        id={board.id}
-        initialTitle={board.title}
-        initialData={board.data}
-        initialVersion={board.version}
-        role={String(role)}
-        access={access}
-        members={members}
-      />
+      {board.kind === "design" ? (
+        <DesignScreen
+          key={board.id}
+          shortId={workspace.shortId}
+          id={board.id}
+          initialTitle={board.title}
+          initialData={board.data}
+          initialVersion={board.version}
+          role={String(role)}
+          access={access}
+          members={members}
+        />
+      ) : (
+        <BoardScreen
+          key={board.id}
+          shortId={workspace.shortId}
+          id={board.id}
+          initialTitle={board.title}
+          initialData={board.data}
+          initialVersion={board.version}
+          role={String(role)}
+          access={access}
+          members={members}
+        />
+      )}
     </main>
   );
 }

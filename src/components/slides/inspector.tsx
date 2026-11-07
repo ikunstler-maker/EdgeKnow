@@ -86,7 +86,7 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
     );
   }
   const set = (patch: Partial<SlideNode>) => onNode((n) => ({ ...n, ...patch }));
-  const shape = node.type === "RECTANGLE" || node.type === "ELLIPSE";
+  const shape = node.type === "RECTANGLE" || node.type === "ELLIPSE" || node.type === "FRAME" || (node.type === "VECTOR" && (!!node.closed || !!node.d));
   const linear = node.type === "LINE" || node.type === "ARROW";
   const radius = node.radius ?? 0;
   const perCorner = Array.isArray(radius);
@@ -213,7 +213,7 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
         </Section>
       )}
 
-      {(node.type === "RECTANGLE" || node.type === "IMAGE" || node.type === "EMBED") && (
+      {(node.type === "RECTANGLE" || node.type === "IMAGE" || node.type === "EMBED" || node.type === "FRAME") && (
         <Section title={d.corners}>
           <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9">
             <input type="checkbox" className="h-5 w-5" checked={perCorner} onChange={(e) => set({ radius: e.target.checked ? corners : corners[0] })} data-per-corner />

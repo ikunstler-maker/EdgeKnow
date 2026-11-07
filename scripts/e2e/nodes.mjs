@@ -384,6 +384,40 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…and shows the card in the show", (await alice.locator("[data-embed-page]").count()) >= 1);
 }
 
+// --- Design (steps Д-1…Д-4): a frame with a shape inside, auto layout, the prototype player ------
+{
+  await alice.goto(`${APP}/w/${alphaShort}/boards`);
+  await alice.locator("[data-new-design]").click();
+  await alice.waitForURL(/\/boards\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const designId = alice.url().split("/").pop();
+  await alice.getByLabel("Назва дизайну").fill("App screens");
+  const canvas = alice.locator("[data-design-canvas]");
+  await canvas.waitFor({ timeout: 30000 });
+  const c = await canvas.boundingBox();
+  const drawBox = async (tool, x1, y1, x2, y2) => {
+    await alice.locator(`[data-tool="${tool}"]`).click();
+    await alice.mouse.move(c.x + x1, c.y + y1);
+    await alice.mouse.down();
+    await alice.mouse.move(c.x + x2, c.y + y2, { steps: 6 });
+    await alice.mouse.up();
+  };
+  await drawBox("FRAME", 60, 60, 300, 420);
+  await drawBox("RECTANGLE", 90, 120, 200, 180);
+  const depth = await alice.locator('[data-layer="Прямокутник"]').getAttribute("data-layer-depth").catch(() => null);
+  check("a shape drawn on a frame goes inside it (step Д-1)", depth === "1", depth);
+  await alice.locator('[data-layer="Рамка"] [data-layer-pick]').click();
+  await alice.locator("[data-auto-layout-add]").click();
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const saved = sql(`select kind || ' ' || title || ' ' || jsonb_array_length(data #> '{pages,0,nodes}') || ' ' || (data #>> '{pages,0,nodes,0,autoLayout,dir}') from public.service_objects where id = '${designId}'`);
+  check("…saved as a design file with auto layout on the frame (step Д-2)", saved === "design App screens 2 column", saved);
+  await alice.goto(`${APP}/w/${alphaShort}/boards/${designId}/prototype`);
+  await alice.locator("[data-design-player]").waitFor({ timeout: 20000 });
+  check("…and plays as a prototype in its own page (step Д-3)", (await alice.locator('[data-player-screen="Рамка"]').count()) === 1);
+  await bob.goto(`${APP}/w/${alphaShort}/boards/${designId}/prototype`);
+  check("someone from another workspace can't open the prototype", (await bob.locator("[data-design-player]").count()) === 0);
+}
+
 // --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------
 {
   await alice.goto(`${APP}/w/${alphaShort}/sheets`);
