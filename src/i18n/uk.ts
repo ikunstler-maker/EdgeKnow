@@ -677,7 +677,7 @@ export const uk = {
     deviceOnly: "Ці налаштування й місце Апуса — лише для цього пристрою.",
   },
   angler: {
-    here: "Риба-вудильник: ви тут",
+    here: "Апус: ви тут",
     above: "Ви на сторінці вище — прокрутіть угору",
     below: "Ви на сторінці нижче — прокрутіть униз",
     appearance: "Вигляд",
@@ -1187,6 +1187,11 @@ export const uk = {
     switchAccount: "Увійти іншим акаунтом",
   },
   sidebar: {
+    mainBoard: "Основна дошка",
+    projectTasks: "Задачі проєкту",
+    noTasks: "Задач поки немає",
+    noObjects: "Поки порожньо",
+    allOf: (service: string) => `Усі: ${service}`,
     openMenu: "Відкрити меню",
     closeMenu: "Закрити меню",
     pagesHeading: "Сторінки",

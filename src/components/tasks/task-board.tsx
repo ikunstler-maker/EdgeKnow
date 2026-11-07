@@ -71,6 +71,7 @@ export function TaskBoard({
   me,
   canEdit,
   isOwner,
+  initialBoard = null,
 }: {
   shortId: string;
   project: { id: string; key: string; card_fields: string[]; time_last_column?: boolean; frozen_moves_admin?: boolean };
@@ -85,10 +86,11 @@ export function TaskBoard({
   me: string;
   canEdit: boolean;
   isOwner: boolean;
+  initialBoard?: string | null;
 }) {
   const router = useRouter();
   // The board shown (null: the project's main board); columns belong to one board.
-  const [boardId, setBoardId] = useState<string | null>(null);
+  const [boardId, setBoardId] = useState<string | null>(initialBoard);
   // Column positions moved by dragging, shown at once until the page refreshes.
   const [columnMoves, setColumnMoves] = useState<Record<string, number>>({});
   const [newTaskIn, setNewTaskIn] = useState<string | null | undefined>(undefined);

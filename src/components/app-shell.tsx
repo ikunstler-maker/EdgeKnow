@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import type { WorkspaceSummary } from "@/lib/workspace";
-import type { ProjectSummary } from "@/lib/tasks";
+import type { ProjectSummary, BoardSummary, ObjectSummary } from "@/lib/tasks";
 import { usePages } from "@/components/pages/pages-provider";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
@@ -57,11 +57,15 @@ export function AppShell({
   user,
   workspaces,
   projects,
+  boards,
+  objects,
   children,
 }: {
   user: CurrentUser;
   workspaces: WorkspaceSummary[];
   projects: ProjectSummary[];
+  boards: BoardSummary[];
+  objects: ObjectSummary[];
   children: ReactNode;
 }) {
   const { workspace } = usePages();
@@ -124,7 +128,7 @@ export function AppShell({
         style={{ width }}
         data-sidebar-width={width}
       >
-        <Sidebar user={user} workspaces={workspaces} projects={projects} />
+        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} />
         <div
           role="separator"
           aria-orientation="vertical"
@@ -180,7 +184,7 @@ export function AppShell({
             aria-label={t.sidebar.pagesHeading}
             className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-background shadow-xl"
           >
-            <Sidebar user={user} workspaces={workspaces} projects={projects} onNavigate={close} />
+            <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} onNavigate={close} />
           </aside>
         </div>
       )}

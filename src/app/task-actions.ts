@@ -212,3 +212,16 @@ export async function saveTaskTemplate(projectId: string, templateId: string | n
 export async function deleteTaskTemplate(templateId: string) {
   return call("delete_task_template", { target: templateId });
 }
+
+// The sidebar's list of a project's tasks (RLS: only those this person sees), newest change first.
+export async function sidebarTasks(projectId: string): Promise<{ id: string; number: number; title: string }[]> {
+  const { data } = await (await dataClient())
+    .from("tasks")
+    .select("id, number, title")
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .is("parent_id", null)
+    .order("updated_at", { ascending: false })
+    .limit(30);
+  return (data ?? []) as { id: string; number: number; title: string }[];
+}

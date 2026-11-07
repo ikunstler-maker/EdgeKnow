@@ -19,7 +19,9 @@ export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[ke
 // One project: its tasks as a list with filters, and a quick way to add one.
 export default async function ProjectPage({ params, searchParams }: PageProps<"/w/[wid]/tasks/[key]">) {
   const { wid, key } = await params;
-  const mode = (await searchParams).view === "list" ? "list" : "board";
+  const query = await searchParams;
+  const mode = query.view === "list" ? "list" : "board";
+  const board = typeof query.board === "string" ? query.board : null;
   const [view, user] = await Promise.all([loadProject(wid, key), getCurrentUser()]);
   if (!view) {
     return (
@@ -89,6 +91,8 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
       <PrivateOthers items={((await db.rpc("private_task_people", { target_project: view.project.id })).data ?? []) as { id: string; key: string; people: string[] | null }[]} members={view.members} />
       {mode === "board" ? (
         <TaskBoard
+          key={board ?? "main"}
+          initialBoard={board}
           shortId={view.workspace.shortId}
           project={view.project}
           statuses={view.statuses}
