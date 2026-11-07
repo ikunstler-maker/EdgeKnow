@@ -25,7 +25,8 @@ export default async function TasksHome({ params }: PageProps<"/w/[wid]/tasks">)
     .order("name")
     .overrideTypes<ProjectSummary[], { merge: false }>();
   const projects = data ?? [];
-  const admin = isWorkspaceAdmin(workspace);
+  // Admins, or a member whose role allows making projects (company structure, stage 2).
+  const admin = isWorkspaceAdmin(workspace) || (await db.rpc("role_allows", { ws: workspace.id, perm: "create_projects" })).data === true;
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">

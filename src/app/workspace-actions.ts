@@ -134,3 +134,16 @@ export async function reassignMemberPages(ws: string, fromUser: string, toUser: 
 export async function setPrivateTasksAdmin(ws: string, allowed: boolean) {
   return callWorkspaceRpc("set_private_tasks_admin", { ws, allowed });
 }
+
+// Company structure, stage 2: workspace roles (the owner's). Copied to a team's database like members.
+export async function saveRole(ws: string, roleId: string | null, name: string, permissions: Record<string, boolean>, contentLevel: string | null) {
+  return callWorkspaceRpc("save_workspace_role", { ws, role_id: roleId, new_name: name, new_permissions: permissions, new_level: contentLevel });
+}
+
+export async function deleteRole(ws: string, roleId: string) {
+  return callWorkspaceRpc("delete_workspace_role", { ws, role_id: roleId });
+}
+
+export async function setMemberCustomRole(ws: string, userId: string, roleId: string | null) {
+  return callWorkspaceRpc("set_member_custom_role", { ws, member: userId, role_id: roleId });
+}

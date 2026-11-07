@@ -17,11 +17,13 @@ import {
   revokeInvitation,
   setDomainActive,
   setGuestAccessUntil,
+  setMemberCustomRole,
   setMemberRole,
   transferOwnership,
 } from "@/app/workspace-actions";
 import { cancelDomainRequest, requestDomain, verifyDomain } from "@/app/domain-actions";
 import { RemoveMemberDialog } from "./remove-member-dialog";
+import { roleName, type RoleItem } from "./roles-panel";
 
 const s = t.settings;
 
@@ -33,6 +35,8 @@ export type MemberItem = {
   joinedVia: "creator" | "domain" | "invite";
   // A guest's access ends then (ISO), or never (null).
   accessUntil: string | null;
+  // A member's own role (company structure, stage 2); null: the built-in member role.
+  customRoleId?: string | null;
 };
 export type DomainItem = {
   domain: string;
@@ -216,13 +220,25 @@ export function MembersPanel({
   members,
   invitations,
   departed,
+  roles = [],
+  canSetRoles = false,
+  inviteOnly = false,
 }: {
   workspace: Workspace;
   currentUserId: string;
   members: MemberItem[];
   invitations: InvitationItem[];
   departed: DepartedOwner[];
+  roles?: RoleItem[];
+  canSetRoles?: boolean;
+  // Not an admin, but the role allows inviting: only the invitation form.
+  inviteOnly?: boolean;
 }) {
+  const custom = roles.filter((x) => !x.builtin);
+  const builtinName = (kind: "admin" | "member") => {
+    const row = roles.find((x) => x.builtin === kind);
+    return row ? roleName(row) : t.workspace.roles[kind];
+  };
   const { pending, run, errorLine } = useAction();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
@@ -262,8 +278,8 @@ export function MembersPanel({
           <label className="flex flex-col gap-1 text-sm">
             {s.members.inviteRole}
             <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
-              <option value="member">{t.workspace.roles.member}</option>
-              <option value="admin">{t.workspace.roles.admin}</option>
+              <option value="member">{builtinName("member")}</option>
+              {!inviteOnly && <option value="admin">{builtinName("admin")}</option>}
               <option value="guest">{t.workspace.roles.guest}</option>
             </select>
           </label>
@@ -316,6 +332,8 @@ export function MembersPanel({
         </section>
       )}
 
+      {!inviteOnly && (
+      <>
       <section>
         <h2 className="text-lg font-semibold">{s.members.heading}</h2>
         <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
@@ -344,14 +362,35 @@ export function MembersPanel({
               ) : (
                 <>
                   <select
-                    value={m.role}
+                    value={m.role === "member" && m.customRoleId && custom.some((x) => x.id === m.customRoleId) ? `custom:${m.customRoleId}` : m.role}
                     disabled={pending}
                     aria-label={s.members.inviteRole}
-                    onChange={(e) => run(() => setMemberRole(workspace.id, m.userId, e.target.value))}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.startsWith("custom:")) {
+                        const roleId = value.slice(7);
+                        return run(async () => {
+                          if (m.role !== "member") {
+                            const first = await setMemberRole(workspace.id, m.userId, "member");
+                            if (!first.ok) return first;
+                          }
+                          return setMemberCustomRole(workspace.id, m.userId, roleId);
+                        });
+                      }
+                      if (value === "member" && m.role === "member" && m.customRoleId && canSetRoles) return run(() => setMemberCustomRole(workspace.id, m.userId, null));
+                      run(() => setMemberRole(workspace.id, m.userId, value));
+                    }}
                     className={inputClass}
+                    data-member-role
                   >
-                    <option value="member">{t.workspace.roles.member}</option>
-                    <option value="admin">{t.workspace.roles.admin}</option>
+                    <option value="member">{builtinName("member")}</option>
+                    {canSetRoles &&
+                      custom.map((x) => (
+                        <option key={x.id} value={`custom:${x.id}`}>
+                          {x.name}
+                        </option>
+                      ))}
+                    <option value="admin">{builtinName("admin")}</option>
                     <option value="guest">{t.workspace.roles.guest}</option>
                   </select>
                   {m.role === "guest" && (
@@ -399,10 +438,12 @@ export function MembersPanel({
           </ul>
         </section>
       )}
-      {errorLine}
       {removing && (
         <RemoveMemberDialog workspaceId={workspace.id} member={removing} onRemove={() => removeMember(workspace.id, removing.userId)} onClose={stopRemoving} />
       )}
+      </>
+      )}
+      {errorLine}
     </div>
   );
 }

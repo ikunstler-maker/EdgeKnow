@@ -10,6 +10,7 @@ import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { StoragePanel, type StorageStatus } from "./storage-panel";
 import { taskFilesStatus } from "@/lib/drive/workspace-files";
 import { GroupsPanel, type GroupItem } from "./groups-panel";
+import { RolesPanel, type RoleItem } from "./roles-panel";
 import { TeamDatabasePanel, type TeamDatabaseStatus } from "./team-database-panel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { oidcConfigured } from "@/lib/oidc";
@@ -31,10 +32,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.workspace.settings} · ${t.app.name}` };
 }
 
-const TABS = ["general", "members", "groups", "domains", "storage", "team", "log"] as const;
+const TABS = ["general", "members", "groups", "roles", "domains", "storage", "team", "log"] as const;
 type Tab = (typeof TABS)[number];
 
 type MemberRow = {
+  custom_role_id?: string | null;
   user_id: string;
   role: MemberItem["role"];
   joined_via: MemberItem["joinedVia"];
@@ -64,9 +66,18 @@ export default async function WorkspaceSettingsPage({
   if (!workspace) return null;
 
   const admin = isWorkspaceAdmin(workspace);
-  const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : "general";
+  const isOwner = workspace.role === "owner";
+  // Company structure, stage 2: a member's role may allow inviting people or managing the structure.
+  const rightsClient = admin ? null : await createClient();
+  const [canInvite, canStructure] = rightsClient
+    ? await Promise.all(["invite", "manage_structure"].map(async (perm) => (await rightsClient.rpc("role_allows", { ws: workspace.id, perm })).data === true))
+    : [true, true];
+  const shownTabs = TABS.filter((key) =>
+    admin ? key !== "roles" || isOwner : (key === "members" && canInvite) || (key === "groups" && canStructure),
+  );
+  const tab: Tab = shownTabs.includes(tabParam as Tab) ? (tabParam as Tab) : (shownTabs[0] ?? "general");
 
-  if (!admin) {
+  if (!admin && shownTabs.length === 0) {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
         <p className="text-sm text-muted">{workspace.name}</p>
@@ -86,7 +97,7 @@ export default async function WorkspaceSettingsPage({
     tab === "general" || tab === "members" || tab === "groups"
       ? supabase
           .from("workspace_members")
-          .select("user_id, role, joined_via, access_until, profile:profiles!workspace_members_user_id_fkey(name, email)")
+          .select("user_id, role, joined_via, access_until, custom_role_id, profile:profiles!workspace_members_user_id_fkey(name, email)")
           .eq("workspace_id", workspace.id)
           .eq("status", "active")
           .order("joined_at")
@@ -122,8 +133,18 @@ export default async function WorkspaceSettingsPage({
       : null,
     tab === "storage" ? supabase.rpc("workspace_storage_status", { ws: workspace.id }) : null,
     // Only counts per former member: admins don't see other people's pages.
-    tab === "members" ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
+    tab === "members" && admin ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
+  const roleRows =
+    tab === "members" || tab === "roles"
+      ? await supabase
+          .from("workspace_roles")
+          .select("id, builtin, name, permissions, content_level")
+          .eq("workspace_id", workspace.id)
+          .order("position")
+          .overrideTypes<{ id: string; builtin: RoleItem["builtin"]; name: string; permissions: RoleItem["permissions"]; content_level: RoleItem["contentLevel"] }[], { merge: false }>()
+      : null;
+  const roleItems: RoleItem[] = (roleRows?.data ?? []).map((row) => ({ id: row.id, builtin: row.builtin, name: row.name, permissions: row.permissions ?? {}, contentLevel: row.content_level }));
   // The team's own database (path C): read with the secret key, keys never leave the server.
   const service = tab === "team" || tab === "storage" ? createAdminClient() : null;
   const [teamRow, centralPages] = service
@@ -171,6 +192,7 @@ export default async function WorkspaceSettingsPage({
     role: m.role,
     joinedVia: m.joined_via,
     accessUntil: m.access_until,
+    customRoleId: m.custom_role_id ?? null,
   }));
   const domainItems: DomainItem[] = (domains?.data ?? []).map((d) => ({
     domain: d.domain,
@@ -230,7 +252,7 @@ export default async function WorkspaceSettingsPage({
       <h1 className="text-2xl font-semibold">{t.workspace.settings}</h1>
 
       <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-border" aria-label={t.workspace.settings}>
-        {TABS.map((key) => (
+        {shownTabs.map((key) => (
           <Link
             key={key}
             href={workspacePath(workspace.shortId, `/settings?tab=${key}`)}
@@ -269,8 +291,12 @@ export default async function WorkspaceSettingsPage({
             members={memberItems}
             invitations={invitationItems}
             departed={departedItems}
+            roles={roleItems}
+            canSetRoles={isOwner}
+            inviteOnly={!admin}
           />
         )}
+        {tab === "roles" && isOwner && <RolesPanel workspaceId={workspace.id} roles={roleItems} />}
         {tab === "groups" && (
           <GroupsPanel
             workspaceId={workspace.id}
