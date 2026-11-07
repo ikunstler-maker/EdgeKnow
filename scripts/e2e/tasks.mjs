@@ -607,6 +607,16 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator('[data-group="Reviewers QA"][data-group-depth="1"]').waitFor({ timeout: 15000 }).catch(() => {});
   check("…and puts a unit inside another (company structure)", sql(`select p.name from public.workspace_groups g join public.workspace_groups p on p.id = g.parent_id where g.name = 'Reviewers QA'`) === "Reviewers" && (await alice.locator('[data-group="Reviewers QA"][data-group-depth="1"]').count()) === 1);
   sql(`delete from public.workspace_groups where name = 'Reviewers QA' and workspace_id = '${alphaId}'`);
+  // Company structure, stage 2: the owner makes a role with its own name and rights.
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=roles`);
+  await alice.locator("[data-role-add]").click();
+  await alice.getByRole("form", { name: "Нова роль" }).getByLabel("Назва ролі").fill("Intern");
+  await alice.getByRole("form", { name: "Нова роль" }).getByLabel("Створювати сторінки вікі").uncheck();
+  await alice.getByRole("form", { name: "Нова роль" }).getByLabel("Рівень для відкритого всьому воркспейсу").selectOption("viewer");
+  await alice.getByRole("form", { name: "Нова роль" }).getByRole("button", { name: "Зберегти" }).click();
+  await alice.locator('[data-role="Intern"]').waitFor({ timeout: 15000 }).catch(() => {});
+  check("the owner makes a role with own rights and a ceiling", sql(`select permissions ->> 'create_pages' || ' ' || content_level from public.workspace_roles where workspace_id = '${alphaId}' and name = 'Intern'`) === "false viewer");
+  sql(`delete from public.workspace_roles where workspace_id = '${alphaId}' and name = 'Intern'`);
   check("…who can't see the page yet", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === null);
   await alice.goto(`${APP}/w/${alphaShort}/p/${groupPage}`);
   await alice.getByRole("button", { name: "Поділитися" }).click();

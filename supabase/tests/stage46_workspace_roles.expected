@@ -1,0 +1,27 @@
+built-in roles: admin=Адміністратор, member=Учасник
+kept rights: {"create_pages": false}
+bad level: {"ok": false, "error": "invalid_role"}
+bob intern: true
+carol lead: true
+owner as intern: {"ok": false, "error": "not_a_member"}
+intern makes a page: {"ok": false, "error": "forbidden"}
+intern on open page: viewer
+intern on own grant: editor
+intern makes a role: {"ok": false, "error": "forbidden"}
+intern sets a role: {"ok": false, "error": "forbidden"}
+lead makes a project: true
+lead makes a unit: true
+lead invites a member: true
+lead invites an admin: {"ok": false, "error": "forbidden"}
+lead on open page: editor
+member makes a page: true
+member makes a project: {"ok": false, "error": "forbidden"}
+member makes a unit: {"ok": false, "error": "forbidden"}
+member on open page: editor
+psql: ERROR:  permission denied for table workspace_roles
+members capped: true
+member on open page now: commenter
+built-in cannot go: {"ok": false, "error": "not_found"}
+delete intern: true
+bob role now: built-in
+team copy has roles: 3
