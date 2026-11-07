@@ -1248,8 +1248,11 @@ export const en: Dictionary = {
         blocked_address: "This address isn't reachable for the wiki.",
         unreachable: "The site didn't answer. Try again later.",
         too_large: "The file is too large (over 2 MB).",
+<<<<<<< HEAD
         login_required: "The site asked to sign in: allow access by key.",
         redirect_other_site: "The site redirected to another site; the key is not sent there.",
+=======
+>>>>>>> origin/claude/exciting-pasteur-ktbpba
         unauthorized: "The site didn't accept the key.",
         not_markdown: "The address doesn't return Markdown.",
         page_missing: "Page not found.",
