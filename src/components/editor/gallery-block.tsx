@@ -239,7 +239,8 @@ function Viewer({ item, onOpen, tall = false }: { item: Item; onOpen: () => void
     return (
       <figure className="flex flex-col gap-2 rounded-lg bg-surface p-4" data-gallery-audio>
         <figcaption className="font-medium">🎵 {label(item)}</figcaption>
-        <audio controls preload="metadata" src={source(item.url)} className="w-full" />
+        {/* Only our own audio files play; anything else shows just its name. */}
+        {item.url.startsWith(ATTACHMENT_SCHEME) && <audio controls preload="metadata" src={source(item.url)} className="w-full" />}
       </figure>
     );
   }
