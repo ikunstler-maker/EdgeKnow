@@ -2,6 +2,12 @@
 
 Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/decisions.md`.
 
+## Now (owner, 2027-01-01) — 4 PRs, in order
+- PR 1 Tasks: field hints + drag order, create-task dialog, drag columns — in review.
+- PR 2 Instant create (tasks, wiki pages): optimistic UI, background write, "not saved" notice + retry.
+- PR 3 Left panel shows only the current section (tasks: projects/boards/tasks; wiki: pages; tables: tables…); fix the old fish name near Apus.
+- PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01.
+
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
 - Boards Д2: realtime co-editing (postponed by the owner).

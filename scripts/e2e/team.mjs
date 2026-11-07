@@ -8,6 +8,7 @@ import {
   ANON, API, APP, alice, aliceClient, aliceCookies, alphaId, alphaPage, alphaShort, betaId, bob, bobCookies, browser, check, colleague,
   colleagueClient, colleagueCookies, colleagueId, fakeDir, finish, makeTestPng, newPage, pageContent, pageVersion, problems, readdirSync,
   results, sessionCookies, setLastPage, sql, status, until,
+  newTask,
 } from "./common.mjs";
 
 sql("update public.profiles set is_platform_admin = true where email = 'alice@alpha.test'");
@@ -119,8 +120,7 @@ await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByLabel
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByRole("button", { name: "Створити" }).click();
 await gammaTab.waitForURL(/\/tasks\/DT$/, { timeout: 15000 });
 await gammaTab.goto(`${APP}/w/${gammaShort}/tasks/DT?view=list`);
-await gammaTab.getByLabel("Нова задача").fill("Team-owned task");
-await gammaTab.getByLabel("Нова задача").press("Enter");
+await newTask(gammaTab, "Team-owned task");
 await gammaTab.locator('[data-task="DT-1"]').waitFor({ timeout: 15000 });
 check("a team workspace's tasks are in its own database, not centrally", teamSql("select count(*) from public.tasks where title = 'Team-owned task'") === "1" && sql("select count(*) from public.tasks where title = 'Team-owned task'") === "0");
 

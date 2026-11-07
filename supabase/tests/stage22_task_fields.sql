@@ -32,6 +32,12 @@ select public.save_task_field(:'project', null, '{"name": "Frames", "kind": "num
 select public.save_task_field(:'project', null, '{"name": "Platforms", "kind": "multiselect", "options": [{"id": "ig", "label": "Instagram"}, {"id": "yt", "label": "YouTube"}]}') ->> 'id' as platforms \gset
 select 'bug template field: ' || (public.save_task_field(:'project', null, '{"name": "Steps", "kind": "longtext", "task_types": ["bug"]}') ->> 'ok');
 select 'duplicate items: ' || public.save_task_field(:'project', null, '{"name": "Bad", "kind": "select", "options": [{"id": "a", "label": "A"}, {"id": "a", "label": "B"}]}')::text;
+select public.save_task_field(:'project', null, '{"name": "Brief", "kind": "text", "hint": "  Short summary  "}') ->> 'id' as brief \gset
+select 'hint saved: ' || coalesce((select hint from public.task_fields where id = :'brief'), 'none');
+select 'hint clear: ' || (public.save_task_field(:'project', :'brief', '{"name": "Brief", "hint": ""}') ->> 'ok');
+select 'hint now: ' || coalesce((select hint from public.task_fields where id = :'brief'), 'none');
+select 'delete brief: ' || (public.delete_task_field(:'brief') ->> 'ok');
+select 'hint too long: ' || public.save_task_field(:'project', null, jsonb_build_object('name', 'Long', 'kind', 'text', 'hint', repeat('x', 301)))::text;
 select 'unknown kind: ' || public.save_task_field(:'project', null, '{"name": "Bad", "kind": "spreadsheet"}')::text;
 select 'fields: ' || string_agg(name || ':' || kind || coalesce('[' || array_to_string(task_types, ',') || ']', ''), ', ' order by position) from public.task_fields where project_id = :'project';
 

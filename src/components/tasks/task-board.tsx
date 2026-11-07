@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -40,11 +40,11 @@ import {
   type TaskPlacement,
   type TaskStatus,
 } from "@/lib/tasks";
-import { addColumnOnBoard, createTask, deleteTaskBoard, deleteTaskStatus, moveTaskOnBoard, saveTaskBoard, saveTaskStatus, setColumnFreezes, setFrozenMovesAdmin, updateTask, updateTaskProject } from "@/app/task-actions";
+import { addColumnOnBoard, deleteTaskBoard, deleteTaskStatus, moveTaskOnBoard, saveTaskBoard, saveTaskStatus, setColumnFreezes, setFrozenMovesAdmin, updateTask, updateTaskProject } from "@/app/task-actions";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { TaskRulesDialog } from "./task-rules";
 import { TemplatePicker, useTemplates } from "./task-templates";
-import { fromTemplate, type TaskTemplate } from "@/lib/task-templates";
+import { NewTaskDialog } from "./new-task-dialog";
 
 const k = t.tasks;
 const b = t.tasks.board;
@@ -88,7 +88,13 @@ export function TaskBoard({
   const router = useRouter();
   // The board shown (null: the project's main board); columns belong to one board.
   const [boardId, setBoardId] = useState<string | null>(null);
-  const statuses = allStatuses.filter((s) => (s.board_id ?? null) === (boards.some((x) => x.id === boardId) ? boardId : null));
+  // Column positions moved by dragging, shown at once until the page refreshes.
+  const [columnMoves, setColumnMoves] = useState<Record<string, number>>({});
+  const [newTaskIn, setNewTaskIn] = useState<string | null | undefined>(undefined);
+  const statuses = allStatuses
+    .filter((s) => (s.board_id ?? null) === (boards.some((x) => x.id === boardId) ? boardId : null))
+    .map((s) => (s.id in columnMoves ? { ...s, position: columnMoves[s.id] } : s))
+    .sort((a, b) => a.position - b.position);
   const [tasks, setTasks] = useState(initialTasks);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -105,6 +111,7 @@ export function TaskBoard({
     setFromServer(initialTasks);
     setTasks(initialTasks);
     setPlacements(initialPlacements);
+    setColumnMoves({});
   }
   // A task stands on each board in its own column; where it is frozen for this person
   // only the snapshot arrives (no live row).
@@ -170,6 +177,7 @@ export function TaskBoard({
   const onDragStart = (event: DragStartEvent) => setDragging(String(event.active.id));
   const onDragEnd = (event: DragEndEvent) => {
     setDragging(null);
+    if (String(event.active.id).startsWith("col:")) return moveColumn(String(event.active.id).slice(4), (event.over?.data.current as { status?: string } | undefined)?.status);
     const task = boardRows.find((x) => x.id === event.active.id && !x.snapshot);
     const over = event.over?.data.current as { status: string; before?: string } | undefined;
     if (!task || !over) return;
@@ -195,6 +203,22 @@ export function TaskBoard({
     // Another column: the database places it (rules, freezing); the same column: only the order.
     if (task.status_id !== over.status) run(() => moveTaskOnBoard(task.id, over.status), undo);
     else if (home) run(() => updateTask(task.id, { position }), undo);
+  };
+
+  // A column dropped on another takes its place (after it when moving right).
+  const moveColumn = (id: string, target: string | undefined) => {
+    const from = statuses.findIndex((s) => s.id === id);
+    const to = statuses.findIndex((s) => s.id === target);
+    if (from < 0 || to < 0 || from === to) return;
+    const rest = statuses.filter((s) => s.id !== id);
+    const at = rest.findIndex((s) => s.id === target) + (from < to ? 1 : 0);
+    const prev = rest[at - 1];
+    const next = rest[at];
+    const position = prev && next ? (prev.position + next.position) / 2 : prev ? prev.position + 1 : next.position - 1;
+    const status = statuses[from];
+    const before = columnMoves;
+    setColumnMoves({ ...columnMoves, [id]: position });
+    run(() => saveTaskStatus(project.id, status.id, status.name, status.category, status.wip_limit, position), () => setColumnMoves(before));
   };
 
   const cardFields = new Set(project.card_fields);
@@ -291,8 +315,7 @@ export function TaskBoard({
                     canEdit={canEdit}
                     isOwner={isOwner && lane.id === lanes[0].id}
                     showQuickAdd={canEdit && lane.id === lanes[0].id}
-                    template={templates.chosen}
-                    fieldIds={fields.map((f) => f.id)}
+                    onNewTask={() => setNewTaskIn(status.id)}
                     pending={pending}
                     run={run}
                     render={(task) => (
@@ -332,6 +355,9 @@ export function TaskBoard({
         </DragOverlay>
       </DndContext>
 
+      {newTaskIn !== undefined && (
+        <NewTaskDialog projectId={project.id} statuses={statuses} statusId={newTaskIn} members={members} fields={fields} template={templates.chosen} onClose={() => setNewTaskIn(undefined)} />
+      )}
       {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (
         <CardSettings
@@ -360,8 +386,7 @@ function BoardColumn({
   canEdit,
   isOwner,
   showQuickAdd,
-  template,
-  fieldIds,
+  onNewTask,
   pending,
   run,
   render,
@@ -377,16 +402,14 @@ function BoardColumn({
   canEdit: boolean;
   isOwner: boolean;
   showQuickAdd: boolean;
-  template: TaskTemplate | null;
-  fieldIds: string[];
+  onNewTask: () => void;
   pending: boolean;
   run: (action: () => Promise<ActionResult>, rollback?: () => void) => void;
   render: (task: TaskRow) => React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column:${lane}:${status.id}`, data: { status: status.id }, disabled: !canEdit });
   const [menu, setMenu] = useState(false);
-  const [title, setTitle] = useState("");
-  const input = useRef<HTMLInputElement>(null);
+  const handle = useDraggable({ id: `col:${status.id}`, disabled: !isOwner || pending });
   const over = status.wip_limit !== null && total > status.wip_limit;
   const move = (direction: -1 | 1) => {
     const other = statuses[index + direction];
@@ -398,11 +421,20 @@ function BoardColumn({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        handle.setNodeRef(node);
+      }}
       data-column={status.name}
-      className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 ${isOver ? "border-accent bg-accent/5" : "border-border bg-surface/50"}`}
+      style={handle.transform ? { transform: `translate3d(${handle.transform.x}px, ${handle.transform.y}px, 0)` } : undefined}
+      className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 ${handle.isDragging ? "relative z-20 border-accent bg-background shadow-xl" : isOver ? "border-accent bg-accent/5" : "border-border bg-surface/50"}`}
     >
       <div className="flex items-center gap-2 px-1 pb-2">
+        {isOwner && (
+          <button type="button" {...handle.listeners} {...handle.attributes} aria-label={b.dragColumn(status.name)} className="-ml-1 h-8 w-6 cursor-grab touch-none rounded text-muted hover:bg-border" data-column-handle>
+            ⠿
+          </button>
+        )}
         <span className={`h-2 w-2 shrink-0 rounded-full ${status.category === "done" ? "bg-emerald-500" : status.category === "doing" ? "bg-sky-500" : status.category === "review" ? "bg-violet-500" : "bg-slate-400"}`} />
         <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">{status.name}</h4>
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
@@ -435,27 +467,9 @@ function BoardColumn({
         ))}
       </ul>
       {showQuickAdd && (
-        <form
-          className="mt-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const value = title.trim();
-            if (!value) return;
-            setTitle("");
-            run(() => createTask(projectId, { ...fromTemplate(template, value, fieldIds), status_id: status.id }));
-            input.current?.focus();
-          }}
-        >
-          <input
-            ref={input}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={b.quickAdd}
-            aria-label={b.quickAddIn(status.name)}
-            maxLength={300}
-            className={`${inputClass} w-full bg-transparent`}
-          />
-        </form>
+        <button type="button" onClick={onNewTask} aria-label={t.tasks.newTask.openIn(status.name)} className="mt-2 min-h-11 w-full rounded-md px-2 text-left text-sm text-muted hover:bg-border md:min-h-9" data-new-task-open>
+          {t.tasks.newTask.open}
+        </button>
       )}
     </div>
   );

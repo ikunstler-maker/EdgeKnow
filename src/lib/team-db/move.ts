@@ -95,7 +95,7 @@ const STAGES: Stage[] = [
   {
     name: "task fields",
     table: "task_fields",
-    columns: "id, project_id, workspace_id, name, kind, options, required, task_types, position, created_at",
+    columns: "id, project_id, workspace_id, name, kind, options, required, task_types, position, hint, created_at",
     order: "id",
     onConflict: "id",
   },

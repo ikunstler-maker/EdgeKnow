@@ -7,8 +7,8 @@ import { dateLocale, t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { PRIORITY_ICONS, TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, personLabel, progressOf, taskKey, type Person, type TaskField, type TaskRow, type TaskStatus } from "@/lib/tasks";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
-import { bulkUpdateTasks, createTask } from "@/app/task-actions";
-import { fromTemplate } from "@/lib/task-templates";
+import { bulkUpdateTasks } from "@/app/task-actions";
+import { NewTaskDialog } from "./new-task-dialog";
 import { TemplatePicker, useTemplates } from "./task-templates";
 
 const k = t.tasks;
@@ -39,8 +39,7 @@ export function TaskList({
   canEdit: boolean;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [onlyMe, setOnlyMe] = useState(false);
+  const [creating, setCreating] = useState(false);
   const templates = useTemplates(project.id, canEdit);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -81,38 +80,23 @@ export function TaskList({
   return (
     <div className="mt-6">
       {canEdit && (
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const value = title.trim();
-            if (!value) return;
-            startTransition(async () => {
-              const result = await createTask(project.id, { ...fromTemplate(templates.chosen, value, fields.map((f) => f.id)), ...(onlyMe ? { private: true } : {}) });
-              if (!result.ok) return setError(k.errors[result.error] ?? t.common.unknownError);
-              setError(null);
-              setTitle("");
-              router.refresh();
-            });
-          }}
-        >
+        <div className="flex gap-2">
           <TemplatePicker templates={templates.templates} chosen={templates.chosen} onPick={templates.pick} />
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={k.quickCreate}
-            aria-label={k.quickCreateLabel}
-            maxLength={300}
-            className={`${inputClass} min-w-0 flex-1`}
-          />
-          <label className="flex min-h-11 shrink-0 items-center gap-1 text-sm text-muted md:min-h-9" title={k.privacy.privateHint}>
-            <input type="checkbox" checked={onlyMe} onChange={(e) => setOnlyMe(e.target.checked)} data-only-me />
-            {k.privacy.onlyMe}
-          </label>
-          <button type="submit" disabled={pending || !title.trim()} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9">
-            {k.create}
+          <button type="button" onClick={() => setCreating(true)} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white md:min-h-9" data-new-task-open>
+            {t.tasks.newTask.open}
           </button>
-        </form>
+        </div>
+      )}
+      {creating && (
+        <NewTaskDialog
+          projectId={project.id}
+          statuses={statuses.filter((s) => !s.board_id)}
+          statusId={null}
+          members={members}
+          fields={fields}
+          template={templates.chosen}
+          onClose={() => setCreating(false)}
+        />
       )}
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">

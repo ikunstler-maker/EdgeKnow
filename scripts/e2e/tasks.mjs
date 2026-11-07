@@ -6,6 +6,7 @@ import {
   ANON, API, APP, alice, aliceClient, aliceCookies, alphaId, alphaPage, alphaShort, betaId, bob, bobCookies, browser, check, colleague,
   colleagueClient, colleagueCookies, colleagueId, fakeDir, finish, makeTestPng, newPage, pageContent, pageVersion, problems, readdirSync,
   results, sessionCookies, setLastPage, sql, status, until,
+  newTask,
 } from "./common.mjs";
 
 // What the wiki part leaves behind and this part needs: alice is platform admin,
@@ -144,12 +145,9 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…it is in the sidebar, with the fish beside it", (await alice.locator("aside [data-angler-here]").first().innerText()).includes("Маркетинг"));
   check("…and opens on the board", (await alice.locator("[data-task-board]").count()) === 1 && (await alice.locator('[data-column="Зробити"]').count()) === 1);
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
-  const quick = alice.getByLabel("Нова задача");
-  await quick.fill("Draw the logo");
-  await quick.press("Enter");
+  await newTask(alice, "Draw the logo");
   await alice.locator('[data-task="MAR-1"]').waitFor({ timeout: 15000 });
-  await quick.fill("Write the brief");
-  await quick.press("Enter");
+  await newTask(alice, "Write the brief");
   await alice.locator('[data-task="MAR-2"]').waitFor({ timeout: 15000 });
   check("tasks are made from one line and get MAR-1, MAR-2", (await alice.locator("[data-task]").count()) === 2);
   await alice.getByLabel("Пошук за назвою чи ключем").fill("logo");
@@ -188,7 +186,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForTimeout(1500);
   const colleagueTab = await newPage(colleagueTaskCookies);
   await colleagueTab.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
-  check("…until the project lets the workspace only view", (await colleagueTab.getByText("У цьому проєкті у вас лише перегляд.").count()) === 1 && (await colleagueTab.getByLabel("Нова задача").count()) === 0);
+  check("…until the project lets the workspace only view", (await colleagueTab.getByText("У цьому проєкті у вас лише перегляд.").count()) === 1 && (await colleagueTab.locator("[data-new-task-open]").count()) === 0);
   const refused = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "Not now" } });
   check("…and the database refuses their new tasks", refused.data?.error === "forbidden", JSON.stringify(refused.data));
   await colleagueTab.close();
@@ -224,8 +222,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   // The board: quick add in a column, drag a card to another, a column limit, what the card shows.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
   await alice.locator("[data-task-board]").waitFor();
-  await alice.getByLabel("Нова задача в колонці «Зробити»").fill("Board task");
-  await alice.getByLabel("Нова задача в колонці «Зробити»").press("Enter");
+  await newTask(alice, "Board task", "Зробити");
   const card = alice.locator('[data-card="MAR-4"]');
   await card.waitFor({ timeout: 15000 });
   check("a task is added right in a column", (await alice.locator('[data-column="Зробити"] [data-card="MAR-4"]').count()) === 1);
@@ -297,8 +294,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("a task is saved as the project's default template", await until(() => sql("select name || ' ' || is_default || ' ' || (owner_id is null) from public.task_templates") === "Відео true true", 15000), sql("select count(*) from public.task_templates"));
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
   await alice.locator("[data-template-picker]", { hasText: "Відео" }).waitFor({ timeout: 15000 }).catch(() => {});
-  await alice.getByLabel("Нова задача", { exact: true }).fill("Ролик");
-  await alice.getByLabel("Нова задача", { exact: true }).press("Enter");
+  await newTask(alice, "Ролик");
   const fromTemplate = () => sql("select t.priority = (select priority from public.tasks x join public.task_projects q on q.id = x.project_id where q.key = 'MAR' and x.number = 1) from public.tasks t where t.title = 'Відео: Ролик'");
   check("…and a new task starts from it", await until(() => fromTemplate() === "t", 15000), fromTemplate());
   await alice.locator("[data-template-picker]").click();

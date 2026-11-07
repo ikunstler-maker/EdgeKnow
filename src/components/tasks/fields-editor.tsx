@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
@@ -15,7 +16,7 @@ const PALETTE = ["#94a3b8", "#f87171", "#fb923c", "#facc15", "#4ade80", "#2dd4bf
 
 const newOptionId = () => Math.random().toString(36).slice(2, 10);
 
-type Draft = { id: string | null; name: string; kind: FieldKind; options: FieldOption[]; required: boolean; types: TaskType[] };
+type Draft = { id: string | null; name: string; kind: FieldKind; options: FieldOption[]; required: boolean; types: TaskType[]; hint: string };
 const toDraft = (field: TaskField): Draft => ({
   id: field.id,
   name: field.name,
@@ -23,12 +24,43 @@ const toDraft = (field: TaskField): Draft => ({
   options: field.options,
   required: field.required,
   types: field.task_types ?? [],
+  hint: field.hint ?? "",
 });
 
 // The project owner's list of fields: name, kind, list items with colours,
 // "to fill in", and which task types have the field.
-export function FieldsEditor({ projectId, fields }: { projectId: string; fields: TaskField[] }) {
+export function FieldsEditor({ projectId, fields: saved }: { projectId: string; fields: TaskField[] }) {
   const router = useRouter();
+  // Shown order: changes at once on a drop, the server catches up.
+  const [fields, setFields] = useState(saved);
+  const [fromServer, setFromServer] = useState(saved);
+  if (fromServer !== saved) {
+    setFromServer(saved);
+    setFields(saved);
+  }
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }), useSensor(KeyboardSensor));
+  const onDragEnd = (event: DragEndEvent) => {
+    const from = fields.findIndex((x) => x.id === event.active.id);
+    const to = fields.findIndex((x) => x.id === event.over?.id);
+    if (from < 0 || to < 0 || from === to) return;
+    const rest = fields.filter((_, i) => i !== from);
+    // Dropped on a field: take its place (after it when moving down).
+    const at = rest.findIndex((x) => x.id === fields[to].id) + (from < to ? 1 : 0);
+    const prev = rest[at - 1];
+    const next = rest[at];
+    const position = prev && next ? (prev.position + next.position) / 2 : prev ? prev.position + 1 : next ? next.position - 1 : 0;
+    const field = { ...fields[from], position };
+    const before = fields;
+    setFields([...rest.slice(0, at), field, ...rest.slice(at)]);
+    startTransition(async () => {
+      const result = await saveTaskField(projectId, field.id, { name: field.name, options: field.options, position });
+      if (!result.ok) {
+        setFields(before);
+        setError(t.tasks.errors[result.error] ?? t.common.unknownError);
+      }
+      router.refresh();
+    });
+  };
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -49,6 +81,7 @@ export function FieldsEditor({ projectId, fields }: { projectId: string; fields:
           options: LISTS.includes(d.kind) ? d.options.filter((o) => o.label.trim()) : [],
           required: d.required,
           task_types: d.types,
+          hint: d.hint.trim(),
         }),
       () => setDraft(null),
     );
@@ -61,6 +94,7 @@ export function FieldsEditor({ projectId, fields }: { projectId: string; fields:
         </p>
       )}
       {fields.length === 0 && !draft && <p className="text-sm text-muted">{f.none}</p>}
+      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       <ul className="space-y-2" aria-label={f.title}>
         {fields.map((field) =>
           draft?.id === field.id ? (
@@ -68,7 +102,7 @@ export function FieldsEditor({ projectId, fields }: { projectId: string; fields:
               <DraftForm draft={draft} setDraft={setDraft} onSave={save} pending={pending} />
             </li>
           ) : (
-            <li key={field.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3 text-sm" data-custom-field={field.name}>
+            <SortableField key={field.id} id={field.id} name={field.name} disabled={pending || !!draft}>
               <span className="min-w-0 flex-1">
                 <span className="font-medium">{field.name}</span> <span className="text-muted">· {f.kinds[field.kind]}</span>
                 {field.required && <span className="text-muted"> · {f.required}</span>}
@@ -76,6 +110,7 @@ export function FieldsEditor({ projectId, fields }: { projectId: string; fields:
                   {field.task_types?.length ? field.task_types.map((type) => `${TYPE_ICONS[type]} ${t.tasks.types[type]}`).join(", ") : f.allTypes}
                   {LISTS.includes(field.kind) && ` · ${field.options.map((o) => o.label).join(", ")}`}
                 </span>
+                {field.hint && <span className="block text-xs text-muted">💬 {field.hint}</span>}
               </span>
               <button type="button" className={buttonClass} disabled={pending} onClick={() => setDraft(toDraft(field))}>
                 {f.edit}
@@ -90,10 +125,11 @@ export function FieldsEditor({ projectId, fields }: { projectId: string; fields:
               >
                 {f.delete}
               </button>
-            </li>
+            </SortableField>
           ),
         )}
       </ul>
+      </DndContext>
       {draft && draft.id === null ? (
         <DraftForm draft={draft} setDraft={setDraft} onSave={save} pending={pending} />
       ) : (
@@ -101,13 +137,36 @@ export function FieldsEditor({ projectId, fields }: { projectId: string; fields:
           <button
             type="button"
             className={buttonClass}
-            onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [] })}
+            onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "" })}
           >
             ＋ {f.add}
           </button>
         )
       )}
     </div>
+  );
+}
+
+// A field row: dragged by its handle, and a drop target for the others.
+function SortableField({ id, name, disabled, children }: { id: string; name: string; disabled: boolean; children: React.ReactNode }) {
+  const drag = useDraggable({ id, disabled });
+  const drop = useDroppable({ id, disabled });
+  const style = drag.transform ? { transform: `translate3d(${drag.transform.x}px, ${drag.transform.y}px, 0)` } : undefined;
+  return (
+    <li
+      ref={(node) => {
+        drag.setNodeRef(node);
+        drop.setNodeRef(node);
+      }}
+      style={style}
+      className={`flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm ${drag.isDragging ? "relative z-10 border-accent bg-background shadow-lg" : drop.isOver ? "border-accent" : "border-border"}`}
+      data-custom-field={name}
+    >
+      <button type="button" {...drag.listeners} {...drag.attributes} aria-label={f.dragHandle(name)} disabled={disabled} className="h-9 w-7 cursor-grab touch-none rounded text-muted hover:bg-surface disabled:cursor-default disabled:opacity-40" data-field-handle>
+        ⠿
+      </button>
+      {children}
+    </li>
   );
 }
 
@@ -140,6 +199,11 @@ function DraftForm({ draft, setDraft, onSave, pending }: { draft: Draft; setDraf
           {!isNew && <span className="text-xs text-muted">{f.kindFixed}</span>}
         </label>
       </div>
+
+      <label className="flex flex-col gap-1">
+        {f.hint}
+        <input value={draft.hint} onChange={(e) => set({ hint: e.target.value })} maxLength={300} placeholder={f.hintPlaceholder} className={inputClass} data-field-hint-input />
+      </label>
 
       {LISTS.includes(draft.kind) && (
         <fieldset className="space-y-2">
