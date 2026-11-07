@@ -21,7 +21,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - П-2 look — DONE (#117).
 - П-3а show (sizes, player, transitions, presenter, PDF) + П-3б embeds — DONE (#118).
 - Later (owner may decide): per-object build animations; public show link without sign-in (access change → approval).
-- Bordy «Дизайн» Д-1…Д-4 (pages, frames, layer tree, auto layout, constraints, pen, stacked fills, SVG import, prototypes + player, task from text, copy style, PNG/SVG/PDF export) — in review.
+- Bordy «Дизайн» Д-1…Д-4 (pages, frames, layer tree, auto layout, constraints, pen, stacked fills, SVG import, prototypes + player, task from text, copy style, PNG/SVG/PDF export) — DONE (#119).
 - Д later: comments pinned on the canvas (new table + RLS → owner's approval first); variants/components; per-frame version history.
 - Original Д scope: Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
 - Then realtime co-editing (cursors, presence, conflict-free edits) for both.
