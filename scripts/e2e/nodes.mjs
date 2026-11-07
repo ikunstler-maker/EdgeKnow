@@ -346,6 +346,19 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.reload();
   await alice.locator('[data-slide-thumb="1"] [data-node], [data-deck-canvas] [data-node]').first().waitFor({ timeout: 20000 }).catch(() => {});
   check("…and shows them again after a reload", (await alice.locator("[data-deck-canvas] [data-node]").count()) === 2);
+  // Step П-3а: the slide size changes while editing (content fitted), and the deck is shown.
+  await alice.locator("[data-size-button]").click();
+  await alice.locator('[data-aspect="9:16"]').click();
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const sized = sql(`select (data #>> '{size,w}') || 'x' || (data #>> '{size,h}') from public.service_objects where id = '${deckId}'`);
+  check("…turns portrait (9:16) without a new file", sized === "1080x1920", sized);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  const first = await alice.locator("[data-player-count]").innerText();
+  await alice.keyboard.press("ArrowRight");
+  await alice.waitForTimeout(800);
+  check("…and is shown in its own page, slide by slide", first.trim() === "1 / 2" && (await alice.locator("[data-player-count]").innerText()).trim() === "2 / 2", first);
 }
 
 // --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------

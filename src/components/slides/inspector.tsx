@@ -42,12 +42,49 @@ const gradientCss = (g: Gradient) => `${g.kind === "radial" ? "radial-gradient(c
 
 // The look of the selected layer (one): geometry, fill, stroke, corners, effects, text.
 export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode | null; slide: Slide; onNode: (change: (n: SlideNode) => SlideNode) => void; onSlide: (change: (s: Slide) => Slide) => void }) {
-  if (!node)
+  if (!node) {
+    const tr = slide.transition ?? { kind: "none" as const };
+    const setTr = (patch: Partial<NonNullable<Slide["transition"]>>) => onSlide((x) => ({ ...x, transition: { duration: 500, easing: "ease", ...(x.transition ?? { kind: "none" }), ...patch } }));
+    const T = s.transition;
     return (
-      <Section title={s.background}>
-        <input type="color" value={slide.background} onChange={(e) => onSlide((x) => ({ ...x, background: e.target.value }))} className={colorClass} aria-label={s.background} />
-      </Section>
+      <div className="space-y-3">
+        <Section title={s.background}>
+          <input type="color" value={slide.background} onChange={(e) => onSlide((x) => ({ ...x, background: e.target.value }))} className={colorClass} aria-label={s.background} />
+        </Section>
+        <Section title={T.title}>
+          <select value={tr.kind} onChange={(e) => setTr({ kind: e.target.value as NonNullable<Slide["transition"]>["kind"] })} className={inputClass} aria-label={T.title} data-transition>
+            {(["none", "fade", "slide", "push", "smart"] as const).map((k) => (
+              <option key={k} value={k}>
+                {T.kinds[k]}
+              </option>
+            ))}
+          </select>
+          {(tr.kind === "slide" || tr.kind === "push") && (
+            <select value={tr.direction ?? "left"} onChange={(e) => setTr({ direction: e.target.value as "left" })} className={inputClass} aria-label={T.direction}>
+              {(["left", "right", "up", "down"] as const).map((k) => (
+                <option key={k} value={k}>
+                  {T.directions[k]}
+                </option>
+              ))}
+            </select>
+          )}
+          {tr.kind !== "none" && (
+            <>
+              <NumberField label={T.duration} value={tr.duration ?? 500} min={100} max={3000} step={50} onChange={(duration) => setTr({ duration })} data="duration" />
+              <select value={tr.easing ?? "ease"} onChange={(e) => setTr({ easing: e.target.value as "ease" })} className={inputClass} aria-label={T.easing}>
+                {(["linear", "ease", "ease-in", "ease-out", "ease-in-out"] as const).map((k) => (
+                  <option key={k} value={k}>
+                    {T.easings[k]}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {tr.kind === "smart" && <p className="text-xs text-muted">{T.smartHint}</p>}
+        </Section>
+      </div>
     );
+  }
   const set = (patch: Partial<SlideNode>) => onNode((n) => ({ ...n, ...patch }));
   const shape = node.type === "RECTANGLE" || node.type === "ELLIPSE";
   const linear = node.type === "LINE" || node.type === "ARROW";

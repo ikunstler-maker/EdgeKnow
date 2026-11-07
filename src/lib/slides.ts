@@ -49,8 +49,11 @@ export type SlideNode = {
   groupId?: string;
 };
 
-export type Slide = { id: string; background: string; nodes: SlideNode[] };
-export type Deck = { version: 1; theme?: string; slides: Slide[] };
+export type Slide = { id: string; background: string; nodes: SlideNode[]; notes?: string; transition?: Transition };
+export type Size = { w: number; h: number };
+// Notes for the speaker and the way the slide comes in (step П-3а).
+export type Transition = { kind: "none" | "fade" | "slide" | "push" | "smart"; direction?: "left" | "right" | "up" | "down"; duration?: number; easing?: "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" };
+export type Deck = { version: 1; theme?: string; size?: Size; slides: Slide[] };
 
 export const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
@@ -97,10 +100,24 @@ export function readDeck(data: unknown): Deck {
         },
       ];
     });
-    return [{ id: str(slide.id) ?? newId(), background: str(slide.background) ?? "#ffffff", nodes }];
+    const tr = slide.transition as Record<string, unknown> | undefined;
+    const kinds = ["none", "fade", "slide", "push", "smart"];
+    const transition: Transition | undefined =
+      tr && kinds.includes(tr.kind as string)
+        ? {
+            kind: tr.kind as Transition["kind"],
+            ...(["left", "right", "up", "down"].includes(tr.direction as string) ? { direction: tr.direction as Transition["direction"] } : {}),
+            duration: Math.min(3000, Math.max(100, num(tr.duration, 500))),
+            ...(["linear", "ease", "ease-in", "ease-out", "ease-in-out"].includes(tr.easing as string) ? { easing: tr.easing as Transition["easing"] } : {}),
+          }
+        : undefined;
+    const notes = str(slide.notes);
+    return [{ id: str(slide.id) ?? newId(), background: str(slide.background) ?? "#ffffff", nodes, ...(notes ? { notes: notes.slice(0, 20000) } : {}), ...(transition ? { transition } : {}) }];
   });
   const theme = str((raw as Record<string, unknown>).theme);
-  return { version: 1, ...(theme ? { theme } : {}), slides: read.length ? read : [emptySlide()] };
+  const sz = (raw as Record<string, unknown>).size as Record<string, unknown> | undefined;
+  const size = sz && typeof sz.w === "number" && typeof sz.h === "number" ? { w: Math.round(Math.min(MAX_SIDE, Math.max(MIN_SIDE, sz.w))), h: Math.round(Math.min(MAX_SIDE, Math.max(MIN_SIDE, sz.h))) } : undefined;
+  return { version: 1, ...(theme ? { theme } : {}), ...(size ? { size } : {}), slides: read.length ? read : [emptySlide()] };
 }
 
 const isColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{3,8}$|^rgba?\(/i.test(v);
@@ -156,3 +173,44 @@ export const deckText = (deck: Deck) =>
     .flatMap((s) => s.nodes.map((n) => n.text ?? ""))
     .join(" ")
     .slice(0, 20000);
+
+// Slide sizes (step П-3а): any aspect, the long side 1920 for the presets; own pixels too.
+export const DEFAULT_SIZE: Size = { w: SLIDE_W, h: SLIDE_H };
+export const MIN_SIDE = 100;
+export const MAX_SIDE = 8000;
+export const ASPECTS = ["16:9", "9:16", "4:3", "3:4", "1:1", "21:9", "9:21", "5:4", "4:5", "2:1", "1:2"] as const;
+export const sizeOf = (deck: Deck): Size => deck.size ?? DEFAULT_SIZE;
+export function aspectSize(aspect: string): Size {
+  const [a, b] = aspect.split(":").map(Number);
+  return a >= b ? { w: 1920, h: Math.round((1920 * b) / a) } : { w: Math.round((1920 * a) / b), h: 1920 };
+}
+export const aspectOf = (size: Size) => ASPECTS.find((x) => {
+  const t = aspectSize(x);
+  return t.w === size.w && t.h === size.h;
+});
+
+// Layers made for one size, fitted into another: scaled evenly and centred.
+export function fitNodes(nodes: SlideNode[], from: Size, to: Size): SlideNode[] {
+  const k = Math.min(to.w / from.w, to.h / from.h);
+  const ox = (to.w - from.w * k) / 2;
+  const oy = (to.h - from.h * k) / 2;
+  const r = (v: number) => Math.round(v * 100) / 100;
+  return nodes.map((n) => ({
+    ...n,
+    x: r(ox + n.x * k),
+    y: r(oy + n.y * k),
+    width: r(n.width * k),
+    height: r(n.height * k),
+    ...(n.fontSize ? { fontSize: r(n.fontSize * k) } : {}),
+    ...(n.strokeWidth ? { strokeWidth: r(n.strokeWidth * k) } : {}),
+    ...(typeof n.radius === "number" ? { radius: r(n.radius * k) } : Array.isArray(n.radius) ? { radius: n.radius.map((v) => r(v * k)) as [number, number, number, number] } : {}),
+    ...(n.shadow ? { shadow: { ...n.shadow, x: r(n.shadow.x * k), y: r(n.shadow.y * k), blur: r(n.shadow.blur * k) } } : {}),
+    ...(n.blur ? { blur: r(n.blur * k) } : {}),
+  }));
+}
+
+// A new size for the whole deck; `fit` scales what is on the slides, otherwise it stays put.
+export function resizeDeck(deck: Deck, size: Size, fit: boolean): Deck {
+  const from = sizeOf(deck);
+  return { ...deck, size, slides: fit ? deck.slides.map((s) => ({ ...s, nodes: fitNodes(s.nodes, from, size) })) : deck.slides };
+}

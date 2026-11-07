@@ -1,5 +1,5 @@
 // Presentations (step П-2): themes (colours, fonts, background) and slide templates.
-import { SLIDE_H, SLIDE_W, newId, type Deck, type Slide, type SlideNode } from "./slides";
+import { DEFAULT_SIZE, SLIDE_H, SLIDE_W, fitNodes, newId, type Deck, type Size, type Slide, type SlideNode } from "./slides";
 import { SERVICE_BRANDS, type ServiceKey } from "./services";
 
 export type SlideTheme = { id: string; background: string; text: string; muted: string; accent: string; font: string; headingFont: string };
@@ -74,7 +74,8 @@ const text = (theme: SlideTheme, name: string, x: number, y: number, width: numb
 });
 
 // A new slide of a template, in the deck's theme. `labels` are the placeholder words.
-export function templateSlide(template: SlideTemplate, theme: SlideTheme, labels: { title: string; subtitle: string; text: string; caption: string }): Slide {
+// Templates are drawn for 16:9 and fitted into the deck's own size.
+export function templateSlide(template: SlideTemplate, theme: SlideTheme, labels: { title: string; subtitle: string; text: string; caption: string }, size: Size = DEFAULT_SIZE): Slide {
   const M = 120;
   const nodes: SlideNode[] = [];
   if (template === "title") {
@@ -92,7 +93,6 @@ export function templateSlide(template: SlideTemplate, theme: SlideTheme, labels
     nodes.push({ id: newId(), type: "RECTANGLE", name: labels.caption, x: M, y: 100, width: SLIDE_W - 2 * M, height: 700, rotation: 0, fill: theme.muted, opacity: 0.25, radius: 24 });
     nodes.push(text(theme, labels.caption, M, 840, SLIDE_W - 2 * M, 120, labels.caption, 44, false, "center"));
   }
-  return { id: newId(), background: theme.background, nodes };
+  return { id: newId(), background: theme.background, nodes: size.w === SLIDE_W && size.h === SLIDE_H ? nodes : fitNodes(nodes, DEFAULT_SIZE, size) };
 }
 
-export const SLIDE_SIZE = { w: SLIDE_W, h: SLIDE_H };

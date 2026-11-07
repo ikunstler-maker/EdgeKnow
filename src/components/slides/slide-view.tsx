@@ -1,6 +1,6 @@
 "use client";
 
-import { SLIDE_H, SLIDE_W, type Gradient, type Slide, type SlideNode } from "@/lib/slides";
+import { DEFAULT_SIZE, type Gradient, type Size, type Slide, type SlideNode } from "@/lib/slides";
 
 // Draws a slide (the editor's canvas, thumbnails and, later, the player use the same).
 export const imageUrl = (shortId: string, imageId: string) => `/api/boards/files/${imageId}?ws=${shortId}`;
@@ -162,10 +162,10 @@ export function NodeShape({ node, shortId, editingText, prefix = "" }: { node: S
   );
 }
 
-export function SlideView({ slide, shortId, className, prefix = "t" }: { slide: Slide; shortId: string; className?: string; prefix?: string }) {
+export function SlideView({ slide, shortId, className, prefix = "t", size = DEFAULT_SIZE, style }: { slide: Slide; shortId: string; className?: string; prefix?: string; size?: Size; style?: React.CSSProperties }) {
   return (
-    <svg viewBox={`0 0 ${SLIDE_W} ${SLIDE_H}`} className={className} aria-hidden="true">
-      <rect x={0} y={0} width={SLIDE_W} height={SLIDE_H} fill={slide.background} />
+    <svg viewBox={`0 0 ${size.w} ${size.h}`} className={className} style={style} aria-hidden="true">
+      <rect x={0} y={0} width={size.w} height={size.h} fill={slide.background} />
       {slide.nodes
         .filter((n) => !n.hidden)
         .map((node) => (

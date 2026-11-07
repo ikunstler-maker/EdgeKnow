@@ -83,6 +83,17 @@ export function DeckScreen({
     [canEdit, status, flush],
   );
 
+  // The show and PDF read the saved deck: save first, then open the new tab
+  // (opened at once, so the browser doesn't block it).
+  const open = async (path: string) => {
+    const win = window.open("about:blank", "_blank");
+    if (timer.current) clearTimeout(timer.current);
+    await flush();
+    const url = workspacePath(shortId, `/slides/${id}${path}`);
+    if (win) win.location.href = url;
+    else window.location.href = url;
+  };
+
   useEffect(() => {
     const onLeave = (event: BeforeUnloadEvent) => {
       if (pending.current) event.preventDefault();
@@ -112,6 +123,18 @@ export function DeckScreen({
         <span className="text-xs text-muted" role="status" data-save-status={status}>
           {status === "saving" ? s.saving : status === "saved" ? s.saved : ""}
         </span>
+        <button type="button" onClick={() => void open("/play")} className={buttonClass} data-play>
+          {s.player.show}
+        </button>
+        <button type="button" onClick={() => void open("/play?presenter=1")} className={buttonClass} data-presenter-open>
+          {s.player.presenter}
+        </button>
+        <button type="button" onClick={() => void open("/print")} className={buttonClass} data-print>
+          {s.print.button}
+        </button>
+        <button type="button" onClick={() => void open("/print?notes=1")} className={buttonClass}>
+          {s.print.withNotes}
+        </button>
         {access && (
           <ObjectAccessButton
             label={s.access}
@@ -153,7 +176,7 @@ export function DeckScreen({
           {error}
         </p>
       )}
-      <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={canEdit && status !== "conflict"} onChange={(deck) => schedule({ data: deck })} />
+      <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={canEdit && status !== "conflict"} onChange={(deck) => schedule({ data: deck })} onPlay={(n) => void open(`/play?at=${n}`)} />
     </div>
   );
 }
