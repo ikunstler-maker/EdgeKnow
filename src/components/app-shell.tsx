@@ -61,6 +61,7 @@ export function AppShell({
   boards,
   objects,
   collections,
+  canCreatePages = true,
   children,
 }: {
   user: CurrentUser;
@@ -69,6 +70,7 @@ export function AppShell({
   boards: BoardSummary[];
   objects: ObjectSummary[];
   collections: Collections;
+  canCreatePages?: boolean;
   children: ReactNode;
 }) {
   const { workspace } = usePages();
@@ -131,7 +133,7 @@ export function AppShell({
         style={{ width }}
         data-sidebar-width={width}
       >
-        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} />
+        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} canCreatePages={canCreatePages} />
         <div
           role="separator"
           aria-orientation="vertical"
@@ -187,7 +189,7 @@ export function AppShell({
             aria-label={t.sidebar.pagesHeading}
             className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-background shadow-xl"
           >
-            <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} onNavigate={close} />
+            <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} canCreatePages={canCreatePages} onNavigate={close} />
           </aside>
         </div>
       )}

@@ -62,7 +62,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     .order("position")
     .overrideTypes<PageRow[], { merge: false }>();
   // For the sidebar (RLS): task projects with their boards, and the other services' objects.
-  const [{ data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }] = await Promise.all([
+  const [{ data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }, { data: mayCreatePages }] = await Promise.all([
     supabase
       .from("task_projects")
       .select("id, key, name, icon")
@@ -86,6 +86,8 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
       .eq("workspace_id", workspace.id)
       .order("position")
       .overrideTypes<CollectionItem[], { merge: false }>(),
+    // A role may take "create pages" away (guests keep their own rule).
+    workspace.role === "guest" ? Promise.resolve({ data: true }) : supabase.rpc("role_allows", { ws: workspace.id, perm: "create_pages" }),
   ]);
 
   // Guests this person sees (RLS), to mark them wherever people appear.
@@ -112,7 +114,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
 
   return (
     <PagesProvider workspace={workspace} pages={(pages ?? []).map(toPageNode)} guests={(guestRows ?? []).map((g) => g.user_id as string)}>
-      <AppShell user={user} workspaces={workspaces} projects={projects ?? []} boards={boards ?? []} objects={objects ?? []} collections={{ list: collections ?? [], items: collectionItems ?? [] }}>
+      <AppShell user={user} workspaces={workspaces} projects={projects ?? []} boards={boards ?? []} objects={objects ?? []} collections={{ list: collections ?? [], items: collectionItems ?? [] }} canCreatePages={mayCreatePages !== false}>
         {/* Moving into the team's own database (path C): changes wait until it is done. */}
         {(data!.location === "setup" || data!.location === "returning") && (
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">

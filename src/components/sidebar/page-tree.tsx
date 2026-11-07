@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { createContext, use, useRef, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -63,14 +63,19 @@ function pointerY(event: DragMoveEvent): number | null {
   return typeof y === "number" ? y + event.delta.y : null;
 }
 
+// A role may take "create pages" away: then no "add subpage" in the tree.
+const CanCreateContext = createContext(true);
+
 export function PageTree({
   userId,
   currentId,
   onNavigate,
+  canCreate = true,
 }: {
   userId: string;
   currentId: string | null;
   onNavigate?: () => void;
+  canCreate?: boolean;
 }) {
   const { pages, move } = usePages();
   const expanded = useExpanded();
@@ -153,6 +158,7 @@ export function PageTree({
   };
 
   return (
+    <CanCreateContext value={canCreate}>
     <DndContext
       sensors={sensors}
       collisionDetection={pointerWithin}
@@ -198,6 +204,7 @@ export function PageTree({
         )}
       </DragOverlay>
     </DndContext>
+    </CanCreateContext>
   );
 }
 
@@ -220,6 +227,7 @@ function TreeRow({
 }) {
   const { page, depth, hasChildren } = item;
   const { workspace, pages, creating, create, rename, move, trash } = usePages();
+  const canCreate = use(CanCreateContext);
   const editable = canEdit(page.role);
   const owner = page.role === "owner";
   // Moving needs edit rights on the page itself.
@@ -314,7 +322,7 @@ function TreeRow({
             the edge of the panel. On touch screens only "⋯" stays (its menu can add a subpage). */}
         {editable && (
           <>
-            <button
+            {canCreate && <button
               type="button"
               onClick={() => {
                 create(page.id);
@@ -325,7 +333,7 @@ function TreeRow({
               className={`${rowAction} hidden [@media(hover:hover)]:group-hover:flex [@media(hover:hover)]:group-focus-within:flex`}
             >
               +
-            </button>
+            </button>}
             <button
               type="button"
               onClick={(event) => setMenuAnchor(menuAnchor ? null : event.currentTarget)}
@@ -349,6 +357,7 @@ function TreeRow({
           >
             {t.pages.menu.rename}
           </MenuItem>
+          {canCreate && (
           <MenuItem
             onSelect={() => {
               setMenuAnchor(null);
@@ -358,6 +367,7 @@ function TreeRow({
           >
             {t.pages.menu.addSubpage}
           </MenuItem>
+          )}
           <MenuItem
             onSelect={() => {
               setMenuAnchor(null);

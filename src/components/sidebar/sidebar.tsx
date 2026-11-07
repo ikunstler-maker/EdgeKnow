@@ -47,6 +47,7 @@ export function Sidebar({
   boards,
   objects,
   collections,
+  canCreatePages = true,
   onNavigate,
 }: {
   user: CurrentUser;
@@ -55,6 +56,7 @@ export function Sidebar({
   boards: BoardSummary[];
   objects: ObjectSummary[];
   collections: Collections;
+  canCreatePages?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -105,7 +107,7 @@ export function Sidebar({
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
       <NotificationBell onNavigate={onNavigate} />
 
-      {section === "wiki" && (
+      {section === "wiki" && canCreatePages && (
       <button
         type="button"
         onClick={() => {
@@ -138,7 +140,7 @@ export function Sidebar({
           (sidebarToc && !sidebarToc.showTree ? (
             <SidebarContents headings={sidebarToc.headings} onPick={onNavigate} />
           ) : (
-            <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} />
+            <PageTree userId={user.id} currentId={currentId} onNavigate={onNavigate} canCreate={canCreatePages} />
           ))}
       </div>
 
