@@ -13,8 +13,16 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR Б-1: unit tree — DONE (#112).
 - PR Б-2: custom roles — DONE (#113).
 - PR Б-3: access follows the tree — DONE (#114).
-- Follow-up: hide "New page"/"add subpage" when the role forbids pages; backup carries roles, unit tree, leads, collections — in review.
+- Follow-up: hide New page when the role forbids pages; backup carries roles, tree, collections — DONE (#115).
 - PR Б (stages, each its own PR, RLS → approval per stage): company hierarchy (groups → tree of units), custom named roles with workspace rights + content level, access by structure (up: higher units see; down: a unit's sub-units see), current admin/member become built-in roles. Owner agreed on all 4 questions.
+
+## Canvas engine: Presentations, then Bordy «Дизайн» (owner, 2027-01-09; decision 2027-01-09)
+- П-1 deck editor (slides, text, shapes, lines/arrows, pictures, select/move/resize/rotate, undo, autosave) — in review.
+- П-2 look: inspector (fills incl. gradients and brand 135° presets, strokes, corner radii, shadows/blur, opacity), layers panel (order, hide, lock, group), alignment guides, themes and slide templates.
+- П-3 show: player in a separate tab (fullscreen, arrows, R), slide transitions incl. smart animate, presenter view (notes, timer), embeds (task, table/chart, wiki page, survey), PDF export.
+- Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
+- Then realtime co-editing (cursors, presence, conflict-free edits) for both.
+- Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
 
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).

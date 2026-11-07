@@ -309,6 +309,36 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("a colleague sees the team's board in the list", (await colleague.locator('[data-board="Retro"]').count()) === 1);
 }
 
+// --- Presentations (step П-1): slides with text and shapes, saved, reordered ---------------------
+{
+  await alice.goto(`${APP}/w/${alphaShort}/slides`);
+  await alice.getByRole("button", { name: "＋ Нова презентація" }).click();
+  await alice.waitForURL(/\/slides\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const deckId = alice.url().split("/").pop();
+  await alice.getByLabel("Назва презентації").fill("Pitch");
+  const svg = alice.locator("[data-deck-canvas] svg");
+  await svg.waitFor({ timeout: 30000 });
+  const box = await svg.boundingBox();
+  const at = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];
+  await alice.locator('[data-tool="RECTANGLE"]').click();
+  await alice.mouse.move(...at(0.1, 0.1));
+  await alice.mouse.down();
+  await alice.mouse.move(...at(0.4, 0.4), { steps: 5 });
+  await alice.mouse.up();
+  await alice.locator('[data-tool="TEXT"]').click();
+  await alice.mouse.click(...at(0.1, 0.7));
+  await alice.locator("[data-text-editor]").fill("Quarterly goals");
+  await alice.mouse.click(...at(0.9, 0.9));
+  await alice.locator("[data-add-slide]").click();
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const saved = sql(`select title || ' ' || jsonb_array_length(data -> 'slides') || ' ' || jsonb_array_length(data #> '{slides,0,nodes}') || ' ' || search_text from public.service_objects where id = '${deckId}'`);
+  check("a presentation keeps its slides, shapes and text (and the text is searchable)", saved === "Pitch 2 2 Quarterly goals", saved);
+  await alice.reload();
+  await alice.locator('[data-slide-thumb="1"] [data-node], [data-deck-canvas] [data-node]').first().waitFor({ timeout: 20000 }).catch(() => {});
+  check("…and shows them again after a reload", (await alice.locator("[data-deck-canvas] [data-node]").count()) === 2);
+}
+
 // --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------
 {
   await alice.goto(`${APP}/w/${alphaShort}/sheets`);
