@@ -78,7 +78,18 @@ export async function fetchFromSource(
     const res = await fetchOnce(url, headers, maxBytes);
     if (!res.location) return res;
     const next = checkUrl(new URL(res.location, url).toString());
-    if (!next || next.origin !== origin) return null;
+    // The key never follows a redirect to another site; a sign-in page is the usual reason.
+    if (!next || next.origin !== origin) {
+      const host = (() => {
+        try {
+          return new URL(res.location, url).hostname;
+        } catch {
+          return "";
+        }
+      })();
+      const signIn = /(^|\.)(accounts\.google\.com|login\.microsoftonline\.com)$/.test(host) || /login|signin|sign-in|auth/i.test(res.location);
+      throw Object.assign(new Error("redirect"), { code: signIn ? "ELOGIN" : "EOTHERSITE" });
+    }
     url = next;
   }
   return null;
@@ -101,9 +112,11 @@ export function blocksFromMarkdown(source: Pick<ExternalSource, "id" | "url">, m
   });
 }
 
-function errorCode(error: unknown) {
+export function errorCode(error: unknown) {
   const code = (error as { code?: string; message?: string })?.code;
   if (code === "ETOOLARGE") return "too_large";
+  if (code === "ELOGIN") return "login_required";
+  if (code === "EOTHERSITE") return "redirect_other_site";
   if (code === "EBLOCKED") return "blocked_address";
   return "unreachable";
 }

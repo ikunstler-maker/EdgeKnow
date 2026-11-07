@@ -7,6 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // workspace uses.
 const LIMITS = {
   preview: [30, 60],
+  // Pictures of an external wiki page: a long help page holds many of them.
+  external_image: [600, 60],
   youtube: [60, 60],
   upload: [60, 60],
   save: [240, 60],
