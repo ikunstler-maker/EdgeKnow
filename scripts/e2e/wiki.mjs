@@ -297,7 +297,7 @@ const galleryItems = () => sql(`select b -> 'props' ->> 'items' from public.page
 const audioSaved = await until(() => /"kind":"audio","url":"ek-attachment:[^"]+\.mp3"/.test(galleryItems()), 20000);
 await alice.reload();
 await alice.locator("[data-gallery-grid] audio").first().waitFor({ timeout: 20000 }).catch(() => {});
-const galleryShown = `${await alice.locator("[data-gallery-grid] figure").count()} items, ${await alice.locator("[data-gallery-grid] audio").count()} players`;
+const galleryShown = `${await alice.locator("[data-gallery-grid] > figure").count()} items, ${await alice.locator("[data-gallery-grid] audio").count()} players`;
 check("…and is saved in the gallery with a player (only for our own file)", audioSaved && galleryShown === "4 items, 1 players", `${galleryShown} | ${galleryItems().slice(0, 200)}`);
 
 // --- Stage 4: images ------------------------------------------------------------
