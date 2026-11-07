@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { encrypt } from "@/lib/drive/secret-box";
-import { SOURCE_COLUMNS, syncSource, type ExternalSource } from "@/lib/external-source";
+import { LANG, SOURCE_COLUMNS, sourceUrl, syncSource, type ExternalSource } from "@/lib/external-source";
 import { checkUrl } from "@/lib/link-preview";
 import { overLimit } from "@/lib/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -34,12 +34,30 @@ async function sourceOf(admin: NonNullable<ReturnType<typeof createAdminClient>>
 
 const cleanKey = (key: string) => key.trim().slice(0, 500);
 
-export async function connectExternalSource(shortId: string, pageId: string, rawUrl: string, key: string): Promise<ActionResult> {
+// "uk, ru" → ["uk", "ru"]; several languages need {lang} in the address.
+function parseLanguages(raw: string, url: string): string[] | null {
+  const list = [...new Set(raw.toLowerCase().split(/[\s,;]+/).filter(Boolean))];
+  if (list.length > 5 || !list.every((l) => LANG.test(l))) return null;
+  if (url.includes("{lang}") ? list.length === 0 : list.length > 1) return null;
+  return list;
+}
+
+export async function connectExternalSource(
+  shortId: string,
+  pageId: string,
+  rawUrl: string,
+  key: string,
+  rawLanguages = "",
+): Promise<ActionResult> {
   if (await overLimit(await createClient(), "save")) return { ok: false, error: "rate_limited" };
   const ctx = await adminContext(shortId, pageId);
   if (!ctx) return { ok: false, error: "forbidden" };
-  const url = checkUrl(rawUrl.trim());
-  if (!url || url.toString().length > 2000) return { ok: false, error: "invalid_url" };
+  const address = rawUrl.trim();
+  const languages = parseLanguages(rawLanguages, address);
+  if (!languages) return { ok: false, error: "invalid_languages" };
+  // The {lang} placeholder stays as typed; the check runs on a real address.
+  const url = checkUrl(sourceUrl(address, languages[0]));
+  if (!url || address.length > 2000 || !address.startsWith("https://")) return { ok: false, error: "invalid_url" };
   if (await sourceOf(ctx.admin, ctx.workspace.id, pageId)) return { ok: false, error: "already_connected" };
   const { data: user } = await (await createClient()).auth.getUser();
   const { data, error } = await ctx.admin
@@ -47,7 +65,8 @@ export async function connectExternalSource(shortId: string, pageId: string, raw
     .insert({
       workspace_id: ctx.workspace.id,
       page_id: pageId,
-      url: url.toString(),
+      url: address,
+      languages,
       secret_encrypted: cleanKey(key) ? encrypt(cleanKey(key)) : null,
       created_by: user.user?.id ?? null,
     })

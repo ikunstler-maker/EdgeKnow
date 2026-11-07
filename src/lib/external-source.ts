@@ -19,13 +19,14 @@ export type ExternalSource = {
   page_id: string;
   url: string;
   secret_encrypted: string | null;
+  languages: string[];
   etag: string | null;
   last_modified: string | null;
   synced_at: string | null;
   last_error: string | null;
 };
 
-export const SOURCE_COLUMNS = "id, workspace_id, page_id, url, secret_encrypted, etag, last_modified, synced_at, last_error";
+export const SOURCE_COLUMNS = "id, workspace_id, page_id, url, secret_encrypted, languages, etag, last_modified, synced_at, last_error";
 export const REFRESH_MS = 60 * 60 * 1000;
 const TIMEOUT_MS = 10_000;
 const MAX_REDIRECTS = 3;
@@ -68,7 +69,7 @@ export async function fetchFromSource(
   extra: Record<string, string>,
   maxBytes: number,
 ): Promise<Fetched | null> {
-  const origin = checkUrl(source.url)?.origin;
+  const origin = checkUrl(sourceUrl(source.url, "xx"))?.origin;
   let url = checkUrl(target);
   if (!origin || !url || url.origin !== origin) return null;
   const headers: Record<string, string> = { "User-Agent": "EdgeKnowExternalPage/1.0", ...extra };
@@ -83,12 +84,16 @@ export async function fetchFromSource(
   return null;
 }
 
+// The address of one language: {lang} is replaced; without it the URL is used as is.
+export const sourceUrl = (url: string, lang?: string) => (lang ? url.replaceAll("{lang}", lang) : url);
+export const LANG = /^[a-z]{2}$/;
+
 export const imageProxyUrl = (sourceId: string, url: string) => `/api/external/${sourceId}/image?u=${encodeURIComponent(url)}`;
 
 // Pictures on the source's own origin go through our proxy (they need the key);
 // any other https picture is shown by link like other pictures in the wiki.
 export function blocksFromMarkdown(source: Pick<ExternalSource, "id" | "url">, markdown: string) {
-  const base = new URL(source.url);
+  const base = new URL(sourceUrl(source.url, "xx"));
   return markdownToBlocks(markdown, base, (raw) => {
     const url = checkUrl(new URL(raw, base).toString());
     if (!url) return null;
@@ -119,27 +124,46 @@ export async function syncSource(admin: SupabaseClient, source: ExternalSource, 
     await admin.from("external_sources").update({ last_error: error, synced_at: now }).eq("id", source.id);
     return { ok: false, error };
   };
-  let res: Fetched | null;
-  try {
-    const conditional: Record<string, string> = {};
-    if (!force && source.etag) conditional["If-None-Match"] = source.etag;
-    if (!force && source.last_modified) conditional["If-Modified-Since"] = source.last_modified;
-    res = await fetchFromSource(source, source.url, { Accept: "text/markdown, text/plain;q=0.9", ...conditional }, MAX_TEXT);
-  } catch (error) {
-    return fail(errorCode(error));
+  const langs = source.languages.length ? source.languages : [undefined];
+  // Conditional requests only for a single address (several languages: always fetch).
+  const conditional: Record<string, string> = {};
+  if (!force && langs.length === 1 && source.etag) conditional["If-None-Match"] = source.etag;
+  if (!force && langs.length === 1 && source.last_modified) conditional["If-Modified-Since"] = source.last_modified;
+
+  const texts: (string | null)[] = [];
+  let meta: Pick<Fetched, "etag" | "lastModified"> = {};
+  for (const [index, lang] of langs.entries()) {
+    let res: Fetched | null;
+    try {
+      res = await fetchFromSource(source, sourceUrl(source.url, lang), { Accept: "text/markdown, text/plain;q=0.9", ...conditional }, MAX_TEXT);
+    } catch (error) {
+      if (index === 0) return fail(errorCode(error));
+      texts.push(null);
+      continue;
+    }
+    if (index === 0) {
+      if (!res) return fail("blocked_address");
+      if (res.status === 304) {
+        await admin.from("external_sources").update({ last_error: null, synced_at: now }).eq("id", source.id);
+        return { ok: true, changed: false };
+      }
+      if (res.status === 401 || res.status === 403) return fail("unauthorized");
+      if (res.status !== 200) return fail(`http_${res.status}`.slice(0, 20));
+      if (!/^text\/(markdown|plain|x-markdown)/.test(res.type)) return fail("not_markdown");
+      meta = res;
+    }
+    // A missing extra language is skipped: readers then see the main one.
+    const ok = res && res.status === 200 && /^text\/(markdown|plain|x-markdown)/.test(res.type);
+    texts.push(ok ? res!.body.toString("utf8") : null);
   }
-  if (!res) return fail("blocked_address");
-  if (res.status === 304) {
-    await admin.from("external_sources").update({ last_error: null, synced_at: now }).eq("id", source.id);
-    return { ok: true, changed: false };
-  }
-  if (res.status === 401 || res.status === 403) return fail("unauthorized");
-  if (res.status !== 200) return fail(`http_${res.status}`.slice(0, 20));
-  if (!/^text\/(markdown|plain|x-markdown)/.test(res.type)) return fail("not_markdown");
 
   const db = await pageClient(admin, source.workspace_id);
   if (!db) return fail("team_setup");
-  const content = blocksFromMarkdown(source, res.body.toString("utf8"));
+  const content = blocksFromMarkdown(source, texts[0]!);
+  const translations: Record<string, unknown> = {};
+  langs.forEach((lang, i) => {
+    if (i > 0 && lang && texts[i] !== null) translations[lang] = blocksFromMarkdown(source, texts[i]!);
+  });
   const { data: page } = await db.from("pages").select("version").eq("id", source.page_id).maybeSingle();
   if (!page) return fail("page_missing");
   const { error } = await db
@@ -150,7 +174,7 @@ export async function syncSource(admin: SupabaseClient, source: ExternalSource, 
   if (error) return fail("save_failed");
   await admin
     .from("external_sources")
-    .update({ last_error: null, synced_at: now, etag: res.etag ?? null, last_modified: res.lastModified ?? null })
+    .update({ translations, last_error: null, synced_at: now, etag: meta.etag ?? null, last_modified: meta.lastModified ?? null })
     .eq("id", source.id);
   return { ok: true, changed: true };
 }

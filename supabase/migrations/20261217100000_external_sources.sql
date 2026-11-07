@@ -5,6 +5,7 @@
 -- The key is encrypted by the server and this table is server-only: no policies,
 -- nothing for anon/authenticated. page_id has no foreign key because the page may
 -- live in the team's own database (path C).
+-- Several languages: one address with {lang}; the main one is written into the page.
 
 create table public.external_sources (
   id                uuid primary key default gen_random_uuid(),
@@ -12,6 +13,11 @@ create table public.external_sources (
   page_id           uuid not null unique,
   url               text not null check (char_length(url) between 9 and 2000 and url like 'https://%'),
   secret_encrypted  text,
+  -- Languages of the source, main first; the URL holds {lang} when there are several.
+  -- The main language is the page's content (searchable); the others live here.
+  languages         text[] not null default '{}' check (cardinality(languages) <= 5
+                      and array_to_string(languages, ',') ~ '^([a-z]{2}(,[a-z]{2})*)?$'),
+  translations      jsonb not null default '{}'::jsonb,
   etag              text,
   last_modified     text,
   synced_at         timestamptz,

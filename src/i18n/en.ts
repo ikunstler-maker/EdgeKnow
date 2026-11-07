@@ -1224,6 +1224,9 @@ export const en: Dictionary = {
       connect: "🔗 Fill from an address",
       connectHint: "The page will take Markdown text from this address and refresh every hour. It can't be edited by hand. The key is stored encrypted and is never shown again.",
       url: "Address (https)",
+      languages: "Source languages (main first)",
+      languagesHint: "For example: uk, ru. For several languages the address needs {lang}, e.g. https://…/help?lang={lang}. Search sees the main language.",
+      languageSwitch: "Help language",
       key: "Secret key (if needed)",
       checkAndConnect: "Check and connect",
       checking: "Checking…",
@@ -1238,6 +1241,7 @@ export const en: Dictionary = {
       disconnectConfirm: "Disconnect the source? The page keeps its last copy and becomes an ordinary page.",
       errors: {
         forbidden: "Only workspace admins can do this.",
+        invalid_languages: "Languages are two-letter codes (uk, ru), up to 5; several need {lang} in the address.",
         invalid_url: "An https address on a public site is needed.",
         already_connected: "This page already has a source.",
         blocked_address: "This address isn't reachable for the wiki.",

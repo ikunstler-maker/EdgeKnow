@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { after } from "next/server";
 import { refreshIfStale } from "@/lib/external-source";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ExternalSourceBar, type ExternalSourceInfo } from "@/components/pages/external-source-bar";
-import { t } from "@/i18n";
+import { EXTERNAL_LANG_COOKIE, ExternalSourceBar, type ExternalSourceInfo } from "@/components/pages/external-source-bar";
+import { currentLocale, t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
 import { getCurrentUser } from "@/lib/auth";
 import { THREAD_COLUMNS, toThread, type PeopleNames, type ThreadRow } from "@/lib/comments";
@@ -82,13 +83,27 @@ async function loadSource(workspaceId: string, pageId: string) {
   if (!admin) return null;
   const { data } = await admin
     .from("external_sources")
-    .select("id, url, synced_at, last_error")
+    .select("id, url, languages, translations, synced_at, last_error")
     .eq("workspace_id", workspaceId)
     .eq("page_id", pageId)
     .maybeSingle();
   if (!data) return null;
-  const info: ExternalSourceInfo = { host: new URL(data.url).host, syncedAt: data.synced_at, lastError: data.last_error };
-  return { id: data.id as string, info };
+  const languages = (data.languages ?? []) as string[];
+  const translations = (data.translations ?? {}) as Record<string, unknown>;
+  // Shown language: the reader's own choice, else the interface language, else the main one.
+  const available = languages.filter((l, i) => i === 0 || l in translations);
+  const chosen = (await cookies()).get(EXTERNAL_LANG_COOKIE)?.value;
+  const lang = [chosen, currentLocale()].find((l) => l && available.includes(l)) ?? languages[0] ?? null;
+  const info: ExternalSourceInfo = {
+    host: new URL(data.url.replaceAll("{lang}", "xx")).host,
+    syncedAt: data.synced_at,
+    lastError: data.last_error,
+    languages: available,
+    lang,
+  };
+  // The main language is the page itself; another one replaces only what is shown.
+  const content = lang && lang !== languages[0] ? translations[lang] : undefined;
+  return { id: data.id as string, info, content };
 }
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">): Promise<Metadata> {
@@ -165,9 +180,9 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
       />
       <div className="mt-6">
         <PageBody
-          key={page.id}
+          key={`${page.id}-${source?.info.lang ?? ""}`}
           pageId={page.id}
-          initialContent={page.content}
+          initialContent={source?.content ?? page.content}
           initialVersion={page.version}
           editable={editable}
           canComment={canComment}
