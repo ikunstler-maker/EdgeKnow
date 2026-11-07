@@ -219,6 +219,13 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForTimeout(1500);
   const values = sql("select (select string_agg(f.name || '=' || coalesce(f.options -> 0 ->> 'label', '') || (t.custom -> f.id::text)::text, ',' order by f.position) from public.task_fields f where f.project_id = t.project_id and t.custom ? f.id::text) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("…and a task gets values in them", /^Формат=Відео".+",Погоджено=true$/.test(values), values);
+  // An admin adds a field right in the task, without the fields page.
+  await alice.locator("[data-quick-add-field]").click();
+  await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Назва").fill("Inline");
+  await alice.getByRole("form", { name: "Додати поле" }).getByRole("button", { name: "Зберегти" }).click();
+  await alice.locator('[data-field="Inline"]').waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and adds a field right in a task", (await alice.locator('[data-field="Inline"]').count()) === 1);
+  sql("delete from public.task_fields where name = 'Inline'");
 
   // The board: quick add in a column, drag a card to another, a column limit, what the card shows.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);

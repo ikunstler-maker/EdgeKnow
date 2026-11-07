@@ -5,6 +5,7 @@ import { t } from "@/i18n";
 import { fromTemplate, type TaskTemplate } from "@/lib/task-templates";
 import { TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, PRIORITY_ICONS, fieldApplies, isEmptyValue, personLabel, type Person, type TaskField, type TaskStatus, type TaskType } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
+import { QuickAddField } from "./fields-editor";
 
 const n = t.tasks.newTask;
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
@@ -24,6 +25,8 @@ export function NewTaskDialog({
   members,
   fields,
   template,
+  projectId,
+  canAddFields = false,
   onCreate,
   onClose,
 }: {
@@ -32,6 +35,9 @@ export function NewTaskDialog({
   members: Person[];
   fields: TaskField[];
   template: TaskTemplate | null;
+  // Project owners and workspace admins add fields right here.
+  projectId?: string;
+  canAddFields?: boolean;
   // Takes the new task's fields; the window closes at once (the task saves in the background).
   onCreate: (fields: Record<string, unknown>) => void;
   onClose: () => void;
@@ -157,6 +163,7 @@ export function NewTaskDialog({
           {fields.filter((f) => fieldApplies(f, type)).map((field) => (
             <FieldValue key={field.id} field={field} value={custom[field.id]} members={members} disabled={false} onChange={(v) => setCustom({ ...custom, [field.id]: v })} />
           ))}
+          {canAddFields && projectId && <QuickAddField projectId={projectId} nested />}
           <label className="flex flex-col gap-1">
             {n.description}
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} maxLength={10000} className={`${inputClass} py-2`} data-new-task-description />

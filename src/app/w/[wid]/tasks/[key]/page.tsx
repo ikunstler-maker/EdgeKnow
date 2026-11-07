@@ -118,6 +118,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           blocked={blocked}
           me={user.id}
           canEdit={canEdit(view.role)}
+          isOwner={view.role === "owner"}
         />
       )}
     </main>

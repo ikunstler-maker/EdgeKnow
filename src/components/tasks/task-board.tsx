@@ -363,7 +363,7 @@ export function TaskBoard({
       </DndContext>
 
       {newTaskIn !== undefined && (
-        <NewTaskDialog onCreate={drafts.create} statuses={statuses} statusId={newTaskIn} members={members} fields={fields} template={templates.chosen} onClose={() => setNewTaskIn(undefined)} />
+        <NewTaskDialog onCreate={drafts.create} projectId={project.id} canAddFields={isOwner} statuses={statuses} statusId={newTaskIn} members={members} fields={fields} template={templates.chosen} onClose={() => setNewTaskIn(undefined)} />
       )}
       {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (

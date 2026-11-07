@@ -21,6 +21,7 @@ import {
   type TaskStatus,
 } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
+import { QuickAddField } from "./fields-editor";
 import { TaskFiles, type TaskFileView } from "./task-files";
 import { SaveTemplateDialog } from "./task-templates";
 import { templateOf } from "@/lib/task-templates";
@@ -270,7 +271,7 @@ export function TaskDetail({
             )}
             {task.private && <span className="text-xs text-muted">{k.privacy.privateHint}</span>}
           </div>
-          {fields.some((field) => fieldApplies(field, task.type)) && (
+          {(isOwner || fields.some((field) => fieldApplies(field, task.type))) && (
             <div className="col-span-full grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={k.customFields.heading} role="group">
               {fields
                 .filter((field) => fieldApplies(field, task.type))
@@ -284,6 +285,7 @@ export function TaskDetail({
                     onChange={(value) => change({ custom: { [field.id]: value } })}
                   />
                 ))}
+              {isOwner && !task.deleted_at && <QuickAddField projectId={project.id} />}
             </div>
           )}
           {columnTime.length > 0 && (
