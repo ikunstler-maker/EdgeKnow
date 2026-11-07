@@ -1,5 +1,6 @@
 "use server";
 
+import { withPaths } from "@/lib/groups";
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import type { NotificationKind, NotificationList, TaskRule, TaskRuleInput } from "@/lib/notifications";
@@ -49,7 +50,7 @@ export async function loadTaskRules(shortId: string, projectId: string, workspac
   const supabase = await dataClient(shortId);
   const [{ data: rules }, { data: groups }] = await Promise.all([
     supabase.from("task_rules").select("id, event, category, status_id, notify_roles, notify_users, notify_groups, move_to_status").eq("project_id", projectId).order("created_at"),
-    supabase.from("workspace_groups").select("id, name").eq("workspace_id", workspaceId).order("name"),
+    supabase.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", workspaceId).order("name"),
   ]);
-  return { rules: (rules ?? []) as TaskRule[], groups: (groups ?? []) as { id: string; name: string }[] };
+  return { rules: (rules ?? []) as TaskRule[], groups: withPaths((groups ?? []) as { id: string; name: string; parent_id: string | null }[]) };
 }

@@ -56,8 +56,13 @@ export async function removeDomain(ws: string, domain: string) {
 }
 
 // Groups of people: changes are copied to a team's own database right away (callWorkspaceRpc).
-export async function createGroup(ws: string, name: string) {
-  return callWorkspaceRpc("create_workspace_group", { ws, new_name: name });
+export async function createGroup(ws: string, name: string, parent: string | null = null) {
+  return callWorkspaceRpc("create_workspace_group", parent ? { ws, new_name: name, parent } : { ws, new_name: name });
+}
+
+// Company structure: a unit goes inside another (or to the top level).
+export async function moveGroup(ws: string, groupId: string, parent: string | null, position: number | null) {
+  return callWorkspaceRpc("move_workspace_group", { ws, target_group: groupId, new_parent: parent, new_position: position });
 }
 
 export async function renameGroup(ws: string, groupId: string, name: string) {

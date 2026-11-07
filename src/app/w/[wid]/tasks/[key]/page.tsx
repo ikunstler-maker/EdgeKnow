@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withPaths } from "@/lib/groups";
 import Link from "next/link";
 import { workspacePath } from "@/lib/paths";
 import { t } from "@/i18n";
@@ -48,13 +49,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     const [{ data: people }, { data: groupGrants }, { data: groups }] = await Promise.all([
       db.from("task_project_access").select("user_id, role").eq("project_id", view.project.id),
       db.from("task_project_group_access").select("group_id, role").eq("project_id", view.project.id),
-      db.from("workspace_groups").select("id, name").eq("workspace_id", view.workspace.id).order("name"),
+      db.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", view.workspace.id).order("name"),
     ]);
     access = {
       workspaceRole: view.project.workspace_role,
       people: (people ?? []) as ProjectAccess["people"],
       groupGrants: (groupGrants ?? []) as ProjectAccess["groupGrants"],
-      groups: (groups ?? []) as ProjectAccess["groups"],
+      groups: withPaths((groups ?? []) as { id: string; name: string; parent_id: string | null }[]),
     };
   }
 

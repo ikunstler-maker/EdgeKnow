@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
-import { createGroup, deleteGroup, renameGroup, setGroupMember } from "@/app/workspace-actions";
+import { createGroup, deleteGroup, moveGroup, renameGroup, setGroupMember } from "@/app/workspace-actions";
 
-export type GroupItem = { id: string; name: string; memberIds: string[] };
+export type GroupItem = { id: string; name: string; memberIds: string[]; parentId: string | null; position: number };
 export type GroupPerson = { userId: string; name: string | null; email: string };
 
 const g = t.settings.groups;
@@ -19,6 +20,46 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [parent, setParent] = useState("");
+  // Units in tree order with their depth (sub-units under their parent, by position, then name).
+  const known = new Set(groups.map((x) => x.id));
+  const childrenOf = (id: string | null) =>
+    groups
+      .filter((x) => (id === null ? !x.parentId || !known.has(x.parentId) : x.parentId === id))
+      .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+  const ordered: { group: GroupItem; depth: number }[] = [];
+  const walk = (id: string | null, depth: number) => {
+    for (const child of childrenOf(id)) {
+      ordered.push({ group: child, depth });
+      if (depth < 10) walk(child.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  const below = (id: string): Set<string> => {
+    const out = new Set<string>([id]);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const x of groups)
+        if (x.parentId && out.has(x.parentId) && !out.has(x.id)) {
+          out.add(x.id);
+          grew = true;
+        }
+    }
+    return out;
+  };
+  const move = (id: string, to: string | null) => {
+    if (to && below(id).has(to)) return setError(t.settings.errors.group_cycle);
+    run(() => moveGroup(workspaceId, id, to, null));
+  };
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }), useSensor(KeyboardSensor));
+  const onDragEnd = (event: DragEndEvent) => {
+    const id = String(event.active.id);
+    const over = event.over ? String(event.over.id) : null;
+    if (!over) return;
+    const to = over === "top" ? null : over;
+    if (to === id || (groups.find((x) => x.id === id)?.parentId ?? null) === to) return;
+    move(id, to);
+  };
   const run = (action: () => Promise<ActionResult>, onOk?: () => void) =>
     startTransition(async () => {
       const result = await action();
@@ -35,12 +76,24 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
         className="mt-4 flex flex-wrap items-end gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          run(() => createGroup(workspaceId, name), () => setName(""));
+          run(() => createGroup(workspaceId, name, parent || null), () => setName(""));
         }}
       >
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
           {g.newName}
           <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={60} placeholder={g.placeholder} className={inputClass} />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-sm sm:w-56">
+          {g.inside}
+          <select value={parent} onChange={(e) => setParent(e.target.value)} className={inputClass}>
+            <option value="">{g.topLevel}</option>
+            {ordered.map(({ group, depth }) => (
+              <option key={group.id} value={group.id}>
+                {"— ".repeat(depth)}
+                {group.name}
+              </option>
+            ))}
+          </select>
         </label>
         <button type="submit" disabled={pending || !name.trim()} className={primaryClass}>
           {g.create}
@@ -54,16 +107,48 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
       {groups.length === 0 ? (
         <p className="mt-4 text-sm text-muted">{g.none}</p>
       ) : (
-        <ul className="mt-4 space-y-3">
-          {groups.map((group) => {
+        <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+        <TopDrop />
+        <ul className="mt-2 space-y-3" data-group-tree>
+          {ordered.map(({ group, depth }) => {
             const inGroup = people.filter((p) => group.memberIds.includes(p.userId));
             const others = people.filter((p) => !group.memberIds.includes(p.userId));
             return (
-              <li key={group.id} className="rounded-lg border border-border p-3" data-group={group.name}>
+              <UnitCard key={group.id} group={group} depth={depth} disabled={pending}>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 font-medium">
-                    👥 {group.name} <span className="text-sm font-normal text-muted">· {g.count(inGroup.length)}</span>
+                    {depth === 0 ? "🏢" : "👥"} {group.name} <span className="text-sm font-normal text-muted">· {g.count(inGroup.length)}</span>
                   </p>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    className={buttonClass}
+                    onClick={() => {
+                      const next = prompt(g.subPrompt(group.name))?.trim();
+                      if (next) run(() => createGroup(workspaceId, next, group.id));
+                    }}
+                    data-group-add-sub
+                  >
+                    ＋ {g.addSub}
+                  </button>
+                  <select
+                    value=""
+                    disabled={pending}
+                    aria-label={g.moveTo(group.name)}
+                    onChange={(e) => e.target.value && move(group.id, e.target.value === "top" ? null : e.target.value)}
+                    className={`${inputClass} max-w-48`}
+                  >
+                    <option value="">{g.moveLabel}</option>
+                    {group.parentId && <option value="top">{g.topLevel}</option>}
+                    {ordered
+                      .filter((x) => !below(group.id).has(x.group.id) && x.group.id !== group.parentId)
+                      .map((x) => (
+                        <option key={x.group.id} value={x.group.id}>
+                          {"— ".repeat(x.depth)}
+                          {x.group.name}
+                        </option>
+                      ))}
+                  </select>
                   <button
                     type="button"
                     disabled={pending}
@@ -123,11 +208,46 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
                     ))}
                   </select>
                 )}
-              </li>
+              </UnitCard>
             );
           })}
         </ul>
+        </DndContext>
       )}
     </section>
+  );
+}
+
+// Dropping a unit here puts it at the top level.
+function TopDrop() {
+  const { setNodeRef, isOver } = useDroppable({ id: "top" });
+  return (
+    <div ref={setNodeRef} className={`mt-4 rounded-lg border border-dashed px-3 py-2 text-xs text-muted ${isOver ? "border-accent bg-accent/10" : "border-border"}`}>
+      {g.dropTop}
+    </div>
+  );
+}
+
+// A unit: dragged by its handle onto another unit to go inside it.
+function UnitCard({ group, depth, disabled, children }: { group: GroupItem; depth: number; disabled: boolean; children: React.ReactNode }) {
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: group.id });
+  const { setNodeRef, transform, isDragging, listeners, attributes } = useDraggable({ id: group.id, disabled });
+  const style = { marginLeft: `${Math.min(depth, 7) * 1.25}rem`, ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {}) };
+  return (
+    <li
+      ref={(node) => {
+        setDropRef(node);
+        setNodeRef(node);
+      }}
+      style={style}
+      className={`flex gap-2 rounded-lg border p-3 ${isDragging ? "relative z-20 border-accent bg-background shadow-lg" : isOver ? "border-accent bg-accent/5" : "border-border"}`}
+      data-group={group.name}
+      data-group-depth={depth}
+    >
+      <button type="button" {...listeners} {...attributes} disabled={disabled} aria-label={g.dragUnit(group.name)} className="h-11 w-7 shrink-0 cursor-grab touch-none rounded text-muted hover:bg-surface">
+        ⠿
+      </button>
+      <div className="min-w-0 flex-1">{children}</div>
+    </li>
   );
 }

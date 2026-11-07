@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { withPaths } from "@/lib/groups";
 import Link from "next/link";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
@@ -38,7 +39,7 @@ export default async function SurveyPage({ params }: PageProps<"/w/[wid]/surveys
     const [{ data: people }, { data: groupGrants }, { data: groups }, { data: memberRows }] = await Promise.all([
       db.from("service_object_access").select("user_id, role").eq("object_id", id),
       db.from("service_object_group_access").select("group_id, role").eq("object_id", id),
-      db.from("workspace_groups").select("id, name").eq("workspace_id", workspace.id).order("name"),
+      db.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", workspace.id).order("name"),
       db
         .from("workspace_members")
         .select("user_id, role, profile:profiles!workspace_members_user_id_fkey(name, email)")
@@ -50,7 +51,7 @@ export default async function SurveyPage({ params }: PageProps<"/w/[wid]/surveys
       workspaceRole: survey.workspace_role,
       people: (people ?? []) as ObjectAccess["people"],
       groupGrants: (groupGrants ?? []) as ObjectAccess["groupGrants"],
-      groups: (groups ?? []) as ObjectAccess["groups"],
+      groups: withPaths((groups ?? []) as { id: string; name: string; parent_id: string | null }[]),
     };
     members = (memberRows ?? []).flatMap((m) => (m.profile ? [{ id: m.user_id, name: m.profile.name, email: m.profile.email, guest: m.role === "guest" }] : []));
   }
