@@ -294,7 +294,11 @@ check("…its layout changes and is saved", await until(() => galleryLayout() ==
 await alice.locator('[data-gallery-file="audio"]').setInputFiles({ name: "chime.mp3", mimeType: "audio/mpeg", buffer: Buffer.concat([Buffer.from("ID3"), Buffer.alloc(997)]) });
 check("…audio uploads into the page's files", await until(() => sql(`select count(*) from public.attachments where page_id = '${galleryPage}' and mime_type = 'audio/mpeg'`) === "1", 20000));
 await alice.locator("[data-gallery-grid] figure").nth(3).waitFor({ timeout: 15000 }).catch(() => {});
-check("…and is in the gallery with a player", (await alice.locator("[data-gallery-grid] audio").count()) === 2);
+check(
+  "…and is in the gallery with a player",
+  (await alice.locator("[data-gallery-grid] audio").count()) === 2,
+  `${await alice.locator("[data-gallery] audio").count()} audio, ${await alice.locator("[data-gallery-grid] figure").count()} items, ${(await alice.locator('[data-gallery] [role="alert"]').allInnerTexts()).join(" ")} | ${sql(`select b -> 'props' ->> 'items' from public.pages p, jsonb_array_elements(p.content) b where p.id = '${galleryPage}' and b ->> 'type' = 'gallery'`).slice(0, 300)}`,
+);
 
 // --- Stage 4: images ------------------------------------------------------------
 
