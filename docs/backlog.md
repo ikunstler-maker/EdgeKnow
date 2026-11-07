@@ -17,8 +17,8 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR Б (stages, each its own PR, RLS → approval per stage): company hierarchy (groups → tree of units), custom named roles with workspace rights + content level, access by structure (up: higher units see; down: a unit's sub-units see), current admin/member become built-in roles. Owner agreed on all 4 questions.
 
 ## Canvas engine: Presentations, then Bordy «Дизайн» (owner, 2027-01-09; decision 2027-01-09)
-- П-1 deck editor (slides, text, shapes, lines/arrows, pictures, select/move/resize/rotate, undo, autosave) — in review.
-- П-2 look: inspector (fills incl. gradients and brand 135° presets, strokes, corner radii, shadows/blur, opacity), layers panel (order, hide, lock, group), alignment guides, themes and slide templates.
+- П-1 deck editor — DONE (#116).
+- П-2 look: inspector (fills incl. gradients and brand 135° presets, strokes, corner radii, shadows/blur, opacity), layers panel (order, hide, lock, group), alignment guides, themes and slide templates. — in review.
 - П-3 show: player in a separate tab (fullscreen, arrows, R), slide transitions incl. smart animate, presenter view (notes, timer), embeds (task, table/chart, wiki page, survey), PDF export.
 - Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
 - Then realtime co-editing (cursors, presence, conflict-free edits) for both.

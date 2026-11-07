@@ -1,21 +1,82 @@
 "use client";
 
-import { SLIDE_H, SLIDE_W, type Slide, type SlideNode } from "@/lib/slides";
+import { SLIDE_H, SLIDE_W, type Gradient, type Slide, type SlideNode } from "@/lib/slides";
 
 // Draws a slide (the editor's canvas, thumbnails and, later, the player use the same).
 export const imageUrl = (shortId: string, imageId: string) => `/api/boards/files/${imageId}?ws=${shortId}`;
 
-export function NodeShape({ node, shortId, editingText }: { node: SlideNode; shortId: string; editingText?: boolean }) {
+// Ids inside one SVG must be unique; the prefix keeps canvas and thumbnails apart.
+const gid = (prefix: string, node: SlideNode) => `${prefix}g-${node.id}`;
+const fid = (prefix: string, node: SlideNode) => `${prefix}f-${node.id}`;
+
+function GradientDef({ id, gradient }: { id: string; gradient: Gradient }) {
+  const stops = gradient.stops.map((s, i) => <stop key={i} offset={s.offset} stopColor={s.color} />);
+  if (gradient.kind === "radial") return <radialGradient id={id}>{stops}</radialGradient>;
+  // CSS-like angle: 0° points up, 90° to the right, 135° to the bottom right.
+  const a = ((gradient.angle - 90) * Math.PI) / 180;
+  const x = Math.cos(a) / 2;
+  const y = Math.sin(a) / 2;
+  return (
+    <linearGradient id={id} x1={0.5 - x} y1={0.5 - y} x2={0.5 + x} y2={0.5 + y}>
+      {stops}
+    </linearGradient>
+  );
+}
+
+export function NodeDefs({ node, prefix }: { node: SlideNode; prefix: string }) {
+  if (!node.gradient && !node.shadow && !node.blur) return null;
+  return (
+    <defs>
+      {node.gradient && <GradientDef id={gid(prefix, node)} gradient={node.gradient} />}
+      {(node.shadow || node.blur) && (
+        <filter id={fid(prefix, node)} x="-50%" y="-50%" width="200%" height="200%">
+          {node.blur ? <feGaussianBlur in="SourceGraphic" stdDeviation={node.blur / 2} result="blurred" /> : null}
+          {node.shadow && <feDropShadow dx={node.shadow.x} dy={node.shadow.y} stdDeviation={node.shadow.blur / 2} floodColor={node.shadow.color} in={node.blur ? "blurred" : "SourceGraphic"} />}
+        </filter>
+      )}
+    </defs>
+  );
+}
+
+const radii = (node: SlideNode): [number, number, number, number] => {
+  const r = node.radius ?? 0;
+  const list = typeof r === "number" ? [r, r, r, r] : r;
+  const max = Math.min(Math.abs(node.width), Math.abs(node.height)) / 2;
+  return list.map((v) => Math.min(max, Math.max(0, v))) as [number, number, number, number];
+};
+
+function roundedPath(x: number, y: number, w: number, h: number, [tl, tr, br, bl]: [number, number, number, number]) {
+  return `M${x + tl},${y} H${x + w - tr} A${tr},${tr} 0 0 1 ${x + w},${y + tr} V${y + h - br} A${br},${br} 0 0 1 ${x + w - br},${y + h} H${x + bl} A${bl},${bl} 0 0 1 ${x},${y + h - bl} V${y + tl} A${tl},${tl} 0 0 1 ${x + tl},${y} Z`;
+}
+
+const dashArray = (node: SlideNode) => {
+  const w = node.strokeWidth ?? 4;
+  return node.dash === "dash" ? `${w * 3} ${w * 2}` : node.dash === "dot" ? `0 ${w * 2}` : undefined;
+};
+
+export function NodeShape({ node, shortId, editingText, prefix = "" }: { node: SlideNode; shortId: string; editingText?: boolean; prefix?: string }) {
   const cx = node.x + node.width / 2;
   const cy = node.y + node.height / 2;
   const transform = node.rotation ? `rotate(${node.rotation} ${cx} ${cy})` : undefined;
   const stroke = node.stroke && node.stroke !== "none" ? node.stroke : undefined;
-  const fill = node.fill && node.fill !== "none" ? node.fill : "none";
+  const fill = node.gradient ? `url(#${gid(prefix, node)})` : node.fill && node.fill !== "none" ? node.fill : "none";
+  const filter = node.shadow || node.blur ? `url(#${fid(prefix, node)})` : undefined;
+  const common = { opacity: node.opacity ?? 1, filter, transform };
+  const strokeProps = { stroke, strokeWidth: stroke ? node.strokeWidth : 0, strokeDasharray: stroke ? dashArray(node) : undefined, strokeLinecap: node.dash === "dot" ? ("round" as const) : undefined };
+  let body: React.ReactNode;
   switch (node.type) {
-    case "RECTANGLE":
-      return <rect x={node.x} y={node.y} width={node.width} height={node.height} fill={fill} stroke={stroke} strokeWidth={stroke ? node.strokeWidth : 0} transform={transform} />;
+    case "RECTANGLE": {
+      const r = radii(node);
+      body = r.every((v) => v === r[0]) ? (
+        <rect x={node.x} y={node.y} width={node.width} height={node.height} rx={r[0]} fill={fill} {...strokeProps} {...common} />
+      ) : (
+        <path d={roundedPath(node.x, node.y, node.width, node.height, r)} fill={fill} {...strokeProps} {...common} />
+      );
+      break;
+    }
     case "ELLIPSE":
-      return <ellipse cx={cx} cy={cy} rx={node.width / 2} ry={node.height / 2} fill={fill} stroke={stroke} strokeWidth={stroke ? node.strokeWidth : 0} transform={transform} />;
+      body = <ellipse cx={cx} cy={cy} rx={node.width / 2} ry={node.height / 2} fill={fill} {...strokeProps} {...common} />;
+      break;
     case "LINE":
     case "ARROW": {
       const x2 = node.x + node.width;
@@ -25,14 +86,15 @@ export function NodeShape({ node, shortId, editingText }: { node: SlideNode; sho
       const head = Math.max(24, w * 4);
       const a1 = angle + Math.PI - 0.45;
       const a2 = angle + Math.PI + 0.45;
-      return (
-        <g transform={transform}>
-          <line x1={node.x} y1={node.y} x2={x2} y2={y2} stroke={node.stroke ?? "#111827"} strokeWidth={w} strokeLinecap="round" />
+      const color = node.stroke ?? "#111827";
+      body = (
+        <g {...common}>
+          <line x1={node.x} y1={node.y} x2={x2} y2={y2} stroke={color} strokeWidth={w} strokeLinecap="round" strokeDasharray={dashArray(node)} />
           {node.type === "ARROW" && (
             <polyline
               points={`${x2 + head * Math.cos(a1)},${y2 + head * Math.sin(a1)} ${x2},${y2} ${x2 + head * Math.cos(a2)},${y2 + head * Math.sin(a2)}`}
               fill="none"
-              stroke={node.stroke ?? "#111827"}
+              stroke={color}
               strokeWidth={w}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -40,46 +102,75 @@ export function NodeShape({ node, shortId, editingText }: { node: SlideNode; sho
           )}
         </g>
       );
+      break;
     }
-    case "IMAGE":
-      return node.imageId ? (
-        <image href={imageUrl(shortId, node.imageId)} x={node.x} y={node.y} width={node.width} height={node.height} preserveAspectRatio="none" transform={transform} />
+    case "IMAGE": {
+      const r = radii(node);
+      const clip = r.some((v) => v > 0) ? `${prefix}c-${node.id}` : undefined;
+      body = node.imageId ? (
+        <g {...common}>
+          {clip && (
+            <defs>
+              <clipPath id={clip}>
+                <path d={roundedPath(node.x, node.y, node.width, node.height, r)} />
+              </clipPath>
+            </defs>
+          )}
+          <image href={imageUrl(shortId, node.imageId)} x={node.x} y={node.y} width={node.width} height={node.height} preserveAspectRatio="none" clipPath={clip ? `url(#${clip})` : undefined} />
+          {stroke && <path d={roundedPath(node.x, node.y, node.width, node.height, r)} fill="none" {...strokeProps} />}
+        </g>
       ) : (
-        <rect x={node.x} y={node.y} width={node.width} height={node.height} fill="#e5e7eb" transform={transform} />
+        <rect x={node.x} y={node.y} width={node.width} height={node.height} fill="#e5e7eb" {...common} />
       );
+      break;
+    }
     case "TEXT":
-      return (
-        <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} transform={transform}>
+      body = (
+        <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} {...common}>
           {!editingText && (
             <div
               style={{
                 width: "100%",
                 height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: node.vAlign === "middle" ? "center" : node.vAlign === "bottom" ? "flex-end" : "flex-start",
                 fontSize: node.fontSize ?? 64,
-                lineHeight: 1.2,
+                lineHeight: node.lineHeight ?? 1.2,
                 color: node.color ?? "#111827",
                 fontWeight: node.bold ? 700 : 400,
+                fontStyle: node.italic ? "italic" : "normal",
+                textDecoration: node.underline ? "underline" : "none",
                 textAlign: node.align ?? "left",
                 whiteSpace: "pre-wrap",
                 overflowWrap: "anywhere",
-                fontFamily: "inherit",
+                fontFamily: node.fontFamily ?? "inherit",
               }}
             >
-              {node.text}
+              <span>{node.text}</span>
             </div>
           )}
         </foreignObject>
       );
+      break;
   }
+  return (
+    <>
+      <NodeDefs node={node} prefix={prefix} />
+      {body}
+    </>
+  );
 }
 
-export function SlideView({ slide, shortId, className }: { slide: Slide; shortId: string; className?: string }) {
+export function SlideView({ slide, shortId, className, prefix = "t" }: { slide: Slide; shortId: string; className?: string; prefix?: string }) {
   return (
     <svg viewBox={`0 0 ${SLIDE_W} ${SLIDE_H}`} className={className} aria-hidden="true">
       <rect x={0} y={0} width={SLIDE_W} height={SLIDE_H} fill={slide.background} />
-      {slide.nodes.map((node) => (
-        <NodeShape key={node.id} node={node} shortId={shortId} />
-      ))}
+      {slide.nodes
+        .filter((n) => !n.hidden)
+        .map((node) => (
+          <NodeShape key={node.id} node={node} shortId={shortId} prefix={`${prefix}${slide.id}-`} />
+        ))}
     </svg>
   );
 }
