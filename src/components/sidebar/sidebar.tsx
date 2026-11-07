@@ -124,13 +124,15 @@ export function Sidebar({
           {iconLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
           {user.isPlatformAdmin && iconLink("/admin", t.platform.link, "🛰️")}
           {iconLink("/help", t.help.link, "❓")}
-          <ChangelogLink onNavigate={onNavigate} current={pathname === "/changelog"} />
           <span className="ml-auto">
             <SignOutButton icon />
           </span>
         </div>
-        <div className="px-1">
-          <PreferencesSwitch compact />
+        <div className="flex items-center gap-1 px-1">
+          <div className="min-w-0 flex-1">
+            <PreferencesSwitch compact />
+          </div>
+          <ChangelogLink onNavigate={onNavigate} current={pathname === "/changelog"} />
         </div>
       </div>
     </nav>
