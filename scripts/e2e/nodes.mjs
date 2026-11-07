@@ -405,7 +405,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await drawBox("RECTANGLE", 90, 120, 200, 180);
   const depth = await alice.locator('[data-layer="Прямокутник"]').getAttribute("data-layer-depth").catch(() => null);
   check("a shape drawn on a frame goes inside it (step Д-1)", depth === "1", depth);
-  await alice.locator('[data-layer="Рамка"] [data-layer-pick]').click();
+  await alice.locator('[data-layer^="Рамка"] [data-layer-pick]').click();
   await alice.locator("[data-auto-layout-add]").click();
   await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
   await alice.waitForTimeout(1500);
@@ -413,7 +413,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…saved as a design file with auto layout on the frame (step Д-2)", saved === "design App screens 2 column", saved);
   await alice.goto(`${APP}/w/${alphaShort}/boards/${designId}/prototype`);
   await alice.locator("[data-design-player]").waitFor({ timeout: 20000 });
-  check("…and plays as a prototype in its own page (step Д-3)", (await alice.locator('[data-player-screen="Рамка"]').count()) === 1);
+  check("…and plays as a prototype in its own page (step Д-3)", (await alice.locator('[data-player-screen^="Рамка"]').count()) === 1);
   await bob.goto(`${APP}/w/${alphaShort}/boards/${designId}/prototype`);
   check("someone from another workspace can't open the prototype", (await bob.locator("[data-design-player]").count()) === 0);
 }
