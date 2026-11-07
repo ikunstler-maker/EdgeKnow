@@ -6,7 +6,12 @@
 export const SLIDE_W = 1920;
 export const SLIDE_H = 1080;
 
-export type NodeType = "TEXT" | "RECTANGLE" | "ELLIPSE" | "LINE" | "ARROW" | "IMAGE";
+export type NodeType = "TEXT" | "RECTANGLE" | "ELLIPSE" | "LINE" | "ARROW" | "IMAGE" | "EMBED";
+
+// A live object of another service on a slide (step П-3б), read with the viewer's access.
+export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map"] as const;
+export type EmbedKind = (typeof EMBED_KINDS)[number];
+export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary" };
 
 export type Gradient = { kind: "linear" | "radial"; angle: number; stops: { offset: number; color: string }[] };
 export type Shadow = { x: number; y: number; blur: number; color: string };
@@ -47,10 +52,16 @@ export type SlideNode = {
   hidden?: boolean;
   locked?: boolean;
   groupId?: string;
+  // Live embed and how large its contents are drawn (1 = page size; 2 = twice).
+  embed?: Embed;
+  zoom?: number;
 };
 
-export type Slide = { id: string; background: string; nodes: SlideNode[] };
-export type Deck = { version: 1; theme?: string; slides: Slide[] };
+export type Slide = { id: string; background: string; nodes: SlideNode[]; notes?: string; transition?: Transition };
+export type Size = { w: number; h: number };
+// Notes for the speaker and the way the slide comes in (step П-3а).
+export type Transition = { kind: "none" | "fade" | "slide" | "push" | "smart"; direction?: "left" | "right" | "up" | "down"; duration?: number; easing?: "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" };
+export type Deck = { version: 1; theme?: string; size?: Size; slides: Slide[] };
 
 export const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
@@ -59,7 +70,7 @@ export const emptyDeck = (): Deck => ({ version: 1, slides: [emptySlide()] });
 
 const num = (value: unknown, fallback: number) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
 const str = (value: unknown) => (typeof value === "string" ? value : undefined);
-const TYPES: NodeType[] = ["TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "IMAGE"];
+const TYPES: NodeType[] = ["TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "IMAGE", "EMBED"];
 
 // Whatever is stored (older or hand-made data) becomes a valid deck.
 export function readDeck(data: unknown): Deck {
@@ -97,10 +108,24 @@ export function readDeck(data: unknown): Deck {
         },
       ];
     });
-    return [{ id: str(slide.id) ?? newId(), background: str(slide.background) ?? "#ffffff", nodes }];
+    const tr = slide.transition as Record<string, unknown> | undefined;
+    const kinds = ["none", "fade", "slide", "push", "smart"];
+    const transition: Transition | undefined =
+      tr && kinds.includes(tr.kind as string)
+        ? {
+            kind: tr.kind as Transition["kind"],
+            ...(["left", "right", "up", "down"].includes(tr.direction as string) ? { direction: tr.direction as Transition["direction"] } : {}),
+            duration: Math.min(3000, Math.max(100, num(tr.duration, 500))),
+            ...(["linear", "ease", "ease-in", "ease-out", "ease-in-out"].includes(tr.easing as string) ? { easing: tr.easing as Transition["easing"] } : {}),
+          }
+        : undefined;
+    const notes = str(slide.notes);
+    return [{ id: str(slide.id) ?? newId(), background: str(slide.background) ?? "#ffffff", nodes, ...(notes ? { notes: notes.slice(0, 20000) } : {}), ...(transition ? { transition } : {}) }];
   });
   const theme = str((raw as Record<string, unknown>).theme);
-  return { version: 1, ...(theme ? { theme } : {}), slides: read.length ? read : [emptySlide()] };
+  const sz = (raw as Record<string, unknown>).size as Record<string, unknown> | undefined;
+  const size = sz && typeof sz.w === "number" && typeof sz.h === "number" ? { w: Math.round(Math.min(MAX_SIDE, Math.max(MIN_SIDE, sz.w))), h: Math.round(Math.min(MAX_SIDE, Math.max(MIN_SIDE, sz.h))) } : undefined;
+  return { version: 1, ...(theme ? { theme } : {}), ...(size ? { size } : {}), slides: read.length ? read : [emptySlide()] };
 }
 
 const isColor = (v: unknown): v is string => typeof v === "string" && /^#[0-9a-f]{3,8}$|^rgba?\(/i.test(v);
@@ -129,6 +154,17 @@ function readLook(node: Record<string, unknown>): Partial<SlideNode> {
   if (node.hidden === true) out.hidden = true;
   if (node.locked === true) out.locked = true;
   if (typeof node.groupId === "string") out.groupId = node.groupId;
+  const e = node.embed as Record<string, unknown> | undefined;
+  if (e && (EMBED_KINDS as readonly string[]).includes(e.kind as string)) {
+    out.embed = {
+      kind: e.kind as EmbedKind,
+      id: typeof e.id === "string" && /^[0-9a-f-]{0,36}$/.test(e.id) ? e.id : "",
+      ...(typeof e.chartId === "string" ? { chartId: e.chartId.slice(0, 80) } : {}),
+      ...(e.mine === true ? { mine: true } : {}),
+      ...(e.view === "summary" ? { view: "summary" as const } : {}),
+    };
+  }
+  if (typeof node.zoom === "number") out.zoom = clamp(node.zoom, 0.5, 6);
   return out;
 }
 
@@ -147,6 +183,8 @@ export function makeNode(type: NodeType, x: number, y: number, width: number, he
       return { ...base, stroke: "#111827", strokeWidth: 8 };
     case "IMAGE":
       return base;
+    case "EMBED":
+      return { ...base, zoom: 2, fill: "#ffffff", radius: 16 };
   }
 }
 
@@ -156,3 +194,44 @@ export const deckText = (deck: Deck) =>
     .flatMap((s) => s.nodes.map((n) => n.text ?? ""))
     .join(" ")
     .slice(0, 20000);
+
+// Slide sizes (step П-3а): any aspect, the long side 1920 for the presets; own pixels too.
+export const DEFAULT_SIZE: Size = { w: SLIDE_W, h: SLIDE_H };
+export const MIN_SIDE = 100;
+export const MAX_SIDE = 8000;
+export const ASPECTS = ["16:9", "9:16", "4:3", "3:4", "1:1", "21:9", "9:21", "5:4", "4:5", "2:1", "1:2"] as const;
+export const sizeOf = (deck: Deck): Size => deck.size ?? DEFAULT_SIZE;
+export function aspectSize(aspect: string): Size {
+  const [a, b] = aspect.split(":").map(Number);
+  return a >= b ? { w: 1920, h: Math.round((1920 * b) / a) } : { w: Math.round((1920 * a) / b), h: 1920 };
+}
+export const aspectOf = (size: Size) => ASPECTS.find((x) => {
+  const t = aspectSize(x);
+  return t.w === size.w && t.h === size.h;
+});
+
+// Layers made for one size, fitted into another: scaled evenly and centred.
+export function fitNodes(nodes: SlideNode[], from: Size, to: Size): SlideNode[] {
+  const k = Math.min(to.w / from.w, to.h / from.h);
+  const ox = (to.w - from.w * k) / 2;
+  const oy = (to.h - from.h * k) / 2;
+  const r = (v: number) => Math.round(v * 100) / 100;
+  return nodes.map((n) => ({
+    ...n,
+    x: r(ox + n.x * k),
+    y: r(oy + n.y * k),
+    width: r(n.width * k),
+    height: r(n.height * k),
+    ...(n.fontSize ? { fontSize: r(n.fontSize * k) } : {}),
+    ...(n.strokeWidth ? { strokeWidth: r(n.strokeWidth * k) } : {}),
+    ...(typeof n.radius === "number" ? { radius: r(n.radius * k) } : Array.isArray(n.radius) ? { radius: n.radius.map((v) => r(v * k)) as [number, number, number, number] } : {}),
+    ...(n.shadow ? { shadow: { ...n.shadow, x: r(n.shadow.x * k), y: r(n.shadow.y * k), blur: r(n.shadow.blur * k) } } : {}),
+    ...(n.blur ? { blur: r(n.blur * k) } : {}),
+  }));
+}
+
+// A new size for the whole deck; `fit` scales what is on the slides, otherwise it stays put.
+export function resizeDeck(deck: Deck, size: Size, fit: boolean): Deck {
+  const from = sizeOf(deck);
+  return { ...deck, size, slides: fit ? deck.slides.map((s) => ({ ...s, nodes: fitNodes(s.nodes, from, size) })) : deck.slides };
+}

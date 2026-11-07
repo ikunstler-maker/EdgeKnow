@@ -1,6 +1,12 @@
 "use client";
 
-import { SLIDE_H, SLIDE_W, type Gradient, type Slide, type SlideNode } from "@/lib/slides";
+import { DEFAULT_SIZE, type Embed, type Gradient, type Size, type Slide, type SlideNode } from "@/lib/slides";
+import { t } from "@/i18n";
+import { SlideEmbed } from "./slide-embed";
+
+// How embeds are drawn: a light stand-in (thumbnails), live (show, print), or live and
+// set up by the editor.
+export type EmbedMode = "placeholder" | "view" | "live" | "setup";
 
 // Draws a slide (the editor's canvas, thumbnails and, later, the player use the same).
 export const imageUrl = (shortId: string, imageId: string) => `/api/boards/files/${imageId}?ws=${shortId}`;
@@ -54,7 +60,7 @@ const dashArray = (node: SlideNode) => {
   return node.dash === "dash" ? `${w * 3} ${w * 2}` : node.dash === "dot" ? `0 ${w * 2}` : undefined;
 };
 
-export function NodeShape({ node, shortId, editingText, prefix = "" }: { node: SlideNode; shortId: string; editingText?: boolean; prefix?: string }) {
+export function NodeShape({ node, shortId, editingText, prefix = "", embeds = "placeholder", onEmbed }: { node: SlideNode; shortId: string; editingText?: boolean; prefix?: string; embeds?: EmbedMode; onEmbed?: (embed: Embed) => void }) {
   const cx = node.x + node.width / 2;
   const cy = node.y + node.height / 2;
   const transform = node.rotation ? `rotate(${node.rotation} ${cx} ${cy})` : undefined;
@@ -124,6 +130,30 @@ export function NodeShape({ node, shortId, editingText, prefix = "" }: { node: S
       );
       break;
     }
+    case "EMBED": {
+      const zoom = node.zoom ?? 2;
+      const r = radii(node)[0];
+      body = (
+        <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} {...common}>
+          {embeds === "placeholder" || !node.embed ? (
+            <div style={{ width: "100%", height: "100%", borderRadius: r, background: node.fill ?? "#ffffff", border: "2px dashed #94a3b8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.min(node.width, node.height) / 5 }}>
+              {t.slides.embeds.icons[node.embed?.kind ?? "page"]}
+            </div>
+          ) : (
+            <div
+              style={{ width: node.width / zoom, height: node.height / zoom, transform: `scale(${zoom})`, transformOrigin: "0 0", borderRadius: r / zoom, overflow: "hidden", background: node.fill ?? "#ffffff", pointerEvents: embeds === "live" || embeds === "setup" ? "auto" : "none" }}
+              onClick={(ev) => ev.stopPropagation()}
+              onPointerDown={(ev) => embeds === "setup" && ev.stopPropagation()}
+              className="text-foreground"
+              data-slide-embed={node.embed.kind}
+            >
+              <SlideEmbed embed={node.embed} setup={embeds === "setup"} onEmbed={(next) => onEmbed?.(next)} />
+            </div>
+          )}
+        </foreignObject>
+      );
+      break;
+    }
     case "TEXT":
       body = (
         <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} {...common}>
@@ -162,14 +192,14 @@ export function NodeShape({ node, shortId, editingText, prefix = "" }: { node: S
   );
 }
 
-export function SlideView({ slide, shortId, className, prefix = "t" }: { slide: Slide; shortId: string; className?: string; prefix?: string }) {
+export function SlideView({ slide, shortId, className, prefix = "t", size = DEFAULT_SIZE, style, embeds = "placeholder" }: { slide: Slide; shortId: string; className?: string; prefix?: string; size?: Size; style?: React.CSSProperties; embeds?: EmbedMode }) {
   return (
-    <svg viewBox={`0 0 ${SLIDE_W} ${SLIDE_H}`} className={className} aria-hidden="true">
-      <rect x={0} y={0} width={SLIDE_W} height={SLIDE_H} fill={slide.background} />
+    <svg viewBox={`0 0 ${size.w} ${size.h}`} className={className} style={style} aria-hidden="true">
+      <rect x={0} y={0} width={size.w} height={size.h} fill={slide.background} />
       {slide.nodes
         .filter((n) => !n.hidden)
         .map((node) => (
-          <NodeShape key={node.id} node={node} shortId={shortId} prefix={`${prefix}${slide.id}-`} />
+          <NodeShape key={node.id} node={node} shortId={shortId} prefix={`${prefix}${slide.id}-`} embeds={embeds} />
         ))}
     </svg>
   );

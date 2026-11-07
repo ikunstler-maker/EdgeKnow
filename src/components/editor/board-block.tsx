@@ -34,7 +34,7 @@ export const boardBlock = createReactBlockSpec(
   },
 );
 
-function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string; pageEditable: boolean; onPick: (id: string) => void }) {
+export function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string; pageEditable: boolean; onPick: (id: string) => void }) {
   const pages = useOptionalPages();
   const shortId = pages?.workspace.shortId ?? "";
   const [view, setView] = useState<BoardView | null | undefined>(undefined);

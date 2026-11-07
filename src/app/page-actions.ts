@@ -193,3 +193,26 @@ export async function searchBlocks(
 export async function setPageCover(id: string, cover: unknown) {
   return callPageRpc<{ cover: unknown }>("set_page_cover", { target_page: id, new_cover: cover });
 }
+
+// A wiki page as a card (presentations, step П-3б): title, icon and the first words,
+// read with the viewer's own access (RLS) — no access, no card.
+export async function pageCard(shortId: string, id: string): Promise<{ id: string; title: string; icon: string | null; snippet: string } | null> {
+  if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+  const db = await dataClient(shortId);
+  const { data } = await db.from("pages").select("id, title, icon, content, deleted_at").eq("id", id).maybeSingle();
+  const row = data as { id: string; title: string; icon: string | null; content: unknown; deleted_at: string | null } | null;
+  if (!row || row.deleted_at) return null;
+  const words: string[] = [];
+  const walk = (value: unknown) => {
+    if (words.join(" ").length > 280) return;
+    if (Array.isArray(value)) value.forEach(walk);
+    else if (value && typeof value === "object") {
+      const node = value as Record<string, unknown>;
+      if (node.type === "text" && typeof node.text === "string") words.push(node.text);
+      walk(node.content);
+      walk(node.children);
+    }
+  };
+  walk(row.content);
+  return { id: row.id, title: row.title, icon: row.icon, snippet: words.join(" ").replace(/\s+/g, " ").trim().slice(0, 280) };
+}

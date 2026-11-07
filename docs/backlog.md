@@ -18,8 +18,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Canvas engine: Presentations, then Bordy «Дизайн» (owner, 2027-01-09; decision 2027-01-09)
 - П-1 deck editor — DONE (#116).
-- П-2 look: inspector (fills incl. gradients and brand 135° presets, strokes, corner radii, shadows/blur, opacity), layers panel (order, hide, lock, group), alignment guides, themes and slide templates. — in review.
-- П-3 show: player in a separate tab (fullscreen, arrows, R), slide transitions incl. smart animate, presenter view (notes, timer), embeds (task, table/chart, wiki page, survey), PDF export.
+- П-2 look — DONE (#117).
+- П-3а show (sizes, player, transitions, presenter, PDF) + П-3б embeds — in review.
+- Later (owner may decide): per-object build animations; public show link without sign-in (access change → approval).
 - Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
 - Then realtime co-editing (cursors, presence, conflict-free edits) for both.
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.

@@ -318,7 +318,14 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.getByLabel("Назва презентації").fill("Pitch");
   const svg = alice.locator("[data-deck-canvas] svg");
   await svg.waitFor({ timeout: 30000 });
-  const box = await svg.boundingBox();
+  // The canvas fits itself to the window just after it appears: measure once it has settled.
+  let box = await svg.boundingBox();
+  for (let i = 0; i < 20; i++) {
+    await alice.waitForTimeout(250);
+    const again = await svg.boundingBox();
+    if (again && Math.abs(again.width - box.width) < 1 && Math.abs(again.y - box.y) < 1) break;
+    box = again;
+  }
   const at = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];
   await alice.locator('[data-tool="RECTANGLE"]').click();
   await alice.mouse.move(...at(0.1, 0.1));
@@ -330,7 +337,10 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-text-editor]").fill("Quarterly goals");
   await alice.mouse.click(...at(0.9, 0.9));
   // Step П-2: the rectangle gets a 135° brand gradient and a shadow; the dark theme for the deck.
-  await alice.mouse.click(...at(0.2, 0.2));
+  // Picked in the layers panel (independent of where the canvas sits on the page).
+  await alice.locator('[data-side-tab="layers"]').click();
+  await alice.locator('[data-layer="Прямокутник"] input').click();
+  await alice.locator('[data-side-tab="design"]').click();
   await alice.locator('[data-fill-mode="linear"]').click();
   await alice.locator('[data-brand-gradient="slides"]').click();
   await alice.locator("[data-shadow]").check();
@@ -346,6 +356,32 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.reload();
   await alice.locator('[data-slide-thumb="1"] [data-node], [data-deck-canvas] [data-node]').first().waitFor({ timeout: 20000 }).catch(() => {});
   check("…and shows them again after a reload", (await alice.locator("[data-deck-canvas] [data-node]").count()) === 2);
+  // Step П-3а: the slide size changes while editing (content fitted), and the deck is shown.
+  await alice.locator("[data-size-button]").click();
+  await alice.locator('[data-aspect="9:16"]').click();
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const sized = sql(`select (data #>> '{size,w}') || 'x' || (data #>> '{size,h}') from public.service_objects where id = '${deckId}'`);
+  check("…turns portrait (9:16) without a new file", sized === "1080x1920", sized);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  const first = await alice.locator("[data-player-count]").innerText();
+  await alice.keyboard.press("ArrowRight");
+  await alice.waitForTimeout(800);
+  check("…and is shown in its own page, slide by slide", first.trim() === "1 / 2" && (await alice.locator("[data-player-count]").innerText()).trim() === "2 / 2", first);
+  // Step П-3б: a wiki page embedded live on a slide, shown in the show.
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-embed-add]").click();
+  await alice.locator('[data-embed-kind="page"]').click();
+  await alice.locator('[data-embed-picker="page"] button').first().click();
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const embedded = sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'slides') s, jsonb_array_elements(s -> 'nodes') n where o.id = '${deckId}' and n ->> 'type' = 'EMBED' and length(n #>> '{embed,id}') = 36`);
+  check("…takes a live wiki page card (step П-3б)", embedded === "1", embedded);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  await alice.locator("[data-embed-page]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and shows the card in the show", (await alice.locator("[data-embed-page]").count()) >= 1);
 }
 
 // --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------
