@@ -113,22 +113,24 @@ export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">)
   return { title: page ? `${page.title || t.pages.untitled} · ${t.app.name}` : t.app.name };
 }
 
-// A page just made in this browser opens while the database is still making it
-// (?new=1): wait for it a little instead of showing "not found".
-async function loadNewPage(wid: string, id: string, isNew: boolean) {
-  for (let attempt = 0; ; attempt++) {
-    const page = await loadPage(wid, id);
-    if (page || !isNew || attempt >= 20) return page;
-    await new Promise((resolve) => setTimeout(resolve, 150));
-  }
+// A page this browser has just made (?new=1) opens at once, empty, even if the
+// database has not finished making it: its saves wait in the browser until it has.
+async function loadNewPage(wid: string, id: string, isNew: boolean, workspaceId: Promise<string | null>): Promise<PageRecord | null> {
+  const page = await loadPage(wid, id);
+  if (page || !isNew || !UUID.test(id)) return page;
+  const ws = await workspaceId;
+  if (!ws) return null;
+  const now = new Date().toISOString();
+  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, author: null };
 }
 
 export default async function WikiPage({ params, searchParams }: PageProps<"/w/[wid]/p/[id]">) {
   const { wid, id } = await params;
   const isNew = (await searchParams).new === "1";
+  const workspaceLoad = getWorkspace(wid);
   const [workspace, page, user, comments] = await Promise.all([
-    getWorkspace(wid),
-    loadNewPage(wid, id, isNew),
+    workspaceLoad,
+    loadNewPage(wid, id, isNew, workspaceLoad.then((w) => w?.id ?? null)),
     getCurrentUser(),
     loadComments(wid, id),
   ]);

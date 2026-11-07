@@ -720,6 +720,13 @@ export const en: Dictionary = {
       noMove: "Don't move",
     },
     quickCreate: "New task — a title and Enter",
+    drafts: {
+      saving: "Saving…",
+      notSaved: "Not saved.",
+      offline: "No connection to the server.",
+      retry: "Retry",
+      dismiss: "Discard",
+    },
     newTask: {
       open: "＋ New task",
       openIn: (column: string) => `New task in “${column}”`,

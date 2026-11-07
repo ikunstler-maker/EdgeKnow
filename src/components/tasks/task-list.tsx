@@ -9,6 +9,7 @@ import { PRIORITY_ICONS, TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, personLabel, p
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { bulkUpdateTasks } from "@/app/task-actions";
 import { NewTaskDialog } from "./new-task-dialog";
+import { DraftCard, useTaskDrafts } from "./task-drafts";
 import { TemplatePicker, useTemplates } from "./task-templates";
 
 const k = t.tasks;
@@ -40,6 +41,7 @@ export function TaskList({
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
+  const drafts = useTaskDrafts(project.id, tasks);
   const templates = useTemplates(project.id, canEdit);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -87,9 +89,16 @@ export function TaskList({
           </button>
         </div>
       )}
+      {drafts.drafts.length > 0 && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {drafts.drafts.map((d) => (
+            <DraftCard key={d.id} draft={d} onRetry={() => drafts.retry(d.id)} onDismiss={() => drafts.dismiss(d.id)} />
+          ))}
+        </div>
+      )}
       {creating && (
         <NewTaskDialog
-          projectId={project.id}
+          onCreate={drafts.create}
           statuses={statuses.filter((s) => !s.board_id)}
           statusId={null}
           members={members}

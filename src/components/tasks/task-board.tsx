@@ -45,6 +45,7 @@ import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { TaskRulesDialog } from "./task-rules";
 import { TemplatePicker, useTemplates } from "./task-templates";
 import { NewTaskDialog } from "./new-task-dialog";
+import { DraftCard, useTaskDrafts } from "./task-drafts";
 
 const k = t.tasks;
 const b = t.tasks.board;
@@ -104,6 +105,7 @@ export function TaskBoard({
   const [cardSettings, setCardSettings] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const templates = useTemplates(project.id, canEdit);
+  const drafts = useTaskDrafts(project.id, initialTasks);
   // The server's answer replaces the local copy whenever the page refreshes.
   const [fromServer, setFromServer] = useState(initialTasks);
   const [placements, setPlacements] = useState(initialPlacements);
@@ -316,6 +318,9 @@ export function TaskBoard({
                     isOwner={isOwner && lane.id === lanes[0].id}
                     showQuickAdd={canEdit && lane.id === lanes[0].id}
                     onNewTask={() => setNewTaskIn(status.id)}
+                    drafts={lane.id === lanes[0].id ? drafts.drafts.filter((d) => (d.fields.status_id ?? statuses[0]?.id) === status.id).map((d) => (
+                      <DraftCard key={d.id} draft={d} onRetry={() => drafts.retry(d.id)} onDismiss={() => drafts.dismiss(d.id)} />
+                    )) : null}
                     pending={pending}
                     run={run}
                     render={(task) => (
@@ -356,7 +361,7 @@ export function TaskBoard({
       </DndContext>
 
       {newTaskIn !== undefined && (
-        <NewTaskDialog projectId={project.id} statuses={statuses} statusId={newTaskIn} members={members} fields={fields} template={templates.chosen} onClose={() => setNewTaskIn(undefined)} />
+        <NewTaskDialog onCreate={drafts.create} statuses={statuses} statusId={newTaskIn} members={members} fields={fields} template={templates.chosen} onClose={() => setNewTaskIn(undefined)} />
       )}
       {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (
@@ -387,6 +392,7 @@ function BoardColumn({
   isOwner,
   showQuickAdd,
   onNewTask,
+  drafts,
   pending,
   run,
   render,
@@ -403,6 +409,7 @@ function BoardColumn({
   isOwner: boolean;
   showQuickAdd: boolean;
   onNewTask: () => void;
+  drafts: React.ReactNode;
   pending: boolean;
   run: (action: () => Promise<ActionResult>, rollback?: () => void) => void;
   render: (task: TaskRow) => React.ReactNode;
@@ -466,6 +473,7 @@ function BoardColumn({
           </DropBefore>
         ))}
       </ul>
+      {drafts && <div className="mt-2 flex flex-col gap-2">{drafts}</div>}
       {showQuickAdd && (
         <button type="button" onClick={onNewTask} aria-label={t.tasks.newTask.openIn(status.name)} className="mt-2 min-h-11 w-full rounded-md px-2 text-left text-sm text-muted hover:bg-border md:min-h-9" data-new-task-open>
           {t.tasks.newTask.open}

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, use, useMemo, useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { trackCreate, whenCreated } from "@/lib/pending-creates";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
@@ -99,9 +100,11 @@ export function PagesProvider({
 
   // Applies the change on screen right away; the server's answer replaces it
   // (or rolls it back on failure) when the refreshed tree arrives.
-  const run = (op: OptimisticOp | null, action: () => Promise<ActionResult>) =>
+  // Changes to a page made a moment ago wait until the database has it.
+  const run = (op: OptimisticOp | null, action: () => Promise<ActionResult>, id?: string) =>
     startTransition(async () => {
       if (op) applyOptimistic(op);
+      if (id && !(await whenCreated(id))) return;
       const result = await action();
       setError(errorMessage(result));
     });
@@ -135,7 +138,9 @@ export function PagesProvider({
       // Where to return if the database refuses (not history.back: the new page may not be open yet).
       const from = window.location.pathname + window.location.search;
       router.push(`${pagePath(workspace.shortId, id)}?new=1`);
-      createPage(workspace.id, parentId, id).then(
+      const made = createPage(workspace.id, parentId, id);
+      trackCreate(id, made.then((result) => result.ok, () => false));
+      made.then(
         (result) => {
           setCreating((set) => {
             const next = new Set(set);
@@ -162,11 +167,11 @@ export function PagesProvider({
         },
       );
     },
-    rename: (id, title) => run({ type: "rename", id, title }, () => renamePage(id, title)),
-    setIcon: (id, icon) => run({ type: "icon", id, icon }, () => setPageIcon(id, icon)),
+    rename: (id, title) => run({ type: "rename", id, title }, () => renamePage(id, title), id),
+    setIcon: (id, icon) => run({ type: "icon", id, icon }, () => setPageIcon(id, icon), id),
     move: (id, parentId, index) =>
-      run({ type: "move", id, parentId, index }, () => movePage(id, parentId, index)),
-    trash: (id) => run({ type: "remove", id }, () => trashPage(id)),
+      run({ type: "move", id, parentId, index }, () => movePage(id, parentId, index), id),
+    trash: (id) => run({ type: "remove", id }, () => trashPage(id), id),
   };
 
   return (
