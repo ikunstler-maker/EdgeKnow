@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
-import { SLIDE_H, SLIDE_W, makeNode, newId, type Deck, type NodeType, type Slide, type SlideNode } from "@/lib/slides";
+import { makeNode, resizeDeck, sizeOf, newId, type Deck, type NodeType, type Slide, type SlideNode } from "@/lib/slides";
 import { THEMES, TEMPLATES, applyTheme, templateSlide, themeOf, type SlideTemplate } from "@/lib/slide-themes";
 import { align, boxOf, distribute, intersects, snap, unionBox, type AlignMode, type Guide } from "@/lib/slide-guides";
 import { DesignPanel } from "./inspector";
 import { LayersPanel } from "./layers-panel";
+import { SizePicker } from "./size-picker";
+import { EMBED_KINDS, type EmbedKind } from "@/lib/slides";
 import { NodeShape, SlideView } from "./slide-view";
 
 const s = t.slides;
@@ -27,7 +29,7 @@ const HISTORY = 100;
 // The slide editor: slides on the left (drag to reorder), the slide on a canvas that
 // fits the space (zoom in and out), tools on top, the selected layer's look on the
 // right. Every change goes through commit(), which also feeds undo/redo and saving.
-export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { shortId: string; deckId: string; initial: Deck; editable: boolean; onChange: (deck: Deck) => void }) {
+export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPlay }: { shortId: string; deckId: string; initial: Deck; editable: boolean; onChange: (deck: Deck) => void; onPlay?: (slide: number) => void }) {
   const [deck, setDeck] = useState(initial);
   const deckRef = useRef(deck);
   const [past, setPast] = useState<Deck[]>([]);
@@ -42,6 +44,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [sideTab, setSideTab] = useState<"design" | "layers">("design");
   const [template, setTemplate] = useState<SlideTemplate>("titleText");
+  const [embedMenu, setEmbedMenu] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -50,6 +53,9 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
   const [fit, setFit] = useState(0.5);
   const dndId = useId();
 
+  const size = sizeOf(deck);
+  const SLIDE_W = size.w;
+  const SLIDE_H = size.h;
   const slideIndex = Math.min(current, deck.slides.length - 1);
   const slide = deck.slides[slideIndex];
   const one = selected.length === 1 ? slide.nodes.find((n) => n.id === selected[0]) : undefined;
@@ -63,7 +69,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [SLIDE_W, SLIDE_H]);
   const scale = fit * zoom;
 
   // A new state of the deck; record=false while dragging (the drag records once at the end).
@@ -116,6 +122,17 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
     const copies = nodes.map((n) => ({ ...n, id: newId(), x: n.x + 40, y: n.y + 40 }));
     updateSlide((x) => ({ ...x, nodes: [...x.nodes, ...copies] }));
     setSelected(copies.map((n) => n.id));
+  };
+
+  // A live embed of another service, picked inside it (step П-3б).
+  const addEmbed = (kind: EmbedKind) => {
+    const w = Math.min(SLIDE_W * 0.7, 1300);
+    const h = Math.min(SLIDE_H * 0.7, 760);
+    const node = { ...makeNode("EMBED", Math.round((SLIDE_W - w) / 2), Math.round((SLIDE_H - h) / 2), Math.round(w), Math.round(h), s.names), name: s.embeds.kinds[kind], embed: { kind, id: "" } };
+    updateSlide((x) => ({ ...x, nodes: [...x.nodes, node] }));
+    setSelected([node.id]);
+    setEditing(node.id);
+    setEmbedMenu(false);
   };
 
   // Pictures: uploaded as the deck's files, then placed in the middle of the slide.
@@ -226,7 +243,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
       const moving = slide.nodes.filter((n) => d.origin.has(n.id)).map((n) => ({ ...n, x: d.origin.get(n.id)!.x + dx, y: d.origin.get(n.id)!.y + dy }));
       const box = unionBox(moving);
       if (box && !event.altKey) {
-        const found = snap(box, slide.nodes.filter((n) => !d.origin.has(n.id) && !n.hidden), 8 / scale);
+        const found = snap(box, slide.nodes.filter((n) => !d.origin.has(n.id) && !n.hidden), 8 / scale, size);
         dx += found.dx;
         dy += found.dy;
         setGuides(found.guides);
@@ -360,7 +377,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
   const placeholders = { title: s.placeholders.title, subtitle: s.placeholders.subtitle, text: s.placeholders.text, caption: s.placeholders.caption };
   const addSlide = () => {
     const next = [...deck.slides];
-    next.splice(slideIndex + 1, 0, templateSlide(template, themeOf(deck), placeholders));
+    next.splice(slideIndex + 1, 0, templateSlide(template, themeOf(deck), placeholders, size));
     commit({ ...deck, slides: next });
     setCurrent(slideIndex + 1);
     setSelected([]);
@@ -426,6 +443,21 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
               if (file) void addImage(file);
             }}
           />
+          <span className="relative">
+            <button type="button" onClick={() => setEmbedMenu(!embedMenu)} aria-expanded={embedMenu} className={iconButton} data-embed-add>
+              {s.embeds.add}
+            </button>
+            {embedMenu && (
+              <div className="absolute left-0 z-40 mt-1 w-60 rounded-lg border border-border bg-background p-1 shadow-xl" role="menu" aria-label={s.embeds.title}>
+                {EMBED_KINDS.map((k) => (
+                  <button key={k} type="button" role="menuitem" onClick={() => addEmbed(k)} className="flex min-h-11 w-full items-center gap-2 rounded px-2 text-left text-sm hover:bg-surface md:min-h-9" data-embed-kind={k}>
+                    <span>{s.embeds.icons[k]}</span>
+                    {s.embeds.kinds[k]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
           <span className="mx-1 h-6 w-px bg-border" />
           <button type="button" title={s.undo} aria-label={s.undo} disabled={!past.length} onClick={undo} className={iconButton} data-undo>
             ↶
@@ -444,6 +476,8 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
             +
           </button>
           <span className="mx-1 h-6 w-px bg-border" />
+          <SizePicker size={size} onChange={(next, fit) => (commit(resizeDeck(deckRef.current, next, fit)), setSelected([]))} />
+          <span className="mx-1 h-6 w-px bg-border" />
           <label className="flex items-center gap-1 text-sm">
             <span className="sr-only md:not-sr-only">{s.theme}</span>
             <select
@@ -460,6 +494,11 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
               ))}
             </select>
           </label>
+          {onPlay && (
+            <button type="button" onClick={() => onPlay(slideIndex + 1)} className={iconButton} data-play-here>
+              {t.slides.player.fromHere}
+            </button>
+          )}
           {notice && (
             <span role="status" className="ml-2 text-sm text-muted">
               {notice}
@@ -473,7 +512,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
         <DndContext id={dndId} sensors={sensors} onDragEnd={onSlideDrop}>
           <nav aria-label={s.slides} className="flex shrink-0 gap-2 overflow-auto md:w-44 md:flex-col" data-slide-list>
             {deck.slides.map((x, i) => (
-              <SlideThumb key={x.id} slide={x} index={i} active={i === slideIndex} shortId={shortId} draggable={editable} onPick={() => (setCurrent(i), setSelected([]), setEditing(null))} />
+              <SlideThumb key={x.id} size={size} slide={x} index={i} active={i === slideIndex} shortId={shortId} draggable={editable} onPick={() => (setCurrent(i), setSelected([]), setEditing(null))} />
             ))}
             {editable && (
               <div className="flex shrink-0 gap-1 md:flex-col">
@@ -531,17 +570,17 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
                 <g
                   key={node.id}
                   onPointerDown={(e) => onNodeDown(e, node)}
-                  onDoubleClick={() => editable && node.type === "TEXT" && setEditing(node.id)}
+                  onDoubleClick={() => editable && (node.type === "TEXT" || node.type === "EMBED") && setEditing(node.id)}
                   className={editable && tool === "select" ? "cursor-move" : undefined}
                   data-node={node.type}
                 >
-                  <NodeShape node={node} shortId={shortId} editingText={editing === node.id} />
+                  <NodeShape node={node} shortId={shortId} editingText={editing === node.id} embeds={node.type === "EMBED" && editing === node.id && editable ? "setup" : "view"} onEmbed={(embed) => updateNodes([node.id], (n) => ({ ...n, embed }))} />
                   {/* A wider invisible stroke so thin lines are easy to grab. */}
                   {LINEAR(node.type) && <line x1={node.x} y1={node.y} x2={node.x + node.width} y2={node.y + node.height} stroke="transparent" strokeWidth={Math.max(24, (node.strokeWidth ?? 8) + 16)} />}
                   {node.type === "TEXT" && !node.text && editing !== node.id && (
                     <rect x={node.x} y={node.y} width={node.width} height={node.height} fill="transparent" stroke="#94a3b8" strokeDasharray="12 8" strokeWidth={2 / scale} />
                   )}
-                  {editing === node.id && (
+                  {editing === node.id && node.type === "TEXT" && (
                     <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} transform={node.rotation ? `rotate(${node.rotation} ${node.x + node.width / 2} ${node.y + node.height / 2})` : undefined}>
                       <textarea
                         autoFocus
@@ -675,7 +714,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
                   <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">{s.alignTitle}</legend>
                   <div className="grid grid-cols-3 gap-1">
                     {(["left", "centerX", "right", "top", "middle", "bottom"] as AlignMode[]).map((m) => (
-                      <button key={m} type="button" onClick={() => place(align(picked, m))} className={iconButton} title={s.aligns[m]} aria-label={s.aligns[m]} data-align={m}>
+                      <button key={m} type="button" onClick={() => place(align(picked, m, size))} className={iconButton} title={s.aligns[m]} aria-label={s.aligns[m]} data-align={m}>
                         {{ left: "⇤", centerX: "↔", right: "⇥", top: "⤒", middle: "↕", bottom: "⤓" }[m]}
                       </button>
                     ))}
@@ -718,11 +757,25 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange }: { s
           </aside>
         )}
       </div>
+      {editable && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="text-muted">{t.slides.notesLabel}</span>
+          <textarea
+            key={slide.id}
+            defaultValue={slide.notes ?? ""}
+            onBlur={(e) => e.target.value !== (slide.notes ?? "") && updateSlide((x) => ({ ...x, notes: e.target.value.slice(0, 20000) || undefined }))}
+            placeholder={t.slides.notesPlaceholder}
+            rows={3}
+            className="min-h-20 rounded-md border border-border bg-background p-2 text-base md:text-sm"
+            data-slide-notes
+          />
+        </label>
+      )}
     </div>
   );
 }
 
-function SlideThumb({ slide, index, active, shortId, draggable, onPick }: { slide: Slide; index: number; active: boolean; shortId: string; draggable: boolean; onPick: () => void }) {
+function SlideThumb({ slide, size, index, active, shortId, draggable, onPick }: { slide: Slide; size: { w: number; h: number }; index: number; active: boolean; shortId: string; draggable: boolean; onPick: () => void }) {
   const { setNodeRef: dropRef, isOver } = useDroppable({ id: slide.id, disabled: !draggable });
   const { setNodeRef, transform, isDragging, listeners, attributes } = useDraggable({ id: slide.id, disabled: !draggable });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
@@ -745,7 +798,7 @@ function SlideThumb({ slide, index, active, shortId, draggable, onPick }: { slid
         aria-label={draggable ? s.dragSlide(index + 1) : s.slideN(index + 1)}
         className={`block w-full touch-none overflow-hidden rounded-md border-2 ${active ? "border-accent" : isOver ? "border-accent/60" : "border-border"}`}
       >
-        <SlideView slide={slide} shortId={shortId} className="block aspect-video w-full" />
+        <SlideView slide={slide} shortId={shortId} size={size} className="mx-auto block max-h-40 w-full" style={{ aspectRatio: `${size.w} / ${size.h}` }} />
       </button>
       <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/50 px-1 text-xs text-white">{index + 1}</span>
     </div>

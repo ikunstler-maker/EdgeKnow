@@ -1,5 +1,5 @@
 // Presentations (step П-2): smart guides, alignment and distribution.
-import { SLIDE_H, SLIDE_W, type SlideNode } from "./slides";
+import { DEFAULT_SIZE, type Size, type SlideNode } from "./slides";
 
 export type Box = { x: number; y: number; width: number; height: number };
 export type Guide = { axis: "x" | "y"; at: number };
@@ -23,8 +23,8 @@ const lines = (b: Box) => ({ x: [b.x, b.x + b.width / 2, b.x + b.width], y: [b.y
 
 // Moving a box: the shift that makes one of its edges or its centre meet an edge or a
 // centre of the slide or of another layer, if one is within `threshold`; and the guides.
-export function snap(moving: Box, others: SlideNode[], threshold: number): { dx: number; dy: number; guides: Guide[] } {
-  const targets = { x: [0, SLIDE_W / 2, SLIDE_W], y: [0, SLIDE_H / 2, SLIDE_H] };
+export function snap(moving: Box, others: SlideNode[], threshold: number, size: Size = DEFAULT_SIZE): { dx: number; dy: number; guides: Guide[] } {
+  const targets = { x: [0, size.w / 2, size.w], y: [0, size.h / 2, size.h] };
   for (const n of others) {
     const l = lines(boxOf(n));
     targets.x.push(...l.x);
@@ -51,8 +51,8 @@ export function snap(moving: Box, others: SlideNode[], threshold: number): { dx:
 export type AlignMode = "left" | "centerX" | "right" | "top" | "middle" | "bottom";
 
 // Align several layers to their common box (one layer: to the slide).
-export function align(nodes: SlideNode[], mode: AlignMode): Map<string, { x: number; y: number }> {
-  const area = nodes.length > 1 ? unionBox(nodes)! : { x: 0, y: 0, width: SLIDE_W, height: SLIDE_H };
+export function align(nodes: SlideNode[], mode: AlignMode, size: Size = DEFAULT_SIZE): Map<string, { x: number; y: number }> {
+  const area = nodes.length > 1 ? unionBox(nodes)! : { x: 0, y: 0, width: size.w, height: size.h };
   const out = new Map<string, { x: number; y: number }>();
   for (const n of nodes) {
     const b = boxOf(n);

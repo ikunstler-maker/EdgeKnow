@@ -32,7 +32,7 @@ export const nodeMapBlock = createReactBlockSpec(
   },
 );
 
-function NodeMapEmbed({ objectId, pageEditable, onPick }: { objectId: string; pageEditable: boolean; onPick: (id: string) => void }) {
+export function NodeMapEmbed({ objectId, pageEditable, onPick }: { objectId: string; pageEditable: boolean; onPick: (id: string) => void }) {
   const pages = useOptionalPages();
   const shortId = pages?.workspace.shortId ?? "";
   const [view, setView] = useState<NodeObjectView | null | undefined>(undefined);

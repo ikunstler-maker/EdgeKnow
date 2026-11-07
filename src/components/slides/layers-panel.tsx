@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 import type { Slide, SlideNode } from "@/lib/slides";
 
 const l = t.slides.layers;
-const icon = (type: SlideNode["type"]) => ({ TEXT: "T", RECTANGLE: "▭", ELLIPSE: "◯", LINE: "╱", ARROW: "➚", IMAGE: "🖼" })[type];
+const icon = (type: SlideNode["type"]) => ({ TEXT: "T", RECTANGLE: "▭", ELLIPSE: "◯", LINE: "╱", ARROW: "➚", IMAGE: "🖼", EMBED: "⧉" })[type];
 const smallButton = "flex h-11 w-9 shrink-0 items-center justify-center rounded text-sm hover:bg-surface md:h-8 md:w-7";
 
 // The layers of a slide, top first: pick, rename, drag to reorder, hide, lock.

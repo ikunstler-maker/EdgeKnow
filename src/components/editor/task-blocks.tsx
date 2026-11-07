@@ -40,7 +40,7 @@ export const taskChip = createReactInlineContentSpec(
   },
 );
 
-function TaskChipView({ taskId }: { taskId: string }) {
+export function TaskChipView({ taskId }: { taskId: string }) {
   const pages = useOptionalPages();
   const shortId = pages?.workspace.shortId;
   const task = useTaskChip(shortId, taskId);
@@ -146,7 +146,7 @@ export const tasksBlock = createReactBlockSpec(
 
 type EmbedProps = { projectId?: string; view?: "list" | "board"; mine?: boolean };
 
-function TasksEmbedView({
+export function TasksEmbedView({
   projectId,
   view,
   mine,
