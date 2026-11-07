@@ -161,6 +161,14 @@ await anon.goto(`${APP}/w/${alphaShort}`);
 await anon.waitForURL(/\/login\?/);
 check("signed-out visitor goes to the workspace login link", anon.url().includes(`w=${alphaShort}`), anon.url());
 
+// «What's new» is open to everyone: a timeline with filters kept in the address.
+await anon.goto(`${APP}/changelog?type=fixed`);
+await anon.locator("[data-release]").first().waitFor({ timeout: 20000 });
+check("the changelog opens signed out, filtered by the address", anon.url().includes("/changelog") && (await anon.locator('[data-update]:not([data-update="fixed"])').count()) === 0 && (await anon.locator('[data-update="fixed"]').count()) >= 1);
+await anon.locator("[data-changelog-type]").selectOption("all");
+await anon.locator('[data-changelog-scope="sheets"]').click();
+check("…its service filter narrows the releases", (await anon.locator("[data-release]").count()) >= 1 && anon.url().includes("scope=sheets"), anon.url());
+
 // --- Stage 3: the editor ------------------------------------------------------
 
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/all-blocks.json", import.meta.url), "utf8"));

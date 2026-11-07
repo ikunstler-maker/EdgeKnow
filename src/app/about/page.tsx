@@ -369,6 +369,9 @@ export default async function AboutPage() {
         <div className={`${wrap} flex flex-wrap items-center gap-5`}>
           <span>{l.footer.made}</span>
           <span className="flex-1" />
+          <Link href="/changelog" className="hover:text-white">
+            {t.changelog.footerLink}
+          </Link>
           <Link href="/help" className="hover:text-white">
             {l.footer.help}
           </Link>
