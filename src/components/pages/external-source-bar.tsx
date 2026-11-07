@@ -70,16 +70,14 @@ export function ExternalSourceBar({
   if (!source) {
     if (form !== "connect") {
       return (
-        <div className="mb-2 flex justify-end">
-          <button type="button" className={`${button} text-sm text-muted`} onClick={() => setForm("connect")}>
-            {s.connect}
-          </button>
-        </div>
+        <button type="button" className={`${button} text-sm text-muted`} onClick={() => setForm("connect")}>
+          {s.connect}
+        </button>
       );
     }
     return (
       <form
-        className="mb-6 space-y-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm"
+        className="order-first mb-4 basis-full space-y-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           run(() => connectExternalSource(shortId, pageId, url, key, languages));
@@ -120,7 +118,7 @@ export function ExternalSourceBar({
     router.refresh();
   };
   return (
-    <div className="mb-6 space-y-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm">
+    <div className="order-first mb-4 basis-full space-y-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm">
       {source.languages.length > 1 && (
         <div role="group" aria-label={s.languageSwitch} className="flex flex-wrap gap-1">
           {source.languages.map((lang) => (

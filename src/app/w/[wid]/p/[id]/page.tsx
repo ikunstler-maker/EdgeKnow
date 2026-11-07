@@ -159,12 +159,10 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
       {isNew && <ClearNewFlag />}
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
       {!page.deleted_at && (
-        <div className="mb-2 flex justify-end">
+        <div className="mb-2 flex flex-wrap justify-end gap-2">
+          <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
           <ShareButton pageId={page.id} />
         </div>
-      )}
-      {!page.deleted_at && (
-        <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
       )}
       <PageHeader
         key={page.id}
