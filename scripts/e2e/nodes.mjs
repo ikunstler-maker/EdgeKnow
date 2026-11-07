@@ -337,9 +337,10 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-text-editor]").fill("Quarterly goals");
   await alice.mouse.click(...at(0.9, 0.9));
   // Step П-2: the rectangle gets a 135° brand gradient and a shadow; the dark theme for the deck.
-  // (The canvas may have moved since: read its place again.)
-  box = await svg.boundingBox();
-  await alice.mouse.click(...at(0.2, 0.2));
+  // Picked in the layers panel (independent of where the canvas sits on the page).
+  await alice.locator('[data-side-tab="layers"]').click();
+  await alice.locator('[data-layer="Прямокутник"] input').click();
+  await alice.locator('[data-side-tab="design"]').click();
   await alice.locator('[data-fill-mode="linear"]').click();
   await alice.locator('[data-brand-gradient="slides"]').click();
   await alice.locator("[data-shadow]").check();
