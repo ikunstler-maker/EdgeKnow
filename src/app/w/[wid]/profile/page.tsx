@@ -33,6 +33,9 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
       <Link href={workspacePath(workspace.shortId, "/analytics")} className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9" data-analytics-link>
         {t.analytics.link}
       </Link>
+      <Link href="/changelog" className="ml-2 mt-3 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface md:min-h-9" data-changelog-link>
+        ✦ {t.changelog.footerLink}
+      </Link>
       <VisibilitySwitch workspaceId={workspace.id} initial={stats.visibility} shareUrl={shareUrl} />
       <ProfileView stats={stats} />
       <AppearanceSettings />

@@ -20,9 +20,9 @@ const ALWAYS_PUBLIC_PATHS = [
 ];
 
 // Open to everyone, signed in or not and with or without a workspace: the
-// presentation page, a survey's link for anyone and its file uploads (step О3).
+// presentation page, the changelog, a survey's link for anyone and its file uploads (step О3).
 const OPEN_PREFIXES = ["/f/", "/api/f/"];
-const OPEN_PATHS = ["/about"];
+const OPEN_PATHS = ["/about", "/changelog"];
 
 function isOpenPath(pathname: string) {
   return OPEN_PATHS.includes(pathname) || OPEN_PREFIXES.some((p) => pathname.startsWith(p));
