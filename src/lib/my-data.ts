@@ -55,6 +55,7 @@ export async function exportMyData(userId: string) {
       board_pictures: await rows(db.from("object_files").select("id, object_id, name, mime_type, bytes, created_at").eq("workspace_id", m.workspace_id).eq("uploaded_by", userId)),
       // Answer tables are function-only: the database returns just this person's named answers.
       survey_answers: (await db.rpc("my_survey_answers", { ws: m.workspace_id })).data ?? [],
+      page_confirmations: await rows(db.from("page_acks").select("page_id, revision, label, content_hash, signed_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       statistics: await rows(db.from("page_contributions").select("page_id, chars_added, chars_removed, saves, last_saved_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
     });
   }

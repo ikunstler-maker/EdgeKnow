@@ -1065,4 +1065,32 @@ const foreign = await tokenFor(betaId);
 check("no token for someone else's workspace", foreign.status === 403, String(foreign.status));
 
 
+// --- Confirmations of reading: a frozen page people sign; the owner sees who did ------------
+{
+  const policy = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Safety policy" })).data.id;
+  await aliceClient.rpc("save_page_content", { target_page: policy, new_content: [{ type: "paragraph", content: "Wear a helmet." }], base_version: 1 });
+  await aliceClient.rpc("set_page_workspace_role", { target_page: policy, new_role: "viewer" });
+  await alice.goto(`${APP}/w/${alphaShort}/p/${policy}`);
+  await alice.locator("[data-ack-manage]").click();
+  await alice.locator('[data-ack-label="accept"]').check();
+  await alice.locator("[data-ack-turn-on]").click();
+  await alice.locator("[data-ack-badge]").waitFor({ timeout: 20000 }).catch(() => {});
+  const state = sql(`select ack_label || ' ' || ack_revision || ' ' || ack_editing from public.pages where id = '${policy}'`);
+  check("an owner asks readers to confirm a page, and it is frozen", state === "accept 1 false" && (await alice.locator("[data-ack-frozen]").count()) === 1, state);
+  check("…marked in the page tree", (await alice.locator("[data-tree-ack]").count()) >= 1);
+  const frozenSave = await aliceClient.rpc("save_page_content", { target_page: policy, new_content: [], base_version: 2, force: true });
+  check("…and the database refuses edits", Boolean(frozenSave.error) && pageContent(policy)?.[0]?.content === "Wear a helmet.", JSON.stringify(frozenSave.error ?? frozenSave.data));
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${policy}`);
+  await colleague.locator("[data-ack-sign]").click();
+  await colleague.locator("[data-ack-signed]").waitFor({ timeout: 15000 }).catch(() => {});
+  const signed = sql(`select count(*) || ' ' || min(label) from public.page_acks where page_id = '${policy}' and user_id = '${colleagueId}'`);
+  check("a reader confirms it with one button", signed === "1 accept" && (await colleague.locator("[data-ack-signed]").count()) === 1, signed);
+  const colleagueEmail = sql(`select email from public.profiles where id = '${colleagueId}'`);
+  await alice.reload();
+  await alice.locator("[data-ack-manage]").click();
+  await alice.locator("[data-ack-signed-list]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and the owner sees who confirmed and when", (await alice.locator(`[data-ack-person="${colleagueEmail}"]`).count()) === 1);
+  await alice.keyboard.press("Escape");
+}
+
 await finish("wiki");
