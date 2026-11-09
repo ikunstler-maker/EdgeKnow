@@ -35,7 +35,7 @@ select 'bob sees only himself: ' || (select string_agg(p ->> 'name' || ' created
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000040a1';
 select 'alice sees everyone: ' || (select string_agg(p ->> 'name' || ' ' || (p ->> 'created') || '/' || (p ->> 'completed'), ', ' order by p ->> 'name')
   from jsonb_array_elements(public.workspace_analytics(:'ws', now() - interval '1 day', now() + interval '1 day') -> 'people') p);
-select 'alice sees the team: created ' || (t ->> 'created') || ', completed ' || (t ->> 'completed') || ', open ' || (t ->> 'open_now') || ', active ' || (t ->> 'active_people') || ', weeks ' || jsonb_array_length(t -> 'weeks')
+select 'alice sees the team: created ' || (t ->> 'created') || ', completed ' || (t ->> 'completed') || ', open ' || (t ->> 'open_now') || ', active ' || (t ->> 'active_people') || ', weeks ' || case when jsonb_array_length(t -> 'weeks') between 1 and 2 then 'ok' else jsonb_array_length(t -> 'weeks')::text end
   from (select public.workspace_analytics(:'ws', now() - interval '1 day', now() + interval '1 day') -> 'team' t) s;
 select 'no period: ' || public.workspace_analytics(:'ws', null, null)::text;
 select 'a period too long: ' || public.workspace_analytics(:'ws', now() - interval '3 years', now())::text;

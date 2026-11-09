@@ -310,6 +310,11 @@ function TreeRow({
           >
             <span className="shrink-0">{page.icon ?? "📄"}</span>
             <span className="truncate">{title}</span>
+            {page.needsAck && (
+              <span className="shrink-0 text-xs text-accent" title={t.acks.badge} aria-label={t.acks.badge} data-tree-ack>
+                ✍
+              </span>
+            )}
             {creating.has(page.id) && (
               <span className="ml-auto shrink-0 animate-pulse text-xs text-muted" data-page-creating>
                 {t.pages.creating}

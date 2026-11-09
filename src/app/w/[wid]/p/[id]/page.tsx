@@ -18,6 +18,8 @@ import { ShareButton } from "@/components/pages/share-dialog";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
 import { ClearNewFlag } from "@/components/pages/clear-new-flag";
+import { AckBadge, AckManageButton, AckPanel } from "@/components/pages/page-ack";
+import { isFrozen, type AckLabel, type PageAck } from "@/lib/page-acks";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -34,6 +36,10 @@ type PageRecord = {
   trashed_with: string | null;
   my_role: PageRole;
   cover: unknown;
+  ack_label: AckLabel | null;
+  ack_revision: number;
+  ack_editing: boolean;
+  ack_groups: string[];
   author: { name: string | null; email: string } | null;
 };
 
@@ -45,7 +51,7 @@ async function loadPage(wid: string, id: string): Promise<PageRecord | null> {
   const { data } = await supabase
     .from("pages")
     .select(
-      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, author:profiles!pages_created_by_fkey(name, email)",
+      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, ack_label, ack_revision, ack_editing, ack_groups, author:profiles!pages_created_by_fkey(name, email)",
     )
     .eq("id", id)
     .maybeSingle()
@@ -75,6 +81,27 @@ async function loadComments(wid: string, pageId: string) {
     }
   }
   return { threads, people };
+}
+
+// The page's confirmation, and whether this reader signed its current revision.
+async function loadAck(wid: string, page: PageRecord, userId: string, canManage: boolean): Promise<PageAck | null> {
+  if (!page.ack_label || !page.ack_revision) return null;
+  const supabase = await dataClient(wid);
+  const { data } = await supabase
+    .from("page_acks")
+    .select("signed_at")
+    .eq("page_id", page.id)
+    .eq("revision", page.ack_revision)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return {
+    label: page.ack_label,
+    revision: page.ack_revision,
+    editing: page.ack_editing,
+    groups: page.ack_groups ?? [],
+    signedAt: (data?.signed_at as string | undefined) ?? null,
+    canManage,
+  };
 }
 
 // The page's external source, if any (decision 2026-12-31). Read with the secret
@@ -121,7 +148,7 @@ async function loadNewPage(wid: string, id: string, isNew: boolean, workspaceId:
   const ws = await workspaceId;
   if (!ws) return null;
   const now = new Date().toISOString();
-  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, author: null };
+  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, ack_label: null, ack_revision: 0, ack_editing: false, ack_groups: [], author: null };
 }
 
 export default async function WikiPage({ params, searchParams }: PageProps<"/w/[wid]/p/[id]">) {
@@ -146,12 +173,15 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
   }
 
   const source = await loadSource(workspace.id, page.id);
+  const ack = await loadAck(wid, page, user.id, page.my_role === "owner" || isWorkspaceAdmin(workspace));
+  const frozen = isFrozen(ack);
   // Opening the page refreshes its source at most once an hour, after the response.
   if (source && !page.deleted_at) after(() => refreshIfStale(createAdminClient()!, source.id));
 
   // Owners and editors edit; commenters and viewers only read, and so does everyone
   // in the trash. A page fed by an external source is never edited by hand.
-  const editableMeta = canEdit(page.my_role) && !page.deleted_at;
+  // A page waiting for confirmations is frozen until a new revision is started.
+  const editableMeta = canEdit(page.my_role) && !page.deleted_at && !frozen;
   const editable = editableMeta && !source;
   const canComment = page.my_role !== "viewer" && !page.deleted_at;
 
@@ -164,6 +194,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
       {!page.deleted_at && (
         <div className="mb-2 flex flex-wrap justify-end gap-2">
           <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
+          {(ack?.canManage || (!ack && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
           <ShareButton pageId={page.id} />
         </div>
       )}
@@ -179,6 +210,8 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
         createdAt={page.created_at}
         updatedAt={page.updated_at}
       />
+      {ack && <AckBadge ack={ack} />}
+      {frozen && canEdit(page.my_role) && !page.deleted_at && <p className="mt-2 text-xs text-muted" data-ack-frozen>{t.acks.frozenNote}</p>}
       <div className="mt-6">
         <PageBody
           key={`${page.id}-${source?.info.lang ?? ""}`}
@@ -192,6 +225,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
           people={comments.people}
         />
       </div>
+      {ack && !page.deleted_at && <AckPanel key={`${page.id}-${ack.revision}-${ack.editing}`} pageId={page.id} ack={ack} />}
     </main>
     </div>
   );

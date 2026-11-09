@@ -36,11 +36,26 @@ const TASK_COLUMNS =
   "id, workspace_id, project_id, number, title, description, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, updated_by, done_at, deleted_at, deleted_by, custom, private";
 
 const PAGE_COLUMNS =
-  "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover";
+  "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover, ack_label, ack_revision, ack_editing, ack_groups";
 
 const STAGES: Stage[] = [
   { name: "pages", table: "pages", columns: PAGE_COLUMNS, order: "id", onConflict: "id", flatten: true },
   { name: "page tree", table: "pages", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
+  // Confirmations of reading: what each revision showed, then who signed it.
+  {
+    name: "confirmation revisions",
+    table: "page_ack_revisions",
+    columns: "page_id, workspace_id, revision, label, title, content, content_hash, published_by, published_at",
+    order: "page_id,revision",
+    onConflict: "page_id,revision",
+  },
+  {
+    name: "confirmations",
+    table: "page_acks",
+    columns: "page_id, workspace_id, revision, user_id, label, content_hash, signed_at",
+    order: "page_id,revision,user_id",
+    onConflict: "page_id,revision,user_id",
+  },
   { name: "access", table: "page_access", columns: "id, workspace_id, page_id, user_id, role, granted_by, created_at", order: "id", onConflict: "id" },
   {
     // The groups themselves come with the member sync (they live centrally).
@@ -254,7 +269,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -329,13 +344,9 @@ export async function copyPortion(
     const { error: clearError } = await to.from(stage.table).delete().eq("workspace_id", ws);
     if (clearError) throw new Error(`${stage.name}: ${clearError.message}`);
   }
-  const { data, error } = await from
-    .from(stage.table)
-    .select(stage.columns)
-    .eq("workspace_id", ws)
-    .order(stage.order.split(",")[0])
-    .order(stage.order.split(",")[1] ?? stage.order.split(",")[0])
-    .range(at.offset, at.offset + size - 1);
+  // Every key column in order, so batches never skip or repeat rows.
+  const ordered = stage.order.split(",").reduce((q, column) => q.order(column), from.from(stage.table).select(stage.columns).eq("workspace_id", ws));
+  const { data, error } = await ordered.range(at.offset, at.offset + size - 1);
   if (error) throw new Error(`${stage.name}: ${error.message}`);
   let rows = (data ?? []) as unknown as Record<string, unknown>[];
 

@@ -1,0 +1,5 @@
+turned on: 1
+signed: true
+stats: 1
+psql: ERROR:  page_frozen
+carol (not a member) signs: forbidden, sees: 0

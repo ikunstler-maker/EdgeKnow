@@ -13,10 +13,12 @@ export type PageNode = {
   role: PageRole;
   // Whole-workspace access, own or inherited.
   workspaceRole: GrantRole | null;
+  // Asks readers to confirm it (shown with a quiet seal in the tree).
+  needsAck?: boolean;
 };
 
 // Columns for the tree; my_role and shared_with_workspace are computed in the database.
-export const PAGE_TREE_COLUMNS = "id, parent_id, title, icon, position, owner_id, my_role, shared_with_workspace";
+export const PAGE_TREE_COLUMNS = "id, parent_id, title, icon, position, owner_id, my_role, shared_with_workspace, ack_label";
 
 export type PageRow = {
   id: string;
@@ -27,6 +29,7 @@ export type PageRow = {
   owner_id: string;
   my_role: PageRole;
   shared_with_workspace: GrantRole | null;
+  ack_label: string | null;
 };
 
 export function toPageNode(row: PageRow): PageNode {
@@ -39,6 +42,7 @@ export function toPageNode(row: PageRow): PageNode {
     ownerId: row.owner_id,
     role: row.my_role,
     workspaceRole: row.shared_with_workspace,
+    needsAck: Boolean(row.ack_label),
   };
 }
 

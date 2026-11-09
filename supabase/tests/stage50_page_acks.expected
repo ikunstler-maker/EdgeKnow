@@ -1,0 +1,32 @@
+editor turns on: forbidden
+owner turns on: 1
+bad button: invalid
+button changed before signatures: true
+psql: ERROR:  page_frozen
+psql: ERROR:  page_frozen
+psql: ERROR:  page_frozen
+bob signs: true
+again: true
+bob sees own: 1
+bob stats: forbidden
+psql: ERROR:  permission denied for table page_acks
+psql: ERROR:  signatures_are_final
+outsider signs: forbidden
+outsider sees: 0
+outsider stats: forbidden
+button after signatures: has_signatures
+turn off after signatures: has_signatures
+stats: 1 signed (bob@acks.test), pending alice@acks.test,carl@acks.test
+hash kept: true
+edition: true
+save in edition: true
+sign during edition: not_open
+published: 2
+psql: ERROR:  page_frozen
+carl signs rev 2: 2
+rev 1 still: 1, rev 2: 1
+cancel: true
+text back: Be kinder frozen true
+deleted signer: 00000000-0000-0000-0000-0000000050b1 no name no email
+turn off unsigned: true
+editable again: true

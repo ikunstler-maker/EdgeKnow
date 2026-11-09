@@ -27,6 +27,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Then realtime co-editing (cursors, presence, conflict-free edits) for both.
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
 
+## Wiki: confirmations of reading (owner, 2026-11-09; decision 2027-01-14)
+- Confirm button, frozen page, statistics, new revisions — in review.
+
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
 - Boards Д2: realtime co-editing (postponed by the owner).
