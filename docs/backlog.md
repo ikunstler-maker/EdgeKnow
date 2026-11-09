@@ -28,7 +28,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
 
 ## Wiki: confirmations of reading (owner, 2026-11-09; decision 2027-01-14)
-- Confirm button, frozen page, statistics, new revisions — in review.
+- Confirm button, frozen page, statistics, new revisions — DONE (#120).
 
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
