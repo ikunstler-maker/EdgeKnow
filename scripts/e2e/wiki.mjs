@@ -1073,7 +1073,6 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.goto(`${APP}/w/${alphaShort}/p/${policy}`);
   await alice.locator("[data-ack-manage]").click();
   await alice.locator('[data-ack-label="accept"]').check();
-  alice.once("dialog", (d) => d.accept());
   await alice.locator("[data-ack-turn-on]").click();
   await alice.locator("[data-ack-badge]").waitFor({ timeout: 20000 }).catch(() => {});
   const state = sql(`select ack_label || ' ' || ack_revision || ' ' || ack_editing from public.pages where id = '${policy}'`);
