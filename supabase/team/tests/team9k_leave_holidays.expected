@@ -1,0 +1,6 @@
+bob adds a holiday: forbidden, sets his start: forbidden
+alice adds a holiday: true, bob from October 2033: true
+bob's norm in 2033 (3 of 12 of 24): 6.0, a week with the holiday: 4
+the daily run adds for: true, again: 0
+bob sees: 1 holiday, start 2033-10-10
+carol (not a member) sees: 0 holidays, 0 start dates

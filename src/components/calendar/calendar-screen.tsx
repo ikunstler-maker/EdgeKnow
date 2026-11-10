@@ -30,9 +30,9 @@ import {
   type CalendarView,
   type CancelledEvent,
 } from "@/lib/calendar";
-import { loadAbsences } from "@/app/time-off-actions";
+import { loadAbsences, loadHolidays } from "@/app/time-off-actions";
 import { workspacePath } from "@/lib/paths";
-import type { Absence } from "@/lib/time-off";
+import type { Absence, Holiday } from "@/lib/time-off";
 import { EventDialog, type DialogState } from "./event-dialog";
 import { DobaNav } from "./time-off-screen";
 import { CalendarSettingsDialog, PeoplePicker } from "./calendar-parts";
@@ -110,6 +110,7 @@ export function CalendarScreen({
   const [watched, setWatched] = useState<string[]>([]);
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   // Rukh tasks with a due date: mine by default; the choice is kept on this device.
   const taskMode = useSyncExternalStore(watchTaskMode, readTaskMode, () => "mine" as TaskMode);
   const [tasks, setTasks] = useState<CalendarTask[]>([]);
@@ -186,6 +187,9 @@ export function CalendarScreen({
     let live = true;
     loadAbsences(shortId, workspaceId, firstDay, lastDay).then((list) => {
       if (live) setAbsences(list);
+    });
+    loadHolidays(shortId, workspaceId, firstDay, lastDay).then((list) => {
+      if (live) setHolidays(list);
     });
     return () => {
       live = false;
@@ -313,6 +317,7 @@ export function CalendarScreen({
             today={today}
             events={events}
             absences={absences}
+            holidays={holidays}
             tasks={shownTasks}
             timeOffHref={timeOffHref}
             workDays={settings.work_days}
@@ -330,6 +335,7 @@ export function CalendarScreen({
             events={events}
             busy={shownBusy}
             absences={absences}
+            holidays={holidays}
             tasks={shownTasks}
             taskHref={taskHref}
             timeOffHref={timeOffHref}
@@ -396,9 +402,12 @@ function EventChip({ event, onOpen, withTime = true }: { event: CalendarEvent; o
   );
 }
 
-const offOn = (absences: Absence[], day: Date) => {
+const holidayOn = (holidays: Holiday[], day: Date) => holidays.find((h) => h.day === dayKey(day));
+// Who is off on a day. An absence that counts working days only isn't shown on days off and holidays.
+const offOn = (absences: Absence[], day: Date, workDays: number[], holidays: Holiday[]) => {
   const key = dayKey(day);
-  return absences.filter((a) => a.start_date <= key && a.end_date >= key);
+  const free = !workDays.includes(weekdayOf(day)) || holidays.some((h) => h.day === key);
+  return absences.filter((a) => a.start_date <= key && a.end_date >= key && !(a.working_only && free));
 };
 const absenceTitle = (a: Absence) => [a.person, a.label ?? (a.remote ? t.timeOff.team.remote : t.timeOff.team.absent), a.deputy ? t.timeOff.deputy(a.deputy) : null].filter(Boolean).join(" · ");
 
@@ -464,6 +473,7 @@ function MonthView({
   today,
   events,
   absences,
+  holidays,
   tasks,
   timeOffHref,
   workDays,
@@ -474,6 +484,7 @@ function MonthView({
   today: Date;
   events: CalendarEvent[];
   absences: Absence[];
+  holidays: Holiday[];
   tasks: CalendarTask[];
   timeOffHref: string;
   workDays: number[];
@@ -494,14 +505,16 @@ function MonthView({
       <div className="grid grid-cols-7">
         {grid.map((day, i) => {
           const dayEvents = events.filter((e) => onDay(e, day)).sort((a, b) => Number(b.all_day) - Number(a.all_day) || a.starts_at.localeCompare(b.starts_at));
-          const off = offOn(absences, day);
+          const off = offOn(absences, day, workDays, holidays);
+          const holiday = holidayOn(holidays, day);
           const outside = day.getMonth() !== anchor.getMonth();
           const isToday = dayKey(day) === dayKey(today);
           return (
             <div
               key={dayKey(day)}
-              className={`min-h-20 min-w-0 border-border p-1 md:min-h-28 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${workDays.includes(weekdayOf(day)) ? "" : "bg-surface/60"}`}
+              className={`min-h-20 min-w-0 border-border p-1 md:min-h-28 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${workDays.includes(weekdayOf(day)) && !holiday ? "" : "bg-surface/60"}`}
               data-day={dayKey(day)}
+              data-holiday={holiday?.name}
             >
               <button
                 type="button"
@@ -513,6 +526,11 @@ function MonthView({
                 {/* On a phone a cell has no room for titles: dots, and a tap opens the day. */}
                 {dayEvents.length > 0 && <span className="ml-0.5 mt-2.5 h-1.5 w-1.5 rounded-full bg-accent sm:hidden" aria-hidden="true" />}
               </button>
+              {holiday && (
+                <p className="truncate px-1 text-[10px] leading-4 text-muted" title={holiday.name}>
+                  <span aria-hidden="true">🎉</span> <span className="hidden sm:inline">{holiday.name}</span>
+                </p>
+              )}
               <div className="hidden space-y-0.5 sm:block">
                 {off.length > 0 && (
                   <Link href={timeOffHref} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={off.map(absenceTitle).join("\n")} data-absences={off.length}>
@@ -548,6 +566,7 @@ function WeekView({
   events,
   busy,
   absences,
+  holidays,
   tasks,
   taskHref,
   timeOffHref,
@@ -562,6 +581,7 @@ function WeekView({
   events: CalendarEvent[];
   busy: BusySlot[];
   absences: Absence[];
+  holidays: Holiday[];
   tasks: CalendarTask[];
   taskHref: (task: CalendarTask) => string;
   timeOffHref: string;
@@ -590,6 +610,11 @@ function WeekView({
         {columns.map((day) => (
           <div key={dayKey(day)} className={`border-l border-border px-1 py-1 text-center first-letter:uppercase ${dayKey(day) === dayKey(today) ? "font-semibold text-accent" : ""}`}>
             {head.format(day)}
+            {holidayOn(holidays, day) && (
+              <span className="block truncate text-[10px] font-normal leading-3 text-muted" title={holidayOn(holidays, day)?.name} data-holiday={holidayOn(holidays, day)?.name}>
+                🎉 {holidayOn(holidays, day)?.name}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -604,7 +629,7 @@ function WeekView({
               {whole.map((event) => (
                 <EventChip key={eventKey(event)} event={event} onOpen={onEvent} withTime={false} />
               ))}
-              {offOn(absences, day).map((absence) => (
+              {offOn(absences, day, workDays, holidays).map((absence) => (
                 <AbsenceChip key={absence.id} absence={absence} href={timeOffHref} />
               ))}
               <DayTasks tasks={dueOn(tasks, day)} taskHref={taskHref} />
@@ -640,7 +665,7 @@ function WeekView({
             return (
               <div
                 key={dayKey(day)}
-                className={`relative border-l border-border ${workDays.includes(weekdayOf(day)) ? "" : "bg-surface/60"}`}
+                className={`relative border-l border-border ${workDays.includes(weekdayOf(day)) && !holidayOn(holidays, day) ? "" : "bg-surface/60"}`}
                 style={{ backgroundImage: "linear-gradient(to bottom, var(--border) 1px, transparent 1px)", backgroundSize: `100% ${HOUR_PX}px` }}
                 onClick={(e) => {
                   // A click on the empty grid: a new event at that half hour.

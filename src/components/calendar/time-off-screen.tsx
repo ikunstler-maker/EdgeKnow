@@ -7,19 +7,25 @@ import {
   accrueLeaveYear,
   adjustLeaveBalance,
   cancelLeave,
+  copyHolidays,
   decideLeave,
+  deleteHoliday,
   loadAbsences,
   loadBalanceSheet,
+  loadHolidays,
   loadLeaveInbox,
   loadMyLeave,
   loadUnitOverlaps,
   requestLeave,
+  saveHoliday,
   saveLeavePolicy,
   seedLeavePolicies,
+  setStartDate,
 } from "@/app/time-off-actions";
 import type { CalendarPerson } from "@/lib/calendar";
 import { workspacePath } from "@/lib/paths";
 import {
+  LEAVE_ACCRUALS,
   LEAVE_KINDS,
   NEW_POLICY,
   daysText,
@@ -27,6 +33,7 @@ import {
   parseDay,
   type Absence,
   type BalanceSheet,
+  type Holiday,
   type InboxRequest,
   type LeaveHalf,
   type LeavePolicy,
@@ -138,6 +145,8 @@ export function TimeOffScreen({
   const [mine, setMine] = useState<MyLeave | null>(null);
   const [inbox, setInbox] = useState<InboxRequest[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
+  // Holidays from last year to the next one: for the settings and the hint to who decides.
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [asking, setAsking] = useState(false);
@@ -158,6 +167,7 @@ export function TimeOffScreen({
       const until = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90);
       const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       loadAbsences(shortId, workspaceId, loaded.today, key(until)).then((list) => live && setAbsences(list));
+      loadHolidays(shortId, workspaceId, `${today.getFullYear() - 1}-01-01`, `${today.getFullYear() + 1}-12-31`).then((list) => live && setHolidays(list));
     });
     return () => {
       live = false;
@@ -246,6 +256,11 @@ export function TimeOffScreen({
               </button>
             </>
           )}
+          {mine.started_on && (
+            <p className="mt-3 text-xs text-muted" data-started-on>
+              {o.startedOn(new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(parseDay(mine.started_on)))}
+            </p>
+          )}
           <h2 className="mt-6 text-sm font-medium text-muted">{o.myRequests}</h2>
           {mine.requests.length === 0 ? (
             <p className="mt-1 text-muted">{o.noRequests}</p>
@@ -290,7 +305,7 @@ export function TimeOffScreen({
         </section>
       )}
 
-      {mine && tab === "inbox" && <Inbox shortId={shortId} workspaceId={workspaceId} today={mine.today} items={inbox} onChanged={reload} />}
+      {mine && tab === "inbox" && <Inbox shortId={shortId} workspaceId={workspaceId} today={mine.today} items={inbox} holidays={holidays} onChanged={reload} />}
 
       {mine && tab === "team" && (
         <section className="mt-4 max-w-3xl" data-leave-team>
@@ -318,7 +333,7 @@ export function TimeOffScreen({
       )}
 
       {mine && tab === "settings" && mine.manager && (
-        <Settings shortId={shortId} workspaceId={workspaceId} year={shownYear} thisYear={thisYear} policies={mine.policies} people={people} tick={tick} onChanged={reload} />
+        <Settings shortId={shortId} workspaceId={workspaceId} year={shownYear} thisYear={thisYear} policies={mine.policies} people={people} holidays={holidays} tick={tick} onChanged={reload} />
       )}
 
       {asking && mine && (
@@ -489,7 +504,7 @@ function RequestDialog({
   );
 }
 
-function Inbox({ shortId, workspaceId, today, items, onChanged }: { shortId: string; workspaceId: string; today: string; items: InboxRequest[]; onChanged: () => void }) {
+function Inbox({ shortId, workspaceId, today, items, holidays, onChanged }: { shortId: string; workspaceId: string; today: string; items: InboxRequest[]; holidays: Holiday[]; onChanged: () => void }) {
   const [overlaps, setOverlaps] = useState<Record<string, UnitOverlap[]>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -549,6 +564,15 @@ function Inbox({ shortId, workspaceId, today, items, onChanged }: { shortId: str
                 <>
                   <div className="mt-2">
                     <Overlaps title={o.inbox.overlapTitle} items={overlaps[r.id] ?? []} />
+                    {/* A holiday added after the request was made isn't taken off its days by itself. */}
+                    {r.count_days === "working" &&
+                      holidays
+                        .filter((h) => h.day >= r.start_date && h.day <= r.end_date && h.created_at > r.created_at)
+                        .map((h) => (
+                          <p key={h.day} className="mt-1 rounded-md border border-border bg-surface p-2 text-xs" data-holiday-hint>
+                            {o.inbox.holidayHint(h.name, new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "long" }).format(parseDay(h.day)))}
+                          </p>
+                        ))}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <input
@@ -590,6 +614,7 @@ function Settings({
   thisYear,
   policies,
   people,
+  holidays,
   tick,
   onChanged,
 }: {
@@ -599,6 +624,7 @@ function Settings({
   thisYear: number;
   policies: LeavePolicy[];
   people: CalendarPerson[];
+  holidays: Holiday[];
   tick: number;
   onChanged: () => void;
 }) {
@@ -610,6 +636,17 @@ function Settings({
   const [busy, setBusy] = useState(false);
   const active = useMemo(() => policies.filter((p) => p.active), [policies]);
   const canAccrue = year === thisYear || year === thisYear + 1;
+  const [holidayDay, setHolidayDay] = useState("");
+  const [holidayName, setHolidayName] = useState("");
+  const yearHolidays = holidays.filter((h) => h.day.startsWith(`${year}-`));
+  const act = async (action: () => Promise<{ ok: boolean; error?: string }>, done?: string) => {
+    setBusy(true);
+    const result = await action();
+    setBusy(false);
+    setMessage(result.ok ? (done ?? null) : errorText(result.error ?? "unknown"));
+    onChanged();
+    return result.ok;
+  };
 
   useEffect(() => {
     let live = true;
@@ -668,6 +705,7 @@ function Settings({
                     {[
                       p.unlimited ? o.balance.unlimited : s.perYear(num(p.days_per_year)),
                       !p.unlimited && Number(p.carry_over_max) > 0 ? s.carry(num(p.carry_over_max)) : null,
+                      !p.unlimited && p.accrual && p.accrual !== "manual" ? s.accruals[p.accrual] : null,
                       p.requires_approval ? s.short.approval : s.short.noApproval,
                       p.requires_deputy ? s.short.deputy : null,
                       p.show_kind ? s.short.shown : s.short.hidden,
@@ -676,7 +714,7 @@ function Settings({
                       .join(" · ")}
                   </p>
                 </div>
-                {p.active && !p.unlimited && canAccrue && (
+                {p.active && !p.unlimited && canAccrue && !(p.accrual === "monthly" && year !== thisYear) && (
                   <button type="button" disabled={busy} onClick={() => accrue(p)} className={buttonClass} title={s.accrueHint} data-accrue>
                     {s.accrue(year)}
                   </button>
@@ -695,6 +733,7 @@ function Settings({
               <thead>
                 <tr className="bg-surface text-left text-muted">
                   <th className="px-3 py-2 font-normal">{s.person}</th>
+                  <th className="px-3 py-2 font-normal">{s.startedOn}</th>
                   {active.map((p) => (
                     <th key={p.id} className="px-3 py-2 font-normal">
                       {p.name}
@@ -706,6 +745,21 @@ function Settings({
                 {(sheet?.people ?? []).map((person) => (
                   <tr key={person.id} className="border-t border-border" data-sheet-person={person.name}>
                     <td className="px-3 py-2">{person.name}</td>
+                    <td className="px-3 py-1">
+                      <input
+                        type="date"
+                        defaultValue={person.started_on ?? ""}
+                        key={person.started_on ?? "none"}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === (person.started_on ?? "")) return;
+                          if (value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value)) act(() => setStartDate(shortId, workspaceId, person.id, value || null));
+                        }}
+                        aria-label={`${s.startedOn}: ${person.name}`}
+                        className="min-h-11 rounded-md border border-border bg-background px-2 text-sm md:min-h-9"
+                        data-start-date
+                      />
+                    </td>
                     {active.map((p) => {
                       const n = person.numbers[p.id];
                       return (
@@ -729,6 +783,53 @@ function Settings({
             </table>
           </div>
           <p className="mt-1 text-xs text-muted">{s.sheetHint}</p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <h2 className="mr-auto text-sm font-medium text-muted">{s.holidays(year)}</h2>
+            <button type="button" disabled={busy} onClick={() => copyHolidays(shortId, workspaceId, year - 1, year).then((result) => { setMessage(result.ok ? s.holidaysCopied(result.added) : errorText(result.error)); onChanged(); })} className={buttonClass} data-copy-holidays>
+              {s.copyHolidays(year - 1)}
+            </button>
+          </div>
+          <form
+            className="mt-2 flex flex-wrap items-end gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!holidayDay || !holidayName.trim()) return;
+              if (await act(() => saveHoliday(shortId, workspaceId, holidayDay, holidayName.trim()))) {
+                setHolidayDay("");
+                setHolidayName("");
+              }
+            }}
+            data-holiday-form
+          >
+            <label className="block text-sm">
+              <span className="text-muted">{s.holidayDay}</span>
+              <input type="date" value={holidayDay} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(e) => setHolidayDay(e.target.value)} className={`${inputClass} mt-1`} data-holiday-field="day" />
+            </label>
+            <label className="block min-w-40 flex-1 text-sm">
+              <span className="text-muted">{s.holidayName}</span>
+              <input value={holidayName} onChange={(e) => setHolidayName(e.target.value)} maxLength={80} className={`${inputClass} mt-1`} data-holiday-field="name" />
+            </label>
+            <button type="submit" disabled={busy || !holidayDay || !holidayName.trim()} className={primaryClass} data-add-holiday>
+              {s.addHoliday}
+            </button>
+          </form>
+          {yearHolidays.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">{s.noHolidays}</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-border rounded-lg border border-border" data-holidays>
+              {yearHolidays.map((h) => (
+                <li key={h.day} className="flex items-center gap-3 px-3 py-1" data-holiday={h.name}>
+                  <span className="w-28 shrink-0 text-sm text-muted">{new Intl.DateTimeFormat(dateLocale(), { weekday: "short", day: "numeric", month: "short" }).format(parseDay(h.day))}</span>
+                  <span className="min-w-0 flex-1 truncate">{h.name}</span>
+                  <button type="button" disabled={busy} onClick={() => act(() => deleteHoliday(shortId, workspaceId, h.day))} className="inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-surface md:h-9 md:w-9" aria-label={s.deleteHoliday(h.name)}>
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-1 text-xs text-muted">{s.holidaysHint}</p>
         </>
       )}
 
@@ -799,6 +900,7 @@ function PolicyDialog({
     requires_deputy: editing.fields.requires_deputy,
     show_kind: editing.fields.show_kind,
     allow_negative: editing.fields.allow_negative,
+    accrual: editing.fields.accrual ?? "manual",
     unlimited: editing.fields.unlimited,
     active: editing.fields.active,
   });
@@ -852,6 +954,17 @@ function PolicyDialog({
                 <input type="number" min={0} max={366} step={0.5} value={fields.carry_over_max} onChange={(e) => set("carry_over_max", halves(e.target.value))} className={`${inputClass} mt-1`} data-policy-field="carry_over_max" />
               </label>
             </div>
+            <label className="block text-sm">
+              <span className="text-muted">{s.fields.accrual}</span>
+              <select value={fields.accrual ?? "manual"} onChange={(e) => set("accrual", e.target.value as LeavePolicyFields["accrual"])} className={`${inputClass} mt-1`} data-policy-field="accrual">
+                {LEAVE_ACCRUALS.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {s.accruals[mode]}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-muted">{s.hints.accrual}</span>
+            </label>
             <Toggle name="allow_negative" label={s.fields.allowNegative} hint={s.hints.allowNegative} checked={fields.allow_negative} onChange={(v) => set("allow_negative", v)} />
           </>
         )}
