@@ -180,7 +180,7 @@ export function TaskList({
                     )}
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-muted">{key}</td>
                     <td className="px-3 py-2">
-                      <Link href={workspacePath(shortId, `/tasks/${project.key}/${task.number}`)} className={`hover:underline ${s?.category === "done" ? "text-muted line-through" : ""}`}>
+                      <Link prefetch={false} href={workspacePath(shortId, `/tasks/${project.key}/${task.number}`)} className={`hover:underline ${s?.category === "done" ? "text-muted line-through" : ""}`}>
                         <span title={k.types[task.type]}>{TYPE_ICONS[task.type]}</span> {task.title}
                       </Link>
                       {blocked.has(task.id) && s?.category !== "done" && (

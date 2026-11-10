@@ -301,7 +301,7 @@ function TreeRow({
             className="min-h-9 min-w-0 flex-1 rounded border border-accent bg-background px-2 text-base md:text-sm"
           />
         ) : (
-          <Link
+          <Link prefetch={false}
             href={pagePath(workspace.shortId, page.id)}
             onClick={onNavigate}
             draggable={false}

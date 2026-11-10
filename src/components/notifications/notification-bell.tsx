@@ -170,7 +170,7 @@ function NotificationList({ items, shortId, onOpen }: { items: NotificationItem[
         return (
           <li key={item.id} data-notification={item.kind}>
             {href ? (
-              <Link href={href} onClick={() => onOpen(item)} className="block rounded px-2 py-2 hover:bg-surface">
+              <Link prefetch={false} href={href} onClick={() => onOpen(item)} className="block rounded px-2 py-2 hover:bg-surface">
                 {body}
               </Link>
             ) : (

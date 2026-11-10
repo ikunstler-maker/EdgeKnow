@@ -47,7 +47,7 @@ export function WorkspaceSwitcher({
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={256}>
           {workspaces.map((w) => (
-            <Link
+            <Link prefetch={false}
               key={w.id}
               href={workspacePath(w.shortId)}
               onClick={close}
@@ -58,11 +58,11 @@ export function WorkspaceSwitcher({
             </Link>
           ))}
           <div className="my-1 border-t border-border" />
-          <Link href={workspacePath(workspace.shortId, "/settings")} onClick={close} className={itemClass}>
+          <Link prefetch={false} href={workspacePath(workspace.shortId, "/settings")} onClick={close} className={itemClass}>
             <span className="w-4 text-center">⚙️</span>
             {t.workspace.settings}
           </Link>
-          <Link href="/new" onClick={close} className={itemClass}>
+          <Link prefetch={false} href="/new" onClick={close} className={itemClass}>
             <span className="w-4 text-center">＋</span>
             {t.workspace.create}
           </Link>

@@ -110,7 +110,7 @@ function NavItem({ page, pages, depth, currentId }: { page: PageNode; pages: Pag
         >
           <span className={`inline-block transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
         </button>
-        <Link
+        <Link prefetch={false}
           href={pagesContext ? pagePath(pagesContext.workspace.shortId, page.id) : "#"}
           className={`flex min-w-0 flex-1 items-center gap-2 text-sm ${page.id === currentId ? "font-semibold" : ""}`}
         >

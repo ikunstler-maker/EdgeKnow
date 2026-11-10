@@ -76,7 +76,7 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
                   <h2 className="ek-brand-text mt-1 block text-lg font-extrabold leading-snug tracking-tight" data-service-brand>
                     {href ? (
                       // The whole tile opens the service; recent items stay their own links.
-                      <Link href={href} className="after:absolute after:inset-0 after:rounded-3xl">
+                      <Link prefetch={false} href={href} className="after:absolute after:inset-0 after:rounded-3xl">
                         {SERVICE_BRANDS[service.key].name}
                       </Link>
                     ) : (
@@ -98,7 +98,7 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
                     <ul className="relative z-10 mt-2 hidden space-y-0.5 text-sm md:block" aria-label={`${item.name}: ${s.recent}`}>
                       {recent[service.key].map((r) => (
                         <li key={r.href}>
-                          <Link href={r.href} className="block truncate rounded px-1 text-muted hover:bg-surface hover:text-foreground">
+                          <Link prefetch={false} href={r.href} className="block truncate rounded px-1 text-muted hover:bg-surface hover:text-foreground">
                             {r.label}
                           </Link>
                         </li>

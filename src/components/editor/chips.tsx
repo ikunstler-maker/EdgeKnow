@@ -294,7 +294,7 @@ function PageChipView({ pageId }: { pageId: string }) {
     );
   }
   return (
-    <Link
+    <Link prefetch={false}
       href={pagePath(pages.workspace.shortId, page.id)}
       contentEditable={false}
       className={`${pillClass} ek-chip ek-chip-link border border-border bg-background text-foreground hover:bg-surface`}

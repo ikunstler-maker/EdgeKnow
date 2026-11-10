@@ -553,7 +553,7 @@ function BoardCard({
           </span>
         )}
       </div>
-      <Link href={href} className={`mt-1 block font-medium hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
+      <Link prefetch={false} href={href} className={`mt-1 block font-medium hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
         {task.title}
       </Link>
       {/* Every field chosen in "What to show on the card" is shown, empty ones as "—": the card grows instead of hiding them. */}
