@@ -82,6 +82,8 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_files` | files |
 | `task_rules` | notification rules and rules between boards |
 
+A project's tasks for the board and the list are read by `project_tasks` (access worked out once per call; test `stage52_fast_tasks` compares it with reading the table). A change to task visibility rules must update this function too.
+
 The tables exist in both the central and the team database.
 
 ## 5. Links with other services

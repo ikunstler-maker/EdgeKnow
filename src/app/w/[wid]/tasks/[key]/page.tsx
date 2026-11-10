@@ -32,13 +32,26 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     );
   }
   const db = await dataClient(wid);
-  const { data: tasks } = await db
-    .from("tasks")
+  // The project's tasks in one pass (project_tasks works the access out once). Where the
+  // function isn't there yet — the site is a moment ahead of the database — the same rows
+  // come from the table, each checked by its rule.
+  const fast = await db
+    .rpc("project_tasks", { target_project: view.project.id })
     .select(TASK_COLUMNS)
-    .eq("project_id", view.project.id)
     .is("deleted_at", null)
-    .order("number", { ascending: false })
-    .overrideTypes<TaskRow[], { merge: false }>();
+    .order("number", { ascending: false });
+  const tasks = (
+    fast.error?.code === "PGRST202"
+      ? (
+          await db
+            .from("tasks")
+            .select(TASK_COLUMNS)
+            .eq("project_id", view.project.id)
+            .is("deleted_at", null)
+            .order("number", { ascending: false })
+        ).data
+      : fast.data
+  ) as TaskRow[] | null;
   // Which tasks are blocked by an unfinished one (step Z3).
   const doneStatuses = new Set(view.statuses.filter((s) => s.category === "done").map((s) => s.id));
   const blocked = [...(await blockedIn(db, view.workspace.id, new Map((tasks ?? []).map((task) => [task.id, doneStatuses.has(task.status_id)]))))];

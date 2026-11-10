@@ -10,6 +10,7 @@ import type { Collections } from "@/components/sidebar/collections";
 import { usePages } from "@/components/pages/pages-provider";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { NavProgress } from "@/components/nav-progress";
 import { AppearanceProvider } from "@/components/angler/appearance";
 import { AnglerGame } from "@/components/angler/angler-game";
 
@@ -127,6 +128,7 @@ export function AppShell({
 
   return (
     <AppearanceProvider initial={{ showMascot: user.showMascot, lure: user.lure }}>
+      <NavProgress />
     <div className="flex min-h-dvh flex-1">
       <aside
         className="sticky top-0 hidden h-dvh shrink-0 border-r border-border bg-surface/60 md:block"
