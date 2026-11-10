@@ -207,6 +207,8 @@ const bobActions = {
   "rename alpha": ["rename_workspace", { ws: alpha.id, new_name: "Mine" }],
   "make an event in alpha": ["create_calendar_event", { ws: alpha.id, fields: { title: "Mine", visibility: "open", starts_at: "2030-01-10T10:00:00Z", ends_at: "2030-01-10T11:00:00Z", time_zone: "UTC", all_day: false }, people: [] }],
   "set alpha's working days": ["set_calendar_settings", { ws: alpha.id, new_work_days: [1], new_time_zone: "UTC" }],
+  "make time-off policies in alpha": ["seed_leave_policies", { ws: alpha.id, names: { vacation: "V", sick: "S", day_off: "D", remote: "R" } }],
+  "ask for time off in alpha": ["request_leave", { ws: alpha.id, target_policy: "00000000-0000-0000-0000-000000000000", first_day: "2030-01-10", last_day: "2030-01-10", part: null, deputy: null, note: "" }],
 };
 for (const [name, [fn, body]] of Object.entries(bobActions)) {
   const res = await rpc(bob, fn, body);

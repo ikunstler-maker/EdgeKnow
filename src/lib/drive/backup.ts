@@ -115,6 +115,10 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
     calendar_events: events,
     calendar_event_attendees: eventPeople,
     calendar_settings: await rows(of("calendar_settings", "work_days, time_zone, updated_at")),
+    // Time off: everything the balances are made of; the personal comments stay out.
+    leave_policies: await rows(of("leave_policies", "id, name, kind, days_per_year, carry_over_max, count_days, requires_approval, requires_deputy, show_kind, allow_negative, unlimited, active, position, created_at")),
+    leave_balances: await rows(of("leave_balances", "id, policy_id, user_id, year, kind, days, note, created_by, created_at")),
+    leave_requests: await rows(of("leave_requests", "id, user_id, policy_id, start_date, end_date, half, days, deputy_id, status, decided_by, decided_at, cancelled_by, cancelled_at, created_at")),
     audit_log: await rows(of("audit_log", "action, details, actor_id, created_at").order("created_at", { ascending: false }).limit(1000)),
   };
 

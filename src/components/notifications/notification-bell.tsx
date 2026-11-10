@@ -28,6 +28,7 @@ function hrefOf(shortId: string, item: NotificationItem) {
   if (item.task) return workspacePath(shortId, `/tasks/${item.task.project}/${item.task.number}`);
   if (item.page) return pagePath(shortId, item.page.id);
   if (item.event) return workspacePath(shortId, `/calendar?event=${item.event.id}`);
+  if (item.leave) return workspacePath(shortId, `/calendar/time-off?tab=${item.leave.mine ? "mine" : item.leave.deputy ? "team" : "inbox"}`);
   return null;
 }
 
@@ -36,9 +37,14 @@ function lineOf(item: NotificationItem) {
   return (n.line[item.kind] ?? n.line.rule)(who);
 }
 
+const leaveDay = (key: string) => new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "short" }).format(new Date(`${key}T00:00:00`));
+const leaveDates = (leave: { start_date: string; end_date: string }) =>
+  leave.start_date === leave.end_date ? leaveDay(leave.start_date) : `${leaveDay(leave.start_date)} – ${leaveDay(leave.end_date)}`;
+
 function subjectOf(item: NotificationItem) {
   if (item.task) return `${item.task.key} ${item.task.title}${item.kind === "rule" && item.task.status ? ` → ${item.task.status}` : ""}`;
   if (item.page) return item.page.title || t.pages.untitled;
+  if (item.leave) return `${item.leave.person} · ${leaveDates(item.leave)} · ${t.timeOff.status[item.leave.status] ?? ""}`;
   if (item.event) return item.event.cancelled ? `${item.event.title} · ${t.calendar.details.cancelled}` : item.event.title;
   return n.hidden;
 }

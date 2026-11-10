@@ -42,7 +42,7 @@ Each service has its own name and gradient (`src/lib/services.ts`).
 | 7 | **Questa** | surveys and forms | ✅ live | `/w/<id>/surveys` |
 | 8 | **Toker** | team chat | ⏳ planned | — |
 | 9 | **Vault** | file manager | ⏳ planned | — |
-| 10 | **Doba** | company calendar and time off | 🟡 events live; time off next | `/w/<id>/calendar` |
+| 10 | **Doba** | company calendar and time off | ✅ live (events, time off) | `/w/<id>/calendar` |
 | 11 | **Visio** | video meetings | ⏳ planned | — |
 | 12 | **Apus AI** | AI tools | ⏳ planned | — |
 | 13 | **Showy** | personal pages: landing pages, business cards | ⏳ planned | — |
