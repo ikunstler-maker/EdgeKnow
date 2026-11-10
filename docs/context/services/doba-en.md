@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-27 (phases 1a, 1b, 2a, 2b, 2c). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-28 (phases 1a, 1b, 2a, 2b, 2c, 2d). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -41,7 +41,8 @@ The team's shared calendar and time-off management in one place: events and meet
 
 ### Screens
 - **Month** (on a phone: dots, a tap opens the day), **Week** (7 days; 3 on a tablet; 1 on a phone — never a sideways scroll), **List** (the next 60 days, plus the organizer's cancelled events).
-- A click on the grid starts an event at that half hour; non-working days are shaded.
+- **The grid answers the pointer (phase 2d):** a switch says what it makes — an event or a time-off request. The half hour (week) or the cell (month, "all day" row) under the pointer is highlighted. A click makes an hour from that slot; a drag down the hours picks a time that sticks to 15 minutes (also across days); a drag along the "all day" row or across month cells picks whole days. In the "absence" mode the picked days open a time-off request. Dragging is for a mouse or a pen; touch keeps its taps and scrolling. Non-working days are shaded.
+- One's own absence, and one's own request that still waits (shown to its person only, dashed), open from the calendar with "Withdraw".
 - **Availability:** pick colleagues to overlay their busy time; the event form warns who of the invited is already busy.
 - Times are kept in UTC and shown in the viewer's own zone; the event keeps the organizer's zone (shown as a note when it differs); a whole-day event has no zone.
 - **Settings** (owner and admins): working days of the week and the workspace's time zone.
@@ -92,7 +93,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | What | State | Note |
 |---|---|---|
 | Event chip in task descriptions | with "smart chips everywhere" | the task description has no chips yet |
-| Calendar interactions (2d, next) | owner's request | withdraw an absence from the calendar; pick absence days on the grid; highlight the cell under the cursor; create by dragging with snapping |
+| Dragging on touch screens; moving or resizing an event by dragging | later | |
 | Reminders when the site is closed | with push notifications | |
 | External calendars (two-way sync, feeds) | phase 3 | separate plan and approval; neutral names only |
 
@@ -138,7 +139,7 @@ The team's shared calendar and time-off management in one place: events and meet
 |---|---|
 | Screens | `src/app/w/[wid]/calendar/page.tsx`, `src/app/w/[wid]/calendar/time-off/page.tsx` |
 | Actions | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
-| Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`); the wiki chip — `src/components/editor/event-chip.tsx` |
+| Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`, `use-day-drag.ts`); the wiki chip — `src/components/editor/event-chip.tsx` |
 | Logic (dates, zones, layout; time-off shapes) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
 | Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql` (central `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
 | Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |

@@ -2913,6 +2913,15 @@ export const en: Dictionary = {
       count: (n: number) => `tasks: ${n}`,
     },
     chip: { title: "calendar event", noAccess: "No access", group: "Calendar events" },
+    create: {
+      label: "What the grid makes",
+      hint: "A click or a drag across cells makes an event or a time-off request",
+      modes: { event: "Event", absence: "Time off" } as Record<string, string>,
+      eventHint: "Click a cell or drag across the grid to make an event: down for the time (steps of 15 minutes), sideways for several days.",
+      absenceHint: "Click a day or drag across several to ask for time off. Your own absence can be withdrawn with a click on it.",
+      leaveSent: "The request is sent and waits for approval. A click on it in the calendar withdraws it.",
+      leaveOn: "The absence is added — no approval needed.",
+    },
     repeat: {
       title: "Repeat",
       none: "Doesn't repeat",
@@ -3051,8 +3060,8 @@ export const en: Dictionary = {
     noRequests: "No requests this year.",
     days: (n: string) => `${n} d`,
     deputy: (name: string) => `deputy: ${name}`,
-    cancel: "Cancel",
-    cancelConfirm: "Cancel the request? The days go back to the balance.",
+    cancel: "Withdraw",
+    cancelConfirm: "Withdraw the request? The days go back to the balance.",
     balance: {
       left: (n: string) => `Left: ${n}`,
       of: (n: string) => `of ${n}`,

@@ -33,6 +33,22 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-f",
+    version: "0.22.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: створення розтягуванням", en: "Doba: drag to create" },
+    summaryDescription: {
+      uk: "Сітка календаря відповідає на курсор: підсвічування, розтягування, відсутність просто з календаря.",
+      en: "The calendar grid answers the pointer: highlight, dragging, time off right from the calendar.",
+    },
+    items: [
+      { id: "drag-create", type: "added", scope: "calendar", title: { uk: "Подія розтягуванням по клітинках: по годинах (крок 15 хвилин) і по днях.", en: "An event by dragging across cells: down the hours (steps of 15 minutes) and across the days." } },
+      { id: "absence-grid", type: "added", scope: "calendar", title: { uk: "Режим «Відсутність»: заявка на обрані в сітці дні.", en: "The “Time off” mode: a request for the days picked on the grid." } },
+      { id: "withdraw", type: "added", scope: "calendar", title: { uk: "Свою відсутність можна відкликати кліком у календарі.", en: "Your own absence can be withdrawn with a click in the calendar." } },
+      { id: "hover", type: "visual", scope: "calendar", title: { uk: "Клітинка під курсором підсвічується.", en: "The cell under the pointer is highlighted." } },
+    ],
+  },
+  {
     id: "2026-11-10-e",
     version: "0.21.0",
     date: "2026-11-10",

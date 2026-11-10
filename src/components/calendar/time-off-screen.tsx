@@ -355,13 +355,77 @@ export function TimeOffScreen({
   );
 }
 
-function RequestDialog({
+// One's own absence or request, opened from the calendar: what it is, and "withdraw" —
+// while it waits, or (approved) before its first day; after that who decides cancels it.
+export function MyAbsenceDialog({
+  shortId,
+  request,
+  policy,
+  today,
+  onClose,
+  onChanged,
+}: {
+  shortId: string;
+  request: MyLeave["requests"][number];
+  policy: string;
+  today: string;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const canWithdraw = request.status === "pending" || (request.status === "approved" && request.start_date > today);
+  return (
+    <Shell label={policy} onClose={onClose}>
+      <div className="mt-2 space-y-1" data-my-absence>
+        <p>
+          {periodText(request)} · {o.days(num(request.days))}
+        </p>
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
+          <Status status={request.status} />
+          {request.deputy ? o.deputy(request.deputy) : null}
+        </p>
+        {!canWithdraw && request.status === "approved" && <p className="text-sm text-muted">{o.errors.started}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        {canWithdraw && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              if (!confirm(o.cancelConfirm)) return;
+              setBusy(true);
+              const result = await cancelLeave(shortId, request.id);
+              setBusy(false);
+              if (!result.ok) return setError(errorText(result.error));
+              onChanged();
+              onClose();
+            }}
+            className={`${buttonClass} mr-auto text-danger`}
+            data-withdraw-leave
+          >
+            {o.cancel}
+          </button>
+        )}
+        <button type="button" onClick={onClose} className={buttonClass}>
+          {t.calendar.form.close}
+        </button>
+      </div>
+    </Shell>
+  );
+}
+
+// The request window. From the calendar it opens with the days picked on the grid.
+export function RequestDialog({
   shortId,
   workspaceId,
   me,
   today,
   policies,
   people,
+  initialFrom,
+  initialTo,
   onClose,
   onSent,
 }: {
@@ -371,13 +435,16 @@ function RequestDialog({
   today: string;
   policies: LeavePolicy[];
   people: CalendarPerson[];
+  initialFrom?: string;
+  initialTo?: string;
   onClose: () => void;
-  onSent: () => void;
+  // "pending": waits for approval; "approved": active at once.
+  onSent: (status: string) => void;
 }) {
   const f = o.form;
   const [policyId, setPolicyId] = useState(policies[0]?.id ?? "");
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
+  const [from, setFrom] = useState(initialFrom ?? today);
+  const [to, setTo] = useState(initialTo ?? initialFrom ?? today);
   const [half, setHalf] = useState<"" | LeaveHalf>("");
   const [deputy, setDeputy] = useState("");
   const [comment, setComment] = useState("");
@@ -405,7 +472,7 @@ function RequestDialog({
     const result = await requestLeave(shortId, workspaceId, { policy: policy.id, from, to, half: single && half ? half : null, deputy: deputy || null, comment });
     setSaving(false);
     if (!result.ok) return setError(errorText(result.error));
-    onSent();
+    onSent(result.status);
   };
 
   return (
