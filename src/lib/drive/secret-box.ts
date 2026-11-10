@@ -10,7 +10,9 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 // - TEAM_DB_KEY: the team databases' secret key, address and Supabase access, and
 //   the setup session ("v2.team.…"). Without it these fall back to v1, so nothing
 //   breaks before it is added; with it, v1 values are rekeyed (see rekeyTeamSecrets).
-function keyOf(secretName: "DRIVE_TOKEN_KEY" | "TEAM_DB_KEY", purpose: string) {
+// - CALENDAR_TOKEN_KEY: the addresses of people's outside calendars (Doba 3b; "v3.cal.…").
+//   No fallback: without it nothing of the kind can be saved.
+function keyOf(secretName: "DRIVE_TOKEN_KEY" | "TEAM_DB_KEY" | "CALENDAR_TOKEN_KEY", purpose: string) {
   const secret = process.env[secretName];
   if (!secret || secret.length < 24) throw new Error(`${secretName} is not set`);
   return createHash("sha256").update(`${purpose}:${secret}`).digest();
@@ -41,11 +43,18 @@ export function encryptTeam(text: string): string {
   return teamKeyConfigured() ? seal(text, keyOf("TEAM_DB_KEY", "encrypt"), ["v2", "team"]) : encrypt(text);
 }
 
-// Reads either format; the prefix says which key.
+// Addresses of outside calendars: their own key only.
+export const calendarKeyConfigured = () => (process.env.CALENDAR_TOKEN_KEY ?? "").length >= 24;
+export function encryptCalendar(text: string): string {
+  return seal(text, keyOf("CALENDAR_TOKEN_KEY", "encrypt"), ["v3", "cal"]);
+}
+
+// Reads every format; the prefix says which key.
 export function decrypt(value: string): string {
   const parts = value.split(".");
   if (parts[0] === "v1" && parts.length === 4) return open(parts[1], parts[2], parts[3], keyOf("DRIVE_TOKEN_KEY", "encrypt"));
   if (parts[0] === "v2" && parts[1] === "team" && parts.length === 5) return open(parts[2], parts[3], parts[4], keyOf("TEAM_DB_KEY", "encrypt"));
+  if (parts[0] === "v3" && parts[1] === "cal" && parts.length === 5) return open(parts[2], parts[3], parts[4], keyOf("CALENDAR_TOKEN_KEY", "encrypt"));
   throw new Error("bad token format");
 }
 

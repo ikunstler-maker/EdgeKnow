@@ -4,6 +4,9 @@ import type { ActionResult } from "@/lib/action-result";
 import type { BusySlot, CalendarEvent, CalendarSettings, CalendarTask, CancelledEvent, EventAnswer, EventChip, EventDetails, EventFields, EventHit } from "@/lib/calendar";
 
 import { createHash, randomBytes } from "node:crypto";
+import { after } from "next/server";
+import { refreshStale } from "@/lib/calendar-external";
+import { getWorkspace } from "@/lib/workspace";
 import { FEED_PATH } from "@/lib/calendar-feed";
 
 const isDay = (value: string | null | undefined): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -56,6 +59,13 @@ export async function loadBusy(shortId: string, workspaceId: string, people: str
   if (!people.length || !isIso(from) || !isIso(to)) return [];
   const db = await dataClient(shortId);
   const { data } = await db.rpc("calendar_busy", { ws: workspaceId, people: people.slice(0, 50), range_from: from, range_to: to });
+  // What is known is shown at once; outside calendars not read for an hour are read again
+  // after the response (only for a member: the database gave a guest nothing above).
+  const workspace = await getWorkspace(shortId);
+  if (workspace && workspace.id === workspaceId && workspace.role !== "guest") {
+    const asked = people.slice(0, 50);
+    after(() => refreshStale(workspaceId, asked).catch(() => {}));
+  }
   return (data ?? []) as BusySlot[];
 }
 

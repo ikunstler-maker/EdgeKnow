@@ -73,7 +73,8 @@ export type EventFields = {
   reminder_minutes?: number | null;
 };
 
-export type BusySlot = { user_id: string; starts_at: string; ends_at: string; all_day: boolean };
+// `outside`: the viewer's own slot read from their outside calendar (marked for them only).
+export type BusySlot = { user_id: string; starts_at: string; ends_at: string; all_day: boolean; outside?: boolean };
 export type CalendarSettings = { work_days: number[]; time_zone: string };
 export type CalendarPerson = { id: string; name: string; guest: boolean };
 export type CancelledEvent = { id: string; title: string; starts_at: string; all_day: boolean; deleted_at: string; organizer_id: string | null; visibility: EventVisibility };

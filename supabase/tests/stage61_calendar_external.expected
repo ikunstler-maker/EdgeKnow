@@ -1,0 +1,18 @@
+bob writes his own slots:
+psql: ERROR:  permission denied for function set_calendar_external_busy
+bob inserts a row:
+psql: ERROR:  permission denied for table calendar_external_busy
+bob reads the addresses:
+psql: ERROR:  permission denied for table calendar_connections
+kept for bob: 2
+kept for the guest: 0, for a stranger: 0
+alice sees bob busy: 2 slots, their fields: all_day,ends_at,starts_at,user_id
+alice reads bob's rows directly: 0
+bob reads his own rows: 2
+the guest sees bob busy: 0, rows: 0
+a stranger sees bob busy: 0, rows: 0
+after a refresh with one slot: 1
+rows now: 1
+alice removes bob: true
+bob's slots left: 0, addresses left: 0
+kept for a removed member: 0

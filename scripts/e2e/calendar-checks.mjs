@@ -522,3 +522,68 @@ export async function feedChecks() {
   await alice.locator('[data-feed-state="off"]').waitFor({ timeout: 15000 });
   check("turned off, the address gives nothing", (await read(second)).status === 404 && sql(`select count(*) from public.calendar_feeds`) === "0");
 }
+
+// Phase 3b: busy time from the person's own outside calendar. The network is replaced by
+// files in CALENDAR_FAKE_DIR; only starts and ends reach the database, the address is
+// kept encrypted, colleagues get plain busy time, "Disconnect" removes everything.
+export async function outsideChecks() {
+  const dir = process.env.CALENDAR_FAKE_DIR;
+  if (!dir) throw new Error("CALENDAR_FAKE_DIR is not set");
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  mkdirSync(dir, { recursive: true });
+  const stamp = (date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const at = (days, hour) => {
+    const d = new Date(Date.now() + days * 864e5);
+    d.setUTCHours(hour, 0, 0, 0);
+    return d;
+  };
+  const file = (events) =>
+    ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//e2e//EN", ...events.flatMap(([uid, start, end, extra = []]) => ["BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${stamp(new Date())}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`, "SUMMARY:Dentist, very private", ...extra, "END:VEVENT"]), "END:VCALENDAR"].join("\r\n");
+  const first = at(3, 10);
+  writeFileSync(`${dir}/alice-e2e.ics`, file([["one", first, at(3, 11)], ["free", at(4, 10), at(4, 11), ["TRANSP:TRANSPARENT"]]]));
+  writeFileSync(`${dir}/broken-e2e.ics`, "<html>Sign in</html>");
+  const rows = () => sql(`select count(*) from public.calendar_external_busy`);
+  const section = alice.locator("[data-outside-calendar]");
+
+  await alice.goto(`${APP}/w/${alphaShort}/calendar`);
+  await alice.locator("[data-open-feed]").click();
+  await alice.locator('[data-outside-calendar="off"]').waitFor({ timeout: 15000 });
+  await section.locator("[data-outside-url]").fill("http://calendar.example/alice-e2e.ics");
+  await section.locator("[data-outside-connect]").click();
+  await section.locator("[data-outside-error]").waitFor({ timeout: 15000 });
+  check("an address that is not https is refused", rows() === "0");
+  await section.locator("[data-outside-url]").fill("https://calendar.example/broken-e2e.ics");
+  await section.locator("[data-outside-connect]").click();
+  await alice.waitForTimeout(1500);
+  check("a page that is not a calendar is refused, nothing saved", rows() === "0" && sql(`select count(*) from public.calendar_connections`) === "0");
+  await section.locator("[data-outside-url]").fill("webcal://calendar.example/alice-e2e.ics");
+  await section.locator("[data-outside-connect]").click();
+  await alice.locator('[data-outside-calendar="on"]').waitFor({ timeout: 15000 });
+  check("an outside calendar is connected: one busy slot, the free one skipped", rows() === "1" && (await section.locator("[data-outside-slots]").getAttribute("data-outside-slots")) === "1", rows());
+  const kept = sql(`select url_encrypted from public.calendar_connections`);
+  check("the address is kept encrypted", kept.startsWith("v3.cal.") && !kept.includes("alice-e2e") && !kept.includes("calendar.example"));
+  check("no title of an outside event reaches the database", sql(`select count(*) from public.calendar_external_busy b where to_jsonb(b)::text ilike '%dentist%'`) === "0");
+
+  // A colleague gets plain busy time; the owner sees it marked in the week.
+  const { data: seen } = await colleagueClient.rpc("calendar_busy", { ws: alphaId, people: [sql(`select user_id from public.calendar_connections`)], range_from: at(2, 0).toISOString(), range_to: at(5, 0).toISOString() });
+  const slot = (seen ?? []).find((s) => s.starts_at.slice(0, 16) === first.toISOString().slice(0, 16));
+  check("a colleague sees the outside meeting as plain busy time", Boolean(slot) && Object.keys(slot).sort().join() === "all_day,ends_at,starts_at,user_id", JSON.stringify(seen));
+  const { data: direct } = await colleagueClient.from("calendar_external_busy").select("id");
+  const { data: addresses, error: closed } = await colleagueClient.from("calendar_connections").select("user_id");
+  check("…and reads neither the rows nor the addresses", (direct ?? []).length === 0 && (Boolean(closed) || (addresses ?? []).length === 0));
+  const day = first.toISOString().slice(0, 10);
+  await alice.goto(`${APP}/w/${alphaShort}/calendar?view=week&date=${day}`);
+  check("the owner sees it marked in the week", await until(async () => (await alice.locator('[data-busy="outside"]').count()) >= 1, 15000));
+
+  // Older than an hour: opening the calendar shows what is known and reads the file again behind it.
+  writeFileSync(`${dir}/alice-e2e.ics`, file([["one", first, at(3, 11)], ["two", at(5, 14), at(5, 15)]]));
+  sql(`update public.calendar_connections set checked_at = now() - interval '2 hours'`);
+  await alice.reload();
+  check("a calendar not read for an hour is read again behind an open page", await until(() => rows() === "2", 20000), rows());
+
+  await alice.locator("[data-open-feed]").click();
+  await alice.locator('[data-outside-calendar="on"]').waitFor({ timeout: 15000 });
+  await section.locator("[data-outside-disconnect]").click();
+  await alice.locator('[data-outside-calendar="off"]').waitFor({ timeout: 15000 });
+  check("disconnected: the address and every slot are gone", rows() === "0" && sql(`select count(*) from public.calendar_connections`) === "0");
+}

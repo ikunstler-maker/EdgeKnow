@@ -1,0 +1,10 @@
+the address table here: none
+bob writes his own slots:
+psql: ERROR:  permission denied for function set_calendar_external_busy
+alice sees bob busy before: 0
+the server keeps: 1
+alice sees bob busy after: 1, reads his rows: 0
+bob reads his own rows: 1
+zed (not a member) sees bob busy: 0, rows: 0
+cleared: 0
+rows left: 0

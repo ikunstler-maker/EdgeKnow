@@ -30,6 +30,7 @@ import {
   type CalendarView,
   type CancelledEvent,
 } from "@/lib/calendar";
+import { loadMyOutsideBusy } from "@/app/calendar-external-actions";
 import { loadAbsences, loadHolidays, loadMyLeave } from "@/app/time-off-actions";
 import { workspacePath } from "@/lib/paths";
 import type { Absence, Holiday, MyLeave, MyLeaveRequest } from "@/lib/time-off";
@@ -117,6 +118,9 @@ export function CalendarScreen({
   const [dialog, setDialog] = useState<DialogState | null>(initialEvent ? { mode: "details", id: initialEvent } : null);
   const [watched, setWatched] = useState<string[]>([]);
   const [busy, setBusy] = useState<BusySlot[]>([]);
+  // One's own busy time from an outside calendar: shown to oneself, marked as such.
+  const [outside, setOutside] = useState<BusySlot[]>([]);
+  const [outsideTick, setOutsideTick] = useState(0);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   // Rukh tasks with a due date: mine by default; the choice is kept on this device.
@@ -193,7 +197,22 @@ export function CalendarScreen({
       live = false;
     };
   }, [shortId, workspaceId, watched, fromIso, toIso, tick]);
-  const shownBusy = watched.length ? busy : [];
+  useEffect(() => {
+    let live = true;
+    if (guest) return;
+    loadMyOutsideBusy(shortId, new Date(Date.parse(fromIso) - DAY_MS).toISOString(), new Date(Date.parse(toIso) + DAY_MS).toISOString()).then((slots) => {
+      if (live) setOutside(slots.map((slot) => ({ ...slot, outside: true })));
+    });
+    return () => {
+      live = false;
+    };
+  }, [shortId, guest, fromIso, toIso, tick, outsideTick]);
+  const shownBusy = useMemo(() => {
+    const mine = new Set(outside.map((slot) => `${slot.starts_at}|${slot.ends_at}`));
+    // Watching oneself brings the same slots once more, unmarked: the marked ones stay.
+    const others = (watched.length ? busy : []).filter((slot) => slot.user_id !== me || !mine.has(`${slot.starts_at}|${slot.ends_at}`));
+    return [...others, ...outside];
+  }, [busy, outside, watched, me]);
 
   // Approved absences of the shown days (members only; guests get none).
   const firstDay = dayKey(range.from);
@@ -471,7 +490,7 @@ export function CalendarScreen({
       {myAbsence && myLeave && (
         <MyAbsenceDialog shortId={shortId} request={myAbsence} policy={policyName(myAbsence.policy_id)} today={myLeave.today} onClose={() => setMyAbsence(null)} onChanged={reload} />
       )}
-      {showFeed && <FeedDialog shortId={shortId} workspaceId={workspaceId} onClose={() => setShowFeed(false)} />}
+      {showFeed && <FeedDialog shortId={shortId} workspaceId={workspaceId} guest={guest} onOutsideChanged={() => setOutsideTick((n) => n + 1)} onClose={() => setShowFeed(false)} />}
       {showSettings && (
         <CalendarSettingsDialog
           shortId={shortId}
@@ -871,8 +890,8 @@ function WeekView({
               ))}
               <DayTasks tasks={dueOn(tasks, day)} taskHref={taskHref} />
               {wholeBusy.map((slot, i) => (
-                <div key={i} className="truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted" data-busy>
-                  {c.busyOf(nameOf(slot.user_id))}
+                <div key={i} className="truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted" data-busy={slot.outside ? "outside" : ""}>
+                  {slot.outside ? c.outside.mine : c.busyOf(nameOf(slot.user_id))}
                 </div>
               ))}
             </div>
@@ -975,9 +994,9 @@ function WeekView({
                       width: `${(100 - EVENTS_SHARE) / p.columns}%`,
                       backgroundImage: "repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted) 22%, transparent) 0 6px, transparent 6px 12px)",
                     }}
-                    data-busy
+                    data-busy={p.item.outside ? "outside" : ""}
                   >
-                    {c.busyOf(nameOf(p.item.user_id))}
+                    {p.item.outside ? c.outside.mine : c.busyOf(nameOf(p.item.user_id))}
                   </div>
                 ))}
                 {timed.map((p) => (
