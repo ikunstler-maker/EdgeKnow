@@ -66,7 +66,7 @@ select 'anyone reads the feed:';
 select public.calendar_feed(:'ws', :'h1');
 reset role;
 
-set role service_role;
+-- As the server (the database owner here: a plain test database has no server role).
 select 'bob''s feed: ' || :titles || '; leave: ' || (select string_agg(l ->> 'name', ', ') from jsonb_array_elements(f -> 'leave') l)
   || '; a description inside: ' || (f::text like '%Secret notes%')
   from public.calendar_feed(:'ws', :'h1') f;
@@ -78,7 +78,6 @@ set role authenticated;
 set request.jwt.claim.sub = :'bob';
 select 'bob gets a new address: ' || (public.set_calendar_feed(:'ws', :'h2') ->> 'ok');
 reset role;
-set role service_role;
 select 'the old address: ' || coalesce(public.calendar_feed(:'ws', :'h1')::text, 'nothing') || ', the new one has events: ' || (jsonb_array_length(public.calendar_feed(:'ws', :'h2') -> 'events') > 0);
 reset role;
 
@@ -87,14 +86,12 @@ set role authenticated;
 set request.jwt.claim.sub = :'alice';
 select 'alice removes bob: ' || (public.remove_member(:'ws', :'bob') ->> 'ok');
 reset role;
-set role service_role;
 select 'a removed member''s feed: ' || coalesce(public.calendar_feed(:'ws', :'h2')::text, 'nothing');
 reset role;
 set role authenticated;
 set request.jwt.claim.sub = :'alice';
 select 'alice turns hers on: ' || (public.set_calendar_feed(:'ws', :'h3') ->> 'ok');
 reset role;
-set role service_role;
 select 'alice''s feed (the organizer): ' || :titles || '; leave: ' || jsonb_array_length(f -> 'leave') from public.calendar_feed(:'ws', :'h3') f;
 reset role;
 set role authenticated;

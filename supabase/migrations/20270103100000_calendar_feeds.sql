@@ -126,4 +126,10 @@ $$;
 revoke execute on function public.my_calendar_feed(uuid), public.set_calendar_feed(uuid, text), public.drop_calendar_feed(uuid), public.calendar_feed(uuid, text)
   from public, anon, authenticated;
 grant execute on function public.my_calendar_feed(uuid), public.set_calendar_feed(uuid, text), public.drop_calendar_feed(uuid) to authenticated;
-grant execute on function public.calendar_feed(uuid, text) to service_role;
+-- The server's role (absent in a plain test database).
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.calendar_feed(uuid, text) to service_role;
+  end if;
+end $$;
