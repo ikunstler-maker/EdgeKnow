@@ -33,6 +33,20 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-h",
+    version: "0.24.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: зайнятість з вашого календаря", en: "Doba: busy time from your calendar" },
+    summaryDescription: {
+      uk: "Підключіть власний календар за адресою-підпискою — колеги бачитимуть, коли ви зайняті, без жодних подробиць.",
+      en: "Connect your own calendar by its subscription address — colleagues see when you are busy, with no details at all.",
+    },
+    items: [
+      { id: "outside-busy", type: "added", scope: "calendar", title: { uk: "Зайнятість із зовнішнього календаря: лише час, без назв і учасників.", en: "Busy time from an outside calendar: times only, no titles or people." } },
+      { id: "outside-refresh", type: "added", scope: "calendar", title: { uk: "Оновлюється сама у фоні; є «Оновити зараз» і «Відключити».", en: "Refreshes by itself in the background; “Refresh now” and “Disconnect” are there." } },
+    ],
+  },
+  {
     id: "2026-11-10-g",
     version: "0.23.0",
     date: "2026-11-10",

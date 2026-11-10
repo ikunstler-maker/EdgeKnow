@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { refreshAllStale } from "@/lib/calendar-external";
 import { driveApi } from "@/lib/drive/google-drive";
 import { connectionById, refreshTokenOf } from "@/lib/drive/storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
   const rekeyed = process.env.TEAM_DB_KEY ? await rekeyTeamSecrets(admin).catch(() => ({ changed: 0, failed: 1 })) : null;
   // Domains proven through DNS: is the record still there (weekly per domain)?
   const domains = await recheckDomains(admin);
-  return NextResponse.json({ removed: central + teams, health, domains, rekeyed });
+  // Outside calendars nobody looked at lately are read again (busy time only).
+  const calendars = await refreshAllStale(admin).catch(() => null);
+  return NextResponse.json({ removed: central + teams, health, domains, rekeyed, calendars });
 }
 
 // Task files and board pictures share their bucket.

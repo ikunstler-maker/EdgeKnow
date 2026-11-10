@@ -29,6 +29,7 @@
     "browser-image-compression": "^2.0.2",
     "chart.js": "4.5.1",
     "exceljs": "4.4.0",
+    "ical.js": "2.2.1",
     "jose": "^6.2.13",
     "next": "16.4.3",
     "pg": "^8.23.1",

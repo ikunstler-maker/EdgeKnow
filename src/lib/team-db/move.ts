@@ -293,6 +293,7 @@ const STAGES: Stage[] = [
   { name: "calendar settings", table: "calendar_settings", columns: "workspace_id, work_days, time_zone, updated_by, updated_at", order: "workspace_id", onConflict: "workspace_id" },
   { name: "time-off policies", table: "leave_policies", columns: "id, workspace_id, name, kind, days_per_year, carry_over_max, count_days, requires_approval, requires_deputy, show_kind, allow_negative, unlimited, active, accrual, position, created_by, created_at, updated_at", order: "id", onConflict: "id" },
   { name: "holidays", table: "leave_holidays", columns: "id, workspace_id, day, name, created_by, created_at", order: "id", onConflict: "id" },
+  { name: "outside busy time", table: "calendar_external_busy", columns: "id, workspace_id, user_id, starts_at, ends_at, all_day", order: "id", onConflict: "id" },
   { name: "calendar feeds", table: "calendar_feeds", columns: "workspace_id, user_id, token_hash, created_at", order: "user_id", onConflict: "workspace_id,user_id" },
   { name: "start dates", table: "leave_member_settings", columns: "workspace_id, user_id, started_on, updated_by, updated_at", order: "user_id", onConflict: "workspace_id,user_id" },
   { name: "time-off ledger", table: "leave_balances", columns: "id, workspace_id, policy_id, user_id, year, kind, month, days, note, created_by, created_at", order: "id", onConflict: "id" },
@@ -415,7 +416,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["notifications", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
+const BY_ID = ["notifications", "calendar_external_busy", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();

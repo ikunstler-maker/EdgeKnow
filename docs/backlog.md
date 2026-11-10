@@ -63,8 +63,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - 2г — DONE (#137).
 - Later: drag to create on touch screens (long press); moving and resizing an existing event by dragging; event chip in task descriptions (with "smart chips everywhere": the task description has no chips at all yet); dragging a task to another day on the calendar; reminders when the site is closed (with push); an answer for one day of a series ("not going this time"); a repeat "on the last Friday of the month"; the landing card without "Soon" once sync (phase 3) is planned.
 - Phase 3, external calendars (owner approved 2026-11-10; decision 2027-01-30). Neutral names only; a provider's name is allowed on its sign-in button alone.
-  - 3а the person's own feed (read-only address for calendar apps; table `calendar_feeds`, open route `/api/calendar-feed/`) — in review.
-  - 3б busy time from an outside calendar by its feed address (table `calendar_connections` in the central database with the address encrypted by `CALENDAR_TOKEN_KEY`; `calendar_external_busy` with starts and ends only; hourly refresh; guests see none) — next, free.
+  - 3а the person's own feed (read-only address for calendar apps; table `calendar_feeds`, open route `/api/calendar-feed/`) — DONE (#138).
+  - 3б busy time from an outside calendar by its feed address (decision 2027-01-31) — in review. The owner adds `CALENDAR_TOKEN_KEY` in Vercel (a long random text); until then the section says "not set up yet".
+  - Later for 3б: several addresses per person; own outside busy time in the month and list views (today: the week only).
   - 3в two-way sync through a provider's sign-in — decide after 3а and 3б; one main provider first; the provider's app review may take weeks (needs the product's domain and privacy page); marked PRO, open to all until payments.
 - Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { dateLocale, t } from "@/i18n";
 import { dropFeed, issueFeed, loadFeed, saveCalendarSettings } from "@/app/calendar-actions";
+import { connectOutsideCalendar, disconnectOutsideCalendar, loadConnection, refreshOutsideCalendar } from "@/app/calendar-external-actions";
+import type { ConnectionState } from "@/lib/calendar-external";
 import { browserTimeZone, timeZones, type CalendarPerson, type CalendarSettings } from "@/lib/calendar";
 
 const c = t.calendar;
@@ -180,7 +182,19 @@ export function CalendarSettingsDialog({
 
 // The person's own feed for calendar apps (phase 3a): on / off / a new address. The
 // address is shown once, right after it is made — only its hash is kept.
-export function FeedDialog({ shortId, workspaceId, onClose }: { shortId: string; workspaceId: string; onClose: () => void }) {
+export function FeedDialog({
+  shortId,
+  workspaceId,
+  guest,
+  onOutsideChanged,
+  onClose,
+}: {
+  shortId: string;
+  workspaceId: string;
+  guest: boolean;
+  onOutsideChanged: () => void;
+  onClose: () => void;
+}) {
   const f = c.feed;
   const [since, setSince] = useState<string | null | undefined>(undefined);
   const [address, setAddress] = useState<string | null>(null);
@@ -260,9 +274,6 @@ export function FeedDialog({ shortId, workspaceId, onClose }: { shortId: string;
         {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         {since && !address && <p className="mt-2 text-sm text-muted">{f.renewHint}</p>}
         <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <button type="button" onClick={onClose} className={buttonClass}>
-            {f.close}
-          </button>
           {since && (
             <button type="button" onClick={drop} disabled={busy} className={buttonClass} data-feed-drop>
               {f.drop}
@@ -274,7 +285,110 @@ export function FeedDialog({ shortId, workspaceId, onClose }: { shortId: string;
             </button>
           )}
         </div>
+        {!guest && <OutsideCalendar shortId={shortId} onChanged={onOutsideChanged} />}
+        <div className="mt-4 flex justify-end">
+          <button type="button" onClick={onClose} className={buttonClass}>
+            {f.close}
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+// The other direction (phase 3b): the person's busy time from their own outside calendar.
+// The address goes to the server once and is never shown again.
+function OutsideCalendar({ shortId, onChanged }: { shortId: string; onChanged: () => void }) {
+  const o = c.outside;
+  const [state, setState] = useState<ConnectionState | null | undefined>(undefined);
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadConnection(shortId).then((loaded) => {
+      if (alive) setState(loaded);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [shortId]);
+  const run = async (work: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    await work();
+    setBusy(false);
+  };
+  const connect = () =>
+    run(async () => {
+      const result = await connectOutsideCalendar(shortId, url);
+      if (!result.ok) return setError(o.errors[result.error] ?? o.errors.unknown);
+      setState(result.state);
+      setUrl("");
+      onChanged();
+    });
+  const refresh = () =>
+    run(async () => {
+      const next = await refreshOutsideCalendar(shortId);
+      if (next) setState(next);
+      onChanged();
+    });
+  const disconnect = () => {
+    if (!window.confirm(o.disconnectConfirm)) return;
+    return run(async () => {
+      const result = await disconnectOutsideCalendar(shortId);
+      if (!result.ok) return setError(o.errors[result.error] ?? o.errors.unknown);
+      setState((old) => (old ? { ...old, connected: false, synced_at: null, error: null, slots: 0 } : old));
+      onChanged();
+    });
+  };
+  if (state === undefined || state === null) return null;
+  return (
+    <section className="mt-5 border-t border-border pt-4" data-outside-calendar={!state.configured ? "unset" : state.connected ? "on" : "off"}>
+      <h3 className="font-semibold">{o.title}</h3>
+      <p className="mt-2 text-sm">{o.intro}</p>
+      <p className="mt-1 text-sm text-muted">{o.what}</p>
+      {!state.configured && <p className="mt-3 text-sm text-muted">{o.notConfigured}</p>}
+      {state.configured && !state.connected && (
+        <div className="mt-3 flex gap-2">
+          <input
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={o.placeholder}
+            aria-label={o.title}
+            className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm"
+            data-outside-url
+          />
+          <button type="button" onClick={connect} disabled={busy || !url.trim()} className={primaryClass} data-outside-connect>
+            {o.connect}
+          </button>
+        </div>
+      )}
+      {state.configured && state.connected && (
+        <>
+          <p className="mt-3 text-sm" data-outside-slots={state.slots}>
+            {o.connected(state.slots)} {state.synced_at ? o.syncedAt(new Date(state.synced_at).toLocaleString(dateLocale())) : o.never}
+          </p>
+          {state.error && <p className="mt-1 text-sm text-danger">{o.errors[state.error] ?? o.errors.unknown}</p>}
+          <p className="mt-1 text-sm text-muted">{o.hidden}</p>
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={disconnect} disabled={busy} className={buttonClass} data-outside-disconnect>
+              {o.disconnect}
+            </button>
+            <button type="button" onClick={refresh} disabled={busy} className={buttonClass} data-outside-refresh>
+              {o.refresh}
+            </button>
+          </div>
+        </>
+      )}
+      {error && (
+        <p className="mt-2 text-sm text-danger" data-outside-error>
+          {error}
+        </p>
+      )}
+    </section>
   );
 }

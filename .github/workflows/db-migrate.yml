@@ -149,6 +149,10 @@ jobs:
       - name: Page Markdown export
         if: matrix.part == 'nodes'
         run: node --experimental-strip-types --no-warnings scripts/test-page-markdown.mjs
+      # Doba 3b: busy time out of an outside calendar's file (series, zones, free and cancelled events).
+      - name: Outside calendar files
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings scripts/test-calendar-external.mjs
       # The people and workspaces every part starts from (the API test leaves them).
       - name: Seed through the API isolation test
         run: |
@@ -184,6 +188,11 @@ jobs:
           export DNS_FAKE_FILE="$RUNNER_TEMP/fake-dns.json"
           echo '{}' > "$DNS_FAKE_FILE"
           echo "DNS_FAKE_FILE=$DNS_FAKE_FILE" >> "$GITHUB_ENV"
+          # Outside calendars (Doba 3b): a throwaway key, and files instead of the network.
+          export CALENDAR_TOKEN_KEY="ci-calendar-token-key-$(openssl rand -hex 16)"
+          export CALENDAR_FAKE_DIR="$RUNNER_TEMP/fake-calendars"
+          mkdir -p "$CALENDAR_FAKE_DIR"
+          echo "CALENDAR_FAKE_DIR=$CALENDAR_FAKE_DIR" >> "$GITHUB_ENV"
           export CRON_SECRET="ci-cron-secret"
           echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"

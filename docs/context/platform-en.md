@@ -74,7 +74,7 @@ The core gives every service people, access, storage, search, notifications and 
 | Pricing: feature flags, PRO badge, payments | planned (stage 4) | `docs/pricing-uk.md` |
 | 2 devices per email limit | planned | sign-in change → approval |
 | Corporate SSO, exportable audit log | planned | Business |
-| Key `CALENDAR_TOKEN_KEY` | approved (Doba phase 3) | its own key for external calendars' secrets, next to `DRIVE_TOKEN_KEY` and `TEAM_DB_KEY` (`src/lib/drive/secret-box.ts`) |
+| Key `CALENDAR_TOKEN_KEY` | in use since Doba 3b (`v3.cal.…`, no fallback key) | its own key for external calendars' secrets, next to `DRIVE_TOKEN_KEY` and `TEAM_DB_KEY` (`src/lib/drive/secret-box.ts`) |
 | Mini-game with Apus | owner's request | original game; online mode → approval |
 | Phone app (PWA) | planned | |
 
@@ -94,6 +94,7 @@ The core gives every service people, access, storage, search, notifications and 
 | `notifications`, `notification_prefs` | notifications (links: task, page, calendar event, time-off request) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: events, their people, working days and time zone |
 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_holidays`, `leave_member_settings` | Doba: time-off policies, the balance ledger, requests, holidays, start dates |
+| `calendar_external_busy`, `calendar_connections` (central only) | Doba: busy slots read from a person's outside calendar (start and end only); the calendar's address, encrypted, closed to everyone |
 | `calendar_feeds` | Doba: the hash of a person's calendar-feed secret (closed to everyone; the server reads the feed) |
 | `audit_log`, `admin_audit_log` | action logs |
 | `platform_settings`, `rate_limits` | platform settings and limits |
