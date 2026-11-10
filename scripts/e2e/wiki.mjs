@@ -1145,7 +1145,6 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await older.click();
   await alice.locator('[data-version-mark="changed"]').waitFor({ timeout: 15000 }).catch(() => {});
   check("…sees an older version with what differs marked", (await alice.locator('[data-version-mark="changed"]').count()) >= 1);
-  alice.once("dialog", (dialog) => dialog.accept());
   await alice.locator("[data-restore-version]").click();
   const restored = await until(() => sql(`select content #>> '{0,content,0,text}' from public.pages where id = '${notes}'`) === "Version one", 15000);
   check("…and restores it", restored && sql(`select reason from public.page_versions where page_id = '${notes}' order by created_at desc limit 1`) === "restore");
