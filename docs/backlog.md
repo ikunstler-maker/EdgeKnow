@@ -33,7 +33,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## Wiki: order agreed (owner, 2026-11-10)
 - 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
 - 2. Drafts by default + Publish — in review (owner approved the rules; decision 2027-01-26). Later: "back to draft".
-- 3. Page version history — in review (decision 2027-01-27). Later: longer history on paid plans (1 year / unlimited).
+- 3. Page version history — in review (decision 2027-01-29). Later: longer history on paid plans (1 year / unlimited).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
@@ -58,9 +58,10 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - 1б time off — DONE (#130).
 - Phase 2 (owner approved 2026-11-10; decision 2027-01-24), three PRs:
   - 2а repeats and reminders — DONE (#132).
-  - 2б — in review (decision 2027-01-25): Rukh due dates on the calendar ("no tasks / mine / all I can see", default mine, open + done within 14 days, on the due day only, three cards a day and a "+N" counter; read through `project_tasks`, so other people's private tasks never show); a unit invited to an event (one-time, with "Refresh"); events in search; event chip in the wiki.
-  - 2в: holidays (empty list kept by admins/HR, copy from last year; not taken from the balance, shaded on the calendar); automatic accrual (yearly, or monthly in equal parts on the 1st, idempotent); start date per person (admins and HR edit, the person sees their own) with a part-year norm by the months left in the year and a rounding rule for fractions; absences hidden on non-working days for working-day policies.
-- Later: event chip in task descriptions (with "smart chips everywhere": the task description has no chips at all yet); dragging a task to another day on the calendar; reminders when the site is closed (with push); an answer for one day of a series ("not going this time"); a repeat "on the last Friday of the month"; the landing card without "Soon" once sync (phase 3) is planned.
+  - 2б — DONE (#134).
+  - 2в — DONE (#135).
+  - 2г — in review (decision 2027-01-28, no DB change): "event / absence" switch for what the grid makes; the slot or cell under the pointer is highlighted; drag to create — down the hours (snapping to 15 minutes, also across days), along the "all day" row and across month cells; an absence request from the picked days; one's own absence or waiting request is withdrawn from the calendar.
+- Later: drag to create on touch screens (long press); moving and resizing an existing event by dragging; event chip in task descriptions (with "smart chips everywhere": the task description has no chips at all yet); dragging a task to another day on the calendar; reminders when the site is closed (with push); an answer for one day of a series ("not going this time"); a repeat "on the last Friday of the month"; the landing card without "Soon" once sync (phase 3) is planned.
 - 3: external calendars — separate plan and approval (table `calendar_connections`, key `CALENDAR_TOKEN_KEY`, open webhook route in `src/proxy.ts`, outgoing ICS feed). Neutral names only.
 - Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 

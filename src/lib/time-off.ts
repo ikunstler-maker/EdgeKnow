@@ -5,6 +5,9 @@ export const LEAVE_KINDS = ["vacation", "sick", "day_off", "remote", "other"] as
 export type LeaveKind = (typeof LEAVE_KINDS)[number];
 export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
 export type LeaveHalf = "first" | "second";
+export const LEAVE_ACCRUALS = ["manual", "yearly", "monthly"] as const;
+export type LeaveAccrual = (typeof LEAVE_ACCRUALS)[number];
+export type Holiday = { day: string; name: string; created_at: string };
 
 export type LeavePolicyFields = {
   name: string;
@@ -18,6 +21,8 @@ export type LeavePolicyFields = {
   allow_negative: boolean;
   unlimited: boolean;
   active: boolean;
+  // How the norm arrives: by the button, by itself on 1 January, or month by month.
+  accrual?: LeaveAccrual;
 };
 // A policy with the viewer's own numbers for the year.
 export type LeavePolicy = LeavePolicyFields & { id: string; granted: number; used: number; pending: number };
@@ -36,7 +41,7 @@ export type MyLeaveRequest = {
   decision_note: string;
   created_at: string;
 };
-export type MyLeave = { today: string; manager: boolean; policies: LeavePolicy[]; requests: MyLeaveRequest[] };
+export type MyLeave = { today: string; manager: boolean; started_on?: string | null; policies: LeavePolicy[]; requests: MyLeaveRequest[] };
 
 export type InboxRequest = {
   id: string;
@@ -44,6 +49,7 @@ export type InboxRequest = {
   person: string;
   policy: string;
   unlimited: boolean;
+  count_days?: "working" | "calendar";
   start_date: string;
   end_date: string;
   half: LeaveHalf | null;
@@ -65,12 +71,14 @@ export type Absence = {
   end_date: string;
   half: LeaveHalf | null;
   remote: boolean;
+  // The policy counts working days only: the absence isn't shown on days off and holidays.
+  working_only?: boolean;
   deputy: string | null;
   // The policy's name, when the viewer may know it.
   label: string | null;
 };
 export type UnitOverlap = { name: string; start_date: string; end_date: string; status: LeaveStatus };
-export type BalanceSheet = { people: { id: string; name: string; numbers: Record<string, { granted: number; used: number; pending: number }> }[] };
+export type BalanceSheet = { people: { id: string; name: string; started_on?: string | null; numbers: Record<string, { granted: number; used: number; pending: number }> }[] };
 
 export const NEW_POLICY: LeavePolicyFields = {
   name: "",
@@ -84,6 +92,7 @@ export const NEW_POLICY: LeavePolicyFields = {
   allow_negative: false,
   unlimited: false,
   active: true,
+  accrual: "manual",
 };
 
 export const parseDay = (key: string) => {

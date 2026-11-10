@@ -1,4 +1,4 @@
--- Undo 20270102100000_page_history: page versions, their trigger and functions.
+-- Undo 0049_page_history: page versions, their trigger and functions.
 do $$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then

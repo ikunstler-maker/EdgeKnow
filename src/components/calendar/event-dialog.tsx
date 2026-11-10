@@ -52,7 +52,8 @@ const c = t.calendar;
 
 export type DialogState =
   | { mode: "details"; id: string; occurrence?: string | null }
-  | { mode: "new"; start: string; allDay?: boolean }
+  // `end`: what a drag on the grid picked (for whole days — the last day).
+  | { mode: "new"; start: string; end?: string; allDay?: boolean }
   // For a series: which of its days the change is for.
   | { mode: "edit"; details: EventDetails; scope: SeriesScope };
 
@@ -528,6 +529,8 @@ function EventForm({
     }
     const zone = browserTimeZone() || defaultZone;
     const from = new Date(state.mode === "new" ? state.start : 0);
+    const picked = state.mode === "new" && state.end ? new Date(state.end) : null;
+    const wholeDay = state.mode === "new" && !!state.allDay;
     const start = toZonedInput(from.toISOString(), zone);
     return {
       title: "",
@@ -537,9 +540,9 @@ function EventForm({
       allDay: state.mode === "new" && !!state.allDay,
       zone,
       start,
-      end: toZonedInput(new Date(from.getTime() + 3_600_000).toISOString(), zone),
+      end: toZonedInput((picked && !wholeDay ? picked : new Date(from.getTime() + 3_600_000)).toISOString(), zone),
       firstDay: dayKey(from),
-      lastDay: dayKey(from),
+      lastDay: dayKey(picked && wholeDay ? picked : from),
       visibility: "open" as EventVisibility,
       people: [] as string[],
       freq: "" as "" | RepeatFreq,

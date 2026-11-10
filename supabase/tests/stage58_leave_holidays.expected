@@ -1,0 +1,39 @@
+a way of accrual nobody knows: invalid, monthly: true
+bob sets his own start date: forbidden
+hank sets: bob from 28 March 2031: true, carol from 2030: true, a guest: invalid
+hank sees start dates: 2
+bob sees: 2031-03-28 — on his page: 2031-03-28
+carol (bob's lead) sees: 2030-06-01
+gwen (guest) sees: 0 start dates, 0 holidays
+eve (outsider) sees: 0 start dates
+norm 2031 — alice (no date): 20.0, carol (since 2030): 20.0, bob (since March 2031): 17.0, bob in 2030: 0.0, bob in 2032: 20.0
+from July (6 of 12 of 20): 10.0, of 30: 15.0
+from 31 December (1 of 12 of 20 = 1.67): 2.0
+alice, month by month: 1.5 2.0 1.5 1.5 2.0 1.5 1.5 2.0 1.5 1.5 2.0 1.5
+alice's year: 20.0 in 12 rows
+bob (from March), month by month: 0 0 1.5 2.0 1.5 2.0 1.5 1.5 2.0 1.5 2.0 1.5
+bob's year: 17.0 in 10 rows
+the whole year again: 0
+carol: May after nothing: 8.5, then yearly: 11.5, then monthly in June: 0
+carol's year: 20.0 as accrual 11.5, monthly 8.5
+alice in 2032, January: 1.5
+… rows: carry_over 3.0, monthly 1.5
+the daily run adds for: true, again: 0
+members may call it: false, the engine: false
+the button after the daily run: 0, a monthly policy for next year: invalid
+bob adds a holiday: forbidden, deletes: forbidden, copies: forbidden
+hank adds a holiday (Wednesday): true, the next Wednesday too: true, renames: true, no name: invalid
+holidays: Founders' day, Team day
+bob reads the holidays: 2
+Mon–Fri with a holiday, working days: 4; a week of calendar days: 7
+half of a holiday: no_days, Tue–Thu around it: 2
+the request made before the second holiday still takes: 5.0
+who decides sees how the days are counted: calendar,working; absences say if only working days count: false,true
+copied to the next year: 3, again: 0, to the same year: invalid
+29 February into 2033: 0, into 2036: 1
+deleted: true
+… left in 2036: 0
+the sheet shows start dates: - 2031-03-28 2030-06-01 -
+psql: ERROR:  permission denied for table leave_holidays
+psql: ERROR:  permission denied for table leave_member_settings
+anon reads: false false, people for the move include hank: true

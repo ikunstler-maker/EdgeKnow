@@ -1,5 +1,5 @@
--- Wiki page history in a team's own database (as supabase/migrations/20270102100000_page_history.sql).
--- Rollback: supabase/team/rollbacks/0048_page_history.down.sql
+-- Wiki page history in a team's own database (as supabase/migrations/20270103100000_page_history.sql).
+-- Rollback: supabase/team/rollbacks/0049_page_history.down.sql
 --
 -- A version is a snapshot of the page (title, icon, content) as it was after an
 -- editing session: one person's changes merge into one version while they keep

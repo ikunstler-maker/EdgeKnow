@@ -1,4 +1,4 @@
--- Page history in a team database: the same rules as supabase/tests/stage58_page_history.sql.
+-- Page history in a team database: the same rules as supabase/tests/stage59_page_history.sql.
 \pset format unaligned
 \pset tuples_only on
 \set VERBOSITY terse

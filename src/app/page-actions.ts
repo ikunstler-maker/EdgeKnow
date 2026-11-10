@@ -222,7 +222,7 @@ export async function pageCard(shortId: string, id: string): Promise<{ id: strin
   return { id: row.id, title: row.title, icon: row.icon, snippet: words.join(" ").replace(/\s+/g, " ").trim().slice(0, 280) };
 }
 
-// --- Page history (decision 2027-01-27): only the page's owner and editors read it (RLS). ---
+// --- Page history (decision 2027-01-29): only the page's owner and editors read it (RLS). ---
 
 export type PageVersionItem = {
   id: string;

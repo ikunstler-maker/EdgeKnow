@@ -1,6 +1,6 @@
--- Wiki page history (decision 2027-01-27): versions by editing session, view and restore.
--- The same in supabase/team/migrations/0048_page_history.sql.
--- Rollback: supabase/rollbacks/20270102100000_page_history.down.sql
+-- Wiki page history (decision 2027-01-29): versions by editing session, view and restore.
+-- The same in supabase/team/migrations/0049_page_history.sql.
+-- Rollback: supabase/rollbacks/20270103100000_page_history.down.sql
 --
 -- A version is a snapshot of the page (title, icon, content) as it was after an
 -- editing session: one person's changes merge into one version while they keep

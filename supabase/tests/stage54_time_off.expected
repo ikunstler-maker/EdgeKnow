@@ -40,7 +40,7 @@ hank decides again: decided
 bob after the approval: 15.0 given, 5.0 used, 10.0 waiting
 carol approves her own: forbidden
 alice approves carol's: true
-frank (another colleague) sees: bob absent / deputy dave, carol absent, bob Remote work / deputy dave — keys: deputy,end_date,half,id,label,person,remote,start_date,user_id
+frank (another colleague) sees: bob absent / deputy dave, carol absent, bob Remote work / deputy dave — keys: deputy,end_date,half,id,label,person,remote,start_date,user_id,working_only
 carol (decides for bob) sees: bob Vacation, carol Vacation, bob Remote work
 bob cancels his approved week: true, again: decided
 bob after cancelling: 15.0 given, 0 used, 10.0 waiting

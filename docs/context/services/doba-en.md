@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-25 (phases 1a, 1b, 2a, 2b). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-28 (phases 1a, 1b, 2a, 2b, 2c, 2d). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -41,7 +41,8 @@ The team's shared calendar and time-off management in one place: events and meet
 
 ### Screens
 - **Month** (on a phone: dots, a tap opens the day), **Week** (7 days; 3 on a tablet; 1 on a phone — never a sideways scroll), **List** (the next 60 days, plus the organizer's cancelled events).
-- A click on the grid starts an event at that half hour; non-working days are shaded.
+- **The grid answers the pointer (phase 2d):** a switch says what it makes — an event or a time-off request. The half hour (week) or the cell (month, "all day" row) under the pointer is highlighted. A click makes an hour from that slot; a drag down the hours picks a time that sticks to 15 minutes (also across days); a drag along the "all day" row or across month cells picks whole days. In the "absence" mode the picked days open a time-off request. Dragging is for a mouse or a pen; touch keeps its taps and scrolling. Non-working days are shaded.
+- One's own absence, and one's own request that still waits (shown to its person only, dashed), open from the calendar with "Withdraw".
 - **Availability:** pick colleagues to overlay their busy time; the event form warns who of the invited is already busy.
 - Times are kept in UTC and shown in the viewer's own zone; the event keeps the organizer's zone (shown as a note when it differs); a whole-day event has no zone.
 - **Settings** (owner and admins): working days of the week and the workspace's time zone.
@@ -63,6 +64,11 @@ The team's shared calendar and time-off management in one place: events and meet
 ### Balances
 - A ledger: yearly accrual, carry-over, manual correction with a required reason; rows never change. Balance = the year's rows − approved requests. The year is the calendar year.
 - **"Accrue for everyone"** gives the norm and last year's rest (within the limit) only to members who have no accrual of that policy for that year — safe to press again for new people. For the current and the next year.
+
+### Holidays, accrual by itself, start dates (phase 2c)
+- **Holidays:** a list per year kept by who manages time off, with "copy from last year". Not taken from the balance by working-day policies (calendar-day policies take every day); shaded and named on the calendar. A holiday added after a request was made doesn't recount it — who decides sees a hint.
+- **How the norm arrives** (per policy): by the button, every year on 1 January, or every month on the 1st. The daily cleanup runs it in every database; only the difference between what is due and what was given is written, so nothing comes twice and a missed day is made up. Monthly parts are a running total rounded to half a day, so the year adds up to the norm exactly.
+- **Start date** per person (set by admins and HR; the person sees their own; leads don't see others'): who started within a year gets that year's norm in proportion to the months from the month of the start to December (that month counts whole), rounded up to half a day.
 
 ### Requests
 - Kind, dates within one calendar year, half a day (first or second half), deputy, comment.
@@ -87,7 +93,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | What | State | Note |
 |---|---|---|
 | Event chip in task descriptions | with "smart chips everywhere" | the task description has no chips yet |
-| Holidays, automatic accrual, start date and part-year norm | phase 2c | empty holiday list kept by admins/HR with "copy from last year"; monthly accrual in equal parts on the 1st; norm by the months left in the year, with rounding |
+| Dragging on touch screens; moving or resizing an event by dragging | later | |
 | Reminders when the site is closed | with push notifications | |
 | External calendars (two-way sync, feeds) | phase 3 | separate plan and approval; neutral names only |
 
@@ -100,8 +106,10 @@ The team's shared calendar and time-off management in one place: events and meet
 | `calendar_event_attendees` | a person of an event and their state: invited, requested, accepted, tentative, declined, rejected |
 | `calendar_settings` | one row per workspace: working days, time zone |
 | `notifications.event_id`, `event_at` | link from a notification to an event (and, for a reminder, to the start it is about) |
-| `leave_policies` | time-off policies |
-| `leave_balances` | the ledger: accrual, carry-over, correction |
+| `leave_policies` | time-off policies (with `accrual`: manual / yearly / monthly) |
+| `leave_holidays` | the workspace's holidays |
+| `leave_member_settings` | a person's start date |
+| `leave_balances` | the ledger: yearly accrual, monthly part (`month`), carry-over, correction |
 | `leave_requests` | requests with `deputy_id`, status, who decided |
 | `notifications.leave_request_id` | link from a notification to a request |
 
@@ -109,6 +117,7 @@ The team's shared calendar and time-off management in one place: events and meet
 - Phase 2b reads: `calendar_tasks` (Rukh tasks of a period), `search_calendar_events`, `calendar_event_chips`; writes: `invite_unit_to_calendar_event`, `refresh_calendar_event_units` (units kept in `calendar_events.invited_group_ids`). A change to the task visibility rules needs no change here as long as `project_tasks` follows it.
 - The days of a rule: `calendar_series` (arithmetic only); the real days of an event: `calendar_event_occurrences` (without cancelled days, with moved ones). **Anything new that reads a period must go through it** — the calendar, free/busy and reminders do.
 - Reading: `calendar_events_in` (a period's events in one pass, access worked out once per call — same rows as the table under RLS, compared in `stage53_calendar`), `calendar_event_details`, `calendar_busy` (start and end only).
+- Accrual: `leave_norm` (whole or in proportion), `leave_due_by_month` (the running total), `leave_accrue_person` (writes the difference), `run_leave_accruals` (server only, called by `src/app/api/cron/cleanup-files`). Holidays and start dates: `save_leave_holiday`, `delete_leave_holiday`, `copy_leave_holidays`, `set_leave_start_date`.
 - Time off is written only by `seed_leave_policies`, `save_leave_policy`, `accrue_leave_year`, `adjust_leave_balance`, `request_leave`, `decide_leave_request`, `cancel_leave_request`; read by `my_leave`, `leave_inbox`, `leave_balance_sheet`, `leave_unit_overlaps`, `team_absences`. Who decides: `leave_can_decide` (leads up the tree via `leave_leads_of`, managers via `leave_manager`).
 - Visibility lives in `calendar_event_visible_to`; a change to the rules must update `calendar_events_in` too.
 - The tables exist in both the central and the team database (`0043`), move between them (`src/lib/team-db/move.ts`), go into "My data" (own events, answers, time-off requests and ledger rows) and into the workspace backup (all but private events; time off without the comments).
@@ -130,10 +139,10 @@ The team's shared calendar and time-off management in one place: events and meet
 |---|---|
 | Screens | `src/app/w/[wid]/calendar/page.tsx`, `src/app/w/[wid]/calendar/time-off/page.tsx` |
 | Actions | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
-| Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`); the wiki chip — `src/components/editor/event-chip.tsx` |
+| Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`, `use-day-drag.ts`); the wiki chip — `src/components/editor/event-chip.tsx` |
 | Logic (dates, zones, layout; time-off shapes) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
-| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql` (central `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
-| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
+| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql` (central `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
+| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
 
 ## 7. Important decisions
 
@@ -151,7 +160,7 @@ The team's shared calendar and time-off management in one place: events and meet
 
 - No event chip in task descriptions; tasks can't be moved to another day from the calendar.
 - Series: no answer for a single day; no rule like "the last Friday of the month"; a notification about a changed day doesn't say which day; reminders don't come while the site is closed.
-- Time off: no holidays yet (working days are the week's working days); no part-year norm for someone who joins mid-year (use a manual correction); a request can't cross the new year (split it); an absence chip shows on non-working days inside its period too.
+- Time off: a request can't cross the new year (split it); holidays are entered by hand (no ready sets by country); a holiday added later doesn't recount requests already made; accrual by itself runs once a day.
 - When an organizer's account is deleted the event stays without an organizer (admins can cancel a non-private one).
 - Which sync is free and which is PRO — open pricing question.
 - The landing still shows the calendar as "Soon" (its card promises sync, which is phase 3).
