@@ -2,7 +2,7 @@
 // browser, a request to join and its approval, a private event that others see only
 // as "busy", an outsider, the week on a phone.
 
-import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueCookies, colleagueId, newPage, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, colleagueCookies, colleagueId, newPage, sql, until } from "./common.mjs";
 
 export async function calendarChecks() {
   const base = `${APP}/w/${alphaShort}/calendar`;
@@ -89,4 +89,90 @@ export async function calendarChecks() {
   check("…they are told", one(`select count(*) from public.notifications where kind = 'event_change' and event_id = '${eventId}' and user_id = '${colleagueId}'`) === "1");
   await alice.locator("[data-cancelled] button").first().click({ timeout: 15000 });
   check("…and the organizer brings it back", await until(() => one(`select (deleted_at is null)::text from public.calendar_events where id = '${eventId}'`) === "true", 15000));
+}
+
+// Time off (phase 1b): policies from the templates, a yearly accrual pressed twice, a
+// request, its approval, the absence on the calendar, cancelling — all in the browser.
+export async function timeOffChecks() {
+  const base = `${APP}/w/${alphaShort}/calendar/time-off`;
+  const one = (query) => sql(query);
+  const year = new Date().getFullYear();
+
+  // The owner starts from the four templates, sets the vacation norm and accrues it.
+  await alice.goto(`${base}?tab=settings`);
+  await alice.locator("[data-seed-policies]").click({ timeout: 15000 });
+  await alice.locator('[data-policy="Відпустка"]').waitFor({ timeout: 15000 }).catch(() => {});
+  check("the four starting policies are made with 0 days", one(`select count(*) || ' ' || sum(days_per_year) from public.leave_policies where workspace_id = '${alphaId}'`) === "4 0.0");
+  await alice.locator('[data-policy="Відпустка"] [data-edit-policy]').click();
+  await alice.locator('[data-policy-form] [data-policy-field="days_per_year"]').fill("10");
+  await alice.locator("[data-save-policy]").click();
+  const vacation = one(`select id from public.leave_policies where workspace_id = '${alphaId}' and kind = 'vacation'`);
+  check("the owner sets ten days of vacation", await until(() => one(`select days_per_year from public.leave_policies where id = '${vacation}'`) === "10.0", 15000));
+  await alice.locator('[data-policy="Відпустка"] [data-accrue]').click({ timeout: 15000 });
+  const members = one(`select count(*) from public.workspace_members where workspace_id = '${alphaId}' and status = 'active' and role <> 'guest'`);
+  const accrued = () => one(`select count(*) from public.leave_balances where policy_id = '${vacation}' and year = ${year} and kind = 'accrual'`);
+  check("“accrue for the year” gives everyone the norm", await until(() => accrued() === members, 15000), `${accrued()} of ${members}`);
+  await alice.locator('[data-policy="Відпустка"] [data-accrue]').click();
+  await alice.locator("[data-leave-message]").waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(800);
+  check("…and pressed again doubles nobody", accrued() === members, accrued());
+  // The request below may fall into the next year at the very end of December: that year gets its norm too.
+  await aliceClient.rpc("accrue_leave_year", { ws: alphaId, target_policy: vacation, target_year: year + 1 });
+
+  // The colleague asks for a Monday at least a week ahead.
+  const ahead = new Date(Date.now() + 7 * 864e5);
+  ahead.setUTCDate(ahead.getUTCDate() + ((8 - ahead.getUTCDay()) % 7));
+  const day = ahead.toISOString().slice(0, 10);
+  await colleague.goto(base);
+  await colleague.locator('[data-leave-balance="Відпустка"] [data-leave-left]').waitFor({ timeout: 15000 });
+  check("a member sees their own balance", (await colleague.locator('[data-leave-balance="Відпустка"] [data-leave-left]').innerText()).includes("10"));
+  const ask = async (policy) => {
+    await colleague.locator("[data-new-leave]").click();
+    const form = colleague.locator("[data-leave-form]");
+    await form.locator('[data-leave-field="policy"]').selectOption({ label: policy });
+    await form.locator('[data-leave-field="from"]').fill(day);
+    await form.locator('[data-leave-field="to"]').fill(day);
+    await form.locator("[data-send-leave]").click();
+  };
+  await ask("Відпустка");
+  const mine = () => one(`select status || ' ' || days from public.leave_requests where workspace_id = '${alphaId}' and user_id = '${colleagueId}' and policy_id = '${vacation}' order by created_at desc limit 1`);
+  check("a request for a day waits for approval", await until(() => mine() === "pending 1.0", 15000), mine());
+  await colleague.locator("[data-leave-form]").waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+  await ask("Віддалена робота");
+  await colleague.locator("[data-leave-error]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("a second request for the same day is refused", (await colleague.locator("[data-leave-error]").count()) === 1 && one(`select count(*) from public.leave_requests where user_id = '${colleagueId}'`) === "1");
+  await colleague.keyboard.press("Escape");
+
+  // The owner (nobody leads the colleague's unit) is told and approves.
+  check("who decides is told", one(`select count(*) from public.notifications n join public.leave_requests r on r.id = n.leave_request_id where n.kind = 'leave_request' and r.user_id = '${colleagueId}'`) === "1");
+  await alice.goto(`${base}?tab=inbox`);
+  await alice.locator("[data-inbox-request] [data-approve-leave]").first().click({ timeout: 15000 });
+  check("the owner approves it", await until(() => mine() === "approved 1.0", 15000), mine());
+  const requestId = one(`select id from public.leave_requests where user_id = '${colleagueId}' and policy_id = '${vacation}'`);
+  const self = await colleagueClient.rpc("decide_leave_request", { target: requestId, approve: true, note: "" });
+  check("nobody decides on their own request", self.data?.ok === false, JSON.stringify(self.data));
+
+  // The absence shows on the calendar and in the team list; an outsider gets nothing.
+  await alice.goto(`${APP}/w/${alphaShort}/calendar?view=week&date=${day}`);
+  await alice.locator("[data-week] [data-absence]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("an approved absence shows on the calendar", (await alice.locator("[data-week] [data-absence]").count()) >= 1);
+  await bob.goto(`${base}?tab=team`);
+  const outsider = await bob.locator("body").innerText();
+  check("an outsider sees no absences", (await bob.locator("[data-absence]").count()) === 0 && !outsider.includes("colleague@alpha.test"), bob.url());
+
+  // A phone: no sideways scroll.
+  const phone = await newPage(colleagueCookies);
+  await phone.setViewportSize({ width: 390, height: 780 });
+  await phone.goto(base);
+  await phone.locator("[data-leave-mine]").waitFor({ timeout: 15000 });
+  const sideways = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  check("the time-off page fits a phone", sideways <= 0, `overflow ${sideways}px`);
+  await phone.context().close();
+
+  // The colleague cancels before the day comes: the day is free again.
+  await colleague.goto(base);
+  await colleague.locator("[data-leave-request] [data-cancel-leave]").first().click({ timeout: 15000 });
+  check("an approved request cancelled before it starts gives the day back", await until(() => mine() === "cancelled 1.0", 15000), mine());
+  const numbers = (await colleagueClient.rpc("my_leave", { ws: alphaId, target_year: Number(day.slice(0, 4)) })).data?.policies?.find((p) => p.id === vacation);
+  check("…the balance is whole again", Number(numbers?.used) === 0 && Number(numbers?.pending) === 0, JSON.stringify(numbers));
 }
