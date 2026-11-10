@@ -33,6 +33,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-e",
+    version: "0.21.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: свята й автоматичне нарахування", en: "Doba: holidays and accrual by itself" },
+    summaryDescription: {
+      uk: "Свята не списуються з відпустки, норма нараховується сама, новачки отримують її пропорційно.",
+      en: "Holidays aren't taken from time off, the norm arrives by itself, newcomers get it in proportion.",
+    },
+    items: [
+      { id: "holidays", type: "added", scope: "calendar", title: { uk: "Свята й неробочі дні: список на рік і «скопіювати з минулого року».", en: "Holidays and days off: a list per year and “copy from last year”." } },
+      { id: "auto-accrual", type: "added", scope: "calendar", title: { uk: "Нарахування щороку або щомісяця — без кнопки й без подвоєння.", en: "Accrual every year or every month — without the button, and never twice." } },
+      { id: "start-date", type: "added", scope: "calendar", title: { uk: "Дата початку роботи: норма першого року — пропорційно місяцям.", en: "Start date: the first year's norm is in proportion to the months." } },
+    ],
+  },
+  {
     id: "2026-11-10-d",
     version: "0.20.0",
     date: "2026-11-10",

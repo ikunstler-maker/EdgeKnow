@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/action-result";
-import type { Absence, BalanceSheet, InboxRequest, LeaveHalf, LeavePolicyFields, MyLeave, UnitOverlap } from "@/lib/time-off";
+import type { Absence, BalanceSheet, Holiday, InboxRequest, LeaveHalf, LeavePolicyFields, MyLeave, UnitOverlap } from "@/lib/time-off";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 
 // Doba, time off: the database decides who sees and does what; these forward to
@@ -44,6 +44,35 @@ export async function loadUnitOverlaps(shortId: string, workspaceId: string, per
   const db = await dataClient(shortId);
   const { data } = await db.rpc("leave_unit_overlaps", { ws: workspaceId, person, first_day: from, last_day: to, except_request: except });
   return (data ?? []) as UnitOverlap[];
+}
+
+// The workspace's holidays of a period (members, not guests).
+export async function loadHolidays(shortId: string, workspaceId: string, from: string, to: string): Promise<Holiday[]> {
+  if (!isDay(from) || !isDay(to)) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.from("leave_holidays").select("day, name, created_at").eq("workspace_id", workspaceId).gte("day", from).lte("day", to).order("day").limit(500);
+  return (data ?? []) as Holiday[];
+}
+
+export async function saveHoliday(shortId: string, workspaceId: string, day: string, name: string) {
+  if (!isDay(day)) return { ok: false as const, error: "invalid" };
+  return call(shortId, "save_leave_holiday", { ws: workspaceId, holiday: day, title: name });
+}
+
+export async function deleteHoliday(shortId: string, workspaceId: string, day: string) {
+  if (!isDay(day)) return { ok: false as const, error: "invalid" };
+  return call(shortId, "delete_leave_holiday", { ws: workspaceId, holiday: day });
+}
+
+// "The same as last year": same days and months; what is already there stays.
+export async function copyHolidays(shortId: string, workspaceId: string, fromYear: number, toYear: number) {
+  return call<{ added: number }>(shortId, "copy_leave_holidays", { ws: workspaceId, from_year: fromYear, to_year: toYear });
+}
+
+// When a person started work (null: unknown — the whole norm).
+export async function setStartDate(shortId: string, workspaceId: string, person: string, day: string | null) {
+  if (day !== null && !isDay(day)) return { ok: false as const, error: "invalid" };
+  return call(shortId, "set_leave_start_date", { ws: workspaceId, person, started: day });
 }
 
 export async function loadBalanceSheet(shortId: string, workspaceId: string, year: number): Promise<ActionResult<BalanceSheet>> {

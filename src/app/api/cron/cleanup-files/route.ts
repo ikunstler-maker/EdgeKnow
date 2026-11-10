@@ -51,6 +51,8 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   await rows.rpc("clean_survey_files");
   // Events cancelled over 30 days ago go for good (a database not yet upgraded has no such function).
   await rows.rpc("purge_calendar_events");
+  // Time-off policies that accrue by themselves are brought up to date (nothing is given twice).
+  await rows.rpc("run_leave_accruals");
   const { data: found, error } = await rows
     .from("attachment_tombstones")
     .select("storage_path, storage_backend, drive_connection_id, drive_file_id")

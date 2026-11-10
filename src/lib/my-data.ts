@@ -62,7 +62,8 @@ export async function exportMyData(userId: string) {
       time_off_requests: await rows(
         db.from("leave_requests").select("policy_id, start_date, end_date, half, days, comment, status, decided_at, decision_note, cancelled_at, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId),
       ),
-      time_off_ledger: await rows(db.from("leave_balances").select("policy_id, year, kind, days, note, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
+      time_off_start: await rows(db.from("leave_member_settings").select("started_on").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
+      time_off_ledger: await rows(db.from("leave_balances").select("policy_id, year, kind, month, days, note, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       calendar_answers: await rows(db.from("calendar_event_attendees").select("event_id, status, created_at, responded_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       statistics: await rows(db.from("page_contributions").select("page_id, chars_added, chars_removed, saves, last_saved_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
     });

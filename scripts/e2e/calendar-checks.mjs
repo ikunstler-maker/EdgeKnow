@@ -340,3 +340,58 @@ export async function linkChecks() {
   await colleague.locator('[data-event-chip="hidden"]').waitFor({ timeout: 20000 }).catch(() => {});
   check("…and “no access” without the name to who doesn't", (await colleague.locator('[data-event-chip="hidden"]').count()) === 1 && !(await colleague.locator("body").innerText()).includes("Quarter plan"));
 }
+
+// Phase 2c: a holiday that isn't taken from the balance and shows on the calendar, a
+// start date with a norm in proportion, a monthly policy accrued by the daily run.
+export async function holidayChecks() {
+  const base = `${APP}/w/${alphaShort}/calendar`;
+  const one = (query) => sql(query);
+  const year = new Date().getFullYear();
+  // A Wednesday at least three weeks ahead, and the Monday–Friday around it (next year at the very end of December).
+  const ahead = new Date(Date.now() + 21 * 864e5);
+  ahead.setUTCDate(ahead.getUTCDate() + ((8 - ahead.getUTCDay()) % 7));
+  const at = (n) => new Date(ahead.getTime() + n * 864e5).toISOString().slice(0, 10);
+  const [monday, wednesday, friday] = [at(0), at(2), at(4)];
+  const vacation = one(`select id from public.leave_policies where workspace_id = '${alphaId}' and kind = 'vacation'`);
+
+  // The owner adds a holiday in the settings.
+  await alice.goto(`${base}/time-off?tab=settings`);
+  await alice.locator("[data-holiday-form]").waitFor({ timeout: 15000 });
+  if (wednesday.slice(0, 4) !== String(year)) await alice.locator("[data-leave-year]").selectOption(wednesday.slice(0, 4));
+  await alice.locator('[data-holiday-field="day"]').fill(wednesday);
+  await alice.locator('[data-holiday-field="name"]').fill("Founders day");
+  await alice.locator("[data-add-holiday]").click();
+  check("a holiday is added in the settings", await until(() => one(`select name from public.leave_holidays where workspace_id = '${alphaId}' and day = '${wednesday}'`) === "Founders day", 15000));
+  await alice.locator('[data-holiday="Founders day"]').waitFor({ timeout: 15000 }).catch(() => {});
+  const self = await colleagueClient.rpc("save_leave_holiday", { ws: alphaId, holiday: friday, title: "Mine" });
+  check("a member can't add holidays", self.data?.ok === false, JSON.stringify(self.data));
+
+  // A week of vacation over it takes four days, not five; the calendar shows the holiday.
+  const asked = await colleagueClient.rpc("request_leave", { ws: alphaId, target_policy: vacation, first_day: monday, last_day: friday, part: null, deputy: null, note: "" });
+  check("a week with a holiday takes four working days", asked.data?.ok === true && Number(asked.data?.days) === 4, JSON.stringify(asked.data));
+  await colleague.goto(`${base}?view=week&date=${wednesday}`);
+  await colleague.locator(`[data-week] [data-holiday="Founders day"]`).first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("the holiday shows on the calendar", (await colleague.locator(`[data-week] [data-holiday="Founders day"]`).count()) >= 1);
+  await colleagueClient.rpc("cancel_leave_request", { target: asked.data?.id });
+
+  // A start date in the settings: the norm of that year is in proportion.
+  const { data: paid } = await aliceClient.rpc("save_leave_policy", { ws: alphaId, policy_id: null, fields: { name: "Paid leave", kind: "other", days_per_year: 24, carry_over_max: 0, count_days: "working", requires_approval: true, requires_deputy: false, show_kind: false, allow_negative: false, unlimited: false, active: true, accrual: "monthly" } });
+  await alice.goto(`${base}/time-off?tab=settings`);
+  const row = alice.locator('[data-sheet-person="colleague@alpha.test"]');
+  await row.locator("[data-start-date]").fill(`${year}-07-15`);
+  check("a start date is saved from the balance sheet", await until(() => one(`select started_on::text from public.leave_member_settings where workspace_id = '${alphaId}' and user_id = '${colleagueId}'`) === `${year}-07-15`, 15000));
+  const norm = one(`select public.leave_norm('${paid.id}', '${colleagueId}', ${year})`);
+  check("who started in July gets half of the year's norm", Number(norm) === 12, norm);
+  const own = await colleagueClient.from("leave_member_settings").select("user_id, started_on");
+  check("a member sees only their own start date", own.data?.length === 1 && own.data[0].user_id === colleagueId, JSON.stringify(own.data));
+
+  // The daily run (the server's cleanup): the monthly policy is brought up to this month, once.
+  const run = () => fetch(`${APP}/api/cron/cleanup-files`, { headers: { Authorization: "Bearer ci-cron-secret" } }).then((r) => r.status);
+  const given = () => one(`select coalesce(sum(days), 0) || ' in ' || count(*) from public.leave_balances where policy_id = '${paid.id}' and kind = 'monthly'`);
+  const first = await run();
+  const afterFirst = given();
+  await run();
+  check("the daily run accrues a monthly policy, and nothing twice", first === 200 && afterFirst === given() && Number(afterFirst.split(" ")[0]) > 0, `${first} ${afterFirst} / ${given()}`);
+  const expected = one(`select sum(public.leave_due_by_month('${paid.id}', m.user_id, ${year}, extract(month from now())::int)) from public.workspace_members m where m.workspace_id = '${alphaId}' and m.status = 'active' and m.role <> 'guest'`);
+  check("…exactly what is due by this month", Number(expected) === Number(afterFirst.split(" ")[0]), `${expected} vs ${afterFirst}`);
+}
