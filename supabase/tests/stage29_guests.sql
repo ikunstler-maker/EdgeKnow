@@ -4,6 +4,9 @@
 -- the people on what they share; once their date passes they see nothing.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -183,3 +186,6 @@ select 'removed: ' || status || ' ' || role || ' ' || coalesce(access_until::tex
 select 'gwen''s grants gone: ' || (select count(*) from public.page_access where user_id = '00000000-0000-0000-0000-0000000029e1') || ' ' || (select count(*) from public.task_project_access where user_id = '00000000-0000-0000-0000-0000000029e1') || ' ' || (select count(*) from public.service_object_access where user_id = '00000000-0000-0000-0000-0000000029e1');
 delete from public.workspaces where name = 'Guests';
 delete from auth.users where email in ('alice@guests.test', 'bob@guests.test', 'dave@guests.test', 'gwen@client.test');
+
+reset role;
+alter table public.pages alter column published_at drop default;

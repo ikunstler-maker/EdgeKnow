@@ -3,6 +3,9 @@
 -- same workspace.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -52,3 +55,6 @@ select 'chip removed: ' || count(*) from public.task_page_links where page_id = 
 select 'direct write refused: ' || has_table_privilege('authenticated', 'public.task_page_links', 'insert');
 -- Leave nothing for later tests that list every page.
 delete from public.workspaces where id in (:'ws', :'other');
+
+reset role;
+alter table public.pages alter column published_at drop default;

@@ -190,6 +190,11 @@ export async function searchBlocks(
   return (data ?? []) as BlockHit[];
 }
 
+// Publishes a draft (its owner or an editor), optionally with the drafts inside it.
+export async function publishPage(id: string, withChildren: boolean) {
+  return callPageRpc<{ published: number }>("publish_page", { target_page: id, with_children: withChildren });
+}
+
 export async function setPageCover(id: string, cover: unknown) {
   return callPageRpc<{ cover: unknown }>("set_page_cover", { target_page: id, new_cover: cover });
 }

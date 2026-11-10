@@ -1,0 +1,35 @@
+sync: true
+a new page is a draft: true
+dave publishes his page: 1
+bob (author) reads: D: Bob under Dave, D: Dave page, D: Dave sketch, D: Plan chapter, D: Secret plan
+bob tree: D: Bob under Dave*, D: Dave page, D: Dave sketch*, D: Plan chapter*, D: Secret plan* / tree = table
+alice (workspace owner) reads: D: Bob under Dave, D: Dave page, D: Dave sketch, D: Plan chapter, D: Secret plan
+alice tree: D: Bob under Dave*, D: Dave page, D: Dave sketch*, D: Plan chapter*, D: Secret plan* / tree = table
+dave (invited editor, owns the published parent) reads: D: Dave page, D: Dave sketch, D: Plan chapter, D: Secret plan
+dave tree: D: Dave page, D: Dave sketch*, D: Plan chapter*, D: Secret plan* / tree = table
+erin (invited viewer) reads: D: Dave page, D: Dave sketch, D: Plan chapter, D: Secret plan
+erin tree: D: Dave page, D: Dave sketch*, D: Plan chapter*, D: Secret plan* / tree = table
+carol (admin) reads: D: Dave page
+carol tree: D: Dave page / tree = table
+frank (unit with access) reads: D: Dave page
+frank tree: D: Dave page / tree = table
+gwen (guest, invited) reads: D: Dave sketch, D: Plan chapter, D: Secret plan
+gwen tree: D: Dave sketch*, D: Plan chapter*, D: Secret plan* / tree = table
+hank (guest, not invited) reads: D: Dave page
+hank tree: D: Dave page / tree = table
+notified about the draft: dave@team.test
+erin (viewer) publishes: {"ok": false, "error": "forbidden"}
+gwen (guest commenter) publishes: {"ok": false, "error": "forbidden"}
+carol (admin) publishes: {"ok": false, "error": "forbidden"}
+frank (unit editor) publishes: {"ok": false, "error": "forbidden"}
+psql: ERROR:  draft
+bob publishes with children: 2
+after publishing: D: Bob under Dave=true, D: Dave page=false, D: Dave sketch=true, D: Plan chapter=false, D: Secret plan=false
+carol now reads: D: Dave page, D: Plan chapter, D: Secret plan
+carol tree: D: Dave page, D: Plan chapter, D: Secret plan / tree = table
+frank now reads: D: Dave page, D: Plan chapter, D: Secret plan
+frank tree: D: Dave page, D: Plan chapter, D: Secret plan / tree = table
+hank now reads: D: Dave page
+hank tree: D: Dave page / tree = table
+notified later: dave@team.test
+dave publishes the draft Bob made under his page: {"ok": false, "error": "forbidden"}

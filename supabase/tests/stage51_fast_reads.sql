@@ -4,6 +4,9 @@
 -- answer what public.workspaces + workspace_role() answer.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -74,7 +77,7 @@ select public.create_page(:'ws', null, 'Bob''s own') ->> 'id' as bob_page \gset
 select public.set_page_workspace_role(:'bob_page', null) ->> 'ok' as ignored \gset
 
 -- The old way (rows through the table's rule, with its computed columns) against the new one.
-\set old 'select p.id, p.parent_id, p.title, p.icon, p.position, p.owner_id, public.my_role(p) as my_role, public.shared_with_workspace(p) as shared_with_workspace, p.ack_label from public.pages p where p.workspace_id = :''ws'' and p.deleted_at is null'
+\set old 'select p.id, p.parent_id, p.title, p.icon, p.position, p.owner_id, public.my_role(p) as my_role, public.shared_with_workspace(p) as shared_with_workspace, p.ack_label, public.is_draft(p) as draft from public.pages p where p.workspace_id = :''ws'' and p.deleted_at is null'
 \set new 'select * from public.my_page_tree(:''ws'')'
 \set compare 'select (select count(*) from (:old) o) || '' pages, '' || (select count(*) from ((:old) except (:new)) d) || '' only the old way, '' || (select count(*) from ((:new) except (:old)) d) || '' only the new way'''
 \set context 'select coalesce((select public.workspace_context(:''short'') - ''joined_at'' - ''id'' - ''short_id'')::text, ''nothing'') || '' / old: '' || coalesce((select w.name || '' '' || public.workspace_role(w.id) from public.workspaces w where w.short_id = :''short''), ''nothing'')'
@@ -131,3 +134,6 @@ reset role;
 
 -- Nobody without a sign-in may call them.
 select 'anon may call my_page_tree: ' || has_function_privilege('anon', 'public.my_page_tree(uuid)', 'execute') || ', workspace_context: ' || has_function_privilege('anon', 'public.workspace_context(text)', 'execute');
+
+reset role;
+alter table public.pages alter column published_at drop default;

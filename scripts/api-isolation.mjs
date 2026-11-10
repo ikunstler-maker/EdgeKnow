@@ -174,6 +174,7 @@ for (const [name, path] of Object.entries(bobReads)) {
 
 const bobActions = {
   "rename alpha page": ["rename_page", { target_page: page.id, new_title: "hacked" }],
+  "publish alpha's draft": ["publish_page", { target_page: page.id, with_children: true }],
   "create page in alpha": ["create_page", { ws: alpha.id, parent: null, new_title: "x" }],
   "invite himself to alpha": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "admin" }],
   "invite himself to alpha as a guest": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "guest", guest_until: null }],

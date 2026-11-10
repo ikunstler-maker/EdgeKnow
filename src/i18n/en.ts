@@ -1651,6 +1651,21 @@ export const en: Dictionary = {
       invalid: "Invalid data.",
     } as Record<string, string>,
   },
+  drafts: {
+    badge: "Draft",
+    treeHint: "Draft: only the author, people invited to it and the workspace owner see it",
+    note: "Draft. Only the author, people invited to it personally and the workspace owner see it. Once published, everyone with access to the page sees it.",
+    underDraft: "This page is inside a draft: others see it once the page above is published.",
+    publish: "Publish",
+    publishing: "Publishing…",
+    withChildren: (count: number) => `With the pages inside (${count})`,
+    published: (count: number) => count > 1 ? `Published ${count} pages` : "Published",
+    errors: {
+      forbidden: "Only the author and editors of the page can publish it.",
+      in_trash: "The page is in the trash.",
+    } as Record<string, string>,
+    ackAfterPublish: "Read confirmations can be turned on after publishing.",
+  },
   acks: {
     badge: "Confirmation required",
     badgeSigned: "Confirmed",
