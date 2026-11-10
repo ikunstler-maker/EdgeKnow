@@ -128,7 +128,7 @@ export function SurveyEmbed({
       <p className="text-sm text-muted">{e.empty}</p>
     );
   } else if (view === undefined) {
-    body = <p className="text-sm text-muted">{e.loading}</p>;
+    body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
     body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
   } else {

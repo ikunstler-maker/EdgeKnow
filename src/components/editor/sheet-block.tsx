@@ -10,7 +10,7 @@ import { readWorkbook, type SheetData } from "@/lib/sheets";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { createSheet, saveSheet, sheetView, sheetsForEmbed, type SheetSummary, type SheetView } from "@/app/sheet-actions";
 
-const SheetEditor = dynamic(() => import("@/components/sheets/sheet-editor"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.sheets.embed.loading}</p> });
+const SheetEditor = dynamic(() => import("@/components/sheets/sheet-editor"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>{t.sheets.embed.loading}</p> });
 const SheetChartView = dynamic(() => import("@/components/sheets/sheet-chart"), { ssr: false });
 
 const e = t.sheets.embed;
@@ -168,7 +168,7 @@ export function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId
       <p className="text-sm text-muted">{e.empty}</p>
     );
   } else if (view === undefined) {
-    body = <p className="text-sm text-muted">{e.loading}</p>;
+    body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
     body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
   } else {

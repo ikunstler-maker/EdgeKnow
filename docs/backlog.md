@@ -30,6 +30,13 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## Wiki: confirmations of reading (owner, 2026-11-09; decision 2027-01-14)
 - Confirm button, frozen page, statistics, new revisions — in review.
 
+## Wiki: order agreed (owner, 2026-11-10)
+- 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
+- 2. Drafts by default + Publish (RLS change → separate approval).
+- 3. Page version history (view + restore; DB size estimate first).
+- Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
+- Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
+
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
 - Boards Д2: realtime co-editing (postponed by the owner).
