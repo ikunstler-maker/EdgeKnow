@@ -172,8 +172,10 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
     );
   }
 
-  const source = await loadSource(workspace.id, page.id);
-  const ack = await loadAck(wid, page, user.id, page.my_role === "owner" || isWorkspaceAdmin(workspace));
+  const [source, ack] = await Promise.all([
+    loadSource(workspace.id, page.id),
+    loadAck(wid, page, user.id, page.my_role === "owner" || isWorkspaceAdmin(workspace)),
+  ]);
   const frozen = isFrozen(ack);
   // Opening the page refreshes its source at most once an hour, after the response.
   if (source && !page.deleted_at) after(() => refreshIfStale(createAdminClient()!, source.id));

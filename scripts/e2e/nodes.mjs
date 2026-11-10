@@ -366,8 +366,12 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
   await alice.locator("[data-player]").waitFor({ timeout: 20000 });
   const first = await alice.locator("[data-player-count]").innerText();
-  await alice.keyboard.press("ArrowRight");
-  await alice.waitForTimeout(800);
+  // The player is on screen before its keys work (the page streams in, then wakes up):
+  // press again until it answers. With two slides a second press changes nothing.
+  for (let i = 0; i < 10 && (await alice.locator("[data-player-count]").innerText()).trim() !== "2 / 2"; i++) {
+    await alice.keyboard.press("ArrowRight");
+    await alice.waitForTimeout(500);
+  }
   check("…and is shown in its own page, slide by slide", first.trim() === "1 / 2" && (await alice.locator("[data-player-count]").innerText()).trim() === "2 / 2", first);
   // Step П-3б: a wiki page embedded live on a slide, shown in the show.
   await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
