@@ -33,6 +33,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-i",
+    version: "0.25.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Obriy: галерея додатків компанії", en: "Obriy: your company's app gallery" },
+    summaryDescription: {
+      uk: "Усі зовнішні додатки й сервіси компанії в одному місці — плитками, з логотипом, категорією й описом.",
+      en: "All your company's outside apps and services in one place — as tiles with a logo, category and description.",
+    },
+    items: [
+      { id: "apps-gallery", type: "added", scope: "apps", title: { uk: "Плитки додатків з фільтром за категоріями; додаток відкривається в новій вкладці.", en: "App tiles with a category filter; an app opens in a new tab." } },
+      { id: "apps-fill", type: "added", scope: "apps", title: { uk: "Назва, опис і логотип підтягуються з посилання; усе можна змінити вручну або завантажити свій логотип.", en: "Name, description and logo are filled from the link; everything is editable, or upload your own logo." } },
+      { id: "apps-access", type: "added", scope: "apps", title: { uk: "Додають і змінюють додатки власник та адміністратори; доступ — усій компанії, людям чи підрозділам.", en: "The owner and admins add and change apps; access goes to the whole company, people or units." } },
+    ],
+  },
+  {
     id: "2026-11-10-h",
     version: "0.24.0",
     date: "2026-11-10",

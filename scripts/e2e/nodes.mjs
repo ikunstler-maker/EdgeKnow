@@ -3,6 +3,7 @@
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
 import { calendarChecks, feedChecks, gridChecks, outsideChecks, holidayChecks, linkChecks, repeatChecks, timeOffChecks } from "./calendar-checks.mjs";
+import { appsChecks } from "./apps-checks.mjs";
 import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, newPage, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
@@ -676,5 +677,6 @@ await holidayChecks();
 await gridChecks();
 await feedChecks();
 await outsideChecks();
+await appsChecks();
 
 await finish("nodes");
