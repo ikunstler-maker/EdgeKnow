@@ -134,7 +134,9 @@ check("(setup) a page with a map and a diagram", notesSaved.data?.ok === true, J
 await alice.goto(`${APP}/w/${alphaShort}/p/${notesPage}`);
 const embed = alice.locator('[data-node-embed="Launch map"]');
 await embed.locator('[data-map-node="Launch"]').waitFor({ timeout: 20000 });
-check("a map shows on the page, and a diagram too", (await alice.locator('[data-node-embed="Order flow"] .react-flow__node').count()) === 1);
+// Two embeds load on their own: wait for the diagram too before counting (docs/TROUBLESHOOTING.md).
+const diagramShown = await alice.locator('[data-node-embed="Order flow"] .react-flow__node').first().waitFor({ timeout: 20000 }).then(() => true, () => false);
+check("a map shows on the page, and a diagram too", diagramShown && (await alice.locator('[data-node-embed="Order flow"] .react-flow__node').count()) === 1);
 await embed.getByRole("button", { name: /Показати всю карту/ }).click();
 await alice.waitForTimeout(400);
 await embed.locator('[data-map-node="Team"]').click();
