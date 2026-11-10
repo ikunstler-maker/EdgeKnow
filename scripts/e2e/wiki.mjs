@@ -1127,4 +1127,28 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   sql("alter table public.pages alter column published_at set default now()");
 }
 
+// --- Page history: versions by session, restore puts an older text back ---------------------
+{
+  const notes = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "History notes" })).data.id;
+  const para = (text) => [{ id: "h1", type: "paragraph", props: {}, content: [{ type: "text", text, styles: {} }], children: [] }];
+  await aliceClient.rpc("save_page_content", { target_page: notes, new_content: para("Version one"), base_version: 1 });
+  sql(`update public.page_versions set last_at = last_at - interval '11 minutes', created_at = created_at - interval '11 minutes' where page_id = '${notes}'`);
+  await aliceClient.rpc("save_page_content", { target_page: notes, new_content: para("Version two"), base_version: 2 });
+  check("a pause between saves makes a new version", Number(sql(`select count(*) from public.page_versions where page_id = '${notes}'`)) >= 2);
+  const readerVersions = await colleagueClient.from("page_versions").select("id").eq("page_id", notes);
+  check("…readers of the page don't see its versions", (readerVersions.data ?? []).length === 0, JSON.stringify(readerVersions.data));
+  await alice.goto(`${APP}/w/${alphaShort}/p/${notes}`);
+  await alice.locator("[data-page-history]").click();
+  await alice.locator("[data-version-item]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("the author opens the history", (await alice.locator("[data-version-item]").count()) >= 2);
+  const older = alice.locator("[data-version-item]").filter({ hasText: /./ }).nth(1);
+  await older.click();
+  await alice.locator('[data-version-mark="changed"]').waitFor({ timeout: 15000 }).catch(() => {});
+  check("…sees an older version with what differs marked", (await alice.locator('[data-version-mark="changed"]').count()) >= 1);
+  alice.once("dialog", (dialog) => dialog.accept());
+  await alice.locator("[data-restore-version]").click();
+  const restored = await until(() => sql(`select content #>> '{0,content,0,text}' from public.pages where id = '${notes}'`) === "Version one", 15000);
+  check("…and restores it", restored && sql(`select reason from public.page_versions where page_id = '${notes}' order by created_at desc limit 1`) === "restore");
+}
+
 await finish("wiki");
