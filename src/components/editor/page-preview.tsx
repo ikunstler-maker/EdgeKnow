@@ -26,7 +26,8 @@ function inline(content: unknown): ReactNode {
   });
 }
 
-const HEADING = ["", "text-[3em] font-bold leading-tight", "text-[2em] font-bold leading-tight", "text-[1.3em] font-bold leading-snug"];
+// The same sizes and line height as the editor's headings, so the page doesn't jump when it takes over.
+const HEADING = ["", "text-[3em] font-bold leading-[1.5]", "text-[2em] font-bold leading-[1.5]", "text-[1.3em] font-bold leading-[1.5]"];
 
 function block(b: Block, index: number, numbers: Map<number, number>, depth: number): ReactNode {
   const key = b.id ?? index;
