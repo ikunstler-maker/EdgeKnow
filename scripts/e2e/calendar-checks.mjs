@@ -499,9 +499,11 @@ export async function feedChecks() {
     return { status: res.status, type: res.headers.get("content-type") ?? "", text: res.status === 200 ? await res.text() : "" };
   };
   const issue = async () => {
+    const field = alice.locator("[data-feed-address]");
+    const old = (await field.count()) ? await field.inputValue() : "";
     await alice.locator("[data-feed-issue]").click();
-    await alice.waitForFunction((old) => document.querySelector("[data-feed-address]")?.value && document.querySelector("[data-feed-address]").value !== old, await alice.locator("[data-feed-address]").inputValue().catch(() => ""), { timeout: 15000 });
-    return alice.locator("[data-feed-address]").inputValue();
+    await alice.waitForFunction((was) => (document.querySelector("[data-feed-address]")?.value ?? was) !== was, old, { timeout: 15000 });
+    return field.inputValue();
   };
   await alice.goto(`${APP}/w/${alphaShort}/calendar`);
   await alice.locator("[data-open-feed]").click();
@@ -516,7 +518,6 @@ export async function feedChecks() {
   check("only the hash of the secret is kept", sql(`select count(*) from public.calendar_feeds where token_hash ~ '^[0-9a-f]{64}$'`) === "1");
   const second = await issue();
   check("a new address kills the old one", second !== first && (await read(first)).status === 404 && (await read(second)).status === 200);
-  alice.once("dialog", (dialog) => dialog.accept());
   await alice.locator("[data-feed-drop]").click();
   await alice.locator('[data-feed-state="off"]').waitFor({ timeout: 15000 });
   check("turned off, the address gives nothing", (await read(second)).status === 404 && sql(`select count(*) from public.calendar_feeds`) === "0");

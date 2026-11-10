@@ -136,7 +136,8 @@ export function CalendarScreen({
   // My own time off (balances, policies, requests) — for the request window and "withdraw".
   const [myLeave, setMyLeave] = useState<MyLeave | null>(null);
   const [leaveAsk, setLeaveAsk] = useState<{ from: string; to: string } | null>(null);
-  const [myAbsence, setMyAbsence] = useState<MyLeaveRequest | null>(null);
+  // The id of one's own absence to show; the request itself comes once own time off is loaded.
+  const [myAbsenceId, setMyAbsence] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   // How many days the week view shows: the whole week on a wide screen, three on a
   // tablet, one on a phone — so the page never scrolls sideways.
@@ -278,10 +279,8 @@ export function CalendarScreen({
     const start = new Date(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
     pick({ kind: "time", start, end: new Date(start.getTime() + 3_600_000) });
   };
-  const openMyAbsence = (id: string) => {
-    const request = myRequests.find((r) => r.id === id);
-    if (request) setMyAbsence(request);
-  };
+  const openMyAbsence = (id: string) => setMyAbsence(id);
+  const myAbsence = myAbsenceId ? (myRequests.find((r) => r.id === myAbsenceId) ?? null) : null;
   const restore = async (id: string) => {
     const result = await cancelEvent(shortId, id, true);
     if (result.ok) reload();
