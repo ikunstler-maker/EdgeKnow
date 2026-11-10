@@ -316,6 +316,8 @@ export type PageEditorProps = {
   userId: string;
   threads: CommentThread[];
   people: PeopleNames;
+  // "Save as PDF": the text only (no comments, contents or save state), light theme, read-only.
+  print?: boolean;
 };
 
 export default function PageEditor({
@@ -327,11 +329,13 @@ export default function PageEditor({
   userId,
   threads,
   people,
+  print = false,
 }: PageEditorProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   // The editor's own menus in the interface language.
   const editorDictionary = currentLocale() === "en" ? blockNoteEn : blockNoteUk;
-  const theme = useResolvedTheme();
+  const shownTheme = useResolvedTheme();
+  const theme = print ? "light" : shownTheme;
   const editor = useCreateBlockNote({
     schema,
     dictionary: {
@@ -470,6 +474,16 @@ export default function PageEditor({
     setTab("comments");
     if (!wide) setSheet("threads");
   };
+
+  if (print) {
+    return (
+      <EditorPageContext value={{ pageId }}>
+        <ChipPeopleContext value={chipPeople}>
+          <BlockNoteView editor={editor} editable={false} theme="light" slashMenu={false} formattingToolbar={false} filePanel={false} sideMenu={false} className="ek-editor" />
+        </ChipPeopleContext>
+      </EditorPageContext>
+    );
+  }
 
   return (
     <div className={`xl:grid xl:gap-8 ${hasColumn ? "xl:grid-cols-[minmax(0,1fr)_18rem]" : "xl:grid-cols-[minmax(0,1fr)_13rem]"}`}>

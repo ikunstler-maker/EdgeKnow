@@ -145,6 +145,10 @@ jobs:
       - name: Table formulas
         if: matrix.part == 'nodes'
         run: node --experimental-strip-types --no-warnings scripts/test-sheet-formulas.mjs
+      # Wiki page → Markdown export (hidden embeds stay hidden) and the .zip writer.
+      - name: Page Markdown export
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings scripts/test-page-markdown.mjs
       # The people and workspaces every part starts from (the API test leaves them).
       - name: Seed through the API isolation test
         run: |

@@ -10,7 +10,7 @@ import { readBoard, type BoardData } from "@/lib/boards";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { boardView, boardsForEmbed, createBoard, saveBoard, type BoardSummary, type BoardView } from "@/app/board-actions";
 
-const BoardCanvas = dynamic(() => import("@/components/boards/board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.boards.embed.loading}</p> });
+const BoardCanvas = dynamic(() => import("@/components/boards/board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>{t.boards.embed.loading}</p> });
 
 const e = t.boards.embed;
 // The page editor must not see the canvas's keys, clipboard or drops.
@@ -145,7 +145,7 @@ export function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string;
       <p className="text-sm text-muted">{e.empty}</p>
     );
   } else if (view === undefined) {
-    body = <p className="text-sm text-muted">{e.loading}</p>;
+    body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
     body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
   } else {

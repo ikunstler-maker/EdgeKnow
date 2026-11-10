@@ -31,7 +31,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Confirm button, frozen page, statistics, new revisions — in review.
 
 ## Wiki: order agreed (owner, 2026-11-10)
-- 1. Share menu: copy link + export (PDF/MD free; JSON/CSV/DOCX/HTML shown disabled with PRO badge) — plan awaiting OK.
+- 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-22). Formats behind PRO arrive with payments (stage 4).
 - 2. Drafts by default + Publish (RLS change → separate approval).
 - 3. Page version history (view + restore; DB size estimate first).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
