@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { calendarChecks, gridChecks, holidayChecks, linkChecks, repeatChecks, timeOffChecks } from "./calendar-checks.mjs";
+import { calendarChecks, feedChecks, gridChecks, holidayChecks, linkChecks, repeatChecks, timeOffChecks } from "./calendar-checks.mjs";
 import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, newPage, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
@@ -674,5 +674,6 @@ await repeatChecks();
 await linkChecks();
 await holidayChecks();
 await gridChecks();
+await feedChecks();
 
 await finish("nodes");

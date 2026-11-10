@@ -36,7 +36,7 @@ import type { Absence, Holiday, MyLeave, MyLeaveRequest } from "@/lib/time-off";
 import { EventDialog, type DialogState } from "./event-dialog";
 import { DobaNav, MyAbsenceDialog, RequestDialog } from "./time-off-screen";
 import { useDayDrag } from "./use-day-drag";
-import { CalendarSettingsDialog, PeoplePicker } from "./calendar-parts";
+import { CalendarSettingsDialog, FeedDialog, PeoplePicker } from "./calendar-parts";
 
 const c = t.calendar;
 const HOUR_PX = 48;
@@ -131,6 +131,7 @@ export function CalendarScreen({
     for (const listener of taskModeListeners) listener();
   };
   const [showSettings, setShowSettings] = useState(false);
+  const [showFeed, setShowFeed] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>("event");
   // My own time off (balances, policies, requests) — for the request window and "withdraw".
   const [myLeave, setMyLeave] = useState<MyLeave | null>(null);
@@ -312,6 +313,9 @@ export function CalendarScreen({
             ＋ {createMode === "absence" ? c.create.modes.absence : c.newEvent}
           </button>
         )}
+        <button type="button" onClick={() => setShowFeed(true)} className={buttonClass} aria-label={c.feed.open} title={c.feed.open} data-open-feed>
+          🔗
+        </button>
         {admin && (
           <button type="button" onClick={() => setShowSettings(true)} className={buttonClass} aria-label={c.settings.title} title={c.settings.title}>
             ⚙️
@@ -468,6 +472,7 @@ export function CalendarScreen({
       {myAbsence && myLeave && (
         <MyAbsenceDialog shortId={shortId} request={myAbsence} policy={policyName(myAbsence.policy_id)} today={myLeave.today} onClose={() => setMyAbsence(null)} onChanged={reload} />
       )}
+      {showFeed && <FeedDialog shortId={shortId} workspaceId={workspaceId} onClose={() => setShowFeed(false)} />}
       {showSettings && (
         <CalendarSettingsDialog
           shortId={shortId}

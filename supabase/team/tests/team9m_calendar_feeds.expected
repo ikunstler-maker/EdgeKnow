@@ -1,0 +1,10 @@
+bob turns the feed on: true
+bob reads the table:
+psql: ERROR:  permission denied for table calendar_feeds
+bob reads the feed himself:
+psql: ERROR:  permission denied for function calendar_feed
+zed (not a member) turns one on: forbidden
+bob's feed, of the two new events: Feed: with Bob; a description inside: false
+a wrong hash: nothing
+bob turns it off: true
+after that: nothing

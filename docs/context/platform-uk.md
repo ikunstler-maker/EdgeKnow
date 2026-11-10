@@ -94,6 +94,7 @@
 | `notifications`, `notification_prefs` | сповіщення (посилання: задача, сторінка, подія календаря, заявка на відсутність) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: події, їхні учасники, робочі дні й часовий пояс |
 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_holidays`, `leave_member_settings` | Doba: правила відсутностей, журнал балансів, заявки, свята, дати початку роботи |
+| `calendar_feeds` | Doba: хеш секрету особистої календарної підписки (закрита для всіх; підписку читає сервер) |
 | `audit_log`, `admin_audit_log` | журнали дій |
 | `platform_settings`, `rate_limits` | налаштування платформи й ліміти |
 

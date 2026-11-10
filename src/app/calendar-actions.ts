@@ -3,6 +3,9 @@
 import type { ActionResult } from "@/lib/action-result";
 import type { BusySlot, CalendarEvent, CalendarSettings, CalendarTask, CancelledEvent, EventAnswer, EventChip, EventDetails, EventFields, EventHit } from "@/lib/calendar";
 
+import { createHash, randomBytes } from "node:crypto";
+import { FEED_PATH } from "@/lib/calendar-feed";
+
 const isDay = (value: string | null | undefined): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
 import { dataClient, workspaceData, writeClient } from "@/lib/team-db/data";
 
@@ -158,4 +161,27 @@ export async function cancelEvent(shortId: string, eventId: string, restore = fa
 
 export async function saveCalendarSettings(shortId: string, workspaceId: string, settings: CalendarSettings) {
   return call(shortId, "set_calendar_settings", { ws: workspaceId, new_work_days: settings.work_days, new_time_zone: settings.time_zone });
+}
+
+// --- The person's own feed for calendar apps (phase 3a) ----------------------
+
+// Is the feed on, and since when. The address itself is never kept: only shown once.
+export async function loadFeed(shortId: string, workspaceId: string): Promise<{ since: string | null } | null> {
+  const db = await dataClient(shortId);
+  const { data, error } = await db.rpc("my_calendar_feed", { ws: workspaceId });
+  if (error || !data?.ok) return null;
+  return { since: (data.created_at as string | null) ?? null };
+}
+
+// A new secret address; an earlier one stops working at once.
+export async function issueFeed(shortId: string, workspaceId: string): Promise<ActionResult<{ path: string }>> {
+  if (!/^[a-z0-9]{8}$/.test(shortId)) return { ok: false, error: "invalid" };
+  const token = randomBytes(32).toString("base64url");
+  const saved = await call(shortId, "set_calendar_feed", { ws: workspaceId, new_hash: createHash("sha256").update(token).digest("hex") });
+  if (!saved.ok) return saved;
+  return { ok: true, path: `${FEED_PATH}/${shortId}/${token}.ics` };
+}
+
+export async function dropFeed(shortId: string, workspaceId: string) {
+  return call(shortId, "drop_calendar_feed", { ws: workspaceId });
 }
