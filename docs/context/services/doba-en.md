@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-24 (phases 1a, 1b, 2a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-25 (phases 1a, 1b, 2a, 2b). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -32,6 +32,12 @@ The team's shared calendar and time-off management in one place: events and meet
 - An answer ("going / not going") is for the whole series.
 - **Free/busy** and the calendar read days through one function: a cancelled day is nowhere and frees the time, a moved day is busy where it went.
 - **Reminder** per event (set by the organizer): 10 minutes, an hour or a day before. It reaches the bell while the site is open — there is no scheduler; a due reminder is made when the bell asks for news, once per event and start. Anyone can mute the kind.
+
+### Links with the rest of the platform (phase 2b)
+- **Rukh due dates:** a switch "no tasks / my tasks / all I can see" (default mine; kept on the device). Open tasks and those done within 14 days, on the due day only; read-only here, a click opens the task. At most three cards a day, then a "+N" counter that opens them all; the month shows one "tasks: N" row.
+- The calendar reads every project through `project_tasks` — the board's own one-pass rule — so it shows exactly what the person reads in Rukh. Another person's private task is not there at all.
+- **A unit invited to an event:** everyone in it and in the units under it (not guests, not the leads above) — once, when added. The event remembers its units; the organizer's "Refresh" invites who joined since. Who said "not going" is not invited again; who left a unit stays in the event.
+- **Search** finds events by title, place and description — only those the person sees, coming ones first. **Event chip** in the wiki (from "@"): title and time read with the reader's access; "No access" without the name otherwise.
 
 ### Screens
 - **Month** (on a phone: dots, a tap opens the day), **Week** (7 days; 3 on a tablet; 1 on a phone — never a sideways scroll), **List** (the next 60 days, plus the organizer's cancelled events).
@@ -80,8 +86,7 @@ The team's shared calendar and time-off management in one place: events and meet
 
 | What | State | Note |
 |---|---|---|
-| Rukh due dates on the calendar | phase 2b, next | switch "mine / all I can see" (default mine); other people's private tasks never show; a read function by the task visibility rules, no new table |
-| Inviting a unit; events in search and chips | phase 2b | |
+| Event chip in task descriptions | with "smart chips everywhere" | the task description has no chips yet |
 | Holidays, automatic accrual, start date and part-year norm | phase 2c | empty holiday list kept by admins/HR with "copy from last year"; monthly accrual in equal parts on the 1st; norm by the months left in the year, with rounding |
 | Reminders when the site is closed | with push notifications | |
 | External calendars (two-way sync, feeds) | phase 3 | separate plan and approval; neutral names only |
@@ -101,6 +106,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | `notifications.leave_request_id` | link from a notification to a request |
 
 - Nobody writes these tables directly: only functions (`create_calendar_event`, `update_calendar_event`, `invite_to_calendar_event`, `remove_calendar_event_attendee`, `respond_to_calendar_event`, `decide_calendar_event_request`, `cancel_calendar_event`, `set_calendar_settings`; for series — `change_calendar_occurrence`, `cancel_calendar_occurrence`, `split_calendar_event`, `end_calendar_series`; reminders — `calendar_remind_me`).
+- Phase 2b reads: `calendar_tasks` (Rukh tasks of a period), `search_calendar_events`, `calendar_event_chips`; writes: `invite_unit_to_calendar_event`, `refresh_calendar_event_units` (units kept in `calendar_events.invited_group_ids`). A change to the task visibility rules needs no change here as long as `project_tasks` follows it.
 - The days of a rule: `calendar_series` (arithmetic only); the real days of an event: `calendar_event_occurrences` (without cancelled days, with moved ones). **Anything new that reads a period must go through it** — the calendar, free/busy and reminders do.
 - Reading: `calendar_events_in` (a period's events in one pass, access worked out once per call — same rows as the table under RLS, compared in `stage53_calendar`), `calendar_event_details`, `calendar_busy` (start and end only).
 - Time off is written only by `seed_leave_policies`, `save_leave_policy`, `accrue_leave_year`, `adjust_leave_balance`, `request_leave`, `decide_leave_request`, `cancel_leave_request`; read by `my_leave`, `leave_inbox`, `leave_balance_sheet`, `leave_unit_overlaps`, `team_absences`. Who decides: `leave_can_decide` (leads up the tree via `leave_leads_of`, managers via `leave_manager`).
@@ -113,7 +119,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | Service | Link |
 |---|---|
 | **Core** | units (who decides on time off, the overlap hint), notifications (bell), roles (right `manage_leave`) and guests, "My data", backup |
-| **Rukh** | planned: task due dates on the calendar |
+| **Rukh** | task due dates on the calendar (`calendar_tasks`, through `project_tasks`) |
 | **Toker** | planned: meeting from a channel, reminders, "absent" status |
 | **Visio** | planned: video meeting from an event in one click (today: any https link) |
 | **Spilno** | planned: meetings with a client |
@@ -124,10 +130,10 @@ The team's shared calendar and time-off management in one place: events and meet
 |---|---|
 | Screens | `src/app/w/[wid]/calendar/page.tsx`, `src/app/w/[wid]/calendar/time-off/page.tsx` |
 | Actions | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
-| Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`) |
+| Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`); the wiki chip — `src/components/editor/event-chip.tsx` |
 | Logic (dates, zones, layout; time-off shapes) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
-| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql` (central `20261230100000_calendar_repeats.sql`) |
-| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
+| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql` (central `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
+| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
 
 ## 7. Important decisions
 
@@ -143,7 +149,7 @@ The team's shared calendar and time-off management in one place: events and meet
 
 ## 8. Known gaps and open questions
 
-- Events are not in search or chips yet.
+- No event chip in task descriptions; tasks can't be moved to another day from the calendar.
 - Series: no answer for a single day; no rule like "the last Friday of the month"; a notification about a changed day doesn't say which day; reminders don't come while the site is closed.
 - Time off: no holidays yet (working days are the week's working days); no part-year norm for someone who joins mid-year (use a manual correction); a request can't cross the new year (split it); an absence chip shows on non-working days inside its period too.
 - When an organizer's account is deleted the event stays without an organizer (admins can cancel a non-private one).

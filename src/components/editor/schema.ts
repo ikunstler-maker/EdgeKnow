@@ -13,6 +13,7 @@ import { t } from "@/i18n";
 import { calloutBlock } from "./callout-block";
 import { dropdownChip, pageChip, personChip } from "./chips";
 import { taskChip, tasksBlock } from "./task-blocks";
+import { eventChip } from "./event-chip";
 import { nodeMapBlock } from "./node-map-block";
 import { boardBlock } from "./board-block";
 import { sheetBlock } from "./sheet-block";
@@ -120,6 +121,7 @@ export const schema = BlockNoteSchema.create({
     pageChip,
     personChip,
     taskChip,
+    eventChip,
   },
   styleSpecs: {
     ...defaultStyleSpecs,

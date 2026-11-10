@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { dateLocale, t } from "@/i18n";
-import { cancelEvent, loadBusy, loadCalendar } from "@/app/calendar-actions";
+import { cancelEvent, loadBusy, loadCalendar, loadCalendarTasks } from "@/app/calendar-actions";
 import {
   DAY_MS,
+  TASKS_PER_DAY,
+  TASK_MODES,
+  TASK_MODE_KEY,
   addDays,
   addMonths,
   dayKey,
@@ -21,6 +24,9 @@ import {
   type CalendarEvent,
   type CalendarPerson,
   type CalendarSettings,
+  type CalendarTask,
+  type CalendarUnit,
+  type TaskMode,
   type CalendarView,
   type CancelledEvent,
 } from "@/lib/calendar";
@@ -36,6 +42,25 @@ const HOUR_PX = 48;
 // The part of a day column events take while colleagues' busy time is shown beside them.
 const EVENTS_SHARE = 66;
 const buttonClass = "inline-flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+
+// Which tasks to show is kept on this device (the server draws the default, "mine").
+const taskModeListeners = new Set<() => void>();
+const watchTaskMode = (listener: () => void) => {
+  taskModeListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    taskModeListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+};
+function readTaskMode(): TaskMode {
+  try {
+    const saved = window.localStorage.getItem(TASK_MODE_KEY) as TaskMode | null;
+    return saved && TASK_MODES.includes(saved) ? saved : "mine";
+  } catch {
+    return "mine";
+  }
+}
 
 const timeOf = (d: Date) => new Intl.DateTimeFormat(dateLocale(), { hour: "2-digit", minute: "2-digit" }).format(d);
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
@@ -56,6 +81,7 @@ export function CalendarScreen({
   guest,
   admin,
   people,
+  units,
   settings: initialSettings,
   initialView,
   initialDay,
@@ -67,6 +93,7 @@ export function CalendarScreen({
   guest: boolean;
   admin: boolean;
   people: CalendarPerson[];
+  units: CalendarUnit[];
   settings: CalendarSettings;
   initialView: CalendarView | null;
   initialDay: string | null;
@@ -83,6 +110,17 @@ export function CalendarScreen({
   const [watched, setWatched] = useState<string[]>([]);
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
+  // Rukh tasks with a due date: mine by default; the choice is kept on this device.
+  const taskMode = useSyncExternalStore(watchTaskMode, readTaskMode, () => "mine" as TaskMode);
+  const [tasks, setTasks] = useState<CalendarTask[]>([]);
+  const chooseTaskMode = (mode: TaskMode) => {
+    try {
+      window.localStorage.setItem(TASK_MODE_KEY, mode);
+    } catch {
+      // Not remembered, that's all.
+    }
+    for (const listener of taskModeListeners) listener();
+  };
   const [showSettings, setShowSettings] = useState(false);
   // How many days the week view shows: the whole week on a wide screen, three on a
   // tablet, one on a phone — so the page never scrolls sideways.
@@ -154,6 +192,18 @@ export function CalendarScreen({
     };
   }, [shortId, workspaceId, guest, firstDay, lastDay, tick]);
   const timeOffHref = workspacePath(shortId, "/calendar/time-off?tab=team");
+  useEffect(() => {
+    if (taskMode === "off") return;
+    let live = true;
+    loadCalendarTasks(shortId, workspaceId, firstDay, lastDay, taskMode === "mine").then((list) => {
+      if (live) setTasks(list);
+    });
+    return () => {
+      live = false;
+    };
+  }, [shortId, workspaceId, taskMode, firstDay, lastDay, tick]);
+  const shownTasks = taskMode === "off" ? [] : tasks;
+  const taskHref = (task: CalendarTask) => workspacePath(shortId, `/tasks/${task.project}/${task.number}`);
 
   const reload = useCallback(() => setTick((n) => n + 1), []);
   const step = (direction: 1 | -1) => {
@@ -213,6 +263,19 @@ export function CalendarScreen({
         <h2 className="min-w-0 flex-1 truncate text-base font-medium first-letter:uppercase" data-calendar-heading>
           {heading}
         </h2>
+        <label className="flex items-center gap-1 text-sm">
+          <span className="text-muted" aria-hidden="true">
+            ✅
+          </span>
+          <span className="sr-only">{c.tasks.label}</span>
+          <select value={taskMode} onChange={(e) => chooseTaskMode(e.target.value as TaskMode)} className="min-h-11 rounded-md border border-border bg-background px-2 text-sm md:min-h-9" data-task-mode>
+            {TASK_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {c.tasks.modes[mode]}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="flex rounded-md border border-border" role="tablist" aria-label={c.viewLabel}>
           {(["month", "week", "list"] as const).map((v) => (
             <button
@@ -250,6 +313,7 @@ export function CalendarScreen({
             today={today}
             events={events}
             absences={absences}
+            tasks={shownTasks}
             timeOffHref={timeOffHref}
             workDays={settings.work_days}
             onPickDay={(day) => {
@@ -266,6 +330,8 @@ export function CalendarScreen({
             events={events}
             busy={shownBusy}
             absences={absences}
+            tasks={shownTasks}
+            taskHref={taskHref}
             timeOffHref={timeOffHref}
             nameOf={nameOf}
             workDays={settings.work_days}
@@ -273,7 +339,7 @@ export function CalendarScreen({
             onEvent={openEvent}
           />
         ) : (
-          <ListView from={range.from} events={events} absences={absences} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={openEvent} onRestore={restore} />
+          <ListView from={range.from} events={events} absences={absences} tasks={shownTasks} taskHref={taskHref} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={openEvent} onRestore={restore} />
         )}
       </div>
 
@@ -285,6 +351,7 @@ export function CalendarScreen({
           me={me}
           guest={guest}
           people={people}
+          units={units}
           defaultZone={settings.time_zone}
           state={dialog}
           onState={setDialog}
@@ -343,11 +410,61 @@ function AbsenceChip({ absence, href }: { absence: Absence; href: string }) {
   );
 }
 
+const dueOn = (tasks: CalendarTask[], day: Date) => {
+  const key = dayKey(day);
+  return tasks.filter((task) => task.due_date === key);
+};
+
+function TaskCard({ task, href }: { task: CalendarTask; href: string }) {
+  return (
+    <Link
+      href={href}
+      onClick={(e) => e.stopPropagation()}
+      className={`block truncate rounded border border-border bg-background px-1 text-xs leading-5 hover:bg-surface ${task.done ? "text-muted line-through" : ""}`}
+      title={`${task.key} ${task.title}`}
+      data-calendar-task={task.key}
+    >
+      <span aria-hidden="true">✅</span> <span className="text-muted">{task.key}</span> {task.title}
+    </Link>
+  );
+}
+
+// The tasks due on a day: a few cards and a "+N" counter for the rest, so a busy day
+// doesn't push the grid away (on a phone above all). The counter opens them all.
+function DayTasks({ tasks, taskHref }: { tasks: CalendarTask[]; taskHref: (task: CalendarTask) => string }) {
+  const [open, setOpen] = useState(false);
+  if (!tasks.length) return null;
+  const shown = open ? tasks : tasks.slice(0, TASKS_PER_DAY);
+  const more = tasks.length - shown.length;
+  return (
+    <div className="space-y-0.5" data-day-tasks={tasks.length}>
+      {shown.map((task) => (
+        <TaskCard key={task.id} task={task} href={taskHref(task)} />
+      ))}
+      {(more > 0 || open) && tasks.length > TASKS_PER_DAY && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(!open);
+          }}
+          className="block min-h-6 w-full rounded px-1 text-left text-xs text-muted hover:bg-surface hover:text-foreground"
+          aria-expanded={open}
+          data-more-tasks
+        >
+          {open ? c.tasks.fewer : c.tasks.more(more)}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function MonthView({
   anchor,
   today,
   events,
   absences,
+  tasks,
   timeOffHref,
   workDays,
   onPickDay,
@@ -357,6 +474,7 @@ function MonthView({
   today: Date;
   events: CalendarEvent[];
   absences: Absence[];
+  tasks: CalendarTask[];
   timeOffHref: string;
   workDays: number[];
   onPickDay: (day: Date) => void;
@@ -404,6 +522,11 @@ function MonthView({
                 {dayEvents.slice(0, 3).map((event) => (
                   <EventChip key={eventKey(event)} event={event} onOpen={onEvent} />
                 ))}
+                {dueOn(tasks, day).length > 0 && (
+                  <button type="button" onClick={() => onPickDay(day)} className="block w-full truncate rounded border border-border bg-background px-1 text-left text-xs leading-5 text-muted hover:text-foreground" data-month-tasks={dueOn(tasks, day).length}>
+                    <span aria-hidden="true">✅</span> {c.tasks.count(dueOn(tasks, day).length)}
+                  </button>
+                )}
                 {dayEvents.length > 3 && (
                   <button type="button" onClick={() => onPickDay(day)} className="block w-full rounded px-1 text-left text-xs text-muted hover:bg-surface">
                     {c.more(dayEvents.length - 3)}
@@ -425,6 +548,8 @@ function WeekView({
   events,
   busy,
   absences,
+  tasks,
+  taskHref,
   timeOffHref,
   nameOf,
   workDays,
@@ -437,6 +562,8 @@ function WeekView({
   events: CalendarEvent[];
   busy: BusySlot[];
   absences: Absence[];
+  tasks: CalendarTask[];
+  taskHref: (task: CalendarTask) => string;
   timeOffHref: string;
   nameOf: (id: string) => string;
   workDays: number[];
@@ -480,6 +607,7 @@ function WeekView({
               {offOn(absences, day).map((absence) => (
                 <AbsenceChip key={absence.id} absence={absence} href={timeOffHref} />
               ))}
+              <DayTasks tasks={dueOn(tasks, day)} taskHref={taskHref} />
               {wholeBusy.map((slot, i) => (
                 <div key={i} className="truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted" data-busy>
                   {c.busyOf(nameOf(slot.user_id))}
@@ -578,6 +706,8 @@ function ListView({
   from,
   events,
   absences,
+  tasks,
+  taskHref,
   timeOffHref,
   cancelled,
   loading,
@@ -587,6 +717,8 @@ function ListView({
   from: Date;
   events: CalendarEvent[];
   absences: Absence[];
+  tasks: CalendarTask[];
+  taskHref: (task: CalendarTask) => string;
   timeOffHref: string;
   cancelled: CancelledEvent[];
   loading: boolean;
@@ -628,6 +760,24 @@ function ListView({
           </ul>
         </section>
       ))}
+      {tasks.length > 0 && (
+        <section className="mt-6" data-list-tasks>
+          <h3 className="mb-1 text-sm font-medium text-muted">{c.tasks.title}</h3>
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {tasks.slice(0, 40).map((task) => (
+              <li key={task.id}>
+                <Link href={taskHref(task)} className="flex min-h-11 items-center gap-3 px-3 py-1 text-sm hover:bg-surface" data-calendar-task={task.key}>
+                  <span className="w-20 shrink-0 text-xs text-muted">{new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(fromDayKey(task.due_date))}</span>
+                  <span className={`min-w-0 flex-1 truncate ${task.done ? "text-muted line-through" : ""}`}>
+                    <span className="text-muted">{task.key}</span> {task.title}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {tasks.length > 40 && <p className="mt-1 text-xs text-muted">{c.tasks.more(tasks.length - 40)}</p>}
+        </section>
+      )}
       {absences.length > 0 && (
         <section className="mt-6" data-list-absences>
           <h3 className="mb-1 text-sm font-medium text-muted">{t.timeOff.title}</h3>

@@ -1,0 +1,3 @@
+bob: Bob private, Team task — same as Rukh; finds: 1, chips: 1
+alice (owner): Team task — same as Rukh; finds: 0, chips: 0, invites a unit to bob's event: forbidden
+carol (not a member): nothing — same as Rukh; finds: 0, chips: 0
