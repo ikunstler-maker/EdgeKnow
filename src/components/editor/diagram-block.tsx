@@ -8,7 +8,7 @@ import { HEIGHTS, parseDiagram } from "@/lib/diagram";
 // React Flow loads only on pages that have a diagram.
 const DiagramCanvas = dynamic(() => import("./diagram-canvas"), {
   ssr: false,
-  loading: () => <p className="p-4 text-sm text-muted">{t.editor.diagram.loading}</p>,
+  loading: () => <p className="p-4 text-sm text-muted" data-export-loading>{t.editor.diagram.loading}</p>,
 });
 
 // A node diagram: rounded rectangles on a grid, connected by arrows.

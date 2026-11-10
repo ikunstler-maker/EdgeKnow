@@ -10,8 +10,8 @@ import { readMap, type MapData } from "@/lib/nodes";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { createNodeMap, nodeObjectView, nodeObjectsForEmbed, saveNodeMap, type NodeObjectSummary, type NodeObjectView } from "@/app/node-actions";
 
-const MindMapCanvas = dynamic(() => import("@/components/nodes/mind-map-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
-const DiagramCanvas = dynamic(() => import("./diagram-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
+const MindMapCanvas = dynamic(() => import("@/components/nodes/mind-map-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>…</p> });
+const DiagramCanvas = dynamic(() => import("./diagram-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>…</p> });
 
 const e = t.nodes.embed;
 
@@ -118,7 +118,7 @@ export function NodeMapEmbed({ objectId, pageEditable, onPick }: { objectId: str
       <p className="text-sm text-muted">{e.empty}</p>
     );
   } else if (view === undefined) {
-    body = <p className="text-sm text-muted">{e.loading}</p>;
+    body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
     body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
   } else {

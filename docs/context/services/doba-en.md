@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-23 (phases 1a, 1b, 2a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-23) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-24 (phases 1a, 1b, 2a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 

@@ -15,6 +15,7 @@ import { PageBody } from "@/components/editor/page-body";
 import { PageCover } from "@/components/pages/page-cover";
 import { PageHeader } from "@/components/pages/page-header";
 import { ShareButton } from "@/components/pages/share-dialog";
+import { PageExportButton } from "@/components/pages/page-export";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
 import { ClearNewFlag } from "@/components/pages/clear-new-flag";
@@ -197,6 +198,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
         <div className="mb-2 flex flex-wrap justify-end gap-2">
           <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
           {(ack?.canManage || (!ack && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
+          <PageExportButton pageId={page.id} />
           <ShareButton pageId={page.id} />
         </div>
       )}

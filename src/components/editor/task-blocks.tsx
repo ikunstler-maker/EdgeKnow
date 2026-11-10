@@ -231,7 +231,7 @@ export function TasksEmbedView({
 
   let body: React.ReactNode;
   if (!projectId) body = editable ? null : <p className="text-sm text-muted">{w.empty}</p>;
-  else if (data === undefined) body = <p className="text-sm text-muted">{w.loading}</p>;
+  else if (data === undefined) body = <p className="text-sm text-muted" data-export-loading>{w.loading}</p>;
   else if (data === null) body = <p className="text-sm text-muted">{w.noAccess}</p>;
   else {
     const statusOf = new Map(data.statuses.map((s) => [s.id, s]));

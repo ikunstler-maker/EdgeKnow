@@ -39,6 +39,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 - **Read confirmations:** the page owner turns on a button ("Read" / "I accept the terms" / "I agree"); the page freezes; statistics of who confirmed; a new revision requires confirming again.
 - **Page from an external source:** an admin gives a URL with Markdown — the server fills and refreshes the page.
 - **Page backups** to Google Drive: daily and by button, as JSON and Markdown.
+- **"Export" menu** next to "Share": copy the page link (opens only for people with access); PDF and Markdown (Free); JSON, CSV, DOCX, HTML shown greyed out with a PRO badge. PDF: a print view of the page (`/p/<id>/print`, read-only editor, light theme) waits for embeds and pictures, then opens the browser's print window ("Save as PDF") — nothing runs on the server. Markdown: built in the browser from one server action that reads the embeds with the reader's own access; tables become Markdown tables (≤500 rows per sheet), task lists become checklists, other embeds a line with a link, chips links; anything hidden becomes "🔒 No access" without its name; comments are left out. Uploaded pictures and audio go into a .zip next to the .md (`files/`); pictures from other sites stay links.
 
 ### Search
 - Page titles and text, diagram nodes, link cards; by content type (headings, images, code, checklists, etc.).
@@ -49,7 +50,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | What | State | Note |
 |---|---|---|
 | Drafts by default and "Publish" | planned | access change → separate approval; existing pages stay published |
-| "Share" button: link and export | planned | PDF, Markdown — Free; JSON, CSV, DOCX, HTML — PRO |
+| "Export" menu: link, PDF, Markdown | done | JSON, CSV, DOCX, HTML shown with PRO; they need payments (stage 4) |
 | Real-time editing with cursors | planned (stage 3) | |
 | Page version history | planned | 7 days / 1 year / unlimited by plan |
 | Page templates | planned | |
@@ -98,7 +99,8 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | Page actions | `src/app/page-actions.ts`, `comment-actions.ts`, `page-ack-actions.ts`, `external-source-actions.ts` |
 | Editor and blocks | `src/components/editor/` (`page-editor.tsx`, `page-preview.tsx`, `schema.ts`, `*-block.tsx`) |
 | Header, sharing, cover | `src/components/pages/` |
-| Logic | `src/lib/pages.ts`, `comments.ts`, `chips.ts`, `markdown.ts` |
+| Logic | `src/lib/pages.ts`, `comments.ts`, `chips.ts`, `markdown.ts` (backups) |
+| Export | `src/components/pages/page-export.tsx`, `page-print.tsx`, `src/app/page-export-actions.ts`, `src/lib/page-markdown.ts`, `src/lib/zip.ts`; test `scripts/test-page-markdown.mjs` |
 | End-to-end tests | `scripts/e2e/wiki.mjs` |
 
 ## 7. Important decisions
