@@ -33,6 +33,23 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-b",
+    version: "0.18.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: відпустки й відсутності", en: "Doba: time off" },
+    summaryDescription: {
+      uk: "Правила, баланси, заявки із заступником і погодження керівником підрозділу.",
+      en: "Policies, balances, requests with a deputy and approval by the unit's lead.",
+    },
+    items: [
+      { id: "leave-requests", type: "added", scope: "calendar", title: { uk: "Заявки на відпустку, лікарняний, відгул і віддалену роботу — на день, кілька днів або пів дня.", en: "Requests for vacation, sick leave, a day off and remote work — a day, several days or half a day." } },
+      { id: "leave-approval", type: "added", scope: "calendar", title: { uk: "Погодження керівником підрозділу; власну заявку не погоджує ніхто.", en: "Approval by the unit's lead; nobody approves their own request." } },
+      { id: "leave-balances", type: "added", scope: "calendar", title: { uk: "Баланси з річним нарахуванням, перенесенням залишку й ручними правками.", en: "Balances with a yearly accrual, carry-over and manual corrections." } },
+      { id: "leave-calendar", type: "added", scope: "calendar", title: { uk: "Відсутності колег видно в календарі — без зайвих подробиць.", en: "Colleagues' absences show on the calendar — without extra details." } },
+      { id: "leave-role", type: "added", scope: "security", title: { uk: "Право ролі «Керувати відпустками» для HR.", en: "The role right “Manage time off” for HR." } },
+    ],
+  },
+  {
     id: "2026-11-10",
     version: "0.17.0",
     date: "2026-11-10",

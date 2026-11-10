@@ -23,7 +23,7 @@ The core gives every service people, access, storage, search, notifications and 
 
 ### People and access
 - Roles: owner, admin, member, guest.
-- **Custom roles** with rights and a "level" (the most a person gets on content open to the whole workspace).
+- **Custom roles** with rights (among them "Manage time off" for HR: policies, balances, approvals) and a "level" (the most a person gets on content open to the whole workspace).
 - **Unit tree** (up to 8 levels), unit managers; access flows down the tree and up — to managers only.
 - **Guest:** personal invitation to any email, optional end date; what a guest creates belongs to the workspace owner.
 
@@ -39,7 +39,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics
-- **Notifications** (bell): mentions, assignments, project rules, calendar events (invitation, request to join, answer, change or cancellation); in the browser while the site is open; per-person settings. A new kind of notification adds its link column and its kinds to `notifications` and extends `my_notifications` and `set_notification_prefs`.
+- **Notifications** (bell): mentions, assignments, project rules, calendar events (invitation, request to join, answer, change or cancellation), time off (a request to decide on, a decision, "you are the deputy", an absence for information); in the browser while the site is open; per-person settings. A new kind of notification adds its link column and its kinds to `notifications` and extends `my_notifications` and `set_notification_prefs`.
 - **Analytics:** everyone sees their own numbers; owner and admins — everyone's; the platform admin — totals only.
 
 ### Look
@@ -74,7 +74,6 @@ The core gives every service people, access, storage, search, notifications and 
 | Pricing: feature flags, PRO badge, payments | planned (stage 4) | `docs/pricing-uk.md` |
 | 2 devices per email limit | planned | sign-in change → approval |
 | Corporate SSO, exportable audit log | planned | Business |
-| Role right "Manage time off" | approved (Doba 1b) | for HR: policies, balances, approvals |
 | Key `CALENDAR_TOKEN_KEY` | approved (Doba phase 3) | its own key for external calendars' secrets, next to `DRIVE_TOKEN_KEY` and `TEAM_DB_KEY` (`src/lib/drive/secret-box.ts`) |
 | Mini-game with Apus | owner's request | original game; online mode → approval |
 | Phone app (PWA) | planned | |
@@ -92,8 +91,9 @@ The core gives every service people, access, storage, search, notifications and 
 | `service_objects` and their access tables | service objects |
 | `object_collections`, `object_collection_items` | collections |
 | `object_files`, `attachments` | files |
-| `notifications`, `notification_prefs` | notifications (links: task, page, calendar event) |
+| `notifications`, `notification_prefs` | notifications (links: task, page, calendar event, time-off request) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: events, their people, working days and time zone |
+| `leave_policies`, `leave_balances`, `leave_requests` | Doba: time-off policies, the balance ledger, requests |
 | `audit_log`, `admin_audit_log` | action logs |
 | `platform_settings`, `rate_limits` | platform settings and limits |
 

@@ -31,7 +31,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Confirm button, frozen page, statistics, new revisions — in review.
 
 ## Wiki: order agreed (owner, 2026-11-10)
-- 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-22). Formats behind PRO arrive with payments (stage 4).
+- 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
 - 2. Drafts by default + Publish (RLS change → separate approval).
 - 3. Page version history (view + restore; DB size estimate first).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
@@ -54,9 +54,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - **Video meetings (later, after Chat).** Own alternative to Meet/Zoom inside the ecosystem: from chat channels, synced with the calendar and tasks. Plan separately (likely WebRTC with a hosted SFU; cost/licence check first).
 
 ## Doba: calendar + time off (owner approved 2026-11-10; decision 2027-01-21)
-- 1а events — in review: 4 kinds (open / request / invite / private), people and answers, requests to join, free/busy without details, time zones, month / week (1–3 days on narrow screens) / list, notifications, cancel + restore (30 days), settings (working days, zone).
-- 1б time off — NEXT (tables and rules already approved): `leave_policies`, `leave_balances` (ledger), `leave_requests` with `deputy_id`; role right «Керувати відпустками»; one-step approval up the unit tree (first decision wins); manual yearly accrual; cancel an approved request (author before the start; lead/admin/HR any time) with days returned; policies without approval → active at once + info notification to lead and deputy; overlap hint within the unit; colleagues see only "absent"/"remote", dates and deputy; absences shown on the calendar.
-- 2: repeats (the `recurrence` column exists, always empty) with "this occurrence only"; Rukh due dates on the calendar (read function by the task visibility rules); automatic monthly accrual; holidays; inviting a unit; events in search, chips; landing card without "Soon" once time off is live.
+- 1а events — DONE (#129).
+- 1б time off — in review (decision 2027-01-22): policies from four templates, ledger balances, idempotent yearly accrual, requests with halves and a deputy, one-step approval up the unit tree, cancel with days returned, policies without approval or without a balance limit, overlap hint, role right `manage_leave`, absences on the calendar.
+- 2: repeats (the `recurrence` column exists, always empty) with "this occurrence only"; Rukh due dates on the calendar (read function by the task visibility rules); automatic monthly accrual; holidays (working days are counted by the week's working days only for now); a start date per person for a part-year norm; absences hidden on non-working days for working-day policies; inviting a unit; events in search, chips; landing card without "Soon" once time off is live.
 - 3: external calendars — separate plan and approval (table `calendar_connections`, key `CALENDAR_TOKEN_KEY`, open webhook route in `src/proxy.ts`, outgoing ICS feed). Neutral names only.
 - Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 

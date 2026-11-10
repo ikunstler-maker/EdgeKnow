@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { dateLocale, t } from "@/i18n";
 import { cancelEvent, loadBusy, loadCalendar } from "@/app/calendar-actions";
@@ -23,7 +24,11 @@ import {
   type CalendarView,
   type CancelledEvent,
 } from "@/lib/calendar";
+import { loadAbsences } from "@/app/time-off-actions";
+import { workspacePath } from "@/lib/paths";
+import type { Absence } from "@/lib/time-off";
 import { EventDialog, type DialogState } from "./event-dialog";
+import { DobaNav } from "./time-off-screen";
 import { CalendarSettingsDialog, PeoplePicker } from "./calendar-parts";
 
 const c = t.calendar;
@@ -77,6 +82,7 @@ export function CalendarScreen({
   const [dialog, setDialog] = useState<DialogState | null>(initialEvent ? { mode: "details", id: initialEvent } : null);
   const [watched, setWatched] = useState<string[]>([]);
   const [busy, setBusy] = useState<BusySlot[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   // How many days the week view shows: the whole week on a wide screen, three on a
   // tablet, one on a phone — so the page never scrolls sideways.
@@ -134,6 +140,21 @@ export function CalendarScreen({
   }, [shortId, workspaceId, watched, fromIso, toIso, tick]);
   const shownBusy = watched.length ? busy : [];
 
+  // Approved absences of the shown days (members only; guests get none).
+  const firstDay = dayKey(range.from);
+  const lastDay = dayKey(addDays(range.to, -1));
+  useEffect(() => {
+    if (guest) return;
+    let live = true;
+    loadAbsences(shortId, workspaceId, firstDay, lastDay).then((list) => {
+      if (live) setAbsences(list);
+    });
+    return () => {
+      live = false;
+    };
+  }, [shortId, workspaceId, guest, firstDay, lastDay, tick]);
+  const timeOffHref = workspacePath(shortId, "/calendar/time-off?tab=team");
+
   const reload = useCallback(() => setTick((n) => n + 1), []);
   const step = (direction: 1 | -1) => {
     if (view === "month") setAnchor(addMonths(anchor, direction));
@@ -164,6 +185,7 @@ export function CalendarScreen({
     <main className="flex min-w-0 flex-1 flex-col px-3 py-4 md:px-6" data-calendar>
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-2xl font-semibold">📅 {c.title}</h1>
+        {!guest && <DobaNav shortId={shortId} current="events" />}
         {!guest && (
           <button type="button" onClick={() => openNew()} className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 text-sm font-medium text-white hover:opacity-90 md:min-h-9" data-new-event>
             ＋ {c.newEvent}
@@ -225,6 +247,8 @@ export function CalendarScreen({
             anchor={anchor}
             today={today}
             events={events}
+            absences={absences}
+            timeOffHref={timeOffHref}
             workDays={settings.work_days}
             onPickDay={(day) => {
               setAnchor(day);
@@ -239,13 +263,15 @@ export function CalendarScreen({
             today={today}
             events={events}
             busy={shownBusy}
+            absences={absences}
+            timeOffHref={timeOffHref}
             nameOf={nameOf}
             workDays={settings.work_days}
             onSlot={openNew}
             onEvent={(id) => setDialog({ mode: "details", id })}
           />
         ) : (
-          <ListView from={range.from} events={events} cancelled={cancelled} loading={state === "loading"} onEvent={(id) => setDialog({ mode: "details", id })} onRestore={restore} />
+          <ListView from={range.from} events={events} absences={absences} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={(id) => setDialog({ mode: "details", id })} onRestore={restore} />
         )}
       </div>
 
@@ -298,10 +324,26 @@ function EventChip({ event, onOpen, withTime = true }: { event: CalendarEvent; o
   );
 }
 
+const offOn = (absences: Absence[], day: Date) => {
+  const key = dayKey(day);
+  return absences.filter((a) => a.start_date <= key && a.end_date >= key);
+};
+const absenceTitle = (a: Absence) => [a.person, a.label ?? (a.remote ? t.timeOff.team.remote : t.timeOff.team.absent), a.deputy ? t.timeOff.deputy(a.deputy) : null].filter(Boolean).join(" · ");
+
+function AbsenceChip({ absence, href }: { absence: Absence; href: string }) {
+  return (
+    <Link href={href} onClick={(e) => e.stopPropagation()} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={absenceTitle(absence)} data-absence={absence.person}>
+      <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span> {absence.person}
+    </Link>
+  );
+}
+
 function MonthView({
   anchor,
   today,
   events,
+  absences,
+  timeOffHref,
   workDays,
   onPickDay,
   onEvent,
@@ -309,6 +351,8 @@ function MonthView({
   anchor: Date;
   today: Date;
   events: CalendarEvent[];
+  absences: Absence[];
+  timeOffHref: string;
   workDays: number[];
   onPickDay: (day: Date) => void;
   onEvent: (id: string) => void;
@@ -327,6 +371,7 @@ function MonthView({
       <div className="grid grid-cols-7">
         {grid.map((day, i) => {
           const dayEvents = events.filter((e) => onDay(e, day)).sort((a, b) => Number(b.all_day) - Number(a.all_day) || a.starts_at.localeCompare(b.starts_at));
+          const off = offOn(absences, day);
           const outside = day.getMonth() !== anchor.getMonth();
           const isToday = dayKey(day) === dayKey(today);
           return (
@@ -346,6 +391,11 @@ function MonthView({
                 {dayEvents.length > 0 && <span className="ml-0.5 mt-2.5 h-1.5 w-1.5 rounded-full bg-accent sm:hidden" aria-hidden="true" />}
               </button>
               <div className="hidden space-y-0.5 sm:block">
+                {off.length > 0 && (
+                  <Link href={timeOffHref} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={off.map(absenceTitle).join("\n")} data-absences={off.length}>
+                    <span aria-hidden="true">🌴</span> {off.length === 1 ? off[0].person : c.offCount(off.length)}
+                  </Link>
+                )}
                 {dayEvents.slice(0, 3).map((event) => (
                   <EventChip key={event.id} event={event} onOpen={onEvent} />
                 ))}
@@ -369,6 +419,8 @@ function WeekView({
   today,
   events,
   busy,
+  absences,
+  timeOffHref,
   nameOf,
   workDays,
   onSlot,
@@ -379,6 +431,8 @@ function WeekView({
   today: Date;
   events: CalendarEvent[];
   busy: BusySlot[];
+  absences: Absence[];
+  timeOffHref: string;
   nameOf: (id: string) => string;
   workDays: number[];
   onSlot: (start: Date, allDay?: boolean) => void;
@@ -417,6 +471,9 @@ function WeekView({
             <div key={dayKey(day)} className="min-h-7 min-w-0 space-y-0.5 border-l border-border p-0.5" onClick={() => onSlot(day, true)} data-all-day={dayKey(day)}>
               {whole.map((event) => (
                 <EventChip key={event.id} event={event} onOpen={onEvent} withTime={false} />
+              ))}
+              {offOn(absences, day).map((absence) => (
+                <AbsenceChip key={absence.id} absence={absence} href={timeOffHref} />
               ))}
               {wholeBusy.map((slot, i) => (
                 <div key={i} className="truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted" data-busy>
@@ -512,6 +569,8 @@ function WeekView({
 function ListView({
   from,
   events,
+  absences,
+  timeOffHref,
   cancelled,
   loading,
   onEvent,
@@ -519,6 +578,8 @@ function ListView({
 }: {
   from: Date;
   events: CalendarEvent[];
+  absences: Absence[];
+  timeOffHref: string;
   cancelled: CancelledEvent[];
   loading: boolean;
   onEvent: (id: string) => void;
@@ -559,6 +620,25 @@ function ListView({
           </ul>
         </section>
       ))}
+      {absences.length > 0 && (
+        <section className="mt-6" data-list-absences>
+          <h3 className="mb-1 text-sm font-medium text-muted">{t.timeOff.title}</h3>
+          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {absences.slice(0, 30).map((absence) => (
+              <li key={absence.id}>
+                <Link href={timeOffHref} className="flex min-h-11 items-center gap-2 rounded-md border border-border px-2 text-sm hover:bg-surface" title={absenceTitle(absence)}>
+                  <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span>
+                  <span className="min-w-0 flex-1 truncate">{absence.person}</span>
+                  <span className="shrink-0 text-xs text-muted">
+                    {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(fromDayKey(absence.start_date))}
+                    {absence.end_date !== absence.start_date ? ` – ${new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(fromDayKey(absence.end_date))}` : ""}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {cancelled.length > 0 && (
         <section className="mt-8" data-cancelled>
           <h3 className="mb-1 text-sm font-medium text-muted">{c.cancelledTitle}</h3>

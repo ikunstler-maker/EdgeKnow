@@ -1,0 +1,62 @@
+the role keeps the right: {"manage_leave": true}
+bob seeds the policies: forbidden
+hank (HR) seeds: 4, again: 0
+seeded: Vacation 0.0 approval, Sick leave 0.0 unlimited, Day off 0.0 approval, Remote work 0.0 unlimited
+bob changes a policy: forbidden, accrues: forbidden, corrects his balance: forbidden, reads the sheet: forbidden
+hank sets 10 days, 5 carried over: true, a third of a day: invalid
+day off needs a deputy: true
+bob asks before any accrual: no_balance
+this year: 5 people, again: 0
+next year: 5 people, again: 0, the year after: invalid
+day off: 5
+after frank joined: 1 more
+ledger rows of next year: accrual x6 (10.0..10.0), carry_over x5 (5.0..5.0)
+bob has: 15.0 given, 0 used, 0 waiting
+bob asks Mon–Fri: pending, 5 days
+the same days again: overlap, another policy over them: overlap
+a weekend only: no_days, across the new year: split_year, half of two days: invalid
+eleven more days while five wait: no_balance
+ten more: 10
+bob now: 15.0 given, 0 used, 15.0 waiting
+even half a day more: no_balance
+no deputy: deputy_required, himself as deputy: bad_deputy, a guest as deputy: bad_deputy
+first half: 0.5, first half again: overlap, second half: 0.5
+remote, norm 0: approved
+bob sees of his own: 5 requests, 4 ledger rows
+dave (same unit, his deputy) sees: 0 requests, 0 ledger rows, inbox: 0
+carol (lead of the unit above) sees: 5 requests, 4 ledger rows, inbox waiting: 4
+hank (HR) sees: 5 requests, 4 ledger rows
+alice (owner) sees: 5 requests, 4 ledger rows
+gwen (guest) sees: 0 requests, 0 ledger rows, policies: 0, her page: forbidden, absences: 0, asks: forbidden
+eve (outsider) sees: 0 requests, 0 ledger rows, policies: 0, absences: 0, overlaps: 0, decides: forbidden
+bob approves his own: forbidden
+dave approves: forbidden, cancels: forbidden
+dave asks the same week: pending
+dave is told who else is off: bob@off.test pending
+dave asks about bob: 0
+carol is told about bob's week: dave@off.test
+carol approves: true
+hank decides again: decided
+bob after the approval: 15.0 given, 5.0 used, 10.0 waiting
+carol approves her own: forbidden
+alice approves carol's: true
+frank (another colleague) sees: bob absent / deputy dave, carol absent, bob Remote work / deputy dave — keys: deputy,end_date,half,id,label,person,remote,start_date,user_id
+carol (decides for bob) sees: bob Vacation, carol Vacation, bob Remote work
+bob cancels his approved week: true, again: decided
+bob after cancelling: 15.0 given, 0 used, 10.0 waiting
+bob cancels one that has started: started
+carol cancels it: true
+hank adds 2 days: true, without a reason: invalid, to a guest: invalid
+the sheet has: 6 people, bob: 17.0
+psql: ERROR:  permission denied for table leave_balances
+psql: ERROR:  permission denied for table leave_requests
+psql: ERROR:  permission denied for table leave_policies
+carol hears: leave_decision x1, leave_info x3, leave_request x5
+bob hears: leave_decision x2
+dave (deputy) hears: leave_deputy x2 — sees of it: deputy,end_date,id,mine,person,start_date,status
+alice hears: leave_request x1
+frank hears: nothing, mutes: true
+people for the move include hank: true
+anon reads: false, anon calls: false, members call leave_can_decide: false
+psql: ERROR:  update or delete on table "leave_policies" violates foreign key constraint "leave_requests_policy_id_fkey" on table "leave_requests"
+after the workspace is gone: 0 requests, 0 policies
