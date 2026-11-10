@@ -205,6 +205,8 @@ const bobActions = {
   "trash alpha page": ["trash_page", { target_page: page.id }],
   "delete alpha": ["delete_workspace", { ws: alpha.id, confirm_name: "Alpha" }],
   "rename alpha": ["rename_workspace", { ws: alpha.id, new_name: "Mine" }],
+  "make an event in alpha": ["create_calendar_event", { ws: alpha.id, fields: { title: "Mine", visibility: "open", starts_at: "2030-01-10T10:00:00Z", ends_at: "2030-01-10T11:00:00Z", time_zone: "UTC", all_day: false }, people: [] }],
+  "set alpha's working days": ["set_calendar_settings", { ws: alpha.id, new_work_days: [1], new_time_zone: "UTC" }],
 };
 for (const [name, [fn, body]] of Object.entries(bobActions)) {
   const res = await rpc(bob, fn, body);

@@ -258,18 +258,35 @@ const STAGES: Stage[] = [
     onConflict: "id",
     replace: true,
   },
+  {
+    name: "calendar events",
+    table: "calendar_events",
+    columns: "id, workspace_id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, recurrence, organizer_id, created_by, created_at, updated_at, deleted_at, deleted_by",
+    order: "id",
+    onConflict: "id",
+  },
+  // People of events have no id of their own: the other side's rows are cleared and taken again.
+  {
+    name: "people of events",
+    table: "calendar_event_attendees",
+    columns: "event_id, workspace_id, user_id, status, invited_by, created_at, responded_at",
+    order: "event_id,user_id",
+    onConflict: "event_id,user_id",
+    replace: true,
+  },
+  { name: "calendar settings", table: "calendar_settings", columns: "workspace_id, work_days, time_zone, updated_by, updated_at", order: "workspace_id", onConflict: "workspace_id" },
   { name: "notification settings", table: "notification_prefs", columns: "workspace_id, user_id, muted, updated_at", order: "user_id", onConflict: "workspace_id,user_id" },
   {
     name: "notifications",
     table: "notifications",
-    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, created_at, read_at",
+    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, created_at, read_at",
     order: "id",
     onConflict: "id",
   },
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_settings", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -370,7 +387,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["notifications", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
+const BY_ID = ["notifications", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();

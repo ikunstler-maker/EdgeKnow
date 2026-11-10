@@ -39,7 +39,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics
-- **Notifications** (bell): mentions, assignments, project rules; in the browser while the site is open; per-person settings.
+- **Notifications** (bell): mentions, assignments, project rules, calendar events (invitation, request to join, answer, change or cancellation); in the browser while the site is open; per-person settings. A new kind of notification adds its link column and its kinds to `notifications` and extends `my_notifications` and `set_notification_prefs`.
 - **Analytics:** everyone sees their own numbers; owner and admins — everyone's; the platform admin — totals only.
 
 ### Look
@@ -74,6 +74,8 @@ The core gives every service people, access, storage, search, notifications and 
 | Pricing: feature flags, PRO badge, payments | planned (stage 4) | `docs/pricing-uk.md` |
 | 2 devices per email limit | planned | sign-in change → approval |
 | Corporate SSO, exportable audit log | planned | Business |
+| Role right "Manage time off" | approved (Doba 1b) | for HR: policies, balances, approvals |
+| Key `CALENDAR_TOKEN_KEY` | approved (Doba phase 3) | its own key for external calendars' secrets, next to `DRIVE_TOKEN_KEY` and `TEAM_DB_KEY` (`src/lib/drive/secret-box.ts`) |
 | Mini-game with Apus | owner's request | original game; online mode → approval |
 | Phone app (PWA) | planned | |
 
@@ -90,7 +92,8 @@ The core gives every service people, access, storage, search, notifications and 
 | `service_objects` and their access tables | service objects |
 | `object_collections`, `object_collection_items` | collections |
 | `object_files`, `attachments` | files |
-| `notifications`, `notification_prefs` | notifications |
+| `notifications`, `notification_prefs` | notifications (links: task, page, calendar event) |
+| `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: events, their people, working days and time zone |
 | `audit_log`, `admin_audit_log` | action logs |
 | `platform_settings`, `rate_limits` | platform settings and limits |
 

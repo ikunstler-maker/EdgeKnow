@@ -79,6 +79,12 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
   const rows = async (query: PromiseLike<{ data: unknown[] | null }>) => (await query).data ?? [];
   // Members and domains are always central; pages and discussions where the workspace keeps them.
   const of = (name: string, columns: string, from: SupabaseClient = source) => from.from(name).select(columns).eq("workspace_id", ws);
+  // Private events are for their people only (admins don't see them either), so they stay out of the copy.
+  const events = (await rows(
+    of("calendar_events", "id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, organizer_id, created_at, updated_at, deleted_at").neq("visibility", "private"),
+  )) as { id: string }[];
+  const eventIds = new Set(events.map((e) => e.id));
+  const eventPeople = ((await rows(of("calendar_event_attendees", "event_id, user_id, status, created_at, responded_at"))) as { event_id: string }[]).filter((a) => eventIds.has(a.event_id));
   const snapshot = {
     format: "edgeknow-workspace-snapshot/1",
     created_at: new Date().toISOString(),
@@ -106,6 +112,9 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
     comment_threads: await rows(of("comment_threads", "id, page_id, quoted_text, status, created_by, created_at, resolved_by, resolved_at")),
     comments: await rows(of("comments", "id, thread_id, author_id, body, mentions, created_at, edited_at")),
     attachments: await rows(of("attachments", "id, page_id, storage_path, mime_type, bytes, width, height, storage_backend, drive_file_id, uploaded_by, created_at")),
+    calendar_events: events,
+    calendar_event_attendees: eventPeople,
+    calendar_settings: await rows(of("calendar_settings", "work_days, time_zone, updated_at")),
     audit_log: await rows(of("audit_log", "action, details, actor_id, created_at").order("created_at", { ascending: false }).limit(1000)),
   };
 

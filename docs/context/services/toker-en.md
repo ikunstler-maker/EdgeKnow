@@ -32,7 +32,8 @@ Team chat next to the work: channels, direct messages, threads. The next big ser
 |---|---|
 | **Rukh** | task from a message; task notifications to a channel |
 | **Questa** | survey in a channel; form answers by a bot |
-| **Doba, Visio** | meeting from a channel; call from a channel |
+| **Doba** | meeting from a channel (an event with the channel's people); reminders of events in chat; "absent" status from approved time off (Doba 1b). Doba already notifies through the bell — chat will reuse those events, not duplicate them |
+| **Visio** | call from a channel |
 | **Wika** | page chips; objects shared between workspaces arrive together with chat |
 | **Free / Team** | on Free limited history and no shared channels — draft, open pricing question |
 

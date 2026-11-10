@@ -12,7 +12,7 @@ export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: st
   { key: "surveys", icon: "📝", ready: true, path: "/surveys" },
   { key: "chat", icon: "💬", ready: false, path: null },
   { key: "files", icon: "📁", ready: false, path: null },
-  { key: "calendar", icon: "📅", ready: false, path: null },
+  { key: "calendar", icon: "📅", ready: true, path: "/calendar" },
   { key: "meet", icon: "🎥", ready: false, path: null },
   { key: "ai", icon: "🤖", ready: false, path: null },
   { key: "sites", icon: "🌐", ready: false, path: null },

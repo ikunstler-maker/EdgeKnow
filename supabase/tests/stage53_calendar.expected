@@ -1,0 +1,53 @@
+bob (organizer) sees: Invite, Open, Private, Request — same as the table
+end before start: bad_time
+no title: bad_title
+link without https: bad_link
+unknown kind: invalid
+unknown time zone: bad_time_zone
+inviting an outsider: invalid
+alice (owner, not invited) sees: Invite, Open, Request — same as the table
+alice opens the private one: forbidden
+dana (admin, not invited) sees: Invite, Open, Request — same as the table
+carl (invited to both hidden) sees: Invite, Open, Private, Request — same as the table
+gwen (guest, invited to the private one) sees: Private — same as the table
+gwen creates: forbidden
+gwen joins the open one: forbidden
+gwen asks who is busy: 0
+gwen answers her invitation: tentative
+eve (outsider) sees: nothing — same as the table, rows: 0, people: 0
+eve opens: forbidden, joins: forbidden, busy: 0
+busy for alice: bob 10 10:00, bob 11 10:00, bob 12 10:00, carl 12 10:00, bob 13 10:00, carl 13 10:00 — keys: all_day,ends_at,starts_at,user_id
+too wide a period: 0 / 0
+alice joins the open one: accepted
+alice asks to join: requested
+alice joins the private one: forbidden
+alice decides on her own request: forbidden
+dana asks to join: requested
+dana sees of the request event: bob@cal.test accepted, dana@cal.test requested
+dana reads request rows directly: accepted,requested
+bob sees requests: 2
+bob lets alice in: true, refuses dana: true
+bob declines his own event: organizer
+dana asks again: forbidden
+carl (invited) edits: forbidden, invites: forbidden, removes: forbidden, cancels: forbidden
+carl answers: declined
+dana (admin) cancels the private one: forbidden, the invite-only one: true
+dana sets working days: true
+bob sets working days: forbidden, reads: 1234 Europe/Kyiv
+bob after the cancel sees: Open, Private, Request — same as the table
+bob brings it back: true
+bob moves the open one: true
+bob hides the request event: true
+people left: accepted,accepted
+psql: ERROR:  permission denied for table calendar_events
+psql: ERROR:  permission denied for table calendar_events
+psql: ERROR:  permission denied for table calendar_event_attendees
+psql: ERROR:  permission denied for table calendar_settings
+carl hears: event_invite Invite, event_invite Private
+alice hears: event_answer Request, event_change Open
+dana (refused, the event is hidden now) hears: event_answer (hidden)
+dana mutes invitations: true, nonsense: invalid
+gwen after her time: nothing, rows: 0, opens: forbidden
+purged: 1
+people for the move include carl: true
+anon reads: false, anon calls: false, members call notify_event: false

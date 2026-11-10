@@ -33,6 +33,22 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10",
+    version: "0.17.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: календар команди", en: "Doba: the team calendar" },
+    summaryDescription: {
+      uk: "Події чотирьох видів, запити на участь і зайнятість колег без зайвих деталей.",
+      en: "Four kinds of events, requests to join and colleagues' busy time without extra details.",
+    },
+    items: [
+      { id: "events", type: "added", scope: "calendar", title: { uk: "Події: відкриті, із запитом на участь, лише за запрошенням і приватні.", en: "Events: open, by request, invite-only and private." } },
+      { id: "busy", type: "added", scope: "calendar", title: { uk: "Доступність колег: закриті події видно лише як «Зайнято», без назви й учасників.", en: "Colleagues' availability: hidden events show only as “Busy”, without the title or the people." } },
+      { id: "views", type: "added", scope: "calendar", title: { uk: "Місяць, тиждень і список; на телефоні тиждень показує один день.", en: "Month, week and list; on a phone the week shows one day." } },
+      { id: "event-notifications", type: "added", scope: "global", title: { uk: "Сповіщення про запрошення, запити на участь, зміну часу й скасування подій.", en: "Notifications about invitations, requests to join, time changes and cancelled events." } },
+    ],
+  },
+  {
     id: "2026-11-07",
     version: "0.16.0",
     date: "2026-11-07",
