@@ -32,6 +32,8 @@ import { Popover } from "@/components/ui/popover";
 import { publishPageStats } from "@/components/pages/page-stats";
 import { ChipPeopleContext } from "./chips";
 import { rememberTask } from "./task-chip-store";
+import { eventWhen, rememberEvent } from "./event-chip";
+import { searchEvents } from "@/app/calendar-actions";
 import { TaskFromSelectionButton, TaskFromSelectionDialog } from "./task-from-selection";
 import { createTaskFromPage, searchTasksForChip } from "@/app/task-wiki-actions";
 import { EditorPageContext } from "./navigation-block";
@@ -255,6 +257,21 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "surveyEmbed" }),
   };
   return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed, sheetEmbed, surveyEmbed];
+}
+
+// "@": calendar events the person sees, by title (Doba, phase 2b).
+async function eventMentionItems(editor: Editor, shortId: string, query: string): Promise<DefaultReactSuggestionItem[]> {
+  if (query.trim().length < 2) return [];
+  const found = await searchEvents(shortId, query).catch(() => []);
+  return found.slice(0, 5).map((event) => ({
+    title: `${event.title} · ${eventWhen(event)}`,
+    group: t.calendar.chip.group,
+    icon: <span aria-hidden="true">📅</span>,
+    onItemClick: () => {
+      rememberEvent({ ...event, cancelled: false });
+      editor.insertInlineContent([{ type: "eventChip", props: { eventId: event.id } }, " "]);
+    },
+  }));
 }
 
 // "@": tasks by key or title, and a new task from what was typed (step Z4).
@@ -546,6 +563,7 @@ export default function PageEditor({
               getItems={async (query) => [
                 ...filterSuggestionItems(mentionItems(editor, chipPeople, pagesContext?.pages ?? [], pageId), query).slice(0, 8),
                 ...(pagesContext ? await taskMentionItems(editor, pagesContext.workspace.shortId, query, pageId) : []),
+                ...(pagesContext ? await eventMentionItems(editor, pagesContext.workspace.shortId, query) : []),
               ]}
             />
           )}

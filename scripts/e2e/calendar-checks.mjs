@@ -261,3 +261,82 @@ export async function repeatChecks() {
   const reminded = () => one(`select count(*) from public.notifications n join public.calendar_events e on e.id = n.event_id where n.kind = 'event_reminder' and n.user_id = '${colleagueId}' and e.title = 'Starting soon'`);
   check("a reminder reaches the invited person's bell, once", (await until(() => reminded() === "1", 40000)) && reminded() === "1", reminded());
 }
+
+// Phase 2b: Rukh due dates on the calendar (never another person's private task, at most
+// three cards a day), a unit invited to an event, events in search and as a wiki chip.
+export async function linkChecks() {
+  const base = `${APP}/w/${alphaShort}/calendar`;
+  const one = (query) => sql(query);
+  const day = new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10);
+
+  // Five open tasks due on one day (one is the colleague's) and Alice's private one.
+  const { data: project } = await aliceClient.rpc("create_task_project", { ws: alphaId, new_name: "Calendar", new_key: "CAL", new_icon: null, status_names: null });
+  for (let i = 1; i <= 5; i++) {
+    await aliceClient.rpc("create_task", { target_project: project.id, fields: { title: `Due task ${i}`, due_date: day, ...(i === 1 ? { assignee_id: colleagueId } : {}) } });
+  }
+  await aliceClient.rpc("create_task", { target_project: project.id, fields: { title: "Alice private deadline", due_date: day, private: true } });
+  check("(setup) six tasks due on one day", one(`select count(*) from public.tasks where project_id = '${project.id}' and due_date = '${day}'`) === "6");
+
+  await colleague.goto(`${base}?view=week&date=${day}`);
+  const cell = colleague.locator(`[data-all-day="${day}"]`);
+  await cell.locator("[data-calendar-task]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("by default the calendar shows my tasks only", (await cell.locator("[data-calendar-task]").count()) === 1 && (await cell.locator('[data-calendar-task="CAL-1"]').count()) === 1);
+  await colleague.locator("[data-task-mode]").selectOption("all");
+  await cell.locator("[data-more-tasks]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("“all I can see”: three cards and a counter for the rest", (await cell.locator("[data-calendar-task]").count()) === 3 && (await cell.locator("[data-more-tasks]").innerText()).includes("+2"), await cell.innerText().catch(() => ""));
+  await cell.locator("[data-more-tasks]").click();
+  check("…the counter opens them all", (await cell.locator("[data-calendar-task]").count()) === 5);
+  check("another person's private task is nowhere on the calendar", !(await colleague.locator("body").innerText()).includes("Alice private deadline"));
+  await alice.goto(`${base}?view=week&date=${day}`);
+  await alice.locator("[data-task-mode]").selectOption("all");
+  await alice.locator(`[data-all-day="${day}"] [data-more-tasks]`).click({ timeout: 15000 });
+  check("…while its own person sees it", await until(async () => (await alice.locator(`[data-all-day="${day}"]`).innerText()).includes("Alice private deadline"), 15000));
+  const phone = await newPage(colleagueCookies);
+  await phone.setViewportSize({ width: 390, height: 780 });
+  await phone.goto(`${base}?view=week&date=${day}`);
+  await phone.locator("[data-week]").waitFor({ timeout: 15000 });
+  const sideways = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  check("a day full of tasks still fits a phone", sideways <= 0, `overflow ${sideways}px`);
+  await phone.context().close();
+
+  // A unit invited to a new event from the form.
+  const { data: unit } = await aliceClient.rpc("create_workspace_group", { ws: alphaId, new_name: "Calendar crew", parent: null });
+  await aliceClient.rpc("set_workspace_group_member", { ws: alphaId, target_group: unit.id, member: colleagueId, included: true });
+  await alice.goto(`${base}?view=list`);
+  await alice.locator("[data-new-event]").click();
+  const form = alice.locator("[data-event-form]");
+  await form.locator('[data-event-field="title"]').fill("Quarter plan");
+  await form.locator('[data-event-field="visibility"]').selectOption("private");
+  await form.locator('[data-event-field="unit"]').selectOption({ label: "Calendar crew" });
+  await form.locator("[data-save-event]").click();
+  const invited = () => one(`select count(*) from public.calendar_event_attendees a join public.calendar_events e on e.id = a.event_id where e.title = 'Quarter plan' and a.user_id = '${colleagueId}' and a.status = 'invited'`);
+  check("inviting a unit invites its people", await until(() => invited() === "1", 15000), invited());
+  const plan = one(`select id from public.calendar_events where title = 'Quarter plan'`);
+
+  // Search: the invited colleague finds the private event, an outsider's search gives nothing.
+  await colleague.goto(`${APP}/w/${alphaShort}`);
+  await colleague.getByRole("button", { name: /Пошук/ }).first().click();
+  await colleague.locator("[data-search-events]").click();
+  await colleague.getByLabel(/Шукати в назвах/).fill("Quarter");
+  await colleague.locator("[data-event-results]").waitFor({ timeout: 15000 }).catch(() => {});
+  check("search finds an event the person sees", (await colleague.locator("[data-event-results] li").count()) === 1 && (await colleague.locator("[data-event-results]").innerText()).includes("Quarter plan"));
+  await colleague.keyboard.press("Escape");
+  const { data: bobHits } = await aliceClient.rpc("calendar_event_chips", { ids: [plan] });
+  check("(its organizer reads the chip)", bobHits?.length === 1);
+
+  // A chip of that event on a wiki page: the title for who sees it, "no access" otherwise.
+  const { data: page } = await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Chips of events" });
+  await aliceClient.rpc("save_page_content", {
+    target_page: page.id,
+    new_content: [{ id: "c1", type: "paragraph", content: [{ type: "text", text: "See ", styles: {} }, { type: "eventChip", props: { eventId: plan } }], children: [] }],
+    base_version: 1,
+  });
+  await aliceClient.rpc("set_page_workspace_role", { target_page: page.id, new_role: "viewer" });
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${page.id}`);
+  await colleague.locator('[data-event-chip="Quarter plan"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("an event chip shows the title to who sees the event", (await colleague.locator('[data-event-chip="Quarter plan"]').count()) === 1);
+  await aliceClient.rpc("remove_calendar_event_attendee", { target: plan, person: colleagueId });
+  await colleague.reload();
+  await colleague.locator('[data-event-chip="hidden"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("…and “no access” without the name to who doesn't", (await colleague.locator('[data-event-chip="hidden"]').count()) === 1 && !(await colleague.locator("body").innerText()).includes("Quarter plan"));
+}

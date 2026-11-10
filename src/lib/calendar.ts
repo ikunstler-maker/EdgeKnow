@@ -78,6 +78,18 @@ export type CalendarSettings = { work_days: number[]; time_zone: string };
 export type CalendarPerson = { id: string; name: string; guest: boolean };
 export type CancelledEvent = { id: string; title: string; starts_at: string; all_day: boolean; deleted_at: string; organizer_id: string | null; visibility: EventVisibility };
 
+// A Rukh task with a due date, as the calendar shows it (read-only here).
+export type CalendarTask = { id: string; key: string; project: string; number: number; title: string; due_date: string; done: boolean; priority: string; mine: boolean };
+// Which tasks the calendar shows: none, mine (assignee or taking part), or all I can read.
+export const TASK_MODES = ["off", "mine", "all"] as const;
+export type TaskMode = (typeof TASK_MODES)[number];
+export const TASK_MODE_KEY = "ek-calendar-tasks";
+// At most this many task cards in a day's row; the rest is a "+N" counter.
+export const TASKS_PER_DAY = 3;
+export type CalendarUnit = { id: string; name: string };
+export type EventHit = { id: string; title: string; location: string; all_day: boolean; recurring: boolean; starts_at: string };
+export type EventChip = { id: string; title: string; starts_at: string; all_day: boolean; recurring: boolean; cancelled: boolean };
+
 export const DEFAULT_SETTINGS: CalendarSettings = { work_days: [1, 2, 3, 4, 5], time_zone: "UTC" };
 export const CALENDAR_VIEWS = ["month", "week", "list"] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];

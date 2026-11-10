@@ -1,10 +1,10 @@
 "use server";
 
 import type { ActionResult } from "@/lib/action-result";
-import type { BusySlot, CalendarEvent, CalendarSettings, CancelledEvent, EventAnswer, EventDetails, EventFields } from "@/lib/calendar";
+import type { BusySlot, CalendarEvent, CalendarSettings, CalendarTask, CancelledEvent, EventAnswer, EventChip, EventDetails, EventFields, EventHit } from "@/lib/calendar";
 
 const isDay = (value: string | null | undefined): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
-import { dataClient, writeClient } from "@/lib/team-db/data";
+import { dataClient, workspaceData, writeClient } from "@/lib/team-db/data";
 
 // Doba: who sees and changes what is decided by the database functions; these only
 // forward to wherever the workspace keeps its data. No page re-render: the calendar
@@ -101,6 +101,47 @@ export async function cancelOccurrence(shortId: string, eventId: string, occurre
 export async function endSeries(shortId: string, eventId: string, occurrence: string) {
   if (!isDay(occurrence)) return { ok: false as const, error: "invalid" };
   return call(shortId, "end_calendar_series", { target: eventId, occurrence });
+}
+
+// Rukh tasks with a due date in a period — exactly those the person may read in Rukh.
+export async function loadCalendarTasks(shortId: string, workspaceId: string, from: string, to: string, onlyMine: boolean): Promise<CalendarTask[]> {
+  if (!isDay(from) || !isDay(to)) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("calendar_tasks", { ws: workspaceId, first_day: from, last_day: to, only_mine: onlyMine });
+  return (data ?? []) as CalendarTask[];
+}
+
+// A whole unit is invited: its people and those of the units under it.
+export async function inviteUnit(shortId: string, eventId: string, unit: string) {
+  return call<{ added: number }>(shortId, "invite_unit_to_calendar_event", { target: eventId, unit });
+}
+
+// Whoever joined the invited units since is invited too.
+export async function refreshEventUnits(shortId: string, eventId: string) {
+  return call<{ added: number }>(shortId, "refresh_calendar_event_units", { target: eventId });
+}
+
+// The units invited to an event (the organizer's own view; others get an empty list).
+export async function loadEventUnits(shortId: string, eventId: string): Promise<string[]> {
+  const db = await dataClient(shortId);
+  const { data } = await db.from("calendar_events").select("invited_group_ids").eq("id", eventId).maybeSingle();
+  return ((data?.invited_group_ids as string[] | undefined) ?? []);
+}
+
+// Search and chips: only events the person sees.
+export async function searchEvents(shortId: string, query: string): Promise<EventHit[]> {
+  const workspace = await workspaceData(shortId);
+  if (!workspace) return [];
+  const { data } = await workspace.client.rpc("search_calendar_events", { ws: workspace.workspaceId, query: query.trim().slice(0, 200) });
+  return (data ?? []) as EventHit[];
+}
+
+export async function eventChips(shortId: string, ids: string[]): Promise<EventChip[]> {
+  const wanted = ids.filter((id) => /^[0-9a-f-]{36}$/.test(id)).slice(0, 200);
+  if (!wanted.length) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("calendar_event_chips", { ids: wanted });
+  return (data ?? []) as EventChip[];
 }
 
 export async function respondToEvent(shortId: string, eventId: string, answer: EventAnswer) {

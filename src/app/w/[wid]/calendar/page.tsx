@@ -3,6 +3,7 @@ import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { CALENDAR_VIEWS, DEFAULT_SETTINGS, isDayKey, type CalendarPerson, type CalendarSettings, type CalendarView } from "@/lib/calendar";
 import { dataClient } from "@/lib/team-db/data";
+import { withPaths } from "@/lib/groups";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { CalendarScreen } from "@/components/calendar/calendar-screen";
 
@@ -20,8 +21,10 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
   if (!workspace) return null;
   const [user, db] = await Promise.all([getCurrentUser(), dataClient(wid)]);
   const guest = workspace.role === "guest";
-  const [{ data: settings }, { data: members }] = await Promise.all([
+  const [{ data: settings }, { data: groups }, { data: members }] = await Promise.all([
     db.from("calendar_settings").select("work_days, time_zone").eq("workspace_id", workspace.id).maybeSingle(),
+    // Units, to invite a whole one to an event.
+    guest ? Promise.resolve({ data: [] }) : db.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", workspace.id),
     // A guest invites nobody, so needs no list of people.
     guest
       ? Promise.resolve({ data: [] })
@@ -45,6 +48,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
       guest={guest}
       admin={isWorkspaceAdmin(workspace)}
       people={people}
+      units={withPaths((groups ?? []) as { id: string; name: string; parent_id: string | null }[]).map((u) => ({ id: u.id, name: u.name }))}
       settings={(settings as CalendarSettings | null) ?? DEFAULT_SETTINGS}
       initialView={view}
       initialDay={isDayKey(query.date) ? query.date : null}

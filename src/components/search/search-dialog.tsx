@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { t } from "@/i18n";
+import { dateLocale, t } from "@/i18n";
 import { ancestorsOf } from "@/lib/pages";
 import { pagePath, workspacePath } from "@/lib/paths";
 import { searchBlocks, searchPages, type BlockHit, type BlockKind, type SearchHit } from "@/app/page-actions";
 import { searchNodeObjects, type NodeObjectHit } from "@/app/node-actions";
 import { searchBoards, type BoardHit } from "@/app/board-actions";
+import { searchEvents } from "@/app/calendar-actions";
+import type { EventHit } from "@/lib/calendar";
 import { searchSheets, type SheetHit } from "@/app/sheet-actions";
 import { searchSurveys, type SurveyHit } from "@/app/survey-actions";
 import { usePages } from "@/components/pages/pages-provider";
@@ -95,7 +97,7 @@ function SearchDialog({
   const [depth, setDepth] = useState("all");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   // "" lets the words decide; "text" is plain text search even for "картинка".
-  const [kind, setKind] = useState<BlockKind | "" | "text" | "maps" | "boards" | "sheets" | "surveys">("");
+  const [kind, setKind] = useState<BlockKind | "" | "text" | "maps" | "boards" | "sheets" | "surveys" | "events">("");
   const [blockHits, setBlockHits] = useState<BlockHit[] | null>(null);
   // Maps and diagrams of the node space (step Н3): their own chip, and below page results.
   const [mapHits, setMapHits] = useState<NodeObjectHit[] | null>(null);
@@ -109,6 +111,9 @@ function SearchDialog({
   // Surveys (step О4): the same, with their questions and choices.
   const [surveyHits, setSurveyHits] = useState<SurveyHit[] | null>(null);
   const surveysMode = kind === "surveys";
+  // Calendar events (Doba): only those the person sees; coming ones first.
+  const [eventHits, setEventHits] = useState<EventHit[] | null>(null);
+  const eventsMode = kind === "events";
   const [pending, startTransition] = useTransition();
   const latest = useRef(0);
   const currentPage = currentPageId ? pages.find((p) => p.id === currentPageId) : undefined;
@@ -122,7 +127,7 @@ function SearchDialog({
 
   // A kind chosen with a button, or said in words: "картинка", "заголовки бюджет"…
   const said = kind ? null : detectKind(query);
-  const activeKind: BlockKind | "" = kind === "text" || kind === "maps" || kind === "boards" || kind === "sheets" || kind === "surveys" ? "" : kind || said?.kind || "";
+  const activeKind: BlockKind | "" = kind === "text" || kind === "maps" || kind === "boards" || kind === "sheets" || kind === "surveys" || kind === "events" ? "" : kind || said?.kind || "";
   const words = said ? said.rest : query.trim();
 
   // Searches after a short pause in typing; only the latest answer is shown.
@@ -142,6 +147,13 @@ function SearchDialog({
         startTransition(async () => {
           const result = await searchSheets(workspace.shortId, words);
           if (id === latest.current) setSheetHits(result);
+        });
+        return;
+      }
+      if (eventsMode) {
+        startTransition(async () => {
+          const result = await searchEvents(workspace.shortId, words);
+          if (id === latest.current) setEventHits(result);
         });
         return;
       }
@@ -168,12 +180,13 @@ function SearchDialog({
       }
       if (!words) return;
       startTransition(async () => {
-        const [result, maps, boards, tables, forms] = await Promise.all([
+        const [result, maps, boards, tables, forms, events] = await Promise.all([
           searchPages(workspace.id, words, root, levels),
           effectiveScope === "workspace" ? searchNodeObjects(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchBoards(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchSheets(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchSurveys(workspace.shortId, words) : Promise.resolve([]),
+          effectiveScope === "workspace" ? searchEvents(workspace.shortId, words) : Promise.resolve([]),
         ]);
         if (id === latest.current) {
           setHits(result);
@@ -181,13 +194,14 @@ function SearchDialog({
           setBoardHits(boards.slice(0, 5));
           setSheetHits(tables.slice(0, 5));
           setSurveyHits(forms.slice(0, 5));
+          setEventHits(events.slice(0, 5));
         }
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [words, activeKind, mapsMode, boardsMode, sheetsMode, surveysMode, effectiveScope, depth, workspace.id, workspace.shortId, currentPageId]);
+  }, [words, activeKind, mapsMode, boardsMode, sheetsMode, surveysMode, eventsMode, effectiveScope, depth, workspace.id, workspace.shortId, currentPageId]);
 
-  const shown = !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && query.trim() ? hits : null;
+  const shown = !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && !eventsMode && query.trim() ? hits : null;
   const sheetList = (list: SheetHit[]) => (
     <ul aria-label={s.sheets} data-sheet-results>
       {list.map((hit) => (
@@ -212,6 +226,23 @@ function SearchDialog({
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title || t.surveys.untitled}</span>
               {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+  const eventWhen = (hit: EventHit) =>
+    new Intl.DateTimeFormat(dateLocale(), hit.all_day ? { dateStyle: "medium", timeZone: "UTC" } : { dateStyle: "medium", timeStyle: "short" }).format(new Date(hit.starts_at));
+  const eventList = (list: EventHit[]) => (
+    <ul aria-label={s.events} data-event-results>
+      {list.map((hit) => (
+        <li key={hit.id}>
+          <Link href={workspacePath(workspace.shortId, `/calendar?event=${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
+            <span className="shrink-0 text-lg">📅</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{hit.title}</span>
+              <span className="block truncate text-xs text-muted">{[`${hit.recurring ? "↻ " : ""}${eventWhen(hit)}`, hit.location].filter(Boolean).join(" · ")}</span>
             </span>
           </Link>
         </li>
@@ -299,7 +330,7 @@ function SearchDialog({
           </div>
           <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={s.kindLabel}>
             {(["text", ...KINDS] as const).map((value) => {
-              const on = value === "text" ? !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode : activeKind === value;
+              const on = value === "text" ? !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && !eventsMode : activeKind === value;
               return (
                 <button
                   key={value}
@@ -327,6 +358,15 @@ function SearchDialog({
               className={`min-h-9 rounded-full border px-3 text-xs ${boardsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
               🎨 {s.boards}
+            </button>
+            <button
+              type="button"
+              aria-pressed={eventsMode}
+              onClick={() => setKind("events")}
+              className={`min-h-9 rounded-full border px-3 text-xs ${eventsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
+              data-search-events
+            >
+              📅 {s.events}
             </button>
             <button
               type="button"
@@ -363,6 +403,14 @@ function SearchDialog({
               <p className="p-3 text-sm text-muted">{pending ? s.searching : s.nothing}</p>
             ) : (
               sheetList(sheetHits)
+            )
+          ) : eventsMode ? (
+            !eventHits ? (
+              <p className="p-3 text-sm text-muted">{s.searching}</p>
+            ) : eventHits.length === 0 ? (
+              <p className="p-3 text-sm text-muted">{pending ? s.searching : s.nothing}</p>
+            ) : (
+              eventList(eventHits)
             )
           ) : boardsMode ? (
             !boardHits ? (
@@ -447,6 +495,12 @@ function SearchDialog({
             <div className="mt-2 border-t border-border pt-2">
               <p className="px-3 pb-1 text-xs font-medium text-muted">{s.boards}</p>
               {boardList(boardHits)}
+            </div>
+          )}
+          {shown && eventHits && eventHits.length > 0 && (
+            <div className="mt-2 border-t border-border pt-2">
+              <p className="px-3 pb-1 text-xs font-medium text-muted">{s.events}</p>
+              {eventList(eventHits)}
             </div>
           )}
           {shown && sheetHits && sheetHits.length > 0 && (

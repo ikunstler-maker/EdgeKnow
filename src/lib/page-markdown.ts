@@ -103,6 +103,9 @@ function inline(content: unknown, data: MdData, labels: MdLabels): string {
         }
         case "personChip":
           return `@${escapeText(str(p.props?.label) || "?")}`;
+        // The title of an event is read in the app with the reader's access; an exported file carries a mark only.
+        case "eventChip":
+          return "📅";
         case "taskChip": {
           const task = data.taskChips[str(p.props?.taskId)];
           if (!task) return `🔒 ${labels.noAccess}`;
