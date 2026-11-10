@@ -1,0 +1,24 @@
+owner: 10 pages, 0 only the old way, 0 only the new way
+owner roles: Closed=owner/-/-, Confirmed=owner/viewer/read, Deep under open=owner/editor/-, For Dave=owner/-/-, For Design=owner/-/-, For the guest=owner/viewer/-, Inherits open=owner/editor/-, Open to all=owner/editor/-, Under closed=owner/-/-, Viewers only=owner/viewer/-
+owner context: {"name": "Fast", "role": "owner", "team_database": false} / old: Fast owner
+bob (in Design): 8 pages, 0 only the old way, 0 only the new way
+bob roles: Bob's own=owner, Confirmed=viewer, Deep under open=editor, For Design=commenter, For the guest=viewer, Inherits open=editor, Open to all=editor, Viewers only=viewer
+bob context: {"name": "Fast", "role": "member", "team_database": false} / old: Fast member
+carol (leads Marketing, above Design): 7 pages, 0 only the old way, 0 only the new way
+carol roles: Confirmed=viewer, Deep under open=editor, For Design=commenter, For the guest=viewer, Inherits open=editor, Open to all=editor, Viewers only=viewer
+dave (no unit): 7 pages, 0 only the old way, 0 only the new way
+dave roles: Confirmed=viewer, Deep under open=editor, For Dave=editor, For the guest=viewer, Inherits open=editor, Open to all=editor, Viewers only=viewer
+gwen (guest): 1 pages, 0 only the old way, 0 only the new way
+gwen roles: For the guest=commenter
+gwen context: {"name": "Fast", "role": "guest", "team_database": false} / old: Fast guest
+zed (another workspace): 0 pages, 0 only the old way, 0 only the new way
+zed sees through the new way: 0
+zed context: nothing / old: nothing
+zed asks for his own workspace's tree: 0
+a wrong short id: nothing
+dave as an intern: 7 pages, 0 only the old way, 0 only the new way
+dave roles as an intern: Confirmed=viewer, Deep under open=viewer, For Dave=editor, For the guest=viewer, Inherits open=viewer, Open to all=viewer, Viewers only=viewer
+ordered by position: true
+gwen past her date: 0 pages, 0 only the old way, 0 only the new way, context: nothing
+frozen workspace, owner: 0 pages, 0 only the old way, 0 only the new way, context: nothing
+anon may call my_page_tree: false, workspace_context: false

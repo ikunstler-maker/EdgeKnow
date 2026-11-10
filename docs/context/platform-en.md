@@ -117,6 +117,7 @@ The core gives every service people, access, storage, search, notifications and 
 
 ## 6. Rules for services
 
+0. The request's workspace, role and data location come from one function, `workspace_context` (`src/lib/workspace.ts`).
 1. A new "file-like" service is built on `service_objects`, not on its own objects table.
 2. The database checks access. The UI only hides what is already forbidden.
 3. Embedding an object in another service stores only its ID; without access — "No access" with no name.
