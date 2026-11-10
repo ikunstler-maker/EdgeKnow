@@ -84,6 +84,15 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Cards were written from the decision log and code structure; items marked "verify in code" / «звірити з кодом» need a check when that service is next touched.
 - Keep `-uk` and `-en` twins in sync in the same PR.
 
+## Speed (owner approved 2026-11-10; decision 2027-01-16) — each step its own PR, measure before/after
+- Step 1 server region next to the database (Vercel `dub1` = Supabase eu-west-1) — DONE.
+- Step 2 fewer round trips per navigation: one RPC for the proxy check + workspace + role; parallel loads in the workspace layout and pages; team member sync in the background (`after()`), not inside a request.
+- Step 3 after an action refresh only what changed (now every action calls `revalidatePath("/", "layout")`: whole client cache dropped, layout re-rendered).
+- Step 4 `loading.tsx` skeletons for the workspace sections (none exist: navigation shows nothing until the server is done).
+- Step 5 access checks once per query, not per row (RLS → approved by the owner in principle; same visibility, security tests must give the same output). Measured locally: 310 pages 0.2–0.27 s, 300 tasks ~1 s vs 0.0002 s without checks (`effective_role`, `task_project_role`, `task_read_until` per row). Small workspaces don't feel it yet; needed before big ones and before realtime co-editing.
+- Later: ship only the current language's strings to the browser (both dictionaries, ~390 KB source, go to every page now).
+- Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
+
 ## Known gaps / follow-ups
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.
