@@ -30,11 +30,12 @@ import {
   type CalendarView,
   type CancelledEvent,
 } from "@/lib/calendar";
-import { loadAbsences, loadHolidays } from "@/app/time-off-actions";
+import { loadAbsences, loadHolidays, loadMyLeave } from "@/app/time-off-actions";
 import { workspacePath } from "@/lib/paths";
-import type { Absence, Holiday } from "@/lib/time-off";
+import type { Absence, Holiday, MyLeave, MyLeaveRequest } from "@/lib/time-off";
 import { EventDialog, type DialogState } from "./event-dialog";
-import { DobaNav } from "./time-off-screen";
+import { DobaNav, MyAbsenceDialog, RequestDialog } from "./time-off-screen";
+import { useDayDrag } from "./use-day-drag";
 import { CalendarSettingsDialog, PeoplePicker } from "./calendar-parts";
 
 const c = t.calendar;
@@ -61,6 +62,13 @@ function readTaskMode(): TaskMode {
     return "mine";
   }
 }
+
+// What a click or a drag on the grid picked: a stretch of time, or whole days.
+type GridPick = { kind: "time"; start: Date; end: Date } | { kind: "days"; first: string; last: string };
+// What the grid makes: an event, or a request for time off on the picked days.
+type CreateMode = "event" | "absence";
+// Dragging down the hours sticks to the nearest quarter of an hour.
+const SNAP_MINUTES = 15;
 
 const timeOf = (d: Date) => new Intl.DateTimeFormat(dateLocale(), { hour: "2-digit", minute: "2-digit" }).format(d);
 const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
@@ -123,6 +131,12 @@ export function CalendarScreen({
     for (const listener of taskModeListeners) listener();
   };
   const [showSettings, setShowSettings] = useState(false);
+  const [createMode, setCreateMode] = useState<CreateMode>("event");
+  // My own time off (balances, policies, requests) — for the request window and "withdraw".
+  const [myLeave, setMyLeave] = useState<MyLeave | null>(null);
+  const [leaveAsk, setLeaveAsk] = useState<{ from: string; to: string } | null>(null);
+  const [myAbsence, setMyAbsence] = useState<MyLeaveRequest | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   // How many days the week view shows: the whole week on a wide screen, three on a
   // tablet, one on a phone — so the page never scrolls sideways.
   const [days, setDays] = useState(7);
@@ -196,6 +210,22 @@ export function CalendarScreen({
     };
   }, [shortId, workspaceId, guest, firstDay, lastDay, tick]);
   const timeOffHref = workspacePath(shortId, "/calendar/time-off?tab=team");
+  // The shown days may lie in two years (a week around the New Year): my requests of both.
+  const [firstYear, lastYear] = [Number(firstDay.slice(0, 4)), Number(lastDay.slice(0, 4))];
+  useEffect(() => {
+    if (guest) return;
+    let live = true;
+    Promise.all([loadMyLeave(shortId, workspaceId, firstYear), firstYear === lastYear ? null : loadMyLeave(shortId, workspaceId, lastYear)]).then(([first, second]) => {
+      if (!live || !first.ok) return;
+      setMyLeave(second?.ok ? { ...first, requests: [...first.requests, ...second.requests] } : first);
+    });
+    return () => {
+      live = false;
+    };
+  }, [shortId, workspaceId, guest, firstYear, lastYear, tick]);
+  // My requests that wait or are on: shown on my calendar, and can be withdrawn from it.
+  const myRequests = useMemo(() => (myLeave?.requests ?? []).filter((r) => r.status === "pending" || r.status === "approved"), [myLeave]);
+  const policyName = (id: string) => myLeave?.policies.find((p) => p.id === id)?.name ?? t.timeOff.title;
   useEffect(() => {
     if (taskMode === "off") return;
     let live = true;
@@ -228,9 +258,28 @@ export function CalendarScreen({
   // A day of a series opens as that day.
   const openEvent = (event: CalendarEvent) => setDialog({ mode: "details", id: event.id, occurrence: event.occurrence ?? null });
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "";
-  // Without a clicked slot: the next full hour.
-  const openNew = (start?: Date, allDay = false) => {
-    if (!guest) setDialog({ mode: "new", start: (start ?? new Date(Math.ceil(Date.now() / 3_600_000) * 3_600_000)).toISOString(), allDay });
+  // What was picked on the grid becomes an event or, in the "absence" mode, a request for those days.
+  const pick = (picked: GridPick) => {
+    if (guest) return;
+    setNote(null);
+    if (createMode === "absence") {
+      setLeaveAsk(picked.kind === "days" ? { from: picked.first, to: picked.last } : { from: dayKey(picked.start), to: dayKey(new Date(picked.end.getTime() - 1)) });
+    } else if (picked.kind === "days") {
+      setDialog({ mode: "new", start: fromDayKey(picked.first).toISOString(), end: fromDayKey(picked.last).toISOString(), allDay: true });
+    } else {
+      setDialog({ mode: "new", start: picked.start.toISOString(), end: picked.end.toISOString() });
+    }
+  };
+  // The button: an event at the next full hour, or a request for today.
+  const openNew = () => {
+    if (guest) return;
+    if (createMode === "absence") return pick({ kind: "days", first: dayKey(new Date()), last: dayKey(new Date()) });
+    const start = new Date(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
+    pick({ kind: "time", start, end: new Date(start.getTime() + 3_600_000) });
+  };
+  const openMyAbsence = (id: string) => {
+    const request = myRequests.find((r) => r.id === id);
+    if (request) setMyAbsence(request);
   };
   const restore = async (id: string) => {
     const result = await cancelEvent(shortId, id, true);
@@ -243,8 +292,24 @@ export function CalendarScreen({
         <h1 className="mr-auto text-2xl font-semibold">📅 {c.title}</h1>
         {!guest && <DobaNav shortId={shortId} current="events" />}
         {!guest && (
-          <button type="button" onClick={() => openNew()} className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 text-sm font-medium text-white hover:opacity-90 md:min-h-9" data-new-event>
-            ＋ {c.newEvent}
+          <div className="flex rounded-md border border-border" role="group" aria-label={c.create.label} title={c.create.hint}>
+            {(["event", "absence"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={createMode === mode}
+                onClick={() => setCreateMode(mode)}
+                className={`min-h-11 px-3 text-sm first:rounded-l-md last:rounded-r-md md:min-h-9 ${createMode === mode ? "bg-surface font-medium" : "text-muted hover:bg-surface"}`}
+                data-create-mode={mode}
+              >
+                {c.create.modes[mode]}
+              </button>
+            ))}
+          </div>
+        )}
+        {!guest && (
+          <button type="button" onClick={openNew} className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 text-sm font-medium text-white hover:opacity-90 md:min-h-9" data-new-event>
+            ＋ {createMode === "absence" ? c.create.modes.absence : c.newEvent}
           </button>
         )}
         {admin && (
@@ -303,6 +368,13 @@ export function CalendarScreen({
         </div>
       )}
 
+      {!guest && view !== "list" && <p className="mt-2 hidden text-xs text-muted md:block">{createMode === "absence" ? c.create.absenceHint : c.create.eventHint}</p>}
+      {note && (
+        <p className="mt-2 rounded-md border border-border bg-surface p-2 text-sm" role="status" data-calendar-note>
+          {note}
+        </p>
+      )}
+
       <div ref={frame} className="mt-3 min-w-0 flex-1">
         {state === "failed" ? (
           <p className="rounded-md border border-danger/40 bg-danger/5 p-3 text-sm">
@@ -321,6 +393,12 @@ export function CalendarScreen({
             tasks={shownTasks}
             timeOffHref={timeOffHref}
             workDays={settings.work_days}
+            me={me}
+            myRequests={myRequests}
+            policyName={policyName}
+            onMyAbsence={openMyAbsence}
+            canPick={!guest}
+            onPick={pick}
             onPickDay={(day) => {
               setAnchor(day);
               setView("week");
@@ -341,7 +419,12 @@ export function CalendarScreen({
             timeOffHref={timeOffHref}
             nameOf={nameOf}
             workDays={settings.work_days}
-            onSlot={openNew}
+            me={me}
+            myRequests={myRequests}
+            policyName={policyName}
+            onMyAbsence={openMyAbsence}
+            canPick={!guest}
+            onPick={pick}
             onEvent={openEvent}
           />
         ) : (
@@ -363,6 +446,27 @@ export function CalendarScreen({
           onState={setDialog}
           onChanged={reload}
         />
+      )}
+      {leaveAsk && myLeave && (
+        <RequestDialog
+          shortId={shortId}
+          workspaceId={workspaceId}
+          me={me}
+          today={myLeave.today}
+          policies={myLeave.policies.filter((p) => p.active)}
+          people={people.filter((p) => p.id !== me && !p.guest)}
+          initialFrom={leaveAsk.from}
+          initialTo={leaveAsk.to}
+          onClose={() => setLeaveAsk(null)}
+          onSent={(status) => {
+            setLeaveAsk(null);
+            setNote(status === "approved" ? c.create.leaveOn : c.create.leaveSent);
+            reload();
+          }}
+        />
+      )}
+      {myAbsence && myLeave && (
+        <MyAbsenceDialog shortId={shortId} request={myAbsence} policy={policyName(myAbsence.policy_id)} today={myLeave.today} onClose={() => setMyAbsence(null)} onChanged={reload} />
       )}
       {showSettings && (
         <CalendarSettingsDialog
@@ -411,7 +515,48 @@ const offOn = (absences: Absence[], day: Date, workDays: number[], holidays: Hol
 };
 const absenceTitle = (a: Absence) => [a.person, a.label ?? (a.remote ? t.timeOff.team.remote : t.timeOff.team.absent), a.deputy ? t.timeOff.deputy(a.deputy) : null].filter(Boolean).join(" · ");
 
-function AbsenceChip({ absence, href }: { absence: Absence; href: string }) {
+// My own request that still waits: shown to me only, and opens "withdraw".
+const waitingOn = (requests: MyLeaveRequest[], day: Date) => {
+  const key = dayKey(day);
+  return requests.filter((r) => r.status === "pending" && r.start_date <= key && r.end_date >= key);
+};
+
+function WaitingChip({ request, name, onOpen }: { request: MyLeaveRequest; name: string; onOpen: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(request.id);
+      }}
+      className="block w-full truncate rounded border border-dashed border-accent bg-accent/5 px-1 text-left text-xs leading-5"
+      title={`${name} · ${t.timeOff.status.pending}`}
+      data-my-request={request.status}
+    >
+      <span aria-hidden="true">⏳</span> {name}
+    </button>
+  );
+}
+
+function AbsenceChip({ absence, href, onOpen }: { absence: Absence; href: string; onOpen?: (id: string) => void }) {
+  // My own absence opens here (to withdraw it); a colleague's leads to the team list.
+  if (onOpen) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(absence.id);
+        }}
+        className="block w-full truncate rounded border border-accent/40 bg-accent/10 px-1 text-left text-xs leading-5 hover:bg-accent/20"
+        title={absenceTitle(absence)}
+        data-absence={absence.person}
+        data-my-absence-chip
+      >
+        <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span> {absence.person}
+      </button>
+    );
+  }
   return (
     <Link href={href} onClick={(e) => e.stopPropagation()} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={absenceTitle(absence)} data-absence={absence.person}>
       <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span> {absence.person}
@@ -477,6 +622,12 @@ function MonthView({
   tasks,
   timeOffHref,
   workDays,
+  me,
+  myRequests,
+  policyName,
+  onMyAbsence,
+  canPick,
+  onPick,
   onPickDay,
   onEvent,
 }: {
@@ -488,11 +639,19 @@ function MonthView({
   tasks: CalendarTask[];
   timeOffHref: string;
   workDays: number[];
+  me: string;
+  myRequests: MyLeaveRequest[];
+  policyName: (id: string) => string;
+  onMyAbsence: (id: string) => void;
+  canPick: boolean;
+  onPick: (picked: GridPick) => void;
   onPickDay: (day: Date) => void;
   onEvent: (event: CalendarEvent) => void;
 }) {
   const grid = monthGrid(anchor);
   const weekday = new Intl.DateTimeFormat(dateLocale(), { weekday: "short" });
+  // Days are picked by a click or by dragging across cells — along a week or down the weeks.
+  const drag = useDayDrag("day", (range) => onPick({ kind: "days", ...range }));
   return (
     <div className="overflow-hidden rounded-lg border border-border" data-month>
       <div className="grid grid-cols-7 border-b border-border bg-surface text-center text-xs text-muted">
@@ -512,9 +671,18 @@ function MonthView({
           return (
             <div
               key={dayKey(day)}
-              className={`min-h-20 min-w-0 border-border p-1 md:min-h-28 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${workDays.includes(weekdayOf(day)) && !holiday ? "" : "bg-surface/60"}`}
+              className={`min-h-20 min-w-0 select-none border-border p-1 md:min-h-28 ${i % 7 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""} ${
+                drag.isSelected(dayKey(day)) ? "bg-accent/20" : `${workDays.includes(weekdayOf(day)) && !holiday ? "" : "bg-surface/60"} ${canPick ? "cursor-cell hover:bg-accent/10" : ""}`
+              }`}
               data-day={dayKey(day)}
               data-holiday={holiday?.name}
+              data-picked={drag.isSelected(dayKey(day)) || undefined}
+              {...(canPick ? drag.handlers(dayKey(day)) : {})}
+              onClick={(e) => {
+                // A tap on the empty part of a cell (a mouse press was already taken as a pick).
+                if (!canPick || drag.consumeClick() || (e.target as HTMLElement).closest("a, button")) return;
+                onPick({ kind: "days", first: dayKey(day), last: dayKey(day) });
+              }}
             >
               <button
                 type="button"
@@ -532,7 +700,11 @@ function MonthView({
                 </p>
               )}
               <div className="hidden space-y-0.5 sm:block">
-                {off.length > 0 && (
+                {waitingOn(myRequests, day).map((request) => (
+                  <WaitingChip key={request.id} request={request} name={policyName(request.policy_id)} onOpen={onMyAbsence} />
+                ))}
+                {off.length === 1 && off[0].user_id === me && <AbsenceChip absence={off[0]} href={timeOffHref} onOpen={onMyAbsence} />}
+                {off.length > 0 && !(off.length === 1 && off[0].user_id === me) && (
                   <Link href={timeOffHref} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={off.map(absenceTitle).join("\n")} data-absences={off.length}>
                     <span aria-hidden="true">🌴</span> {off.length === 1 ? off[0].person : c.offCount(off.length)}
                   </Link>
@@ -572,7 +744,12 @@ function WeekView({
   timeOffHref,
   nameOf,
   workDays,
-  onSlot,
+  me,
+  myRequests,
+  policyName,
+  onMyAbsence,
+  canPick,
+  onPick,
   onEvent,
 }: {
   from: Date;
@@ -587,7 +764,12 @@ function WeekView({
   timeOffHref: string;
   nameOf: (id: string) => string;
   workDays: number[];
-  onSlot: (start: Date, allDay?: boolean) => void;
+  me: string;
+  myRequests: MyLeaveRequest[];
+  policyName: (id: string) => string;
+  onMyAbsence: (id: string) => void;
+  canPick: boolean;
+  onPick: (picked: GridPick) => void;
   onEvent: (event: CalendarEvent) => void;
 }) {
   const columns = Array.from({ length: days }, (_, i) => addDays(from, i));
@@ -602,6 +784,44 @@ function WeekView({
   const head = new Intl.DateTimeFormat(dateLocale(), { weekday: "short", day: "numeric" });
   const template = { gridTemplateColumns: `3rem repeat(${days}, minmax(0, 1fr))` };
   const hours = Array.from({ length: 24 }, (_, h) => h);
+
+  // The "all day" row: a click or a drag along the days picks whole days.
+  const dayDrag = useDayDrag("allDay", (range) => onPick({ kind: "days", ...range }));
+  // The hours: the slot under the pointer is shown, and a drag — down the hours, and
+  // across the days — picks a stretch of time that sticks to the nearest quarter of an hour.
+  type TimePoint = { day: string; minutes: number };
+  const [hover, setHover] = useState<TimePoint | null>(null);
+  const [stretch, setStretch] = useState<{ anchor: TimePoint; current: TimePoint } | null>(null);
+  const live = useRef<{ anchor: TimePoint; current: TimePoint } | null>(null);
+  const justDragged = useRef(false);
+  const pointAt = (x: number, y: number): TimePoint | null => {
+    for (const el of document.elementsFromPoint(x, y)) {
+      const day = (el as HTMLElement).dataset?.dayColumn;
+      if (day) {
+        const minutes = Math.round((((y - el.getBoundingClientRect().top) / HOUR_PX) * 60) / SNAP_MINUTES) * SNAP_MINUTES;
+        return { day, minutes: Math.max(0, Math.min(24 * 60, minutes)) };
+      }
+    }
+    return null;
+  };
+  const moment = (point: TimePoint) => new Date(fromDayKey(point.day).getTime() + point.minutes * 60_000);
+  const picked = stretch
+    ? moment(stretch.anchor).getTime() <= moment(stretch.current).getTime()
+      ? { start: moment(stretch.anchor), end: moment(stretch.current) }
+      : { start: moment(stretch.current), end: moment(stretch.anchor) }
+    : null;
+  const finishStretch = (take: boolean) => {
+    const done = live.current;
+    live.current = null;
+    setStretch(null);
+    if (!done || !take) return;
+    justDragged.current = true;
+    setTimeout(() => (justDragged.current = false), 0);
+    const [from, to] = [moment(done.anchor).getTime(), moment(done.current).getTime()].sort((x, y) => x - y);
+    // A press without a move is an hour from that slot; a drag is at least half an hour.
+    const start = new Date(Math.min(from, fromDayKey(done.anchor.day).getTime() + 23.5 * 3_600_000));
+    onPick({ kind: "time", start: from === to ? start : new Date(from), end: new Date(from === to ? start.getTime() + 3_600_000 : Math.max(to, from + 30 * 60_000)) });
+  };
 
   return (
     <div className="flex h-full min-h-96 flex-col overflow-hidden rounded-lg border border-border" data-week data-week-days={days}>
@@ -625,12 +845,25 @@ function WeekView({
           const whole = events.filter((e) => e.all_day && onDay(e, day));
           const wholeBusy = busy.filter((b) => b.all_day && onDay(b, day));
           return (
-            <div key={dayKey(day)} className="min-h-7 min-w-0 space-y-0.5 border-l border-border p-0.5" onClick={() => onSlot(day, true)} data-all-day={dayKey(day)}>
+            <div
+              key={dayKey(day)}
+              className={`min-h-7 min-w-0 select-none space-y-0.5 border-l border-border p-0.5 ${dayDrag.isSelected(dayKey(day)) ? "bg-accent/20" : canPick ? "cursor-cell hover:bg-accent/10" : ""}`}
+              data-all-day={dayKey(day)}
+              data-picked={dayDrag.isSelected(dayKey(day)) || undefined}
+              {...(canPick ? dayDrag.handlers(dayKey(day)) : {})}
+              onClick={(e) => {
+                if (!canPick || dayDrag.consumeClick() || (e.target as HTMLElement).closest("a, button")) return;
+                onPick({ kind: "days", first: dayKey(day), last: dayKey(day) });
+              }}
+            >
               {whole.map((event) => (
                 <EventChip key={eventKey(event)} event={event} onOpen={onEvent} withTime={false} />
               ))}
+              {waitingOn(myRequests, day).map((request) => (
+                <WaitingChip key={request.id} request={request} name={policyName(request.policy_id)} onOpen={onMyAbsence} />
+              ))}
               {offOn(absences, day, workDays, holidays).map((absence) => (
-                <AbsenceChip key={absence.id} absence={absence} href={timeOffHref} />
+                <AbsenceChip key={absence.id} absence={absence} href={timeOffHref} onOpen={absence.user_id === me ? onMyAbsence : undefined} />
               ))}
               <DayTasks tasks={dueOn(tasks, day)} taskHref={taskHref} />
               {wholeBusy.map((slot, i) => (
@@ -665,16 +898,67 @@ function WeekView({
             return (
               <div
                 key={dayKey(day)}
-                className={`relative border-l border-border ${workDays.includes(weekdayOf(day)) && !holidayOn(holidays, day) ? "" : "bg-surface/60"}`}
-                style={{ backgroundImage: "linear-gradient(to bottom, var(--border) 1px, transparent 1px)", backgroundSize: `100% ${HOUR_PX}px` }}
+                className={`relative select-none border-l border-border ${canPick ? "cursor-cell" : ""} ${workDays.includes(weekdayOf(day)) && !holidayOn(holidays, day) ? "" : "bg-surface/60"}`}
+                style={{ backgroundImage: "linear-gradient(to bottom, var(--border) 1px, transparent 1px)", backgroundSize: `100% ${HOUR_PX}px`, touchAction: "pan-y" }}
+                onPointerMove={(e) => {
+                  if (!canPick || e.pointerType === "touch") return;
+                  const point = pointAt(e.clientX, e.clientY);
+                  if (live.current) {
+                    if (point && (point.day !== live.current.current.day || point.minutes !== live.current.current.minutes)) {
+                      live.current = { ...live.current, current: point };
+                      setStretch(live.current);
+                    }
+                  } else {
+                    // Over an event nothing new is offered.
+                    const free = point && !(e.target as HTMLElement).closest("button, a");
+                    setHover(free ? { day: point.day, minutes: Math.min(point.minutes, 23.5 * 60) } : null);
+                  }
+                }}
+                onPointerLeave={() => setHover(null)}
+                onPointerDown={(e) => {
+                  if (!canPick || e.pointerType === "touch" || e.button !== 0 || (e.target as HTMLElement).closest("button, a")) return;
+                  const point = pointAt(e.clientX, e.clientY);
+                  if (!point) return;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  live.current = { anchor: point, current: point };
+                  setStretch(live.current);
+                  setHover(null);
+                }}
+                onPointerUp={() => finishStretch(true)}
+                onPointerCancel={() => finishStretch(false)}
                 onClick={(e) => {
-                  // A click on the empty grid: a new event at that half hour.
+                  // A tap (a mouse press was already taken as a pick): an hour from that half hour.
+                  if (!canPick || justDragged.current || (e.target as HTMLElement).closest("button, a")) return;
                   const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
                   const minutes = Math.max(0, Math.min(23.5 * 60, Math.floor((y / HOUR_PX) * 2) * 30));
-                  onSlot(new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, minutes));
+                  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, minutes);
+                  onPick({ kind: "time", start, end: new Date(start.getTime() + 3_600_000) });
                 }}
                 data-day-column={dayKey(day)}
               >
+                {/* The slot under the pointer: where a click would start an event. */}
+                {hover && hover.day === dayKey(day) && !stretch && (
+                  <div className="pointer-events-none absolute inset-x-0.5 rounded border border-accent/60 bg-accent/10 px-1 text-[10px] leading-4 text-accent" style={{ top: (hover.minutes / 60) * HOUR_PX, height: HOUR_PX / 2 }} data-hover-slot>
+                    {timeOf(moment(hover))}
+                  </div>
+                )}
+                {/* What is being dragged out, as it would be made. */}
+                {picked &&
+                  (() => {
+                    const dayStart = startOfDay(day).getTime();
+                    const top = Math.max(picked.start.getTime(), dayStart);
+                    const bottom = Math.min(picked.end.getTime(), dayStart + DAY_MS);
+                    if (bottom <= top && !(picked.start.getTime() === picked.end.getTime() && dayKey(picked.start) === dayKey(day))) return null;
+                    return (
+                      <div
+                        className="pointer-events-none absolute inset-x-0.5 z-10 overflow-hidden rounded border border-accent bg-accent/25 px-1 text-[10px] font-medium leading-4"
+                        style={{ top: ((top - dayStart) / 3_600_000) * HOUR_PX, height: Math.max(((bottom - top) / 3_600_000) * HOUR_PX, 4) }}
+                        data-drag-selection
+                      >
+                        {dayKey(picked.start) === dayKey(day) && `${timeOf(picked.start)} – ${timeOf(picked.end)}`}
+                      </div>
+                    );
+                  })()}
                 {slots.map((p, i) => (
                   <div
                     key={`busy-${i}`}

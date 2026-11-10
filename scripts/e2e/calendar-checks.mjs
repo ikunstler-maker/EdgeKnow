@@ -395,3 +395,98 @@ export async function holidayChecks() {
   const expected = one(`select sum(public.leave_due_by_month('${paid.id}', m.user_id, ${year}, extract(month from now())::int)) from public.workspace_members m where m.workspace_id = '${alphaId}' and m.status = 'active' and m.role <> 'guest'`);
   check("…exactly what is due by this month", Number(expected) === Number(afterFirst.split(" ")[0]), `${expected} vs ${afterFirst}`);
 }
+
+// Phase 2d: the grid answers the pointer — the slot under it is shown, a drag down the
+// hours or across the days makes an event (sticking to quarters of an hour), the
+// "absence" mode asks for time off on the picked days, one's own absence is withdrawn
+// from the calendar.
+export async function gridChecks() {
+  const base = `${APP}/w/${alphaShort}/calendar`;
+  const one = (query) => sql(query);
+  // A Monday at least five weeks ahead, with its Wednesday in the same year.
+  const monday = new Date(Date.now() + 35 * 864e5);
+  monday.setUTCDate(monday.getUTCDate() + ((8 - monday.getUTCDay()) % 7));
+  if (new Date(monday.getTime() + 2 * 864e5).getUTCFullYear() !== monday.getUTCFullYear()) monday.setUTCDate(monday.getUTCDate() + 7);
+  const at = (n) => new Date(monday.getTime() + n * 864e5).toISOString().slice(0, 10);
+  const [day1, day3] = [at(0), at(2)];
+  const hour = 48; // pixels
+
+  await alice.goto(`${base}?view=week&date=${day1}`);
+  const column = alice.locator(`[data-day-column="${day1}"]`);
+  await column.waitFor({ timeout: 15000 });
+  await alice.waitForTimeout(500);
+  const box = await column.boundingBox();
+  const x = box.x + box.width / 2;
+  const yOf = (hours) => box.y + hours * hour;
+
+  // The slot under the pointer.
+  await alice.mouse.move(x, yOf(10.1));
+  await alice.locator("[data-hover-slot]").waitFor({ timeout: 5000 }).catch(() => {});
+  check("the slot under the pointer is shown", (await alice.locator("[data-hover-slot]").count()) === 1 && (await alice.locator("[data-hover-slot]").innerText()).includes("10:00"), await alice.locator("[data-hover-slot]").innerText().catch(() => "none"));
+
+  // A drag down the hours: 10:00 to about 11:36 sticks to 11:30.
+  await alice.mouse.move(x, yOf(10.02));
+  await alice.mouse.down();
+  await alice.mouse.move(x, yOf(10.8), { steps: 4 });
+  await alice.mouse.move(x, yOf(11.6), { steps: 4 });
+  const selection = await alice.locator("[data-drag-selection]").first().innerText().catch(() => "");
+  await alice.mouse.up();
+  const form = alice.locator("[data-event-form]");
+  await form.waitFor({ timeout: 15000 });
+  const [start, end] = [await form.locator('[data-event-field="start"]').inputValue(), await form.locator('[data-event-field="end"]').inputValue()];
+  check("a drag down the hours picks a time that sticks to quarters of an hour", start === `${day1}T10:00` && end === `${day1}T11:30` && selection.includes("10:00") && selection.includes("11:30"), `${start} – ${end} (${selection})`);
+  await form.locator('[data-event-field="title"]').fill("Dragged meeting");
+  await form.locator("[data-save-event]").click();
+  const saved = () => one(`select to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI') || ' ' || to_char(ends_at at time zone 'UTC', 'HH24:MI') from public.calendar_events where title = 'Dragged meeting'`);
+  check("…and the event is saved with it", await until(() => saved() === `${day1}T10:00 11:30`, 15000), saved());
+
+  // A drag along the "all day" row: three whole days.
+  await alice.locator(`[data-day-column="${day1}"] [data-event="Dragged meeting"]`).waitFor({ timeout: 15000 }).catch(() => {});
+  const first = await alice.locator(`[data-all-day="${day1}"]`).boundingBox();
+  const last = await alice.locator(`[data-all-day="${day3}"]`).boundingBox();
+  await alice.mouse.move(first.x + first.width / 2, first.y + first.height - 4);
+  await alice.mouse.down();
+  await alice.mouse.move(last.x + last.width / 2, last.y + last.height - 4, { steps: 6 });
+  const pickedCells = await alice.locator("[data-all-day][data-picked]").count();
+  await alice.mouse.up();
+  await form.waitFor({ timeout: 15000 });
+  check("a drag along the days picks whole days", pickedCells === 3 && (await form.locator('[data-event-field="all_day"]').isChecked()) && (await form.locator('[data-event-field="first_day"]').inputValue()) === day1 && (await form.locator('[data-event-field="last_day"]').inputValue()) === day3, `${pickedCells} cells`);
+  await alice.keyboard.press("Escape");
+
+  // The "absence" mode in the month: a drag across three days asks for time off on them.
+  await colleague.goto(`${base}?view=month&date=${day1}`);
+  await colleague.locator("[data-month]").waitFor({ timeout: 15000 });
+  await colleague.locator('[data-create-mode="absence"]').click();
+  const from = await colleague.locator(`[data-month] [data-day="${day1}"]`).boundingBox();
+  const to = await colleague.locator(`[data-month] [data-day="${day3}"]`).boundingBox();
+  await colleague.mouse.move(from.x + from.width / 2, from.y + from.height - 6);
+  await colleague.mouse.down();
+  await colleague.mouse.move(to.x + to.width / 2, to.y + to.height - 6, { steps: 6 });
+  await colleague.mouse.up();
+  const leave = colleague.locator("[data-leave-form]");
+  await leave.waitFor({ timeout: 15000 });
+  check("in the “absence” mode a drag across days opens a request for them", (await leave.locator('[data-leave-field="from"]').inputValue()) === day1 && (await leave.locator('[data-leave-field="to"]').inputValue()) === day3);
+  await leave.locator('[data-leave-field="policy"]').selectOption({ label: "Віддалена робота" });
+  await leave.locator("[data-send-leave]").click();
+  const mine = () => one(`select status from public.leave_requests where user_id = '${colleagueId}' and start_date = '${day1}' and end_date = '${day3}'`);
+  check("…and it is made (no approval needed for remote work)", await until(() => mine() === "approved", 15000), mine());
+  await colleague.locator("[data-calendar-note]").waitFor({ timeout: 15000 }).catch(() => {});
+
+  // One's own absence is withdrawn right from the calendar.
+  await colleague.goto(`${base}?view=week&date=${day1}`);
+  await colleague.locator(`[data-all-day="${day1}"] [data-my-absence-chip]`).click({ timeout: 15000 });
+  await colleague.locator("[data-withdraw-leave]").click({ timeout: 15000 });
+  check("one's own absence is withdrawn from the calendar", await until(() => mine() === "cancelled", 15000), mine());
+  check("…and leaves it", await until(async () => (await colleague.locator(`[data-all-day="${day1}"] [data-my-absence-chip]`).count()) === 0, 15000));
+
+  // A request that still waits shows on its person's calendar, and is withdrawn the same way.
+  const vacation = one(`select id from public.leave_policies where workspace_id = '${alphaId}' and kind = 'vacation'`);
+  const asked = await colleagueClient.rpc("request_leave", { ws: alphaId, target_policy: vacation, first_day: at(7), last_day: at(7), part: null, deputy: null, note: "" });
+  await colleague.goto(`${base}?view=week&date=${at(7)}`);
+  await colleague.locator(`[data-all-day="${at(7)}"] [data-my-request="pending"]`).click({ timeout: 15000 });
+  await colleague.locator("[data-withdraw-leave]").click({ timeout: 15000 });
+  check("a waiting request is withdrawn from the calendar too", asked.data?.ok === true && (await until(() => one(`select status from public.leave_requests where id = '${asked.data?.id}'`) === "cancelled", 15000)), JSON.stringify(asked.data));
+  await alice.goto(`${base}?view=week&date=${at(7)}`);
+  await alice.locator("[data-week]").waitFor({ timeout: 15000 });
+  check("…and nobody else ever saw it there", (await alice.locator("[data-my-request]").count()) === 0);
+}
