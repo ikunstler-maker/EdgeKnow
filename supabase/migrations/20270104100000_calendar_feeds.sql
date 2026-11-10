@@ -1,8 +1,8 @@
 -- Doba, phase 3a: a person's own calendar feed. A secret address shows, in any calendar
 -- app, the events the person takes part in and their own approved time off (read-only).
 -- Only the hash of the secret is kept; the feed itself is read by the server alone.
--- The same in supabase/team/migrations/0049_calendar_feeds.sql.
--- Rollback: supabase/rollbacks/20270103100000_calendar_feeds.down.sql
+-- The same in supabase/team/migrations/0050_calendar_feeds.sql.
+-- Rollback: supabase/rollbacks/20270104100000_calendar_feeds.down.sql
 
 create table public.calendar_feeds (
   workspace_id  uuid not null references public.workspaces (id) on delete cascade,

@@ -1,4 +1,4 @@
--- Undo 0049_calendar_feeds.
+-- Undo 20270104100000_calendar_feeds.
 drop function public.calendar_feed(uuid, text);
 drop function public.drop_calendar_feed(uuid);
 drop function public.set_calendar_feed(uuid, text);

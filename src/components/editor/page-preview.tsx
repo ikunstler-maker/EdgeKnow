@@ -29,11 +29,20 @@ function inline(content: unknown): ReactNode {
 // The same sizes and line height as the editor's headings, so the page doesn't jump when it takes over.
 const HEADING = ["", "text-[3em] font-bold leading-[1.5]", "text-[2em] font-bold leading-[1.5]", "text-[1.3em] font-bold leading-[1.5]"];
 
-function block(b: Block, index: number, numbers: Map<number, number>, depth: number): ReactNode {
+// Page history: blocks of a version that differ from the current text, and a label
+// for the parts drawn as boxes (tables, pictures, embeds).
+export type PreviewMarks = { marks: Map<string, "changed" | "new">; boxLabel: (type: string) => string };
+
+const MARK_CLASS = {
+  changed: "-mx-2 rounded border-l-4 border-amber-500 bg-amber-500/10 px-2",
+  new: "-mx-2 rounded border-l-4 border-emerald-500 bg-emerald-500/10 px-2",
+};
+
+function block(b: Block, index: number, numbers: Map<number, number>, depth: number, history?: PreviewMarks): ReactNode {
   const key = b.id ?? index;
   const kids = asArray<Block>(b.children);
   const children = kids.length > 0 && (
-    <div className="ml-6">{kids.map((child, i) => block(child, i, numbers, depth + 1))}</div>
+    <div className="ml-6">{kids.map((child, i) => block(child, i, numbers, depth + 1, history))}</div>
   );
   if (b.type !== "numberedListItem") numbers.delete(depth);
   let body: ReactNode;
@@ -75,23 +84,54 @@ function block(b: Block, index: number, numbers: Map<number, number>, depth: num
       break;
     default:
       // Tables, pictures, embeds: the editor draws them; hold a little room meanwhile.
-      body = <div className="h-24 rounded-lg bg-surface" aria-hidden />;
+      body = history ? (
+        <div className="rounded-lg bg-surface px-3 py-4 text-sm text-muted">{history.boxLabel(String(b.type ?? ""))}</div>
+      ) : (
+        <div className="h-24 rounded-lg bg-surface" aria-hidden />
+      );
   }
+  const mark = history && b.id ? history.marks.get(b.id) : undefined;
   return (
-    <div key={key} className="py-[3px]">
+    <div key={key} className={`py-[3px]${mark ? ` ${MARK_CLASS[mark]}` : ""}`} data-version-mark={mark}>
       {body}
       {children}
     </div>
   );
 }
 
-export function PagePreview({ content }: { content: unknown }) {
+export function PagePreview({ content, history }: { content: unknown; history?: PreviewMarks }) {
   const blocks = asArray<Block>(content);
   if (blocks.length === 0) return null;
   const numbers = new Map<number, number>();
   return (
-    <div className="ek-editor ek-page-preview pt-12 text-[17px] leading-[1.6] md:text-base" aria-busy="true" data-page-preview>
-      {blocks.map((b, i) => block(b, i, numbers, 0))}
+    <div
+      className={`ek-editor ek-page-preview text-[17px] leading-[1.6] md:text-base ${history ? "" : "pt-12"}`}
+      aria-busy={history ? undefined : true}
+      data-page-preview={history ? undefined : ""}
+    >
+      {blocks.map((b, i) => block(b, i, numbers, 0, history))}
     </div>
   );
+}
+
+// Blocks of `version` that differ from `current` (by block id, children aside), and how
+// many blocks of `current` the version doesn't have.
+export function compareVersions(version: unknown, current: unknown): { marks: Map<string, "changed" | "new">; missing: number } {
+  const flat = (list: unknown, into: Map<string, string>) => {
+    for (const b of asArray<Block>(list)) {
+      if (b.id) into.set(b.id, JSON.stringify({ type: b.type, props: b.props, content: b.content }));
+      flat(b.children, into);
+    }
+    return into;
+  };
+  const was = flat(version, new Map());
+  const now = flat(current, new Map());
+  const marks = new Map<string, "changed" | "new">();
+  for (const [id, body] of was) {
+    if (!now.has(id)) marks.set(id, "new");
+    else if (now.get(id) !== body) marks.set(id, "changed");
+  }
+  let missing = 0;
+  for (const id of now.keys()) if (!was.has(id)) missing += 1;
+  return { marks, missing };
 }

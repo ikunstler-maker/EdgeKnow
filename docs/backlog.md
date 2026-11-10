@@ -33,7 +33,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 ## Wiki: order agreed (owner, 2026-11-10)
 - 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
 - 2. Drafts by default + Publish — in review (owner approved the rules; decision 2027-01-26). Later: "back to draft".
-- 3. Page version history (view + restore; DB size estimate first).
+- 3. Page version history — in review (decision 2027-01-29). Later: longer history on paid plans (1 year / unlimited).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
@@ -62,7 +62,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - 2в — DONE (#135).
   - 2г — DONE (#137).
 - Later: drag to create on touch screens (long press); moving and resizing an existing event by dragging; event chip in task descriptions (with "smart chips everywhere": the task description has no chips at all yet); dragging a task to another day on the calendar; reminders when the site is closed (with push); an answer for one day of a series ("not going this time"); a repeat "on the last Friday of the month"; the landing card without "Soon" once sync (phase 3) is planned.
-- Phase 3, external calendars (owner approved 2026-11-10; decision 2027-01-29). Neutral names only; a provider's name is allowed on its sign-in button alone.
+- Phase 3, external calendars (owner approved 2026-11-10; decision 2027-01-30). Neutral names only; a provider's name is allowed on its sign-in button alone.
   - 3а the person's own feed (read-only address for calendar apps; table `calendar_feeds`, open route `/api/calendar-feed/`) — in review.
   - 3б busy time from an outside calendar by its feed address (table `calendar_connections` in the central database with the address encrypted by `CALENDAR_TOKEN_KEY`; `calendar_external_busy` with starts and ends only; hourly refresh; guests see none) — next, free.
   - 3в two-way sync through a provider's sign-in — decide after 3а and 3б; one main provider first; the provider's app review may take weeks (needs the product's domain and privacy page); marked PRO, open to all until payments.

@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-29 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-29) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-30 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -150,8 +150,8 @@ The team's shared calendar and time-off management in one place: events and meet
 | Feed (3a) | `src/app/api/calendar-feed/[ws]/[token]/route.ts` (open in `src/lib/supabase/proxy.ts`), `src/lib/calendar-feed.ts` (the file's text) |
 | Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`, `use-day-drag.ts`); the wiki chip — `src/components/editor/event-chip.tsx` |
 | Logic (dates, zones, layout; time-off shapes) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
-| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql`, `0049_calendar_feeds.sql` (central `20270103100000_calendar_feeds.sql`, `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
-| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`, `stage59_calendar_feeds.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`, `team9m_calendar_feeds.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
+| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql`, `0050_calendar_feeds.sql` (central `20270104100000_calendar_feeds.sql`, `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
+| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`, `stage60_calendar_feeds.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`, `team9n_calendar_feeds.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
 
 ## 7. Important decisions
 

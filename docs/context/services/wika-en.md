@@ -40,6 +40,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 - **Page from an external source:** an admin gives a URL with Markdown — the server fills and refreshes the page.
 - **Page backups** to Google Drive: daily and by button, as JSON and Markdown.
 - **Drafts:** a new page is a draft seen only by its owner, people invited to it personally and the workspace owner (a filter on top of normal access; admins and units don't open it); everything inside a draft is hidden too; an invitation opens only that one draft, and the share dialog offers to give the same access to the pages inside. "Publish" (owner or editor), optionally with the pages inside. Enforced in `page_role_of` (pages, tree, search, comments, files, notifications, chips) and `my_page_tree`; no read confirmations on a draft; drafts stay out of the Drive backup. Existing pages were published at creation time.
+- **Version history** (owner and editors only): one version per editing session (one person, pauses under 10 minutes), plus on publishing, a new confirmation revision and restoring; view with changed blocks marked; "Restore this version" (the text before stays in history; not on frozen pages or in the trash; comments whose text is gone are marked, not deleted). Kept 7 days, the newest always stays. Table `page_versions`, trigger on pages, `restore_page_version`, `prune_all_page_versions`.
 - **"Export" menu** next to "Share": copy the page link (opens only for people with access); PDF and Markdown (Free); JSON, CSV, DOCX, HTML shown greyed out with a PRO badge. PDF: a print view of the page (`/p/<id>/print`, read-only editor, light theme) waits for embeds and pictures, then opens the browser's print window ("Save as PDF") — nothing runs on the server. Markdown: built in the browser from one server action that reads the embeds with the reader's own access; tables become Markdown tables (≤500 rows per sheet), task lists become checklists, other embeds a line with a link, chips links; anything hidden becomes "🔒 No access" without its name; comments are left out. Uploaded pictures and audio go into a .zip next to the .md (`files/`); pictures from other sites stay links.
 
 ### Search
@@ -53,7 +54,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | Drafts by default and "Publish" | done | "back to draft" later |
 | "Export" menu: link, PDF, Markdown | done | JSON, CSV, DOCX, HTML shown with PRO; they need payments (stage 4) |
 | Real-time editing with cursors | planned (stage 3) | |
-| Page version history | planned | 7 days / 1 year / unlimited by plan |
+| Page version history | done (7 days) | 1 year / unlimited with payments |
 | Page templates | planned | |
 | Import from other tools and Markdown | planned | |
 | Public knowledge base (read without sign-in) | planned | access change → approval |
@@ -70,6 +71,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | `page_mentions` | mentions |
 | `page_contributions` | who changed what (statistics) |
 | `page_backups` | backup state |
+| `page_versions` | page history (versions by editing session) |
 | `page_acks`, `page_ack_revisions` | read confirmations |
 | `external_sources` | external page sources |
 | `attachments` | page files |
@@ -115,4 +117,3 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 ## 8. Known gaps and open questions
 
 - Export formats and the Free/PRO line depend on pricing implementation.
-- Version history: where to store it and how much room it takes in a team database.

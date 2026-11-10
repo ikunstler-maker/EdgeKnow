@@ -1,6 +1,6 @@
 -- Doba, phase 3a (a person's own calendar feed) in a team's own database
--- (as supabase/migrations/20270103100000_calendar_feeds.sql).
--- Rollback: supabase/team/rollbacks/0049_calendar_feeds.down.sql
+-- (as supabase/migrations/20270104100000_calendar_feeds.sql).
+-- Rollback: supabase/team/rollbacks/0050_calendar_feeds.down.sql
 
 create table public.calendar_feeds (
   workspace_id  uuid not null references public.workspaces (id) on delete cascade,
