@@ -2,35 +2,59 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dateLocale, t } from "@/i18n";
-import { cancelEvent, createEvent, decideEventRequest, loadBusy, loadEvent, respondToEvent, updateEvent } from "@/app/calendar-actions";
+import {
+  cancelEvent,
+  cancelOccurrence,
+  changeOccurrence,
+  createEvent,
+  decideEventRequest,
+  endSeries,
+  loadBusy,
+  loadEvent,
+  respondToEvent,
+  splitEvent,
+  updateEvent,
+} from "@/app/calendar-actions";
 import {
   DAY_MS,
   EVENT_VISIBILITIES,
+  REMINDERS,
+  REPEAT_FREQS,
   allDayEnd,
   allDayKeys,
   allDayStart,
   browserTimeZone,
   dayKey,
   eventSpan,
+  fromDayKey,
   fromZonedInput,
   isMeetingUrl,
   timeZones,
   toZonedInput,
+  weekdayOf,
   type BusySlot,
   type CalendarPerson,
   type EventAnswer,
   type EventDetails,
   type EventFields,
   type EventVisibility,
+  type RepeatFreq,
+  type RepeatRule,
+  type SeriesScope,
 } from "@/lib/calendar";
 import { PeoplePicker, buttonClass, inputClass, primaryClass } from "./calendar-parts";
 
 const c = t.calendar;
 
-export type DialogState = { mode: "details"; id: string } | { mode: "new"; start: string; allDay?: boolean } | { mode: "edit"; details: EventDetails };
+export type DialogState =
+  | { mode: "details"; id: string; occurrence?: string | null }
+  | { mode: "new"; start: string; allDay?: boolean }
+  // For a series: which of its days the change is for.
+  | { mode: "edit"; details: EventDetails; scope: SeriesScope };
 
 const errorText = (code: string) => c.errors[code] ?? c.errors.unknown;
 const LISTED = ["invited", "accepted", "tentative", "declined"];
+const SCOPES: SeriesScope[] = ["one", "following", "all"];
 
 function whenText(event: { starts_at: string; ends_at: string; all_day: boolean }) {
   const locale = dateLocale();
@@ -42,6 +66,15 @@ function whenText(event: { starts_at: string; ends_at: string; all_day: boolean 
     return dayKey(start) === dayKey(last) ? `${date.format(start)} · ${c.allDay}` : `${date.format(start)} – ${date.format(last)}`;
   }
   return dayKey(start) === dayKey(end) ? `${date.format(start)}, ${time.format(start)} – ${time.format(end)}` : `${date.format(start)}, ${time.format(start)} – ${date.format(end)}, ${time.format(end)}`;
+}
+
+// "Every 2 weeks on Mon, Wed until 23 Jan 2030".
+export function repeatText(rule: RepeatRule & { last_day?: string | null }) {
+  const r = c.repeat;
+  const days = rule.freq === "weekly" && rule.days.length ? ` ${r.onDays([...rule.days].sort().map((d) => t.calendar.settings.days[d - 1]).join(", "))}` : "";
+  const last = rule.until ?? rule.last_day ?? null;
+  const end = rule.count ? ` · ${r.times(rule.count)}` : last ? ` · ${r.untilDay(new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(fromDayKey(last)))}` : "";
+  return `${r.every(rule.freq, rule.interval)}${days}${end}`;
 }
 
 function Shell({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
@@ -62,6 +95,26 @@ function Shell({ label, onClose, children }: { label: string; onClose: () => voi
         data-event-dialog
       >
         {children}
+      </div>
+    </div>
+  );
+}
+
+// "Only this event / this and the following / all": asked before changing or cancelling a day of a series.
+function ScopeChoice({ title, labels, firstDay, onPick, onBack }: { title: string; labels: Record<string, string>; firstDay: boolean; onPick: (scope: SeriesScope) => void; onBack: () => void }) {
+  return (
+    <div className="mt-4 rounded-lg border border-border p-3" data-series-scope>
+      <p className="text-sm font-medium">{title}</p>
+      <div className="mt-2 flex flex-col gap-2">
+        {/* From the first day on, "this and the following" is the whole series. */}
+        {SCOPES.filter((scope) => !(firstDay && scope === "following")).map((scope) => (
+          <button key={scope} type="button" onClick={() => onPick(scope)} className={`${buttonClass} justify-start`} data-scope={scope}>
+            {labels[scope]}
+          </button>
+        ))}
+        <button type="button" onClick={onBack} className="min-h-11 text-left text-sm text-muted hover:text-foreground md:min-h-9">
+          {c.form.cancel}
+        </button>
       </div>
     </div>
   );
@@ -89,7 +142,18 @@ export function EventDialog({
   onChanged: () => void;
 }) {
   if (state.mode === "details") {
-    return <EventView shortId={shortId} me={me} guest={guest} id={state.id} onEdit={(details) => onState({ mode: "edit", details })} onClose={() => onState(null)} onChanged={onChanged} />;
+    return (
+      <EventView
+        shortId={shortId}
+        me={me}
+        guest={guest}
+        id={state.id}
+        occurrence={state.occurrence ?? null}
+        onEdit={(details, scope) => onState({ mode: "edit", details, scope })}
+        onClose={() => onState(null)}
+        onChanged={onChanged}
+      />
+    );
   }
   return (
     <EventForm
@@ -99,10 +163,11 @@ export function EventDialog({
       people={people}
       defaultZone={defaultZone}
       state={state}
-      onClose={() => onState(state.mode === "edit" ? { mode: "details", id: state.details.event.id } : null)}
-      onSaved={(id) => {
+      onClose={() => onState(state.mode === "edit" ? { mode: "details", id: state.details.event.id, occurrence: state.details.series?.occurrence ?? null } : null)}
+      onSaved={() => {
         onChanged();
-        onState(state.mode === "edit" ? { mode: "details", id } : null);
+        // The days of a series may have moved or split: back to the calendar.
+        onState(null);
       }}
     />
   );
@@ -113,6 +178,7 @@ function EventView({
   me,
   guest,
   id,
+  occurrence,
   onEdit,
   onClose,
   onChanged,
@@ -121,7 +187,8 @@ function EventView({
   me: string;
   guest: boolean;
   id: string;
-  onEdit: (details: EventDetails) => void;
+  occurrence: string | null;
+  onEdit: (details: EventDetails, scope: SeriesScope) => void;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -129,19 +196,20 @@ function EventView({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
+  const [asking, setAsking] = useState<"edit" | "cancel" | null>(null);
   const d = c.details;
 
   useEffect(() => {
     let live = true;
-    loadEvent(shortId, id).then((result) => {
+    loadEvent(shortId, id, occurrence).then((result) => {
       if (!live) return;
       if (result.ok) setDetails(result);
-      else setError(result.error === "forbidden" ? d.noAccess : errorText(result.error));
+      else setError(result.error === "forbidden" || result.error === "not_found" ? d.noAccess : errorText(result.error));
     });
     return () => {
       live = false;
     };
-  }, [shortId, id, tick, d.noAccess]);
+  }, [shortId, id, occurrence, tick, d.noAccess]);
 
   const run = async (action: () => Promise<{ ok: boolean; error?: string }>, close = false) => {
     setBusy(true);
@@ -169,6 +237,10 @@ function EventView({
   }
 
   const { event, attendees, my_status: mine } = details;
+  const series = details.series ?? null;
+  // A day of a series the calendar opened; without one (a link from a notification) changes are for the whole series.
+  const day = series?.occurrence ?? null;
+  const firstDay = !!series && !!day && day <= toZonedInput(series.starts_at, event.time_zone).slice(0, 10);
   const organizer = attendees.find((a) => a.id === event.organizer_id);
   const iOrganize = event.organizer_id === me;
   const listed = attendees.filter((a) => LISTED.includes(a.status));
@@ -180,6 +252,11 @@ function EventView({
     { value: "tentative", label: d.maybe },
     { value: "declined", label: d.notGoing },
   ];
+  const cancel = (scope: SeriesScope) => {
+    if (scope === "one" && day) return run(() => cancelOccurrence(shortId, id, day), true);
+    if (scope === "following" && day) return run(() => endSeries(shortId, id, day), true);
+    return run(() => cancelEvent(shortId, id), true);
+  };
 
   return (
     <Shell label={event.title} onClose={onClose}>
@@ -196,15 +273,18 @@ function EventView({
           {c.kinds[event.visibility]}
         </span>
         {event.cancelled && <span className="rounded-full bg-danger/10 px-2 py-0.5 text-xs text-danger">{d.cancelled}</span>}
+        {series?.changed && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">{c.repeat.dayChanged}</span>}
       </p>
       <p className="mt-3 first-letter:uppercase" data-event-when>
         🕑 {whenText(event)}
       </p>
-      {otherZone && (
-        <p className="text-xs text-muted">
-          {d.zoneNote(toZonedInput(event.starts_at, event.time_zone).slice(11), event.time_zone)}
+      {otherZone && <p className="text-xs text-muted">{d.zoneNote(toZonedInput(event.starts_at, event.time_zone).slice(11), event.time_zone)}</p>}
+      {series && (
+        <p className="mt-1 text-sm text-muted" data-event-repeat>
+          ↻ {repeatText(series)}
         </p>
       )}
+      {event.reminder_minutes ? <p className="mt-1 text-sm text-muted">🔔 {c.reminder.options[String(event.reminder_minutes)]}</p> : null}
       {event.location && <p className="mt-2 break-words">📍 {event.location}</p>}
       {event.meeting_url && (
         <p className="mt-2">
@@ -219,7 +299,7 @@ function EventView({
         <div className="mt-4 rounded-lg border border-border p-3" data-my-answer={mine ?? "none"}>
           {mine && LISTED.includes(mine) ? (
             <>
-              <p className="text-sm text-muted">{d.yourAnswer}</p>
+              <p className="text-sm text-muted">{series ? d.yourAnswerSeries : d.yourAnswer}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {answers.map((a) => (
                   <button key={a.value} type="button" disabled={busy} onClick={() => answer(a.value)} aria-pressed={mine === a.value} className={mine === a.value ? primaryClass : buttonClass} data-answer={a.value}>
@@ -293,29 +373,57 @@ function EventView({
       </section>
 
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
-        {details.can_cancel && !event.cancelled && (
-          <button type="button" disabled={busy} onClick={() => confirm(d.cancelConfirm) && run(() => cancelEvent(shortId, id), true)} className={`${buttonClass} mr-auto text-danger`} data-cancel-event>
-            {d.cancelEvent}
+      {asking === "edit" && <ScopeChoice title={c.repeat.changeWhat} labels={c.repeat.scopes} firstDay={firstDay} onPick={(scope) => onEdit(details, scope)} onBack={() => setAsking(null)} />}
+      {asking === "cancel" && (
+        <ScopeChoice
+          title={c.repeat.cancelWhat}
+          labels={c.repeat.scopes}
+          firstDay={firstDay}
+          onPick={(scope) => {
+            setAsking(null);
+            cancel(scope);
+          }}
+          onBack={() => setAsking(null)}
+        />
+      )}
+      {!asking && (
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          {details.can_cancel && !event.cancelled && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => (series && day ? setAsking("cancel") : confirm(series ? d.cancelSeriesConfirm : d.cancelConfirm) && cancel("all"))}
+              className={`${buttonClass} mr-auto text-danger`}
+              data-cancel-event
+            >
+              {d.cancelEvent}
+            </button>
+          )}
+          {details.can_cancel && series?.day_cancelled && day && (
+            <button type="button" disabled={busy} onClick={() => run(() => cancelOccurrence(shortId, id, day, true))} className={`${buttonClass} mr-auto`} data-restore-day>
+              {c.restore}
+            </button>
+          )}
+          {details.can_cancel && event.cancelled && !series?.day_cancelled && (
+            <button type="button" disabled={busy} onClick={() => run(() => cancelEvent(shortId, id, true))} className={`${buttonClass} mr-auto`}>
+              {c.restore}
+            </button>
+          )}
+          {details.can_edit && !event.cancelled && (
+            <button type="button" onClick={() => (series && day ? setAsking("edit") : onEdit(details, "all"))} className={buttonClass} data-edit-event>
+              {d.edit}
+            </button>
+          )}
+          <button type="button" onClick={onClose} className={buttonClass}>
+            {c.form.close}
           </button>
-        )}
-        {details.can_cancel && event.cancelled && (
-          <button type="button" disabled={busy} onClick={() => run(() => cancelEvent(shortId, id, true))} className={`${buttonClass} mr-auto`}>
-            {c.restore}
-          </button>
-        )}
-        {details.can_edit && !event.cancelled && (
-          <button type="button" onClick={() => onEdit(details)} className={buttonClass} data-edit-event>
-            {d.edit}
-          </button>
-        )}
-        <button type="button" onClick={onClose} className={buttonClass}>
-          {c.form.close}
-        </button>
-      </div>
+        </div>
+      )}
     </Shell>
   );
 }
+
+type EndKind = "never" | "until" | "count";
 
 function EventForm({
   shortId,
@@ -334,13 +442,20 @@ function EventForm({
   defaultZone: string;
   state: Extract<DialogState, { mode: "new" | "edit" }>;
   onClose: () => void;
-  onSaved: (id: string) => void;
+  onSaved: () => void;
 }) {
   const f = c.form;
+  const r = c.repeat;
   const editing = state.mode === "edit" ? state.details : null;
+  const series = editing?.series ?? null;
+  // One day of a series: only its own time and texts change.
+  const scope: SeriesScope = state.mode === "edit" && series ? state.scope : "all";
+  const oneDay = scope === "one";
   const initial = useMemo(() => {
     if (editing) {
-      const e = editing.event;
+      // "All": the series as it is kept (its first day and own texts); otherwise the opened day.
+      const whole = scope === "all" && series;
+      const e = whole ? { ...editing.event, starts_at: series.starts_at, ends_at: series.ends_at, title: series.title, description: series.description, location: series.location, meeting_url: series.meeting_url } : editing.event;
       const keys = allDayKeys(e);
       const zone = e.time_zone;
       return {
@@ -356,6 +471,13 @@ function EventForm({
         lastDay: e.all_day ? keys.last : toZonedInput(e.ends_at, zone).slice(0, 10),
         visibility: e.visibility,
         people: editing.attendees.filter((a) => LISTED.includes(a.status) && a.id !== e.organizer_id).map((a) => a.id),
+        freq: (series?.freq ?? "") as "" | RepeatFreq,
+        interval: series?.interval ?? 1,
+        days: series?.days ?? [],
+        endKind: (series?.count ? "count" : series?.until ? "until" : "never") as EndKind,
+        until: series?.until ?? "",
+        count: series?.count ?? 10,
+        reminder: editing.event.reminder_minutes ?? 0,
       };
     }
     const zone = browserTimeZone() || defaultZone;
@@ -374,8 +496,15 @@ function EventForm({
       lastDay: dayKey(from),
       visibility: "open" as EventVisibility,
       people: [] as string[],
+      freq: "" as "" | RepeatFreq,
+      interval: 1,
+      days: [] as number[],
+      endKind: "never" as EndKind,
+      until: "",
+      count: 10,
+      reminder: 10,
     };
-  }, [editing, state, defaultZone]);
+  }, [editing, series, scope, state, defaultZone]);
 
   const [title, setTitle] = useState(initial.title);
   const [description, setDescription] = useState(initial.description);
@@ -389,6 +518,13 @@ function EventForm({
   const [lastDay, setLastDay] = useState(initial.lastDay);
   const [visibility, setVisibility] = useState<EventVisibility>(initial.visibility);
   const [invited, setInvited] = useState<string[]>(initial.people);
+  const [freq, setFreq] = useState<"" | RepeatFreq>(initial.freq);
+  const [interval, setIntervalCount] = useState(initial.interval);
+  const [days, setDays] = useState<number[]>(initial.days);
+  const [endKind, setEndKind] = useState<EndKind>(initial.endKind);
+  const [until, setUntil] = useState(initial.until);
+  const [count, setCount] = useState(initial.count);
+  const [reminder, setReminder] = useState(initial.reminder);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<BusySlot[]>([]);
@@ -398,16 +534,29 @@ function EventForm({
 
   const startsAt = allDay ? (firstDay ? allDayStart(firstDay) : null) : fromZonedInput(start, zone);
   const endsAt = allDay ? (lastDay ? allDayEnd(lastDay) : null) : fromZonedInput(end, zone);
-  const timeOk = !!startsAt && !!endsAt && Date.parse(endsAt) > Date.parse(startsAt) && Date.parse(endsAt) - Date.parse(startsAt) <= 31 * DAY_MS;
+  const length = startsAt && endsAt ? Date.parse(endsAt) - Date.parse(startsAt) : 0;
+  const timeOk = !!startsAt && !!endsAt && length > 0 && length <= 31 * DAY_MS;
   const linkOk = isMeetingUrl(link.trim());
+  // The day the series starts on, in its own zone.
+  const startDay = allDay ? firstDay : start.slice(0, 10);
+  const repeatOk = !freq || oneDay || (length <= 7 * DAY_MS && (endKind !== "until" || (!!until && until >= startDay)) && (endKind !== "count" || (count >= 1 && count <= 730)));
+  const rule: RepeatRule | null =
+    freq && !oneDay
+      ? { freq, interval: Math.min(Math.max(interval || 1, 1), 99), days: freq === "weekly" ? days : [], until: endKind === "until" ? until : null, count: endKind === "count" ? count : null }
+      : null;
 
   // Moving the start keeps the length.
   const changeStart = (value: string) => {
     const before = fromZonedInput(start, zone);
     const after = fromZonedInput(value, zone);
-    const until = fromZonedInput(end, zone);
+    const untilNow = fromZonedInput(end, zone);
     setStart(value);
-    if (before && after && until) setEnd(toZonedInput(new Date(Date.parse(until) + Date.parse(after) - Date.parse(before)).toISOString(), zone));
+    if (before && after && untilNow) setEnd(toZonedInput(new Date(Date.parse(untilNow) + Date.parse(after) - Date.parse(before)).toISOString(), zone));
+  };
+  const changeFreq = (value: "" | RepeatFreq) => {
+    setFreq(value);
+    // A weekly series starts with the day it begins on.
+    if (value === "weekly" && days.length === 0 && startDay) setDays([weekdayOf(fromDayKey(startDay))]);
   };
 
   // Who of the invited (and I) is busy then: times only, also for events hidden from me.
@@ -438,31 +587,42 @@ function EventForm({
     if (!title.trim()) return setError(c.errors.bad_title);
     if (!timeOk || !startsAt || !endsAt) return setError(c.errors.bad_time);
     if (!linkOk) return setError(c.errors.bad_link);
-    const fields: EventFields = { title: title.trim(), description, location: location.trim(), meeting_url: link.trim(), starts_at: startsAt, ends_at: endsAt, all_day: allDay, time_zone: allDay ? "UTC" : zone, visibility };
+    if (!repeatOk) return setError(c.errors.bad_repeat);
+    const fields: EventFields = {
+      title: title.trim(),
+      description,
+      location: location.trim(),
+      meeting_url: link.trim(),
+      starts_at: startsAt,
+      ends_at: endsAt,
+      all_day: allDay,
+      time_zone: allDay ? "UTC" : zone,
+      visibility,
+      repeat: rule,
+      reminder_minutes: reminder || null,
+    };
+    const invite = invited.filter((id) => !initial.people.includes(id));
+    const remove = initial.people.filter((id) => !invited.includes(id));
+    const day = series?.occurrence ?? null;
     setSaving(true);
-    if (editing) {
-      const result = await updateEvent(
-        shortId,
-        editing.event.id,
-        fields,
-        invited.filter((id) => !initial.people.includes(id)),
-        initial.people.filter((id) => !invited.includes(id)),
-      );
-      setSaving(false);
-      if (!result.ok) return setError(errorText(result.error));
-      return onSaved(editing.event.id);
-    }
-    const result = await createEvent(shortId, workspaceId, fields, invited);
+    const result = !editing
+      ? await createEvent(shortId, workspaceId, fields, invited)
+      : scope === "one" && day
+        ? await changeOccurrence(shortId, editing.event.id, day, fields)
+        : scope === "following" && day
+          ? await splitEvent(shortId, editing.event.id, day, fields, invite, remove)
+          : await updateEvent(shortId, editing.event.id, fields, invite, remove);
     setSaving(false);
     if (!result.ok) return setError(errorText(result.error));
-    onSaved(result.id);
+    onSaved();
   };
 
   const time = new Intl.DateTimeFormat(dateLocale(), { hour: "2-digit", minute: "2-digit" });
   const nameOf = (id: string) => (id === me ? f.you : (people.find((p) => p.id === id)?.name ?? "—"));
+  const heading = !editing ? f.newTitle : series ? `${f.editTitle} · ${r.scopes[scope]}` : f.editTitle;
 
   return (
-    <Shell label={editing ? f.editTitle : f.newTitle} onClose={close}>
+    <Shell label={heading} onClose={close}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -470,14 +630,17 @@ function EventForm({
         }}
         className="space-y-3"
         data-event-form
+        data-event-scope={scope}
       >
-        <h2 className="text-lg font-semibold">{editing ? f.editTitle : f.newTitle}</h2>
+        <h2 className="text-lg font-semibold">{heading}</h2>
         <input ref={titleInput} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} placeholder={f.titlePlaceholder} aria-label={f.title} className={`${inputClass} font-medium`} data-event-field="title" />
 
-        <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9">
-          <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="h-5 w-5" data-event-field="all_day" />
-          {f.allDay}
-        </label>
+        {!oneDay && (
+          <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-9">
+            <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="h-5 w-5" data-event-field="all_day" />
+            {f.allDay}
+          </label>
+        )}
         {allDay ? (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="block text-sm">
@@ -510,33 +673,106 @@ function EventForm({
                 <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={`${inputClass} mt-1`} data-event-field="end" />
               </label>
             </div>
-            <label className="block text-sm">
-              <span className="text-muted">{f.timeZone}</span>
-              <select value={zone} onChange={(e) => setZone(e.target.value)} className={`${inputClass} mt-1`} data-event-field="time_zone">
-                {zones.map((z) => (
-                  <option key={z} value={z}>
-                    {z}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!oneDay && (
+              <label className="block text-sm">
+                <span className="text-muted">{f.timeZone}</span>
+                <select value={zone} onChange={(e) => setZone(e.target.value)} className={`${inputClass} mt-1`} data-event-field="time_zone">
+                  {zones.map((z) => (
+                    <option key={z} value={z}>
+                      {z}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </>
         )}
         {!timeOk && <p className="text-sm text-danger">{c.errors.bad_time}</p>}
 
-        <label className="block text-sm">
-          <span className="text-muted">{f.kind}</span>
-          <select value={visibility} onChange={(e) => setVisibility(e.target.value as EventVisibility)} className={`${inputClass} mt-1`} data-event-field="visibility">
-            {EVENT_VISIBILITIES.map((v) => (
-              <option key={v} value={v}>
-                {c.kinds[v]}
-              </option>
-            ))}
-          </select>
-          <span className="mt-1 block text-xs text-muted">{c.kindHints[visibility]}</span>
-        </label>
+        {!oneDay && (
+          <fieldset className="rounded-lg border border-border p-3" data-repeat>
+            <legend className="px-1 text-sm text-muted">{r.title}</legend>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="sr-only">{r.title}</span>
+                <select value={freq} onChange={(e) => changeFreq(e.target.value as "" | RepeatFreq)} className={inputClass} data-event-field="repeat">
+                  <option value="">{r.none}</option>
+                  {REPEAT_FREQS.map((value) => (
+                    <option key={value} value={value}>
+                      {r.freqs[value]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {freq && (
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-muted">{r.everyLabel}</span>
+                  <input type="number" min={1} max={99} value={interval} onChange={(e) => setIntervalCount(Number(e.target.value))} className={`${inputClass} w-20`} data-event-field="repeat_interval" />
+                  <span className="text-muted">{r.units[freq]}</span>
+                </label>
+              )}
+            </div>
+            {freq === "weekly" && (
+              <div className="mt-2 flex flex-wrap gap-1" data-repeat-days>
+                {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+                  <label key={day} className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border px-2 text-sm ${days.includes(day) ? "border-accent bg-accent text-white" : "border-border"}`}>
+                    <input type="checkbox" className="sr-only" checked={days.includes(day)} onChange={(e) => setDays(e.target.checked ? [...days, day] : days.filter((x) => x !== day))} data-repeat-day={day} />
+                    {t.calendar.settings.days[day - 1]}
+                  </label>
+                ))}
+              </div>
+            )}
+            {freq && (
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-muted">{r.ends}</span>
+                  <select value={endKind} onChange={(e) => {
+                      setEndKind(e.target.value as EndKind);
+                      // A sensible last day to start from: four weeks on.
+                      if (e.target.value === "until" && !until && startDay) setUntil(dayKey(new Date(fromDayKey(startDay).getTime() + 28 * DAY_MS)));
+                    }} className={`${inputClass} mt-1`} data-event-field="repeat_end">
+                    <option value="never">{r.never}</option>
+                    <option value="until">{r.onDate}</option>
+                    <option value="count">{r.afterTimes}</option>
+                  </select>
+                </label>
+                {endKind === "until" && (
+                  <label className="block text-sm">
+                    <span className="text-muted">{r.lastDay}</span>
+                    <input type="date" value={until} min={startDay} onChange={(e) => setUntil(e.target.value)} className={`${inputClass} mt-1`} data-event-field="repeat_until" />
+                  </label>
+                )}
+                {endKind === "count" && (
+                  <label className="block text-sm">
+                    <span className="text-muted">{r.howMany}</span>
+                    <input type="number" min={1} max={730} value={count} onChange={(e) => setCount(Number(e.target.value))} className={`${inputClass} mt-1`} data-event-field="repeat_count" />
+                  </label>
+                )}
+              </div>
+            )}
+            {freq && !repeatOk && <p className="mt-2 text-sm text-danger">{c.errors.bad_repeat}</p>}
+            {scope === "all" && series && <p className="mt-2 text-xs text-muted">{r.allHint}</p>}
+            {scope === "following" && <p className="mt-2 text-xs text-muted">{r.followingHint}</p>}
+          </fieldset>
+        )}
+        {oneDay && <p className="text-xs text-muted">{r.oneHint}</p>}
 
-        <PeoplePicker label={f.people} people={people.filter((p) => p.id !== me)} picked={invited} onChange={setInvited} />
+        {!oneDay && (
+          <>
+            <label className="block text-sm">
+              <span className="text-muted">{f.kind}</span>
+              <select value={visibility} onChange={(e) => setVisibility(e.target.value as EventVisibility)} className={`${inputClass} mt-1`} data-event-field="visibility">
+                {EVENT_VISIBILITIES.map((v) => (
+                  <option key={v} value={v}>
+                    {c.kinds[v]}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-muted">{c.kindHints[visibility]}</span>
+            </label>
+            <PeoplePicker label={f.people} people={people.filter((p) => p.id !== me)} picked={invited} onChange={setInvited} />
+          </>
+        )}
         {shownConflicts.length > 0 && (
           <div className="rounded-md border border-danger/40 bg-danger/5 p-2 text-sm" data-conflicts>
             <p className="font-medium">{f.conflicts}</p>
@@ -559,6 +795,20 @@ function EventForm({
           <input type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} maxLength={500} placeholder="https://" className={`${inputClass} mt-1`} data-event-field="link" />
           {!linkOk && <span className="mt-1 block text-xs text-danger">{c.errors.bad_link}</span>}
         </label>
+        {!oneDay && (
+          <label className="block text-sm">
+            <span className="text-muted">{c.reminder.title}</span>
+            <select value={reminder} onChange={(e) => setReminder(Number(e.target.value))} className={`${inputClass} mt-1`} data-event-field="reminder">
+              <option value={0}>{c.reminder.none}</option>
+              {REMINDERS.map((minutes) => (
+                <option key={minutes} value={minutes}>
+                  {c.reminder.options[String(minutes)]}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-muted">{c.reminder.hint}</span>
+          </label>
+        )}
         <label className="block text-sm">
           <span className="text-muted">{f.description}</span>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={10000} rows={3} className={`${inputClass} mt-1 py-2`} data-event-field="description" />
@@ -569,7 +819,7 @@ function EventForm({
           <button type="button" onClick={close} className={buttonClass}>
             {f.cancel}
           </button>
-          <button type="submit" disabled={saving || !title.trim() || !timeOk || !linkOk} className={primaryClass} data-save-event>
+          <button type="submit" disabled={saving || !title.trim() || !timeOk || !linkOk || !repeatOk} className={primaryClass} data-save-event>
             {editing ? f.save : f.create}
           </button>
         </div>

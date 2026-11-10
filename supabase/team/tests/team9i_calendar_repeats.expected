@@ -1,0 +1,7 @@
+five days: Daily 03 09:00, Daily 04 09:00, Daily 05 09:00, Daily 06 09:00, Daily 07 09:00
+the 4th cancelled: true, the 5th moved: true
+now: Daily 03 09:00, Daily 05 15:00, Daily 06 09:00, Daily 07 09:00
+this and the following: Daily 03 09:00, Daily 05 15:00, Later 06 11:00, Later 07 11:00
+alice (owner, private series) sees: nothing; bob is busy: 03 09:00, 05 15:00, 06 11:00, 07 11:00; cancels a day: forbidden
+carol (not a member) sees: nothing; busy: free; changed days: 0; reminded of: 0
+psql: ERROR:  permission denied for table calendar_event_exceptions

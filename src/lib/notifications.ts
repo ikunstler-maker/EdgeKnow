@@ -1,7 +1,7 @@
 // Notifications (package 8) and project rules (package 7): shapes shared by the
 // server actions and the screens.
 
-export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due", "event_invite", "event_request", "event_answer", "event_change", "leave_request", "leave_decision", "leave_deputy", "leave_info"] as const;
+export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due", "event_invite", "event_request", "event_answer", "event_change", "event_reminder", "leave_request", "leave_decision", "leave_deputy", "leave_info"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export type NotificationItem = {
