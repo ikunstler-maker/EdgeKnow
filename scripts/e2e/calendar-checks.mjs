@@ -176,3 +176,88 @@ export async function timeOffChecks() {
   const numbers = (await colleagueClient.rpc("my_leave", { ws: alphaId, target_year: Number(day.slice(0, 4)) })).data?.policies?.find((p) => p.id === vacation);
   check("…the balance is whole again", Number(numbers?.used) === 0 && Number(numbers?.pending) === 0, JSON.stringify(numbers));
 }
+
+// Repeating events (phase 2a): a series made in the browser, one day changed, one
+// cancelled, "this and the following", free/busy that follows, a reminder in the bell.
+export async function repeatChecks() {
+  const base = `${APP}/w/${alphaShort}/calendar`;
+  const one = (query) => sql(query);
+  const dayAt = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+
+  // A weekly series, four times, from the form.
+  await alice.goto(`${base}?view=list`);
+  await alice.locator("[data-new-event]").click();
+  const form = alice.locator("[data-event-form]");
+  await form.locator('[data-event-field="title"]').fill("Standup");
+  await form.locator('[data-event-field="repeat"]').selectOption("weekly");
+  await form.locator('[data-event-field="repeat_end"]').selectOption("count");
+  await form.locator('[data-event-field="repeat_count"]').fill("4");
+  await form.locator("[data-save-event]").click();
+  const standup = () => one(`select repeat_freq || ' ' || repeat_count || ' ' || (repeat_until is not null) || ' ' || coalesce(reminder_minutes::text, '-') from public.calendar_events where title = 'Standup'`);
+  check("a weekly series for four times is saved with its last day worked out", await until(() => standup() === "weekly 4 true 10", 15000), standup());
+  await alice.locator('[data-list] [data-event="Standup"]').first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and shows as four days in the list", (await alice.locator('[data-list] [data-event="Standup"]').count()) === 4);
+
+  // A daily series of five days from tomorrow, with the colleague.
+  const first = dayAt(1);
+  const { data: made } = await aliceClient.rpc("create_calendar_event", {
+    ws: alphaId,
+    fields: { title: "Daily sync", description: "", location: "", meeting_url: "", starts_at: `${first}T09:00:00Z`, ends_at: `${first}T09:30:00Z`, all_day: false, time_zone: "UTC", visibility: "open", repeat: { freq: "daily", count: 5 } },
+    people: [colleagueId],
+  });
+  const series = made?.id;
+  check("(setup) a daily series", made?.ok === true, JSON.stringify(made));
+  const openDay = async (day, title = "Daily sync") => {
+    await alice.goto(`${base}?view=week&date=${day}`);
+    await alice.locator(`[data-day-column="${day}"] [data-event="${title}"]`).click({ timeout: 15000 });
+    await alice.locator("[data-event-title]").waitFor({ timeout: 15000 });
+  };
+  const busyDays = async () => {
+    const { data } = await colleagueClient.rpc("calendar_busy", { ws: alphaId, people: [(await aliceClient.auth.getUser()).data.user.id], range_from: `${first}T00:00:00Z`, range_to: `${dayAt(6)}T00:00:00Z` });
+    return (data ?? []).filter((slot) => slot.starts_at.slice(11, 16) === "09:00" || slot.starts_at.slice(11, 16) === "14:00").map((slot) => `${slot.starts_at.slice(0, 10)} ${slot.starts_at.slice(11, 16)}`);
+  };
+
+  // "Only this event": the second day gets its own title.
+  await openDay(dayAt(2));
+  await alice.locator("[data-edit-event]").click();
+  await alice.locator('[data-series-scope] [data-scope="one"]').click();
+  await alice.locator('[data-event-form][data-event-scope="one"] [data-event-field="title"]').fill("Daily sync (special)");
+  await alice.locator("[data-save-event]").click();
+  const special = () => one(`select title from public.calendar_event_exceptions where event_id = '${series}' and occurrence_date = '${dayAt(2)}'`);
+  check("“only this event” changes one day of the series", await until(() => special() === "Daily sync (special)", 15000), special());
+  check("…and leaves the series' own title", one(`select title from public.calendar_events where id = '${series}'`) === "Daily sync");
+
+  // One day cancelled: gone from the grid, and the time is free for others.
+  await openDay(dayAt(3));
+  await alice.locator("[data-cancel-event]").click();
+  await alice.locator('[data-series-scope] [data-scope="one"]').click();
+  const cancelledDay = () => one(`select cancelled::text from public.calendar_event_exceptions where event_id = '${series}' and occurrence_date = '${dayAt(3)}'`);
+  check("one day of the series is cancelled", await until(() => cancelledDay() === "true", 15000), cancelledDay());
+  const busyAfterCancel = await busyDays();
+  check("…and free/busy no longer has it", busyAfterCancel.length === 4 && !busyAfterCancel.some((d) => d.startsWith(dayAt(3))), JSON.stringify(busyAfterCancel));
+
+  // "This and the following" from the fourth day: 14:00 from then on.
+  await openDay(dayAt(4));
+  await alice.locator("[data-edit-event]").click();
+  await alice.locator('[data-series-scope] [data-scope="following"]').click();
+  const following = alice.locator('[data-event-form][data-event-scope="following"]');
+  await following.locator('[data-event-field="title"]').fill("Late sync");
+  await following.locator('[data-event-field="start"]').fill(`${dayAt(4)}T14:00`);
+  await alice.locator("[data-save-event]").click();
+  const late = () => one(`select repeat_count || ' ' || repeat_until || ' ' || (select count(*) from public.calendar_event_attendees a where a.event_id = e.id) from public.calendar_events e where title = 'Late sync'`);
+  check("“this and the following” starts a new series with what is left and the same people", await until(() => late() === `2 ${dayAt(5)} 2`, 15000), late());
+  check("…and the old series ends the day before", one(`select repeat_until::text from public.calendar_events where id = '${series}'`) === dayAt(3));
+  const busyAfterSplit = await busyDays();
+  check("…free/busy follows: two days at 09:00, two at 14:00, the cancelled one free", JSON.stringify(busyAfterSplit) === JSON.stringify([`${dayAt(1)} 09:00`, `${dayAt(2)} 09:00`, `${dayAt(4)} 14:00`, `${dayAt(5)} 14:00`]), JSON.stringify(busyAfterSplit));
+
+  // A reminder: an event in five minutes reaches the invited colleague's bell.
+  const soon = new Date(Date.now() + 5 * 60000).toISOString();
+  await aliceClient.rpc("create_calendar_event", {
+    ws: alphaId,
+    fields: { title: "Starting soon", description: "", location: "", meeting_url: "", starts_at: soon, ends_at: new Date(Date.now() + 35 * 60000).toISOString(), all_day: false, time_zone: "UTC", visibility: "open", reminder_minutes: 10 },
+    people: [colleagueId],
+  });
+  await colleague.goto(`${base}?view=list`);
+  const reminded = () => one(`select count(*) from public.notifications n join public.calendar_events e on e.id = n.event_id where n.kind = 'event_reminder' and n.user_id = '${colleagueId}' and e.title = 'Starting soon'`);
+  check("a reminder reaches the invited person's bell, once", (await until(() => reminded() === "1", 40000)) && reminded() === "1", reminded());
+}

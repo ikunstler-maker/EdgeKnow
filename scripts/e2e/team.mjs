@@ -19,7 +19,7 @@ const pngBuffer = await makeTestPng(alice);
 const gammaShort = sql("select short_id from public.workspaces where name = 'Team Delta'");
 const teamStatus = JSON.parse(readFileSync(".team-stacks/team-b/status.json", "utf8"));
 const teamSql = (query) => execFileSync("psql", [teamStatus.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
-// As in common.mjs: pages made here are published at once (drafts are checked in wiki.mjs and team9i_page_drafts).
+// As in common.mjs: pages made here are published at once (drafts are checked in wiki.mjs and team9j_page_drafts).
 teamSql("alter table public.pages alter column published_at set default now()");
 const gammaTab = await newPage(aliceCookies);
 await gammaTab.goto(`${APP}/w/${gammaShort}`);

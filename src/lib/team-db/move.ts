@@ -261,7 +261,7 @@ const STAGES: Stage[] = [
   {
     name: "calendar events",
     table: "calendar_events",
-    columns: "id, workspace_id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, recurrence, organizer_id, created_by, created_at, updated_at, deleted_at, deleted_by",
+    columns: "id, workspace_id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, recurrence, repeat_freq, repeat_interval, repeat_days, repeat_until, repeat_count, reminder_minutes, organizer_id, created_by, created_at, updated_at, deleted_at, deleted_by",
     order: "id",
     onConflict: "id",
   },
@@ -272,6 +272,14 @@ const STAGES: Stage[] = [
     columns: "event_id, workspace_id, user_id, status, invited_by, created_at, responded_at",
     order: "event_id,user_id",
     onConflict: "event_id,user_id",
+    replace: true,
+  },
+  {
+    name: "changed days of series",
+    table: "calendar_event_exceptions",
+    columns: "event_id, workspace_id, occurrence_date, cancelled, starts_at, ends_at, title, description, location, meeting_url, updated_by, updated_at",
+    order: "event_id,occurrence_date",
+    onConflict: "event_id,occurrence_date",
     replace: true,
   },
   { name: "calendar settings", table: "calendar_settings", columns: "workspace_id, work_days, time_zone, updated_by, updated_at", order: "workspace_id", onConflict: "workspace_id" },
@@ -288,14 +296,14 @@ const STAGES: Stage[] = [
   {
     name: "notifications",
     table: "notifications",
-    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, leave_request_id, created_at, read_at",
+    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, event_at, leave_request_id, created_at, read_at",
     order: "id",
     onConflict: "id",
   },
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_settings", "leave_policies", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 

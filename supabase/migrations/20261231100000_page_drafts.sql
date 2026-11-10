@@ -1,6 +1,6 @@
--- Wiki drafts (decision 2027-01-24): a new page is a draft until someone publishes it.
--- The same in supabase/team/migrations/0045_page_drafts.sql.
--- Rollback: supabase/rollbacks/20261230100000_page_drafts.down.sql
+-- Wiki drafts (decision 2027-01-25): a new page is a draft until someone publishes it.
+-- The same in supabase/team/migrations/0046_page_drafts.sql.
+-- Rollback: supabase/rollbacks/20261231100000_page_drafts.down.sql
 --
 -- A draft is an extra filter on top of the usual page access, never a new access:
 -- a page is hidden from a person when the page itself or any page above it (by

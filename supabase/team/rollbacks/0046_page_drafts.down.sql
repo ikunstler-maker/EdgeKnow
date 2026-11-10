@@ -1,12 +1,11 @@
--- Undo 20261230100000_page_drafts: the draft rule, publishing and the published_at column.
+-- Undo 0046_page_drafts: the draft rule, publishing and the published_at column.
 drop trigger pages_draft_ack on public.pages;
 drop function public.guard_draft_ack();
 drop function public.publish_page(uuid, boolean);
 drop function public.is_draft(public.pages);
 
--- The page tree as in 20261226100000_fast_reads.
+-- The page tree as in 0041_fast_reads.
 drop function public.my_page_tree(uuid);
-
 create function public.my_page_tree(ws uuid)
 returns table (
   id uuid,
@@ -92,7 +91,7 @@ $$;
 revoke execute on function public.my_page_tree(uuid) from public, anon;
 grant execute on function public.my_page_tree(uuid) to authenticated;
 
--- The role as in 20261222100000_unit_access.
+-- The role as in 0037_unit_access.
 create or replace function public.page_role_of(target_page uuid, member uuid)
 returns text
 language sql

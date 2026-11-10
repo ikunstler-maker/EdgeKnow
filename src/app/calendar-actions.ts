@@ -2,6 +2,8 @@
 
 import type { ActionResult } from "@/lib/action-result";
 import type { BusySlot, CalendarEvent, CalendarSettings, CancelledEvent, EventAnswer, EventDetails, EventFields } from "@/lib/calendar";
+
+const isDay = (value: string | null | undefined): value is string => !!value && /^\d{4}-\d{2}-\d{2}$/.test(value);
 import { dataClient, writeClient } from "@/lib/team-db/data";
 
 // Doba: who sees and changes what is decided by the database functions; these only
@@ -36,9 +38,12 @@ export async function loadCalendar(shortId: string, workspaceId: string, from: s
   return { events: (data ?? []) as CalendarEvent[], cancelled: (cancelled ?? []) as CancelledEvent[] };
 }
 
-export async function loadEvent(shortId: string, eventId: string): Promise<ActionResult<EventDetails>> {
+// One event; for a series, the given day of it as it really is (moved, renamed, cancelled).
+export async function loadEvent(shortId: string, eventId: string, occurrence: string | null = null): Promise<ActionResult<EventDetails>> {
   const db = await dataClient(shortId);
-  const { data, error } = await db.rpc("calendar_event_details", { target: eventId });
+  let { data, error } = await db.rpc("calendar_event_details", isDay(occurrence) ? { target: eventId, occurrence } : { target: eventId });
+  // A database a step behind the site doesn't know days of a series yet: the event itself.
+  if (error && isDay(occurrence)) ({ data, error } = await db.rpc("calendar_event_details", { target: eventId }));
   if (error || !data) return { ok: false, error: "unknown" };
   return data as ActionResult<EventDetails>;
 }
@@ -63,6 +68,39 @@ export async function updateEvent(shortId: string, eventId: string, fields: Even
     if (!removed.ok) return removed;
   }
   return invite.length ? call(shortId, "invite_to_calendar_event", { target: eventId, people: invite }) : saved;
+}
+
+// "Only this event": one day of a series gets its own time and texts.
+export async function changeOccurrence(shortId: string, eventId: string, occurrence: string, fields: EventFields) {
+  if (!isDay(occurrence)) return { ok: false as const, error: "invalid" };
+  return call(shortId, "change_calendar_occurrence", { target: eventId, occurrence, fields });
+}
+
+// "This and the following": the old series ends the day before; a new one starts here.
+export async function splitEvent(shortId: string, eventId: string, occurrence: string, fields: EventFields, invite: string[], remove: string[]) {
+  if (!isDay(occurrence)) return { ok: false as const, error: "invalid" };
+  const made = await call<{ id: string }>(shortId, "split_calendar_event", { target: eventId, occurrence, fields });
+  if (!made.ok) return made;
+  for (const person of remove) {
+    const removed = await call(shortId, "remove_calendar_event_attendee", { target: made.id, person });
+    if (!removed.ok) return removed;
+  }
+  if (invite.length) {
+    const invited = await call(shortId, "invite_to_calendar_event", { target: made.id, people: invite });
+    if (!invited.ok) return invited;
+  }
+  return made;
+}
+
+export async function cancelOccurrence(shortId: string, eventId: string, occurrence: string, restore = false) {
+  if (!isDay(occurrence)) return { ok: false as const, error: "invalid" };
+  return call(shortId, "cancel_calendar_occurrence", { target: eventId, occurrence, restore });
+}
+
+// The series ends before this day (the day and all after it are gone).
+export async function endSeries(shortId: string, eventId: string, occurrence: string) {
+  if (!isDay(occurrence)) return { ok: false as const, error: "invalid" };
+  return call(shortId, "end_calendar_series", { target: eventId, occurrence });
 }
 
 export async function respondToEvent(shortId: string, eventId: string, answer: EventAnswer) {

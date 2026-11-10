@@ -19,6 +19,10 @@ async function call<T extends object = object>(shortId: string, fn: string, args
 
 export async function loadNotifications(shortId: string, workspaceId: string): Promise<NotificationList | null> {
   const supabase = await dataClient(shortId);
+  // Reminders run on no clock: the bell asking for news is what makes the ones that are due
+  // (an older database has no such function yet — then there are simply none).
+  const writer = await writeClient(shortId);
+  if (writer) await writer.rpc("calendar_remind_me", { ws: workspaceId });
   const { data, error } = await supabase.rpc("my_notifications", { ws: workspaceId, max_rows: 40 });
   if (error || !data) return null;
   return data as NotificationList;

@@ -2,7 +2,7 @@
 // keyboard and the toolbar, saved by themselves, access like pages.
 // Usage: node scripts/e2e/nodes.mjs status.json http://localhost:3000
 
-import { calendarChecks, timeOffChecks } from "./calendar-checks.mjs";
+import { calendarChecks, repeatChecks, timeOffChecks } from "./calendar-checks.mjs";
 import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, newPage, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
@@ -670,5 +670,6 @@ check("…while a map they may view shows as usual", shownMap, screen);
 
 await calendarChecks();
 await timeOffChecks();
+await repeatChecks();
 
 await finish("nodes");

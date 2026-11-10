@@ -45,6 +45,8 @@ function subjectOf(item: NotificationItem) {
   if (item.task) return `${item.task.key} ${item.task.title}${item.kind === "rule" && item.task.status ? ` → ${item.task.status}` : ""}`;
   if (item.page) return item.page.title || t.pages.untitled;
   if (item.leave) return `${item.leave.person} · ${leaveDates(item.leave)} · ${t.timeOff.status[item.leave.status] ?? ""}`;
+  if (item.event && item.kind === "event_reminder")
+    return `${item.event.title} · ${new Date(item.event.starts_at).toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })}`;
   if (item.event) return item.event.cancelled ? `${item.event.title} · ${t.calendar.details.cancelled}` : item.event.title;
   return n.hidden;
 }

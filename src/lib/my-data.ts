@@ -57,7 +57,7 @@ export async function exportMyData(userId: string) {
       survey_answers: (await db.rpc("my_survey_answers", { ws: m.workspace_id })).data ?? [],
       page_confirmations: await rows(db.from("page_acks").select("page_id, revision, label, content_hash, signed_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       calendar_events: await rows(
-        db.from("calendar_events").select("id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, created_at, deleted_at").eq("workspace_id", m.workspace_id).eq("organizer_id", userId),
+        db.from("calendar_events").select("id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, repeat_freq, repeat_interval, repeat_days, repeat_until, created_at, deleted_at").eq("workspace_id", m.workspace_id).eq("organizer_id", userId),
       ),
       time_off_requests: await rows(
         db.from("leave_requests").select("policy_id, start_date, end_date, half, days, comment, status, decided_at, decision_note, cancelled_at, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId),

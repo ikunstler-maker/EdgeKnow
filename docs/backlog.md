@@ -32,7 +32,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Wiki: order agreed (owner, 2026-11-10)
 - 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
-- 2. Drafts by default + Publish — in review (owner approved the rules; decision 2027-01-24). Later: "back to draft".
+- 2. Drafts by default + Publish — in review (owner approved the rules; decision 2027-01-25). Later: "back to draft".
 - 3. Page version history (view + restore; DB size estimate first).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
@@ -55,8 +55,12 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Doba: calendar + time off (owner approved 2026-11-10; decision 2027-01-21)
 - 1а events — DONE (#129).
-- 1б time off — in review (decision 2027-01-22): policies from four templates, ledger balances, idempotent yearly accrual, requests with halves and a deputy, one-step approval up the unit tree, cancel with days returned, policies without approval or without a balance limit, overlap hint, role right `manage_leave`, absences on the calendar.
-- 2: repeats (the `recurrence` column exists, always empty) with "this occurrence only"; Rukh due dates on the calendar (read function by the task visibility rules); automatic monthly accrual; holidays (working days are counted by the week's working days only for now); a start date per person for a part-year norm; absences hidden on non-working days for working-day policies; inviting a unit; events in search, chips; landing card without "Soon" once time off is live.
+- 1б time off — DONE (#130).
+- Phase 2 (owner approved 2026-11-10; decision 2027-01-25), three PRs:
+  - 2а repeats and reminders — in review: daily / weekly on chosen days / monthly / yearly, every N, ends never / on a date / after N times; "only this" / "this and the following" / "all" for changing and cancelling; free/busy and reminders follow cancelled and moved days; reminders 10 min / 1 h / 1 day in the bell while the site is open.
+  - 2б NEXT: Rukh due dates on the calendar (switch "mine / all I can see", default mine; other people's private tasks never show — read function by the task visibility rules, compared with the table in a test); invite a unit; events in search and chips.
+  - 2в: holidays (empty list kept by admins/HR, copy from last year; not taken from the balance, shaded on the calendar); automatic accrual (yearly, or monthly in equal parts on the 1st, idempotent); start date per person (admins and HR edit, the person sees their own) with a part-year norm by the months left in the year and a rounding rule for fractions; absences hidden on non-working days for working-day policies.
+- Later: reminders when the site is closed (with push); an answer for one day of a series ("not going this time"); a repeat "on the last Friday of the month"; the landing card without "Soon" once sync (phase 3) is planned.
 - 3: external calendars — separate plan and approval (table `calendar_connections`, key `CALENDAR_TOKEN_KEY`, open webhook route in `src/proxy.ts`, outgoing ICS feed). Neutral names only.
 - Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 

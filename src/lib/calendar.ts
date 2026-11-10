@@ -22,11 +22,37 @@ export type CalendarEvent = {
   my_status: AttendeeStatus | null;
   going: number;
   requests: number;
+  // A day of a series: its date by the rule, and whether that day was changed on its own.
+  recurring?: boolean;
+  occurrence?: string | null;
+  changed?: boolean;
+};
+
+export const REPEAT_FREQS = ["daily", "weekly", "monthly", "yearly"] as const;
+export type RepeatFreq = (typeof REPEAT_FREQS)[number];
+// "After N times" (count) or "until a date" (until), or neither: no end.
+export type RepeatRule = { freq: RepeatFreq; interval: number; days: number[]; until: string | null; count: number | null };
+export const REMINDERS = [10, 60, 1440] as const;
+// What to change of a series: one day, that day and all after it, or every day.
+export type SeriesScope = "one" | "following" | "all";
+export type EventSeries = RepeatRule & {
+  last_day: string | null;
+  // The series' own first day and texts (a day may differ).
+  starts_at: string;
+  ends_at: string;
+  title: string;
+  description: string;
+  location: string;
+  meeting_url: string | null;
+  occurrence: string | null;
+  changed: boolean;
+  day_cancelled: boolean;
 };
 
 export type EventAttendee = { id: string; name: string; status: AttendeeStatus };
 export type EventDetails = {
-  event: Omit<CalendarEvent, "organizer" | "my_status" | "going" | "requests"> & { description: string; cancelled: boolean };
+  event: Omit<CalendarEvent, "organizer" | "my_status" | "going" | "requests" | "recurring" | "occurrence" | "changed"> & { description: string; cancelled: boolean; reminder_minutes?: number | null };
+  series?: EventSeries | null;
   can_edit: boolean;
   can_cancel: boolean;
   my_status: AttendeeStatus | null;
@@ -43,6 +69,8 @@ export type EventFields = {
   all_day: boolean;
   time_zone: string;
   visibility: EventVisibility;
+  repeat?: RepeatRule | null;
+  reminder_minutes?: number | null;
 };
 
 export type BusySlot = { user_id: string; starts_at: string; ends_at: string; all_day: boolean };
