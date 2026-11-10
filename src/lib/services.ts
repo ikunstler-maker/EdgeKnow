@@ -16,7 +16,7 @@ export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: st
   { key: "meet", icon: "🎥", ready: false, path: null },
   { key: "ai", icon: "🤖", ready: false, path: null },
   { key: "sites", icon: "🌐", ready: false, path: null },
-  { key: "apps", icon: "🧩", ready: false, path: null },
+  { key: "apps", icon: "🧩", ready: true, path: "/apps" },
   { key: "crm", icon: "🤝", ready: false, path: null },
 ];
 

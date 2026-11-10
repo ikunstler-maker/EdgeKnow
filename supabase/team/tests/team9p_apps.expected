@@ -1,0 +1,9 @@
+roles: owner,member
+member adds an app: {"ok": false, "error": "forbidden"}
+javascript link: {"ok": false, "error": "invalid"}
+owner adds an app: 1
+logo over 2 MB: {"ok": false, "error": "too_large"}
+member role: viewer
+member saves: {"ok": false, "error": "forbidden"}
+owner saves a javascript link: {"ok": false, "error": "invalid"}
+owner deletes: true true

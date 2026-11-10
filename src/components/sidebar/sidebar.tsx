@@ -31,7 +31,7 @@ export function currentPageId(pathname: string): string | null {
 }
 
 // Which service the sidebar shows: the one the person is in (the wiki elsewhere).
-const OBJECT_SERVICES = ["boards", "nodes", "sheets", "slides", "surveys"] as const;
+const OBJECT_SERVICES = ["boards", "nodes", "sheets", "slides", "surveys", "apps"] as const;
 type Section = "wiki" | "tasks" | "calendar" | (typeof OBJECT_SERVICES)[number];
 export function sectionOf(pathname: string, shortId: string): Section {
   const rest = pathname.slice(workspacePath(shortId).length);

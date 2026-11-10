@@ -1,0 +1,6 @@
+helper gone: true
+no apps allowed: true
+table kept: 1
+apps refused: {"ok": false, "error": "invalid"}
+saving works: true
+owner manages: owner

@@ -46,7 +46,7 @@ Each service has its own name and gradient (`src/lib/services.ts`).
 | 11 | **Visio** | video meetings | ⏳ planned | — |
 | 12 | **Apus AI** | AI tools | ⏳ planned | — |
 | 13 | **Showy** | personal pages: landing pages, business cards | ⏳ planned | — |
-| 14 | **Obriy** | company apps (incl. financial monitoring) | ⏳ planned | — |
+| 14 | **Obriy** | company apps (incl. financial monitoring) | 🟡 partly (app gallery) | `/w/<id>/apps` |
 | 15 | **Spilno** | CRM | ⏳ planned | — |
 
 Outside the services but for all of them: start page, left panel (shows the current section's content), object collections, search, notifications, analytics, profile, workspace settings, the Apus mascot, landing `/about`, "What's new" `/changelog`, help `/help`.

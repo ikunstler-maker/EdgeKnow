@@ -46,7 +46,10 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Wiki: drafts by default + Publish (RLS change → approval); Share button (copy link, export with format list).
 - Tables: user scripts (sandboxed). AI: transcription, dictation, node automations, local LLM / MCP models.
 - Service «Персональна сторінка»: company landing builder (Free blocks, Team custom code), custom-code corporate pages (Business), block business cards (company + profile, Free).
-- Service «Корпоративні додатки»: owner's ready apps (first: financial monitoring / FinPulse, Team, org admins only) + companies' own embedded apps.
+- Service «Корпоративні додатки» (Obriy; decision 2027-02-02):
+  - О-1 gallery of the company's outside apps (tiles, metadata from the link, admins manage, opens in a new tab) — in review.
+  - О-2 financial monitoring (FinPulse) inside the platform: data in the workspace DB, workspace admins only (= "organization admin" until the Organization level), Team+. New tables/RLS → owner's approval first; needs the FinPulse repository.
+  - Later: search across apps (with presentations); showing an app inside the platform (site policy change → approval); app catalogue.
 - Shown on `/about` and the start page as «Скоро» (done 2026-11-05).
 
 ## Requested by the owner (2026-11-04), not planned in detail yet

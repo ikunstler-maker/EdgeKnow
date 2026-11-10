@@ -1,0 +1,41 @@
+carol made admin: true
+member adds an app: {"ok": false, "error": "forbidden"}
+guest adds an app: {"ok": false, "error": "forbidden"}
+javascript link: {"ok": false, "error": "invalid"}
+data link: {"ok": false, "error": "invalid"}
+no link: {"ok": false, "error": "invalid"}
+link with a space: {"ok": false, "error": "invalid"}
+javascript logo: {"ok": false, "error": "invalid"}
+plain http logo: {"ok": false, "error": "invalid"}
+long category: {"ok": false, "error": "invalid"}
+wrong kind: {"ok": false, "error": "invalid"}
+owner adds an app: true
+plain http link: true
+whole workspace views: viewer
+text for search: Clients and deals Sales
+member sees: 2
+member role: viewer
+member saves: {"ok": false, "error": "forbidden"}
+member trashes: {"ok": false, "error": "forbidden"}
+member shares: {"ok": false, "error": "forbidden"}
+member adds a logo: {"ok": false, "error": "forbidden"}
+guest sees: 0
+outsider sees: 0
+outsider role: none
+owner gives bob owner: true
+bob still views: viewer
+bob saves: {"ok": false, "error": "forbidden"}
+admin role: owner
+admin saves: 2
+admin saves a javascript link: {"ok": false, "error": "invalid"}
+admin renames only: true
+logo over 2 MB: {"ok": false, "error": "too_large"}
+logo not a picture: {"ok": false, "error": "invalid_file"}
+logo 2 MB: true
+logo file id kept: true
+owner removes bob: true
+only chosen people: true
+member sees now: 0
+admin to the bin: true
+admin deletes: true
+helper closed to clients: false

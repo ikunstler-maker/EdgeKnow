@@ -70,6 +70,12 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Fix (done): wait for `.nth(1)`. Same pattern for any multi-embed check (also the survey form + summary check: wait for the checked elements, not the frame).
 - Seen: 2026-11-03
 
+## Flaky: "a map shows on the page, and a diagram too" — e2e (nodes)
+- Symptom: 202/203 checks pass; the diagram count is 0.
+- Root cause: the test waited for the map embed, then counted the diagram embed's nodes before it had loaded.
+- Fix (done): wait for the diagram's first node, then count.
+- Seen: 2026-11-10
+
 ## Main re-runs all tests after merge — CI
 - Fix (done): `tested` job skips tests when the merge tree equals a PR head that already passed. Docs/config-only changes don't trigger the workflow.
 - Seen: 2026-11-03
