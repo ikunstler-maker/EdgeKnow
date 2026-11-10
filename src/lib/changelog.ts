@@ -33,6 +33,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-d",
+    version: "0.20.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: задачі в календарі, підрозділи, пошук подій", en: "Doba: tasks on the calendar, units, event search" },
+    summaryDescription: {
+      uk: "Календар бачить решту платформи — з тими самими правами доступу.",
+      en: "The calendar sees the rest of the platform — with the same access rules.",
+    },
+    items: [
+      { id: "calendar-tasks", type: "added", scope: "calendar", title: { uk: "Терміни задач у календарі: мої або всі доступні; чужі приватні задачі не показуються.", en: "Task due dates on the calendar: mine or all I can see; other people's private tasks never show." } },
+      { id: "invite-unit", type: "added", scope: "calendar", title: { uk: "Запрошення цілого підрозділу на подію з кнопкою «Оновити склад».", en: "Inviting a whole unit to an event, with “Refresh” for those who joined later." } },
+      { id: "event-search", type: "added", scope: "global", title: { uk: "Події в пошуку та чіп події у вікі.", en: "Events in search, and an event chip in the wiki." } },
+    ],
+  },
+  {
     id: "2026-11-10-c",
     version: "0.19.0",
     date: "2026-11-10",

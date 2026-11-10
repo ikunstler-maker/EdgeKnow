@@ -1,6 +1,5 @@
--- Wiki drafts (decision 2027-01-25): a new page is a draft until someone publishes it.
--- The same in supabase/team/migrations/0046_page_drafts.sql.
--- Rollback: supabase/rollbacks/20261231100000_page_drafts.down.sql
+-- Wiki drafts in a team's own database (as supabase/migrations/20270101100000_page_drafts.sql).
+-- Rollback: supabase/team/rollbacks/0047_page_drafts.down.sql
 --
 -- A draft is an extra filter on top of the usual page access, never a new access:
 -- a page is hidden from a person when the page itself or any page above it (by
@@ -54,7 +53,7 @@ $$;
 
 revoke execute on function public.page_draft_open(uuid, uuid) from public, anon, authenticated;
 
--- The person's role on a page: as before (20261222100000_unit_access), and nothing at
+-- The person's role on a page: as before (0037_unit_access), and nothing at
 -- all while a draft on the way up is closed to them.
 create or replace function public.page_role_of(target_page uuid, member uuid)
 returns text
@@ -88,7 +87,7 @@ as $$
   order by public.role_rank(role) desc limit 1;
 $$;
 
--- The page tree for the left panel (as 20261226100000_fast_reads) with the draft rule
+-- The page tree for the left panel (as 0041_fast_reads) with the draft rule
 -- and a "draft" mark (the page or a page above it is unpublished).
 drop function public.my_page_tree(uuid);
 

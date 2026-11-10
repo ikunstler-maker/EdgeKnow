@@ -261,7 +261,7 @@ const STAGES: Stage[] = [
   {
     name: "calendar events",
     table: "calendar_events",
-    columns: "id, workspace_id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, recurrence, repeat_freq, repeat_interval, repeat_days, repeat_until, repeat_count, reminder_minutes, organizer_id, created_by, created_at, updated_at, deleted_at, deleted_by",
+    columns: "id, workspace_id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, recurrence, repeat_freq, repeat_interval, repeat_days, repeat_until, repeat_count, reminder_minutes, invited_group_ids, organizer_id, created_by, created_at, updated_at, deleted_at, deleted_by",
     order: "id",
     onConflict: "id",
   },

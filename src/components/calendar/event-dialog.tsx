@@ -9,8 +9,11 @@ import {
   createEvent,
   decideEventRequest,
   endSeries,
+  inviteUnit,
   loadBusy,
   loadEvent,
+  loadEventUnits,
+  refreshEventUnits,
   respondToEvent,
   splitEvent,
   updateEvent,
@@ -34,6 +37,7 @@ import {
   weekdayOf,
   type BusySlot,
   type CalendarPerson,
+  type CalendarUnit,
   type EventAnswer,
   type EventDetails,
   type EventFields,
@@ -126,6 +130,7 @@ export function EventDialog({
   me,
   guest,
   people,
+  units,
   defaultZone,
   state,
   onState,
@@ -136,6 +141,7 @@ export function EventDialog({
   me: string;
   guest: boolean;
   people: CalendarPerson[];
+  units: CalendarUnit[];
   defaultZone: string;
   state: DialogState;
   onState: (state: DialogState | null) => void;
@@ -149,6 +155,7 @@ export function EventDialog({
         guest={guest}
         id={state.id}
         occurrence={state.occurrence ?? null}
+        units={units}
         onEdit={(details, scope) => onState({ mode: "edit", details, scope })}
         onClose={() => onState(null)}
         onChanged={onChanged}
@@ -161,6 +168,7 @@ export function EventDialog({
       workspaceId={workspaceId}
       me={me}
       people={people}
+      units={units}
       defaultZone={defaultZone}
       state={state}
       onClose={() => onState(state.mode === "edit" ? { mode: "details", id: state.details.event.id, occurrence: state.details.series?.occurrence ?? null } : null)}
@@ -179,6 +187,7 @@ function EventView({
   guest,
   id,
   occurrence,
+  units,
   onEdit,
   onClose,
   onChanged,
@@ -188,6 +197,7 @@ function EventView({
   guest: boolean;
   id: string;
   occurrence: string | null;
+  units: CalendarUnit[];
   onEdit: (details: EventDetails, scope: SeriesScope) => void;
   onClose: () => void;
   onChanged: () => void;
@@ -197,12 +207,16 @@ function EventView({
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
   const [asking, setAsking] = useState<"edit" | "cancel" | null>(null);
+  // Units invited as a whole (the organizer sees them and can bring in who joined since).
+  const [invitedUnits, setInvitedUnits] = useState<string[]>([]);
+  const [unitNote, setUnitNote] = useState<string | null>(null);
   const d = c.details;
 
   useEffect(() => {
     let live = true;
     loadEvent(shortId, id, occurrence).then((result) => {
       if (!live) return;
+      if (result.ok && result.can_edit) loadEventUnits(shortId, id).then((list) => live && setInvitedUnits(list));
       if (result.ok) setDetails(result);
       else setError(result.error === "forbidden" || result.error === "not_found" ? d.noAccess : errorText(result.error));
     });
@@ -372,6 +386,36 @@ function EventView({
         </ul>
       </section>
 
+      {details.can_edit && !event.cancelled && invitedUnits.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm" data-event-units>
+          <p className="min-w-0 flex-1 text-muted">
+            {d.units}:{" "}
+            {invitedUnits
+              .map((unit) => units.find((u) => u.id === unit)?.name)
+              .filter(Boolean)
+              .join("; ")}
+            {unitNote ? ` · ${unitNote}` : ""}
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const result = await refreshEventUnits(shortId, id);
+              setBusy(false);
+              if (!result.ok) return setError(errorText(result.error));
+              setUnitNote(d.unitsAdded(result.added));
+              onChanged();
+              setTick((n) => n + 1);
+            }}
+            className={buttonClass}
+            data-refresh-units
+          >
+            {d.refreshUnits}
+          </button>
+        </div>
+      )}
+
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       {asking === "edit" && <ScopeChoice title={c.repeat.changeWhat} labels={c.repeat.scopes} firstDay={firstDay} onPick={(scope) => onEdit(details, scope)} onBack={() => setAsking(null)} />}
       {asking === "cancel" && (
@@ -430,6 +474,7 @@ function EventForm({
   workspaceId,
   me,
   people,
+  units,
   defaultZone,
   state,
   onClose,
@@ -439,6 +484,7 @@ function EventForm({
   workspaceId: string;
   me: string;
   people: CalendarPerson[];
+  units: CalendarUnit[];
   defaultZone: string;
   state: Extract<DialogState, { mode: "new" | "edit" }>;
   onClose: () => void;
@@ -518,6 +564,8 @@ function EventForm({
   const [lastDay, setLastDay] = useState(initial.lastDay);
   const [visibility, setVisibility] = useState<EventVisibility>(initial.visibility);
   const [invited, setInvited] = useState<string[]>(initial.people);
+  // Whole units to invite when the event is saved.
+  const [addUnits, setAddUnits] = useState<string[]>([]);
   const [freq, setFreq] = useState<"" | RepeatFreq>(initial.freq);
   const [interval, setIntervalCount] = useState(initial.interval);
   const [days, setDays] = useState<number[]>(initial.days);
@@ -612,8 +660,22 @@ function EventForm({
         : scope === "following" && day
           ? await splitEvent(shortId, editing.event.id, day, fields, invite, remove)
           : await updateEvent(shortId, editing.event.id, fields, invite, remove);
+    if (!result.ok) {
+      setSaving(false);
+      return setError(errorText(result.error));
+    }
+    // The units go to the event that was made (a new one, or the new part of a split series).
+    const target = "id" in result && typeof result.id === "string" ? result.id : editing?.event.id;
+    if (target && !oneDay) {
+      for (const unit of addUnits) {
+        const added = await inviteUnit(shortId, target, unit);
+        if (!added.ok) {
+          setSaving(false);
+          return setError(errorText(added.error));
+        }
+      }
+    }
     setSaving(false);
-    if (!result.ok) return setError(errorText(result.error));
     onSaved();
   };
 
@@ -771,6 +833,36 @@ function EventForm({
               <span className="mt-1 block text-xs text-muted">{c.kindHints[visibility]}</span>
             </label>
             <PeoplePicker label={f.people} people={people.filter((p) => p.id !== me)} picked={invited} onChange={setInvited} />
+            {units.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5" data-unit-picker>
+                <span className="text-sm text-muted">{f.units}:</span>
+                {addUnits.map((unit) => (
+                  <span key={unit} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-border bg-surface pl-2 text-sm" data-picked-unit>
+                    {units.find((u) => u.id === unit)?.name}
+                    <button type="button" onClick={() => setAddUnits(addUnits.filter((u) => u !== unit))} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-background" aria-label={f.removePerson(units.find((u) => u.id === unit)?.name ?? "")}>
+                      ✕
+                    </button>
+                  </span>
+                ))}
+                <select
+                  value=""
+                  onChange={(e) => e.target.value && !addUnits.includes(e.target.value) && setAddUnits([...addUnits, e.target.value])}
+                  className="min-h-11 max-w-full rounded-md border border-border bg-background px-2 text-base md:min-h-8 md:text-sm"
+                  aria-label={f.addUnit}
+                  data-event-field="unit"
+                >
+                  <option value="">{f.addUnit}</option>
+                  {units
+                    .filter((u) => !addUnits.includes(u.id))
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                </select>
+                {addUnits.length > 0 && <p className="basis-full text-xs text-muted">{f.unitsHint}</p>}
+              </div>
+            )}
           </>
         )}
         {shownConflicts.length > 0 && (

@@ -1,4 +1,4 @@
--- Wiki drafts in a team database: the same rules as supabase/tests/stage56_page_drafts.sql.
+-- Wiki drafts in a team database: the same rules as supabase/tests/stage57_page_drafts.sql.
 -- A draft is seen by its owner, people invited to it and the workspace owner only;
 -- admins, units, whole-workspace access, the owner of a published parent and
 -- non-members see nothing until it is published by its owner or an editor.
