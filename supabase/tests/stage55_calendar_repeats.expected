@@ -1,0 +1,47 @@
+six times on Mon and Wed: Sync 07 10:00, Sync 09 10:00, Sync 14 10:00, Sync 16 10:00, Sync 21 10:00, Sync 23 10:00
+kept as: weekly 13 until 2030-01-23 (asked for 6 times)
+bob is busy: 07 10:00, 09 10:00, 14 10:00, 16 10:00, 21 10:00, 23 10:00
+every hour: bad_repeat, zero times: bad_repeat, a date and a number: bad_repeat, ends before it starts: bad_repeat, day 9 of the week: bad_repeat, a reminder in 7 minutes: invalid
+daily across the clock change: 29 10:00 (08:00 UTC), 30 10:00 (08:00 UTC), 31 10:00 (07:00 UTC), 01 10:00 (07:00 UTC)
+the 31st monthly: 01-31, 03-31, 05-31
+29 February yearly: 2028, 2032, 2036
+every second week from far ahead: 2031-06-09, 2031-06-23
+the 9th moves: true, a day that is not of the series: not_found
+now: Sync 07 10:00, Sync (moved) 10 15:00, Sync 14 10:00, Sync 16 10:00, Sync 21 10:00, Sync 23 10:00
+bob is busy: 07 10:00, 10 15:00, 14 10:00, 16 10:00, 21 10:00, 23 10:00
+that day opens as: Sync (moved) 10 15:00, changed: true; the next one: Sync 14 10:00; a wrong day: not_found
+the 14th is cancelled: true
+now: Sync 07 10:00, Sync (moved) 10 15:00, Sync 16 10:00, Sync 21 10:00, Sync 23 10:00
+bob is busy: 07 10:00, 10 15:00, 16 10:00, 21 10:00, 23 10:00
+brought back: true
+… then: Sync 07 10:00, Sync (moved) 10 15:00, Sync 14 10:00, Sync 16 10:00, Sync 21 10:00, Sync 23 10:00
+cancelled again: true
+carl (invited) changes a day: forbidden, cancels a day: forbidden, ends the series: forbidden, splits it: forbidden
+carl sees: Sync 07 10:00, Sync (moved) 10 15:00, Sync 16 10:00, Sync 21 10:00, Sync 23 10:00; changed days in the table: 2
+eve sees: nothing, changed days: 0, opens a day: forbidden, cancels a day: forbidden
+alice (owner, an open event) cancels a day: true, changes one: forbidden
+bob brings the 16th back: true
+after the split: Sync 07 10:00, Sync (moved) 10 15:00, Sync 16 10:00, Sync at noon 21 12:00, Sync at noon 23 12:00
+the old series: until 2030-01-20, changed days kept: 2; the new one: until 2030-01-23, 2 times, people: bob accepted, carl invited
+bob is busy: 07 10:00, 10 15:00, 16 10:00, 21 12:00, 23 12:00
+ended before the 23rd: true
+… then: Sync 07 10:00, Sync (moved) 10 15:00, Sync 16 10:00, Sync at noon 21 12:00
+ended from its first day: true
+… cancelled: true
+all days at 09:00: true
+… then: Sync 07 09:00, Sync 09 09:00, Sync 14 09:00, Sync 16 09:00
+no longer repeats: true
+… then: Sync 07 09:00
+the 5th is cancelled: true
+alice sees: Sync 07 09:00; bob is busy: 07 09:00, 04 10:00, 06 10:00; cancels a day of it: forbidden
+the same events as the table gives: true
+psql: ERROR:  permission denied for table calendar_event_exceptions
+psql: ERROR:  permission denied for table calendar_event_exceptions
+bob is reminded of: 2, asked again: 0
+bob hears: Daily soon, Soon — the series with the time of today's day: true
+carl (invited to one) is reminded of: 1
+alice (in none of them) is reminded of: 0
+alice mutes reminders: true
+she joins one and is reminded of: accepted 0
+eve is reminded of: 0
+anon reads changed days: false, anon opens an event: false, members call calendar_series: false

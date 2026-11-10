@@ -39,7 +39,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics
-- **Notifications** (bell): mentions, assignments, project rules, calendar events (invitation, request to join, answer, change or cancellation), time off (a request to decide on, a decision, "you are the deputy", an absence for information); in the browser while the site is open; per-person settings. A new kind of notification adds its link column and its kinds to `notifications` and extends `my_notifications` and `set_notification_prefs`.
+- **Notifications** (bell): mentions, assignments, project rules, calendar events (invitation, request to join, answer, change or cancellation, reminder before the start), time off (a request to decide on, a decision, "you are the deputy", an absence for information); in the browser while the site is open; per-person settings. A new kind of notification adds its link column and its kinds to `notifications` and extends `my_notifications` and `set_notification_prefs`.
 - **Analytics:** everyone sees their own numbers; owner and admins — everyone's; the platform admin — totals only.
 
 ### Look

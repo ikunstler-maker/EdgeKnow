@@ -171,6 +171,8 @@ export function CalendarScreen({
     return `${short.format(range.from)} – ${short.format(last)} ${last.getFullYear()}`;
   }, [view, anchor, range]);
 
+  // A day of a series opens as that day.
+  const openEvent = (event: CalendarEvent) => setDialog({ mode: "details", id: event.id, occurrence: event.occurrence ?? null });
   const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "";
   // Without a clicked slot: the next full hour.
   const openNew = (start?: Date, allDay = false) => {
@@ -254,7 +256,7 @@ export function CalendarScreen({
               setAnchor(day);
               setView("week");
             }}
-            onEvent={(id) => setDialog({ mode: "details", id })}
+            onEvent={openEvent}
           />
         ) : view === "week" ? (
           <WeekView
@@ -268,16 +270,16 @@ export function CalendarScreen({
             nameOf={nameOf}
             workDays={settings.work_days}
             onSlot={openNew}
-            onEvent={(id) => setDialog({ mode: "details", id })}
+            onEvent={openEvent}
           />
         ) : (
-          <ListView from={range.from} events={events} absences={absences} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={(id) => setDialog({ mode: "details", id })} onRestore={restore} />
+          <ListView from={range.from} events={events} absences={absences} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={openEvent} onRestore={restore} />
         )}
       </div>
 
       {dialog && (
         <EventDialog
-          key={dialog.mode === "details" ? dialog.id : dialog.mode}
+          key={dialog.mode === "details" ? `${dialog.id}:${dialog.occurrence ?? ""}` : dialog.mode === "edit" ? `edit:${dialog.scope}` : dialog.mode}
           shortId={shortId}
           workspaceId={workspaceId}
           me={me}
@@ -305,14 +307,16 @@ export function CalendarScreen({
   );
 }
 
-function EventChip({ event, onOpen, withTime = true }: { event: CalendarEvent; onOpen: (id: string) => void; withTime?: boolean }) {
+const eventKey = (event: CalendarEvent) => `${event.id}:${event.occurrence ?? ""}`;
+
+function EventChip({ event, onOpen, withTime = true }: { event: CalendarEvent; onOpen: (event: CalendarEvent) => void; withTime?: boolean }) {
   const { start } = eventSpan(event);
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        onOpen(event.id);
+        onOpen(event);
       }}
       className={`block w-full truncate rounded border px-1 text-left text-xs leading-5 ${chipClass(event)}`}
       title={event.title}
@@ -320,6 +324,7 @@ function EventChip({ event, onOpen, withTime = true }: { event: CalendarEvent; o
     >
       {withTime && !event.all_day && <span className="mr-1 opacity-80">{timeOf(start)}</span>}
       {event.title}
+      {event.recurring && <span className="ml-1 opacity-70" aria-label={c.repeat.title} data-recurring>↻</span>}
     </button>
   );
 }
@@ -355,7 +360,7 @@ function MonthView({
   timeOffHref: string;
   workDays: number[];
   onPickDay: (day: Date) => void;
-  onEvent: (id: string) => void;
+  onEvent: (event: CalendarEvent) => void;
 }) {
   const grid = monthGrid(anchor);
   const weekday = new Intl.DateTimeFormat(dateLocale(), { weekday: "short" });
@@ -397,7 +402,7 @@ function MonthView({
                   </Link>
                 )}
                 {dayEvents.slice(0, 3).map((event) => (
-                  <EventChip key={event.id} event={event} onOpen={onEvent} />
+                  <EventChip key={eventKey(event)} event={event} onOpen={onEvent} />
                 ))}
                 {dayEvents.length > 3 && (
                   <button type="button" onClick={() => onPickDay(day)} className="block w-full rounded px-1 text-left text-xs text-muted hover:bg-surface">
@@ -436,7 +441,7 @@ function WeekView({
   nameOf: (id: string) => string;
   workDays: number[];
   onSlot: (start: Date, allDay?: boolean) => void;
-  onEvent: (id: string) => void;
+  onEvent: (event: CalendarEvent) => void;
 }) {
   const columns = Array.from({ length: days }, (_, i) => addDays(from, i));
   const scroller = useRef<HTMLDivElement>(null);
@@ -470,7 +475,7 @@ function WeekView({
           return (
             <div key={dayKey(day)} className="min-h-7 min-w-0 space-y-0.5 border-l border-border p-0.5" onClick={() => onSlot(day, true)} data-all-day={dayKey(day)}>
               {whole.map((event) => (
-                <EventChip key={event.id} event={event} onOpen={onEvent} withTime={false} />
+                <EventChip key={eventKey(event)} event={event} onOpen={onEvent} withTime={false} />
               ))}
               {offOn(absences, day).map((absence) => (
                 <AbsenceChip key={absence.id} absence={absence} href={timeOffHref} />
@@ -536,11 +541,11 @@ function WeekView({
                 ))}
                 {timed.map((p) => (
                   <button
-                    key={p.item.id}
+                    key={eventKey(p.item)}
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEvent(p.item.id);
+                      onEvent(p.item);
                     }}
                     className={`absolute overflow-hidden rounded border px-1 text-left text-xs leading-4 ${chipClass(p.item)}`}
                     style={{
@@ -552,7 +557,10 @@ function WeekView({
                     title={p.item.title}
                     data-event={p.item.title}
                   >
-                    <span className="block truncate font-medium">{p.item.title}</span>
+                    <span className="block truncate font-medium">
+                      {p.item.title}
+                      {p.item.recurring && <span className="ml-1 opacity-70" aria-label={c.repeat.title} data-recurring>↻</span>}
+                    </span>
                     {p.height >= 40 && <span className="block truncate opacity-80">{timeOf(new Date(p.item.starts_at))}</span>}
                   </button>
                 ))}
@@ -582,7 +590,7 @@ function ListView({
   timeOffHref: string;
   cancelled: CancelledEvent[];
   loading: boolean;
-  onEvent: (id: string) => void;
+  onEvent: (event: CalendarEvent) => void;
   onRestore: (id: string) => void;
 }) {
   const locale = dateLocale();
@@ -604,13 +612,13 @@ function ListView({
           <h3 className="mb-1 text-sm font-medium text-muted first-letter:uppercase">{dayFormat.format(fromDayKey(key))}</h3>
           <ul className="divide-y divide-border rounded-lg border border-border">
             {rows.map(({ event, span }) => (
-              <li key={event.id}>
-                <button type="button" onClick={() => onEvent(event.id)} className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left hover:bg-surface" data-event={event.title}>
+              <li key={eventKey(event)}>
+                <button type="button" onClick={() => onEvent(event)} className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left hover:bg-surface" data-event={event.title}>
                   <span className="w-24 shrink-0 text-sm text-muted">{event.all_day ? c.allDay : `${timeOf(span.start)} – ${timeOf(span.end)}`}</span>
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate font-medium ${event.my_status === "declined" ? "text-muted line-through" : ""}`}>{event.title}</span>
                     <span className="block truncate text-xs text-muted">
-                      {[c.kinds[event.visibility], event.location, event.my_status ? c.details.status[event.my_status] : null].filter(Boolean).join(" · ")}
+                      {[c.kinds[event.visibility], event.recurring ? `↻ ${c.repeat.title.toLowerCase()}` : null, event.location, event.my_status ? c.details.status[event.my_status] : null].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                   {event.requests > 0 && <span className="rounded-full bg-accent px-2 text-xs text-white">{c.details.requestsCount(event.requests)}</span>}

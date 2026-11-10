@@ -33,6 +33,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-c",
+    version: "0.19.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: повторювані події й нагадування", en: "Doba: repeating events and reminders" },
+    summaryDescription: {
+      uk: "Серії подій із гнучкими змінами: один день, цей і наступні або всі.",
+      en: "Series of events with flexible changes: one day, this and the following, or all.",
+    },
+    items: [
+      { id: "repeats", type: "added", scope: "calendar", title: { uk: "Повтори: щодня, щотижня у вибрані дні, щомісяця, щороку — до дати або певну кількість разів.", en: "Repeats: daily, weekly on chosen days, monthly, yearly — until a date or a number of times." } },
+      { id: "series-scope", type: "added", scope: "calendar", title: { uk: "Зміна й скасування: лише ця подія, ця й наступні або вся серія.", en: "Changing and cancelling: only this event, this and the following, or the whole series." } },
+      { id: "reminders", type: "added", scope: "calendar", title: { uk: "Нагадування учасникам за 10 хвилин, годину або день до початку.", en: "Reminders for the people 10 minutes, an hour or a day before the start." } },
+    ],
+  },
+  {
     id: "2026-11-10-b",
     version: "0.18.0",
     date: "2026-11-10",

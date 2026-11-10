@@ -81,9 +81,10 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
   const of = (name: string, columns: string, from: SupabaseClient = source) => from.from(name).select(columns).eq("workspace_id", ws);
   // Private events are for their people only (admins don't see them either), so they stay out of the copy.
   const events = (await rows(
-    of("calendar_events", "id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, organizer_id, created_at, updated_at, deleted_at").neq("visibility", "private"),
+    of("calendar_events", "id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, repeat_freq, repeat_interval, repeat_days, repeat_until, repeat_count, reminder_minutes, organizer_id, created_at, updated_at, deleted_at").neq("visibility", "private"),
   )) as { id: string }[];
   const eventIds = new Set(events.map((e) => e.id));
+  const eventDays = ((await rows(of("calendar_event_exceptions", "event_id, occurrence_date, cancelled, starts_at, ends_at, title, description, location, meeting_url, updated_at"))) as { event_id: string }[]).filter((x) => eventIds.has(x.event_id));
   const eventPeople = ((await rows(of("calendar_event_attendees", "event_id, user_id, status, created_at, responded_at"))) as { event_id: string }[]).filter((a) => eventIds.has(a.event_id));
   const snapshot = {
     format: "edgeknow-workspace-snapshot/1",
@@ -114,6 +115,7 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
     attachments: await rows(of("attachments", "id, page_id, storage_path, mime_type, bytes, width, height, storage_backend, drive_file_id, uploaded_by, created_at")),
     calendar_events: events,
     calendar_event_attendees: eventPeople,
+    calendar_event_exceptions: eventDays,
     calendar_settings: await rows(of("calendar_settings", "work_days, time_zone, updated_at")),
     // Time off: everything the balances are made of; the personal comments stay out.
     leave_policies: await rows(of("leave_policies", "id, name, kind, days_per_year, carry_over_max, count_days, requires_approval, requires_deputy, show_kind, allow_negative, unlimited, active, position, created_at")),

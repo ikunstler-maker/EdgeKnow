@@ -1,12 +1,12 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-22 (phases 1a and 1b). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-24 (phases 1a, 1b, 2a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
 The team's shared calendar and time-off management in one place: events and meetings, who is busy when, vacations and absences with approval through the company's units — later synced with personal calendars.
 
-- **State:** 🟢 events (1a) and time off (1b) built; repeats, Rukh due dates and sync planned.
+- **State:** 🟢 events (1a), time off (1b), repeats and reminders (2a) built; Rukh due dates, holidays and sync planned.
 - **URLs:** `/w/<id>/calendar/time-off` (`?tab=mine|inbox|team|settings`) and `/w/<id>/calendar` (`?view=month|week|list`, `?date=YYYY-MM-DD`, `?event=<id>` opens an event).
 
 ## 2. What is built
@@ -24,6 +24,14 @@ The team's shared calendar and time-off management in one place: events and meet
 - Answers: "going / maybe / not going"; a request to join can be taken back; a declined request can't be sent again (the organizer may invite the person).
 - The organizer changes the event and its people; a new time is told to the people.
 - **Cancel** keeps the event for 30 days (the organizer, or an admin for a non-private one, can restore it); then it is deleted for good.
+
+### Repeats and reminders (phase 2a)
+- A series is one event with a rule: daily, weekly on chosen days, monthly, yearly, every N; ends never, on a date, or after N times (turned into the last day when saved).
+- Its days are worked out when read, in the event's own time zone (10:00 stays 10:00 across a clock change); months without the day (the 31st, 29 February) are skipped.
+- Changing or cancelling asks **what**: "only this event" (that day gets its own time and texts), "this and the following" (the old series ends the day before, a new one with the same people and answers starts there; "N times" passes on what is left), "all" (a new time or rule resets the days changed one by one).
+- An answer ("going / not going") is for the whole series.
+- **Free/busy** and the calendar read days through one function: a cancelled day is nowhere and frees the time, a moved day is busy where it went.
+- **Reminder** per event (set by the organizer): 10 minutes, an hour or a day before. It reaches the bell while the site is open — there is no scheduler; a due reminder is made when the bell asks for news, once per event and start. Anyone can mute the kind.
 
 ### Screens
 - **Month** (on a phone: dots, a tap opens the day), **Week** (7 days; 3 on a tablet; 1 on a phone — never a sideways scroll), **List** (the next 60 days, plus the organizer's cancelled events).
@@ -72,25 +80,28 @@ The team's shared calendar and time-off management in one place: events and meet
 
 | What | State | Note |
 |---|---|---|
-| Repeats | phase 2 | column `recurrence` exists and is always empty for now |
-| Rukh due dates on the calendar | phase 2 | a read function by the task visibility rules, no new table |
-| Automatic accrual, holidays, inviting a unit, search and chips | phase 2 | |
+| Rukh due dates on the calendar | phase 2b, next | switch "mine / all I can see" (default mine); other people's private tasks never show; a read function by the task visibility rules, no new table |
+| Inviting a unit; events in search and chips | phase 2b | |
+| Holidays, automatic accrual, start date and part-year norm | phase 2c | empty holiday list kept by admins/HR with "copy from last year"; monthly accrual in equal parts on the 1st; norm by the months left in the year, with rounding |
+| Reminders when the site is closed | with push notifications | |
 | External calendars (two-way sync, feeds) | phase 3 | separate plan and approval; neutral names only |
 
 ## 4. Data
 
 | Table | Holds |
 |---|---|
-| `calendar_events` | events (cancelled ones keep `deleted_at` for 30 days) |
+| `calendar_events` | events (cancelled ones keep `deleted_at` for 30 days); the repeat rule (`repeat_freq`, `repeat_interval`, `repeat_days`, `repeat_until`, `repeat_count`) and `reminder_minutes`; the old text column `recurrence` is unused |
+| `calendar_event_exceptions` | one day of a series that is cancelled or has its own time and texts |
 | `calendar_event_attendees` | a person of an event and their state: invited, requested, accepted, tentative, declined, rejected |
 | `calendar_settings` | one row per workspace: working days, time zone |
-| `notifications.event_id` | link from a notification to an event |
+| `notifications.event_id`, `event_at` | link from a notification to an event (and, for a reminder, to the start it is about) |
 | `leave_policies` | time-off policies |
 | `leave_balances` | the ledger: accrual, carry-over, correction |
 | `leave_requests` | requests with `deputy_id`, status, who decided |
 | `notifications.leave_request_id` | link from a notification to a request |
 
-- Nobody writes these tables directly: only functions (`create_calendar_event`, `update_calendar_event`, `invite_to_calendar_event`, `remove_calendar_event_attendee`, `respond_to_calendar_event`, `decide_calendar_event_request`, `cancel_calendar_event`, `set_calendar_settings`).
+- Nobody writes these tables directly: only functions (`create_calendar_event`, `update_calendar_event`, `invite_to_calendar_event`, `remove_calendar_event_attendee`, `respond_to_calendar_event`, `decide_calendar_event_request`, `cancel_calendar_event`, `set_calendar_settings`; for series — `change_calendar_occurrence`, `cancel_calendar_occurrence`, `split_calendar_event`, `end_calendar_series`; reminders — `calendar_remind_me`).
+- The days of a rule: `calendar_series` (arithmetic only); the real days of an event: `calendar_event_occurrences` (without cancelled days, with moved ones). **Anything new that reads a period must go through it** — the calendar, free/busy and reminders do.
 - Reading: `calendar_events_in` (a period's events in one pass, access worked out once per call — same rows as the table under RLS, compared in `stage53_calendar`), `calendar_event_details`, `calendar_busy` (start and end only).
 - Time off is written only by `seed_leave_policies`, `save_leave_policy`, `accrue_leave_year`, `adjust_leave_balance`, `request_leave`, `decide_leave_request`, `cancel_leave_request`; read by `my_leave`, `leave_inbox`, `leave_balance_sheet`, `leave_unit_overlaps`, `team_absences`. Who decides: `leave_can_decide` (leads up the tree via `leave_leads_of`, managers via `leave_manager`).
 - Visibility lives in `calendar_event_visible_to`; a change to the rules must update `calendar_events_in` too.
@@ -115,8 +126,8 @@ The team's shared calendar and time-off management in one place: events and meet
 | Actions | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
 | Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`) |
 | Logic (dates, zones, layout; time-off shapes) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
-| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql` |
-| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
+| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql` (central `20261230100000_calendar_repeats.sql`) |
+| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
 
 ## 7. Important decisions
 
@@ -132,7 +143,8 @@ The team's shared calendar and time-off management in one place: events and meet
 
 ## 8. Known gaps and open questions
 
-- Events are not in search or chips yet; no repeats; no reminders before an event.
+- Events are not in search or chips yet.
+- Series: no answer for a single day; no rule like "the last Friday of the month"; a notification about a changed day doesn't say which day; reminders don't come while the site is closed.
 - Time off: no holidays yet (working days are the week's working days); no part-year norm for someone who joins mid-year (use a manual correction); a request can't cross the new year (split it); an absence chip shows on non-working days inside its period too.
 - When an organizer's account is deleted the event stays without an organizer (admins can cancel a non-private one).
 - Which sync is free and which is PRO — open pricing question.
