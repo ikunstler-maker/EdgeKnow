@@ -154,6 +154,15 @@ select 'zed tree: ' || (:tree);
 reset role;
 select 'draft title in readers'' notifications: ' || count(*) from public.notifications where page_id = :'draft' and user_id not in (:'bob', :'dave');
 
+-- An invitation covers only that draft: Erin sees the chapter once invited to it too.
+set role authenticated;
+set request.jwt.claim.sub = :'bob';
+select 'bob invites erin to the chapter: ' || (public.set_page_member_role(:'child', :'erin', 'viewer') ->> 'ok');
+set request.jwt.claim.sub = :'erin';
+select 'erin now reads: ' || (:titles);
+select 'erin tree: ' || (:tree) || ' / ' || (:same);
+reset role;
+
 -- Who may publish.
 set role authenticated;
 set request.jwt.claim.sub = :'erin';

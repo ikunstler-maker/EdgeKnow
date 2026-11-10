@@ -119,6 +119,15 @@ set role authenticated;
 select 'hank (guest, not invited) reads: ' || (:titles);
 select 'hank tree: ' || (:tree) || ' / ' || (:same);
 reset role;
+set role authenticated;
+:as_bob;
+select 'bob invites erin to the chapter: ' || (public.set_page_member_role(:'child', :'erin', 'viewer') ->> 'ok');
+reset role;
+set role authenticated;
+:as_erin;
+select 'erin now reads: ' || (:titles);
+select 'erin tree: ' || (:tree) || ' / ' || (:same);
+reset role;
 select 'notified about the draft: ' || coalesce(string_agg(p.email, ', ' order by p.email), 'nobody') from public.notifications n join public.profiles p on p.id = n.user_id where n.page_id = :'draft';
 
 set role authenticated;

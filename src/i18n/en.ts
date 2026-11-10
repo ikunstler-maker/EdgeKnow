@@ -1749,6 +1749,10 @@ export const en: Dictionary = {
     chooseGroup: "Choose a group…",
     noGroupToAdd: "All groups are already listed",
     groupLabel: (name: string, members: number) => `${name} · ${members} ${members === 1 ? "person" : "people"}`,
+    insideOffer: (count: number) => `This is a draft: the invitation opens only this page. Give the same access to the pages inside it (${count})?`,
+    insideAccept: "Give access to the pages inside",
+    insideDecline: "Only this page",
+    insideDone: (done: number, total: number) => done === total ? `Access given to the pages inside too (${done}).` : `Access given to ${done} of ${total} pages inside; only their owners can share the rest.`,
     onlyOwner: "Only the page owner can change access.",
   },
   pageExport: {

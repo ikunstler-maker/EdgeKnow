@@ -3,12 +3,11 @@
 -- Rollback: supabase/rollbacks/20261230100000_page_drafts.down.sql
 --
 -- A draft is an extra filter on top of the usual page access, never a new access:
--- a page is hidden from a person when the page itself or a page above it (by parent,
--- whether or not it inherits access) is unpublished and nobody opened that draft for
--- them: they are not its owner, not invited to it personally (page_access), not the
--- workspace owner — and not so for an unpublished page above it either (an invitation
--- to a draft covers the drafts under it; the owner of a published parent gets nothing). Admins, units and "whole workspace" access
--- don't open a draft. Everything that asks page_role_of() (reading pages, comments,
+-- a page is hidden from a person when the page itself or any page above it (by
+-- parent, whether or not it inherits access) is unpublished and that person is not,
+-- for that unpublished page, its owner, someone invited to it personally
+-- (page_access), or the workspace owner. An invitation covers only that one draft;
+-- admins, units and "whole workspace" access don't open a draft. Everything that asks page_role_of() (reading pages, comments,
 -- files, search, notifications, task links, chips) follows at once; the left
 -- panel's my_page_tree() applies the same rule in one pass.
 -- Existing pages become published at their creation time.
@@ -20,8 +19,9 @@ update public.pages set published_at = created_at;
 create index pages_drafts on public.pages (workspace_id) where published_at is null;
 
 -- Does the draft rule let this person see the page? Every unpublished page on the way
--- up (the page itself included) must be opened for them: by them owning, being invited
--- to, or owning the workspace of, that page or an unpublished page above it.
+-- up (the page itself included) must be open to them on its own: they own it, are
+-- invited to it personally, or own the workspace. An invitation to a draft doesn't
+-- reach the drafts inside it (the share dialog offers to invite to those as well).
 create function public.page_draft_open(target_page uuid, member uuid)
 returns boolean
 language sql
@@ -38,21 +38,17 @@ as $$
     from up u
     join public.pages pp on pp.id = u.parent_id
     where u.depth < 100
-  ),
-  drafts as (
-    select u.depth,
-           (u.owner_id = member
-            or exists (select 1 from public.page_access a where a.page_id = u.id and a.user_id = member)
-            or exists (
-              select 1 from public.workspace_members m
-              where m.workspace_id = u.workspace_id and m.user_id = member and m.role = 'owner' and m.status = 'active'
-            )) as opens
-    from up u
-    where u.published_at is null
   )
   select not exists (
-    select 1 from drafts d
-    where not exists (select 1 from drafts o where o.depth >= d.depth and o.opens)
+    select 1
+    from up u
+    where u.published_at is null
+      and u.owner_id is distinct from member
+      and not exists (select 1 from public.page_access a where a.page_id = u.id and a.user_id = member)
+      and not exists (
+        select 1 from public.workspace_members m
+        where m.workspace_id = u.workspace_id and m.user_id = member and m.role = 'owner' and m.status = 'active'
+      )
   );
 $$;
 
@@ -149,12 +145,11 @@ as $$
         or (select o.yes from ws_owner o)
       )
   ),
-  -- Down the tree from the top: under a draft, whether a draft at or above opens it for
-  -- this person; hidden once an unopened draft is met (and everything below it).
+  -- Down the tree from the top: hidden once a draft not open to this person is met
+  -- (and everything below it); "draft" once any unpublished page is met.
   walk as (
     select p.id as page_id,
            p.published_at is null as draft,
-           (p.published_at is null and exists (select 1 from opener o where o.id = p.id)) as opened,
            (p.published_at is null and not exists (select 1 from opener o where o.id = p.id)) as hidden,
            0 as depth
     from public.pages p
@@ -162,8 +157,7 @@ as $$
     union all
     select c.id,
            w.draft or c.published_at is null,
-           w.opened or (c.published_at is null and exists (select 1 from opener o where o.id = c.id)),
-           w.hidden or (c.published_at is null and not (w.opened or exists (select 1 from opener o where o.id = c.id))),
+           w.hidden or (c.published_at is null and not exists (select 1 from opener o where o.id = c.id)),
            w.depth + 1
     from walk w
     join public.pages c on c.parent_id = w.page_id
