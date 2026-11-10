@@ -22,6 +22,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 - **Gallery:** images, YouTube, audio; four layouts.
 - **Diagram** (node diagram) right in the page.
 - **Chips:** page, person, task; switch chip (status, version, priority).
+- **Text shows at once:** the server draws the saved page text while the editor's code is loading.
 - Autosave. **Edit conflict:** if someone saved first — choose "open their version" or "keep mine".
 - Content is an editor document (JSON), up to 1 MB of text per page.
 
@@ -94,7 +95,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 |---|---|
 | Page screen | `src/app/w/[wid]/p/[id]/` |
 | Page actions | `src/app/page-actions.ts`, `comment-actions.ts`, `page-ack-actions.ts`, `external-source-actions.ts` |
-| Editor and blocks | `src/components/editor/` (`page-editor.tsx`, `schema.ts`, `*-block.tsx`) |
+| Editor and blocks | `src/components/editor/` (`page-editor.tsx`, `page-preview.tsx`, `schema.ts`, `*-block.tsx`) |
 | Header, sharing, cover | `src/components/pages/` |
 | Logic | `src/lib/pages.ts`, `comments.ts`, `chips.ts`, `markdown.ts` |
 | End-to-end tests | `scripts/e2e/wiki.mjs` |

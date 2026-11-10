@@ -86,9 +86,11 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Speed (owner approved 2026-11-10; decision 2027-01-16) — each step its own PR, measure before/after
 - Step 1 server region next to the database (Vercel `dub1` = Supabase eu-west-1) — DONE.
-- Step 2 fewer round trips per navigation: one RPC for the proxy check + workspace + role; parallel loads in the workspace layout and pages; team member sync in the background (`after()`), not inside a request.
+- Step 2 fewer round trips — DONE (part): the workspace layout loads everything in one wave (was 4 in a row), the team lookup is one wave, member sync runs after the response, the wiki page loads its source and confirmations together. Left: one RPC for the proxy check + workspace + role (needs a migration).
+- Wiki page text at once — DONE: the saved text is drawn by the server (`page-preview.tsx`) until the editor's code arrives. Left: readers never load the editor (needs a read-only renderer for every block kind).
 - Step 3 after an action refresh only what changed (now every action calls `revalidatePath("/", "layout")`: whole client cache dropped, layout re-rendered).
-- Step 4 `loading.tsx` skeletons for the workspace sections (none exist: navigation shows nothing until the server is done).
+- Step 4 loading skeleton for the workspace sections — DONE (`src/app/w/[wid]/loading.tsx`).
+- External-source pictures: every picture is fetched from the source on each cold view (~2 s each in the owner's Lighthouse report, 2026-11-10); keep a copy after the first fetch (storage → plan first). Its route also asks the auth server (`getUser`) per picture.
 - Step 5 access checks once per query, not per row (RLS → approved by the owner in principle; same visibility, security tests must give the same output). Measured locally: 310 pages 0.2–0.27 s, 300 tasks ~1 s vs 0.0002 s without checks (`effective_role`, `task_project_role`, `task_read_until` per row). Small workspaces don't feel it yet; needed before big ones and before realtime co-editing.
 - Later: ship only the current language's strings to the browser (both dictionaries, ~390 KB source, go to every page now).
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).

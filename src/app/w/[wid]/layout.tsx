@@ -53,16 +53,16 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
 
   const data = await workspaceData(wid);
   const supabase = data!.client;
-  // RLS returns only this workspace's pages that the user has a role on.
-  const { data: pages, error } = await supabase
-    .from("pages")
-    .select(PAGE_TREE_COLUMNS)
-    .eq("workspace_id", workspace.id)
-    .is("deleted_at", null)
-    .order("position")
-    .overrideTypes<PageRow[], { merge: false }>();
-  // For the sidebar (RLS): task projects with their boards, and the other services' objects.
-  const [{ data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }, { data: mayCreatePages }] = await Promise.all([
+  // Everything the shell needs, in one wave: each line is one trip to the database.
+  // RLS returns only this workspace's pages, projects and objects the user has a role on.
+  const [{ data: pages, error }, { data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }, { data: mayCreatePages }, { data: guestRows }, centralAllowed] = await Promise.all([
+    supabase
+      .from("pages")
+      .select(PAGE_TREE_COLUMNS)
+      .eq("workspace_id", workspace.id)
+      .is("deleted_at", null)
+      .order("position")
+      .overrideTypes<PageRow[], { merge: false }>(),
     supabase
       .from("task_projects")
       .select("id, key, name, icon")
@@ -88,15 +88,11 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
       .overrideTypes<CollectionItem[], { merge: false }>(),
     // A role may take "create pages" away (guests keep their own rule).
     workspace.role === "guest" ? Promise.resolve({ data: true }) : supabase.rpc("role_allows", { ws: workspace.id, perm: "create_pages" }),
+    // Guests this person sees (RLS), to mark them wherever people appear.
+    supabase.from("workspace_members").select("user_id").eq("workspace_id", workspace.id).eq("role", "guest").eq("status", "active"),
+    // "Own database first" (stage 2): a new workspace connects its team's Supabase before it has pages.
+    data!.location === "central" ? supabase.rpc("central_pages_allowed", { ws: workspace.id }).then((r) => Boolean(r.data)) : Promise.resolve(true),
   ]);
-
-  // Guests this person sees (RLS), to mark them wherever people appear.
-  const { data: guestRows } = await supabase
-    .from("workspace_members")
-    .select("user_id")
-    .eq("workspace_id", workspace.id)
-    .eq("role", "guest")
-    .eq("status", "active");
 
   // The team's own database (path C): if it couldn't be read, or wasn't well at
   // the last check, look again now (this also wakes a sleeping one up).
@@ -106,9 +102,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     // The project itself answers, but not to people's sign-ins: EdgeKnow's sign-in was removed there.
     if (error && (!health || health === "ok" || health === "almost_full")) health = error.code?.startsWith("PGRST3") ? "revoked" : "unreachable";
   }
-  // "Own database first" (stage 2): a new workspace connects its team's Supabase before it has pages.
-  const needsTeamDatabase =
-    data!.location === "central" && !(await supabase.rpc("central_pages_allowed", { ws: workspace.id })).data;
+  const needsTeamDatabase = data!.location === "central" && !centralAllowed;
   const showHealth =
     health && health !== "ok" && (health !== "almost_full" || workspace.role === "owner" || workspace.role === "admin") ? health : null;
 
