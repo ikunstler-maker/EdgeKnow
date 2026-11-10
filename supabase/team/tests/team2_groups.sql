@@ -2,6 +2,9 @@
 -- members the role on a page and its subpages, and go with the next sync.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 \set issuer 'https://wiki.test/oidc'
 \set ws '00000000-0000-0000-0000-0000000000f1'
@@ -62,3 +65,6 @@ set role authenticated;
 :as_bob;
 select 'bob after: ' || coalesce(public.effective_role(:'page'), 'none');
 reset role;
+
+reset role;
+alter table public.pages alter column published_at drop default;

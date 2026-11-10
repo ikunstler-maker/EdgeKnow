@@ -1653,6 +1653,21 @@ export const en: Dictionary = {
       invalid: "Invalid data.",
     } as Record<string, string>,
   },
+  drafts: {
+    badge: "Draft",
+    treeHint: "Draft: only the author, people invited to it and the workspace owner see it",
+    note: "Draft. Only the author, people invited to it personally and the workspace owner see it. Once published, everyone with access to the page sees it.",
+    underDraft: "This page is inside a draft: others see it once the page above is published.",
+    publish: "Publish",
+    publishing: "Publishing…",
+    withChildren: (count: number) => `With the pages inside (${count})`,
+    published: (count: number) => count > 1 ? `Published ${count} pages` : "Published",
+    errors: {
+      forbidden: "Only the author and editors of the page can publish it.",
+      in_trash: "The page is in the trash.",
+    } as Record<string, string>,
+    ackAfterPublish: "Read confirmations can be turned on after publishing.",
+  },
   acks: {
     badge: "Confirmation required",
     badgeSigned: "Confirmed",
@@ -1736,6 +1751,10 @@ export const en: Dictionary = {
     chooseGroup: "Choose a group…",
     noGroupToAdd: "All groups are already listed",
     groupLabel: (name: string, members: number) => `${name} · ${members} ${members === 1 ? "person" : "people"}`,
+    insideOffer: (count: number) => `This is a draft: the invitation opens only this page. Give the same access to the pages inside it (${count})?`,
+    insideAccept: "Give access to the pages inside",
+    insideDecline: "Only this page",
+    insideDone: (done: number, total: number) => done === total ? `Access given to the pages inside too (${done}).` : `Access given to ${done} of ${total} pages inside; only their owners can share the rest.`,
     onlyOwner: "Only the page owner can change access.",
   },
   pageExport: {

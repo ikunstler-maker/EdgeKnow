@@ -3,6 +3,9 @@
 -- tokens from EdgeKnow can act only as a signed-in person.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 \set issuer 'https://wiki.test/oidc'
 \set ws '00000000-0000-0000-0000-0000000000f1'
@@ -125,3 +128,6 @@ set role anon;
 select public.edgeknow_database_size();
 reset role;
 \set ON_ERROR_STOP 1
+
+reset role;
+alter table public.pages alter column published_at drop default;

@@ -131,6 +131,8 @@ export function PagesProvider({
         ownerId: "",
         role: "owner",
         workspaceRole: parent?.workspaceRole ?? null,
+        // A new page starts as a draft.
+        draft: true,
       };
       setAdded((list) => [...list, node]);
       setCreating((set) => new Set(set).add(id));

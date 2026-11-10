@@ -308,8 +308,13 @@ function TreeRow({
             data-angler-here={current ? "" : undefined}
             className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-sm"
           >
-            <span className="shrink-0">{page.icon ?? "📄"}</span>
-            <span className="truncate">{title}</span>
+            <span className={`shrink-0${page.draft ? " opacity-60" : ""}`}>{page.icon ?? "📄"}</span>
+            <span className={`truncate${page.draft ? " text-muted" : ""}`}>{title}</span>
+            {page.draft && (
+              <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 text-muted" title={t.drafts.treeHint} data-tree-draft>
+                {t.drafts.badge}
+              </span>
+            )}
             {page.needsAck && (
               <span className="shrink-0 text-xs text-accent" title={t.acks.badge} aria-label={t.acks.badge} data-tree-ack>
                 ✍

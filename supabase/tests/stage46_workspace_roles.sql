@@ -4,6 +4,9 @@
 -- custom role and guests behave as before.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -78,3 +81,6 @@ select 'delete intern: ' || (public.delete_workspace_role(:'ws', :'intern') ->> 
 select 'bob role now: ' || coalesce((select custom_role_id::text from public.workspace_members where workspace_id = :'ws' and user_id = '00000000-0000-0000-0000-0000000046b1'), 'built-in');
 reset role;
 select 'team copy has roles: ' || jsonb_array_length(public.team_sync_payload(:'ws') -> 'roles');
+
+reset role;
+alter table public.pages alter column published_at drop default;

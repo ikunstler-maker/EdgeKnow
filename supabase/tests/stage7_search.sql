@@ -3,6 +3,9 @@
 \pset format unaligned
 \pset tuples_only on
 
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
+
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
  ('00000000-0000-0000-0000-0000000007a1', 'alice@search.test', now(), '{"full_name":"Alice"}'),
  ('00000000-0000-0000-0000-0000000007b1', 'bob@search.test', now(), '{"full_name":"Bob"}'),
@@ -68,3 +71,6 @@ set request.jwt.claim.sub = :'alice';
 select public.trash_page(:'private') ->> 'ok' as ignored \gset
 select 'after trash: ' || count(*) from public.search_pages(:'ws', 'секретна');
 reset role;
+
+reset role;
+alter table public.pages alter column published_at drop default;

@@ -1,6 +1,9 @@
 -- Wiki confirmations in a team database: frozen page, signatures only for members.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 \set ws '00000000-0000-0000-0000-0000000000f1'
 \set as_bob 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000b1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000b1","email":"bob@team.test","ek_workspace":"00000000-0000-0000-0000-0000000000f1"}'''
@@ -21,3 +24,6 @@ set role authenticated;
 :as_carol;
 select 'carol (not a member) signs: ' || (public.ack_page(:'page') ->> 'error') || ', sees: ' || (select count(*) from public.page_acks);
 reset role;
+
+reset role;
+alter table public.pages alter column published_at drop default;

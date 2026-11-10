@@ -36,7 +36,7 @@ const TASK_COLUMNS =
   "id, workspace_id, project_id, number, title, description, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, updated_by, done_at, deleted_at, deleted_by, custom, private";
 
 const PAGE_COLUMNS =
-  "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover, ack_label, ack_revision, ack_editing, ack_groups";
+  "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover, ack_label, ack_revision, ack_editing, ack_groups, published_at";
 
 const STAGES: Stage[] = [
   { name: "pages", table: "pages", columns: PAGE_COLUMNS, order: "id", onConflict: "id", flatten: true },

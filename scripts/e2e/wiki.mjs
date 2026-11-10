@@ -1093,4 +1093,38 @@ check("no token for someone else's workspace", foreign.status === 403, String(fo
   await alice.keyboard.press("Escape");
 }
 
+// --- Drafts: a new page is seen only by its people until it is published ----------------
+{
+  sql("alter table public.pages alter column published_at drop default");
+  const draft = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Draft roadmap" })).data.id;
+  await aliceClient.rpc("set_page_workspace_role", { target_page: draft, new_role: "editor" });
+  const host = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Draft host" })).data.id;
+  await aliceClient.rpc("publish_page", { target_page: host, with_children: false });
+  await aliceClient.rpc("set_page_workspace_role", { target_page: host, new_role: "viewer" });
+  await aliceClient.rpc("save_page_content", { target_page: host, new_content: [{ type: "paragraph", content: [{ type: "pageChip", props: { pageId: draft } }] }], base_version: 1 });
+  check("a new page is a draft", sql(`select published_at is null from public.pages where id = '${draft}'`) === "t");
+  const seen = await colleagueClient.from("pages").select("id, title").eq("id", draft);
+  check("…a colleague with whole-workspace access can't read it", (seen.data ?? []).length === 0, JSON.stringify(seen.data));
+  const found = await colleagueClient.rpc("search_pages", { ws: alphaId, query: "roadmap" });
+  check("…nor find it", (found.data ?? []).length === 0, JSON.stringify(found.data));
+  const publishByReader = await colleagueClient.rpc("publish_page", { target_page: draft, with_children: true });
+  check("…nor publish it", publishByReader.data?.error === "forbidden", JSON.stringify(publishByReader.data));
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${host}`);
+  await colleague.locator(".bn-editor").waitFor({ timeout: 20000 }).catch(() => {});
+  const hostHtml = await colleague.content();
+  check("…a chip to it on a published page says only “no access”, never its name", !hostHtml.includes("Draft roadmap") && (await colleague.getByText("Немає доступу").count()) >= 1);
+  check("…and it is not in the colleague's page tree", (await colleague.locator("aside").getByText("Draft roadmap").count()) === 0);
+  await colleague.goto(`${APP}/w/${alphaShort}/p/${draft}`);
+  check("…its link opens nothing", !(await colleague.content()).includes("Draft roadmap"));
+  await alice.goto(`${APP}/w/${alphaShort}/p/${draft}`);
+  await alice.locator('[data-draft-bar="own"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("the author sees “Draft” on the page and in the tree", (await alice.locator('[data-draft-bar="own"]').count()) === 1 && (await alice.locator("[data-tree-draft]").count()) >= 1);
+  await alice.locator("[data-publish-page]").click();
+  const published = await until(() => sql(`select published_at is not null from public.pages where id = '${draft}'`) === "t", 15000);
+  check("…publishes it with one button", published);
+  const seenAfter = await colleagueClient.from("pages").select("id, title").eq("id", draft);
+  check("…and then the colleague sees it", (seenAfter.data ?? []).length === 1, JSON.stringify(seenAfter.data));
+  sql("alter table public.pages alter column published_at set default now()");
+}
+
 await finish("wiki");
