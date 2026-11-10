@@ -1,0 +1,42 @@
+publish: 1
+bob saves: true
+bob saves again: true
+dave saves: true
+bob sees: publish:-, edit:Second text, edit:Dave was here
+dave saves after a pause: true
+dave sees: publish:-, edit:Second text, edit:Dave was here, edit:Second text
+renaming is a version too: {"ok": true}
+titles: Handbook, Handbook, Handbook, Handbook 2
+alice (workspace owner, viewer of the page) sees: none
+carol (admin, viewer) sees: none
+erin (commenter) sees: none
+frank (viewer) sees: none
+gwen (guest viewer) sees: none
+zed (another workspace) sees: none
+erin restores: {"ok": false, "error": "forbidden"}
+carol restores: {"ok": false, "error": "forbidden"}
+zed restores: {"ok": false, "error": "forbidden"}
+dave restores the first version: true
+page now: Handbook / empty / version 6
+latest version: restore, from the first: true
+nothing lost: 2 versions still hold the text before
+psql: ERROR:  permission denied for table page_versions
+psql: ERROR:  permission denied for table page_versions
+psql: ERROR:  permission denied for table page_versions
+still there: 5
+thread before: open
+restore without the text: true
+thread: orphaned
+restore with it: true
+thread: open
+restore a frozen page: {"ok": false, "error": "frozen"}
+restore in the trash: {"ok": false, "error": "in_trash"}
+dave (editor of everything, not invited to the draft) sees its versions: 0
+bob sees his draft's versions: 2
+publish the draft: 1
+publishing is a version: publish
+dave sees them once published: 3
+old versions: 12
+pruned: true
+left: Draft plan=1, Handbook=1
+anyone may prune: false

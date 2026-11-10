@@ -1,0 +1,16 @@
+sync: true
+publish: 1
+bob saves twice: true true
+dave saves: true
+dave sees: publish:-, edit:Second text, edit:First text
+alice (workspace owner, viewer) sees: none
+carol (admin, viewer) sees: none
+erin (commenter) sees: none
+gwen (guest viewer) sees: none
+erin restores: {"ok": false, "error": "forbidden"}
+carol restores: {"ok": false, "error": "forbidden"}
+dave restores the first version: true
+psql: ERROR:  permission denied for table page_versions
+latest: restore, versions: 4
+pruned: true
+left: 1

@@ -221,3 +221,59 @@ export async function pageCard(shortId: string, id: string): Promise<{ id: strin
   walk(row.content);
   return { id: row.id, title: row.title, icon: row.icon, snippet: words.join(" ").replace(/\s+/g, " ").trim().slice(0, 280) };
 }
+
+// --- Page history (decision 2027-01-29): only the page's owner and editors read it (RLS). ---
+
+export type PageVersionItem = {
+  id: string;
+  reason: "edit" | "publish" | "ack_revision" | "restore";
+  createdAt: string;
+  lastAt: string;
+  author: string | null;
+  title: string;
+  restoredFrom: string | null;
+};
+
+export async function pageVersions(shortId: string, pageId: string): Promise<PageVersionItem[] | null> {
+  if (!/^[0-9a-f-]{36}$/.test(pageId)) return null;
+  const db = await dataClient(shortId);
+  const { data, error } = await db
+    .from("page_versions")
+    .select("id, reason, created_at, last_at, created_by, title, restored_from")
+    .eq("page_id", pageId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(200);
+  if (error) return null;
+  const rows = (data ?? []) as { id: string; reason: PageVersionItem["reason"]; created_at: string; last_at: string; created_by: string | null; title: string; restored_from: string | null }[];
+  const ids = [...new Set(rows.map((r) => r.created_by).filter((id): id is string => Boolean(id)))];
+  const names = new Map<string, string>();
+  if (ids.length) {
+    const { data: people } = await db.from("profiles").select("id, name, email").in("id", ids);
+    for (const p of (people ?? []) as { id: string; name: string | null; email: string }[]) names.set(p.id, p.name || p.email);
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    reason: r.reason,
+    createdAt: r.created_at,
+    // The first version (the text from before the history) has no session end.
+    lastAt: r.last_at === "-infinity" ? r.created_at : r.last_at,
+    author: r.created_by ? (names.get(r.created_by) ?? null) : null,
+    title: r.title,
+    restoredFrom: r.restored_from,
+  }));
+}
+
+// One version's text with the page's current text, to show what differs.
+export async function pageVersion(shortId: string, versionId: string): Promise<{ title: string; icon: string | null; content: unknown; current: unknown } | null> {
+  if (!/^[0-9a-f-]{36}$/.test(versionId)) return null;
+  const db = await dataClient(shortId);
+  const { data: version } = await db.from("page_versions").select("page_id, title, icon, content").eq("id", versionId).maybeSingle();
+  if (!version) return null;
+  const { data: page } = await db.from("pages").select("content").eq("id", version.page_id).maybeSingle();
+  return { title: version.title as string, icon: (version.icon as string | null) ?? null, content: version.content, current: page?.content ?? null };
+}
+
+export async function restorePageVersion(versionId: string) {
+  return callPageRpc<{ version: number }>("restore_page_version", { target_version: versionId });
+}
