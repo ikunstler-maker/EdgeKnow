@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-31 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a, 3b). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30, 2027-01-31) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-31 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a, 3b). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30, 2027-01-31, 2027-02-01) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -107,7 +107,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | Event chip in task descriptions | with "smart chips everywhere" | the task description has no chips yet |
 | Dragging on touch screens; moving or resizing an event by dragging | later | |
 | Reminders when the site is closed | with push notifications | |
-| Two-way sync through a provider's sign-in | phase 3c | decided after 3a and 3b; PRO mark; neutral names, the provider named on its sign-in button only |
+| Sign-in with a provider (busy time from the primary calendar; Doba events into the app's own "Doba" calendar) | phase 3c, on hold | architecture decided 2027-02-01, code waits for the owner's OK; strictly minimal access; PRO mark; the provider named on its sign-in button only |
 
 ## 4. Data
 
