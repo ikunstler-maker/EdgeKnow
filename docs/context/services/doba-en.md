@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-28 (phases 1a, 1b, 2a, 2b, 2c, 2d). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-30 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -46,6 +46,11 @@ The team's shared calendar and time-off management in one place: events and meet
 - **Availability:** pick colleagues to overlay their busy time; the event form warns who of the invited is already busy.
 - Times are kept in UTC and shown in the viewer's own zone; the event keeps the organizer's zone (shown as a note when it differs); a whole-day event has no zone.
 - **Settings** (owner and admins): working days of the week and the workspace's time zone.
+
+### In one's own calendar (phase 3a)
+- "🔗 Show in my calendar" gives each person (a guest too) a secret address in the common calendar-subscription format. Any calendar app reads it without a session.
+- It holds the events the person organizes or takes part in (not the declined ones): title, time, place, meeting link — **no description** — and the person's **own approved time off**. From 30 days back to a year ahead; series are spread out day by day.
+- Only the hash of the secret is kept, so the address is shown once. "New address" kills the old one at once; "Turn off" deletes it. A person removed from the workspace gets nothing; every failure is the same 404.
 
 ### Notifications
 - Invitation, request to join (to the organizer), answer to a request, time change or cancellation. Each can be muted in the bell's settings. A notification keeps only the event's id: the title shows while the person may see the event.
@@ -95,7 +100,8 @@ The team's shared calendar and time-off management in one place: events and meet
 | Event chip in task descriptions | with "smart chips everywhere" | the task description has no chips yet |
 | Dragging on touch screens; moving or resizing an event by dragging | later | |
 | Reminders when the site is closed | with push notifications | |
-| External calendars (two-way sync, feeds) | phase 3 | separate plan and approval; neutral names only |
+| Busy time from an outside calendar by its address | phase 3b | free; address encrypted, central database only |
+| Two-way sync through a provider's sign-in | phase 3c | decided after 3a and 3b; PRO mark; neutral names, the provider named on its sign-in button only |
 
 ## 4. Data
 
@@ -112,6 +118,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | `leave_balances` | the ledger: yearly accrual, monthly part (`month`), carry-over, correction |
 | `leave_requests` | requests with `deputy_id`, status, who decided |
 | `notifications.leave_request_id` | link from a notification to a request |
+| `calendar_feeds` | one row per person and workspace: the hash of the feed's secret |
 
 - Nobody writes these tables directly: only functions (`create_calendar_event`, `update_calendar_event`, `invite_to_calendar_event`, `remove_calendar_event_attendee`, `respond_to_calendar_event`, `decide_calendar_event_request`, `cancel_calendar_event`, `set_calendar_settings`; for series — `change_calendar_occurrence`, `cancel_calendar_occurrence`, `split_calendar_event`, `end_calendar_series`; reminders — `calendar_remind_me`).
 - Phase 2b reads: `calendar_tasks` (Rukh tasks of a period), `search_calendar_events`, `calendar_event_chips`; writes: `invite_unit_to_calendar_event`, `refresh_calendar_event_units` (units kept in `calendar_events.invited_group_ids`). A change to the task visibility rules needs no change here as long as `project_tasks` follows it.
@@ -121,7 +128,8 @@ The team's shared calendar and time-off management in one place: events and meet
 - Time off is written only by `seed_leave_policies`, `save_leave_policy`, `accrue_leave_year`, `adjust_leave_balance`, `request_leave`, `decide_leave_request`, `cancel_leave_request`; read by `my_leave`, `leave_inbox`, `leave_balance_sheet`, `leave_unit_overlaps`, `team_absences`. Who decides: `leave_can_decide` (leads up the tree via `leave_leads_of`, managers via `leave_manager`).
 - Visibility lives in `calendar_event_visible_to`; a change to the rules must update `calendar_events_in` too.
 - The tables exist in both the central and the team database (`0043`), move between them (`src/lib/team-db/move.ts`), go into "My data" (own events, answers, time-off requests and ledger rows) and into the workspace backup (all but private events; time off without the comments).
-- Planned (3): `calendar_connections` — central database only, closed to the browser.
+- The feed (3a): `calendar_feeds` is closed to everyone; `my_calendar_feed`, `set_calendar_feed`, `drop_calendar_feed` are the person's own; `calendar_feed(ws, hash)` is for the server only (the route uses the secret key of wherever the workspace keeps its data). It moves with the workspace; it is in neither the backup nor "My data".
+- Planned (3b): `calendar_connections` — central database only, closed to the browser.
 
 ## 5. Links with other services
 
@@ -139,10 +147,11 @@ The team's shared calendar and time-off management in one place: events and meet
 |---|---|
 | Screens | `src/app/w/[wid]/calendar/page.tsx`, `src/app/w/[wid]/calendar/time-off/page.tsx` |
 | Actions | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
+| Feed (3a) | `src/app/api/calendar-feed/[ws]/[token]/route.ts` (open in `src/lib/supabase/proxy.ts`), `src/lib/calendar-feed.ts` (the file's text) |
 | Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`, `use-day-drag.ts`); the wiki chip — `src/components/editor/event-chip.tsx` |
 | Logic (dates, zones, layout; time-off shapes) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
-| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql` (central `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
-| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
+| Migrations | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; team `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql`, `0050_calendar_feeds.sql` (central `20270104100000_calendar_feeds.sql`, `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
+| Tests | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`, `stage60_calendar_feeds.sql`; team `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`, `team9n_calendar_feeds.sql`; browser: `scripts/e2e/calendar-checks.mjs` (run by the nodes part) |
 
 ## 7. Important decisions
 
@@ -153,7 +162,8 @@ The team's shared calendar and time-off management in one place: events and meet
 - The yearly accrual is idempotent (one accrual and one carry-over per person, policy and year, enforced by a unique index).
 - Nobody decides on their own request; the first decision stands.
 - The kind of an absence is personal (it may be about health): colleagues see it only when the policy says so; the request's comment never leaves the people who decide and stays out of the backup.
-- Secrets of external calendars (phase 3): encrypted on the server with their own key `CALENDAR_TOKEN_KEY`, central database only, never in the team database, backups, "My data" or logs.
+- A feed's address is a secret shown once; the database knows only its hash, and what the feed holds is worked out by one server-only function.
+- Secrets of external calendars (phases 3b, 3c): encrypted on the server with their own key `CALENDAR_TOKEN_KEY`, central database only, never in the team database, backups, "My data" or logs.
 - No third-party product names or logos in the UI or the code.
 
 ## 8. Known gaps and open questions
@@ -162,5 +172,5 @@ The team's shared calendar and time-off management in one place: events and meet
 - Series: no answer for a single day; no rule like "the last Friday of the month"; a notification about a changed day doesn't say which day; reminders don't come while the site is closed.
 - Time off: a request can't cross the new year (split it); holidays are entered by hand (no ready sets by country); a holiday added later doesn't recount requests already made; accrual by itself runs once a day.
 - When an organizer's account is deleted the event stays without an organizer (admins can cancel a non-private one).
-- Which sync is free and which is PRO — open pricing question.
+- The feed is refreshed by the outside calendar itself (often every few hours); it covers a year ahead; its time-off entries carry the policy's name.
 - The landing still shows the calendar as "Soon" (its card promises sync, which is phase 3).

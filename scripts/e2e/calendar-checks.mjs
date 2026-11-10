@@ -490,3 +490,35 @@ export async function gridChecks() {
   await alice.locator("[data-week]").waitFor({ timeout: 15000 });
   check("…and nobody else ever saw it there", (await alice.locator("[data-my-request]").count()) === 0);
 }
+
+// Phase 3a: the person's feed for calendar apps — made on the calendar, read without a
+// session by its secret address, dead after a new address or when turned off.
+export async function feedChecks() {
+  const read = async (url) => {
+    const res = await fetch(url, { redirect: "manual" });
+    return { status: res.status, type: res.headers.get("content-type") ?? "", text: res.status === 200 ? await res.text() : "" };
+  };
+  const issue = async () => {
+    const field = alice.locator("[data-feed-address]");
+    const old = (await field.count()) ? await field.inputValue() : "";
+    await alice.locator("[data-feed-issue]").click();
+    await alice.waitForFunction((was) => (document.querySelector("[data-feed-address]")?.value ?? was) !== was, old, { timeout: 15000 });
+    return field.inputValue();
+  };
+  await alice.goto(`${APP}/w/${alphaShort}/calendar`);
+  await alice.locator("[data-open-feed]").click();
+  await alice.locator('[data-feed-state="off"]').waitFor({ timeout: 15000 });
+  const first = await issue();
+  check("the feed address is shown once it is made", /\/api\/calendar-feed\/[a-z0-9]{8}\/[A-Za-z0-9_-]{43}\.ics$/.test(first), first.replace(/[A-Za-z0-9_-]{43}/, "…"));
+  const feed = await read(first);
+  check("a calendar app reads the feed without a session", feed.status === 200 && feed.type.startsWith("text/calendar") && feed.text.startsWith("BEGIN:VCALENDAR") && feed.text.includes("BEGIN:VEVENT"), `${feed.status} ${feed.type}`);
+  check("the feed carries no descriptions of events", !/^DESCRIPTION:(?!https:)/m.test(feed.text));
+  const guessed = await read(first.replace(/[A-Za-z0-9_-]{43}\.ics$/, `${"A".repeat(43)}.ics`));
+  check("a guessed address gives nothing", guessed.status === 404, String(guessed.status));
+  check("only the hash of the secret is kept", sql(`select count(*) from public.calendar_feeds where token_hash ~ '^[0-9a-f]{64}$'`) === "1");
+  const second = await issue();
+  check("a new address kills the old one", second !== first && (await read(first)).status === 404 && (await read(second)).status === 200);
+  await alice.locator("[data-feed-drop]").click();
+  await alice.locator('[data-feed-state="off"]').waitFor({ timeout: 15000 });
+  check("turned off, the address gives nothing", (await read(second)).status === 404 && sql(`select count(*) from public.calendar_feeds`) === "0");
+}

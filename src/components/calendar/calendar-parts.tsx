@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { t } from "@/i18n";
-import { saveCalendarSettings } from "@/app/calendar-actions";
+import { useEffect, useMemo, useState } from "react";
+import { dateLocale, t } from "@/i18n";
+import { dropFeed, issueFeed, loadFeed, saveCalendarSettings } from "@/app/calendar-actions";
 import { browserTimeZone, timeZones, type CalendarPerson, type CalendarSettings } from "@/lib/calendar";
 
 const c = t.calendar;
@@ -172,6 +172,107 @@ export function CalendarSettingsDialog({
           <button type="button" onClick={save} disabled={saving || workDays.length === 0} className={primaryClass}>
             {c.form.save}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The person's own feed for calendar apps (phase 3a): on / off / a new address. The
+// address is shown once, right after it is made — only its hash is kept.
+export function FeedDialog({ shortId, workspaceId, onClose }: { shortId: string; workspaceId: string; onClose: () => void }) {
+  const f = c.feed;
+  const [since, setSince] = useState<string | null | undefined>(undefined);
+  const [address, setAddress] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadFeed(shortId, workspaceId).then((feed) => {
+      if (alive) setSince(feed?.since ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [shortId, workspaceId]);
+  const issue = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await issueFeed(shortId, workspaceId);
+    setBusy(false);
+    if (!result.ok) return setError(c.errors[result.error] ?? c.errors.unknown);
+    setAddress(`${window.location.origin}${result.path}`);
+    setSince(new Date().toISOString());
+    setCopied(false);
+  };
+  const drop = async () => {
+    if (!window.confirm(f.dropConfirm)) return;
+    setBusy(true);
+    setError(null);
+    const result = await dropFeed(shortId, workspaceId);
+    setBusy(false);
+    if (!result.ok) return setError(c.errors[result.error] ?? c.errors.unknown);
+    setAddress(null);
+    setSince(null);
+  };
+  const copy = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+    } catch {
+      // No clipboard access: the address stays selectable in the field.
+    }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={f.title}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-xl bg-background p-4 shadow-xl sm:rounded-xl"
+        data-calendar-feed
+      >
+        <h2 className="text-lg font-semibold">{f.title}</h2>
+        <p className="mt-2 text-sm">{f.intro}</p>
+        <p className="mt-1 text-sm text-muted">{f.what}</p>
+        {since !== undefined && (
+          <p className="mt-3 text-sm" data-feed-state={since ? "on" : "off"}>
+            {since ? f.on(new Date(since).toLocaleDateString(dateLocale())) : f.off}
+          </p>
+        )}
+        {address && (
+          <div className="mt-3 rounded-md border border-accent/50 bg-accent/5 p-3">
+            <p className="text-sm font-medium">{f.once}</p>
+            <div className="mt-2 flex gap-2">
+              <input readOnly value={address} onFocus={(e) => e.target.select()} aria-label={f.title} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm md:min-h-9" data-feed-address />
+              <button type="button" onClick={copy} className={buttonClass}>
+                {copied ? f.copied : f.copy}
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-danger">{f.secret}</p>
+            <p className="mt-1 text-sm text-muted">{f.how}</p>
+          </div>
+        )}
+        {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+        {since && !address && <p className="mt-2 text-sm text-muted">{f.renewHint}</p>}
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onClose} className={buttonClass}>
+            {f.close}
+          </button>
+          {since && (
+            <button type="button" onClick={drop} disabled={busy} className={buttonClass} data-feed-drop>
+              {f.drop}
+            </button>
+          )}
+          {since !== undefined && (
+            <button type="button" onClick={issue} disabled={busy} className={primaryClass} data-feed-issue>
+              {since ? f.renew : f.create}
+            </button>
+          )}
         </div>
       </div>
     </div>

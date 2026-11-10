@@ -33,6 +33,20 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-10-g",
+    version: "0.23.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba у вашому календарі", en: "Doba in your own calendar" },
+    summaryDescription: {
+      uk: "Особиста адреса-підписка: події Doba й ваші відсутності видно у власному календарі на телефоні чи в пошті.",
+      en: "A personal subscription address: Doba events and your time off show in your own calendar on the phone or in the mail.",
+    },
+    items: [
+      { id: "feed", type: "added", scope: "calendar", title: { uk: "«🔗 У моєму календарі»: секретна адреса для підписки у будь-якому календарі.", en: "“🔗 In my calendar”: a secret address to subscribe from any calendar app." } },
+      { id: "feed-renew", type: "added", scope: "calendar", title: { uk: "Адресу можна замінити новою або вимкнути будь-коли.", en: "The address can be replaced or turned off at any time." } },
+    ],
+  },
+  {
     id: "2026-11-10-f",
     version: "0.22.0",
     date: "2026-11-10",

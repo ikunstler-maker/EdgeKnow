@@ -1,0 +1,22 @@
+bob before: {"ok": true, "created_at": null}
+a bad hash: invalid, a good one: true
+bob after, has a date: true
+bob reads the table:
+psql: ERROR:  permission denied for table calendar_feeds
+bob reads the feed himself:
+psql: ERROR:  permission denied for function calendar_feed
+eve (not a member) asks: forbidden, sets: forbidden
+carol takes bob's hash: invalid
+anyone reads the feed:
+psql: ERROR:  permission denied for function calendar_feed
+bob's feed: Weekly, Weekly, Weekly, With Bob; leave: Vacation; a description inside: false
+a wrong hash: nothing, bob's hash in another workspace: nothing
+bob gets a new address: true
+the old address: nothing, the new one has events: true
+alice removes bob: true
+a removed member's feed: nothing
+alice turns hers on: true
+alice's feed (the organizer): Declined, Open to all, Private, Weekly, Weekly, Weekly, With Bob; leave: 1
+alice turns it off: true
+alice now: {"ok": true, "created_at": null}
+alice's rows left: 0

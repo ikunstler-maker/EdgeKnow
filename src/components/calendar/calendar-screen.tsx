@@ -36,7 +36,7 @@ import type { Absence, Holiday, MyLeave, MyLeaveRequest } from "@/lib/time-off";
 import { EventDialog, type DialogState } from "./event-dialog";
 import { DobaNav, MyAbsenceDialog, RequestDialog } from "./time-off-screen";
 import { useDayDrag } from "./use-day-drag";
-import { CalendarSettingsDialog, PeoplePicker } from "./calendar-parts";
+import { CalendarSettingsDialog, FeedDialog, PeoplePicker } from "./calendar-parts";
 
 const c = t.calendar;
 const HOUR_PX = 48;
@@ -131,11 +131,13 @@ export function CalendarScreen({
     for (const listener of taskModeListeners) listener();
   };
   const [showSettings, setShowSettings] = useState(false);
+  const [showFeed, setShowFeed] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>("event");
   // My own time off (balances, policies, requests) — for the request window and "withdraw".
   const [myLeave, setMyLeave] = useState<MyLeave | null>(null);
   const [leaveAsk, setLeaveAsk] = useState<{ from: string; to: string } | null>(null);
-  const [myAbsence, setMyAbsence] = useState<MyLeaveRequest | null>(null);
+  // The id of one's own absence to show; the request itself comes once own time off is loaded.
+  const [myAbsenceId, setMyAbsence] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   // How many days the week view shows: the whole week on a wide screen, three on a
   // tablet, one on a phone — so the page never scrolls sideways.
@@ -277,10 +279,8 @@ export function CalendarScreen({
     const start = new Date(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
     pick({ kind: "time", start, end: new Date(start.getTime() + 3_600_000) });
   };
-  const openMyAbsence = (id: string) => {
-    const request = myRequests.find((r) => r.id === id);
-    if (request) setMyAbsence(request);
-  };
+  const openMyAbsence = (id: string) => setMyAbsence(id);
+  const myAbsence = myAbsenceId ? (myRequests.find((r) => r.id === myAbsenceId) ?? null) : null;
   const restore = async (id: string) => {
     const result = await cancelEvent(shortId, id, true);
     if (result.ok) reload();
@@ -312,6 +312,9 @@ export function CalendarScreen({
             ＋ {createMode === "absence" ? c.create.modes.absence : c.newEvent}
           </button>
         )}
+        <button type="button" onClick={() => setShowFeed(true)} className={buttonClass} aria-label={c.feed.open} title={c.feed.open} data-open-feed>
+          🔗
+        </button>
         {admin && (
           <button type="button" onClick={() => setShowSettings(true)} className={buttonClass} aria-label={c.settings.title} title={c.settings.title}>
             ⚙️
@@ -468,6 +471,7 @@ export function CalendarScreen({
       {myAbsence && myLeave && (
         <MyAbsenceDialog shortId={shortId} request={myAbsence} policy={policyName(myAbsence.policy_id)} today={myLeave.today} onClose={() => setMyAbsence(null)} onChanged={reload} />
       )}
+      {showFeed && <FeedDialog shortId={shortId} workspaceId={workspaceId} onClose={() => setShowFeed(false)} />}
       {showSettings && (
         <CalendarSettingsDialog
           shortId={shortId}
