@@ -32,11 +32,13 @@ export function currentPageId(pathname: string): string | null {
 
 // Which service the sidebar shows: the one the person is in (the wiki elsewhere).
 const OBJECT_SERVICES = ["boards", "nodes", "sheets", "slides", "surveys"] as const;
-type Section = "wiki" | "tasks" | (typeof OBJECT_SERVICES)[number];
+type Section = "wiki" | "tasks" | "calendar" | (typeof OBJECT_SERVICES)[number];
 export function sectionOf(pathname: string, shortId: string): Section {
   const rest = pathname.slice(workspacePath(shortId).length);
   const first = rest.split("/")[1] ?? "";
   if (first === "tasks") return "tasks";
+  // The calendar keeps everything on its own screen: the panel shows no list there.
+  if (first === "calendar") return "calendar";
   return (OBJECT_SERVICES as readonly string[]).includes(first) ? (first as Section) : "wiki";
 }
 
@@ -124,7 +126,7 @@ export function Sidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
         {section === "tasks" && <TaskProjects projects={projects} boards={boards} pathname={pathname} onNavigate={onNavigate} />}
-        {section !== "wiki" && section !== "tasks" && (
+        {section !== "wiki" && section !== "tasks" && section !== "calendar" && (
           <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} collections={collections} pathname={pathname} onNavigate={onNavigate} />
         )}
         {section === "wiki" && sidebarToc && (

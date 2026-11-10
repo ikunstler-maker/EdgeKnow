@@ -43,8 +43,15 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Shown on `/about` and the start page as «Скоро» (done 2026-11-05).
 
 ## Requested by the owner (2026-11-04), not planned in detail yet
-- **Corporate calendar (new service).** Events: open (anyone sees, can ask to join → organizer approves), "request to join" switch, invite-only, private (only invitees see). Vacations / time off on the calendar. Meetings with a Google Meet or Zoom link. Two-way sync: Google Calendar, Apple Calendar (ICS/CalDAV), Microsoft (Outlook/Graph). Join requests and approvals go through EdgeKnow. Links: tasks, chat. Big; plan separately (sign-in scopes and secrets → approval).
+- **Corporate calendar** → planned in detail, see «Doba» below (decision 2027-01-21).
 - **Video meetings (later, after Chat).** Own alternative to Meet/Zoom inside the ecosystem: from chat channels, synced with the calendar and tasks. Plan separately (likely WebRTC with a hosted SFU; cost/licence check first).
+
+## Doba: calendar + time off (owner approved 2026-11-10; decision 2027-01-21)
+- 1а events — in review: 4 kinds (open / request / invite / private), people and answers, requests to join, free/busy without details, time zones, month / week (1–3 days on narrow screens) / list, notifications, cancel + restore (30 days), settings (working days, zone).
+- 1б time off — NEXT (tables and rules already approved): `leave_policies`, `leave_balances` (ledger), `leave_requests` with `deputy_id`; role right «Керувати відпустками»; one-step approval up the unit tree (first decision wins); manual yearly accrual; cancel an approved request (author before the start; lead/admin/HR any time) with days returned; policies without approval → active at once + info notification to lead and deputy; overlap hint within the unit; colleagues see only "absent"/"remote", dates and deputy; absences shown on the calendar.
+- 2: repeats (the `recurrence` column exists, always empty) with "this occurrence only"; Rukh due dates on the calendar (read function by the task visibility rules); automatic monthly accrual; holidays; inviting a unit; events in search, chips; landing card without "Soon" once time off is live.
+- 3: external calendars — separate plan and approval (table `calendar_connections`, key `CALENDAR_TOKEN_KEY`, open webhook route in `src/proxy.ts`, outgoing ICS feed). Neutral names only.
+- Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 
 ## Tasks: templates (owner, 2026-12-16) — DONE (package 3; project + personal templates)
 - Custom fields already exist per project (`task_fields`). Add task templates: field values + description skeleton, "Save as template", pick a template when creating a task, default template per project.

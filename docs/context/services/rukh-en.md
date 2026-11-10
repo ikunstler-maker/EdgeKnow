@@ -61,7 +61,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | Import from other trackers | planned | |
 | Notifications when the site is closed (push) | planned | needs a key in hosting settings |
 | Link with chat (Toker) | after chat | task from a message, notifications to a channel |
-| Link with calendar (Doba) | after calendar | due dates in the calendar |
+| Link with calendar (Doba) | Doba phase 2 | due dates on the calendar through a read function that follows the task visibility rules (like `project_tasks`); `tasks.due_date` is a date without a time; no new table |
 | Smart chips in fields and description | owner's request | |
 
 ## 4. Data
@@ -94,7 +94,8 @@ The tables exist in both the central and the team database.
 | **Bordy** (boards) | task from a sticky note or from text in a "Design" file |
 | **Kadry** (presentations) | task card and project task list on a slide |
 | **Core** | notifications (bell), analytics (created, done, overdue), search, units as rule recipients and board owners, file storage |
-| **Toker, Doba, Spilno** | planned links; no details yet |
+| **Doba** | planned (Doba phase 2): due dates on the calendar; the events side is live |
+| **Toker, Spilno** | planned links; no details yet |
 
 ## 6. Key files
 

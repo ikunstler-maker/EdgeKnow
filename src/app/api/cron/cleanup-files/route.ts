@@ -49,6 +49,8 @@ const TASK_FILE_PATH = /^[0-9a-f-]{36}\/(tasks|objects)\//;
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
   // Survey files added but never sent with an answer (after a day) go the same way.
   await rows.rpc("clean_survey_files");
+  // Events cancelled over 30 days ago go for good (a database not yet upgraded has no such function).
+  await rows.rpc("purge_calendar_events");
   const { data: found, error } = await rows
     .from("attachment_tombstones")
     .select("storage_path, storage_backend, drive_connection_id, drive_file_id")
