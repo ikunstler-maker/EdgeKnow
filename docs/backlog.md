@@ -32,7 +32,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Wiki: order agreed (owner, 2026-11-10)
 - 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
-- 2. Drafts by default + Publish (RLS change → separate approval).
+- 2. Drafts by default + Publish — in review (owner approved the rules; decision 2027-01-26). Later: "back to draft".
 - 3. Page version history (view + restore; DB size estimate first).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
@@ -59,7 +59,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Phase 2 (owner approved 2026-11-10; decision 2027-01-24), three PRs:
   - 2а repeats and reminders — DONE (#132).
   - 2б — DONE (#134).
-  - 2в — in review (decision 2027-01-26): holidays (list per year, "copy from last year", not taken from the balance by working-day policies, shown on the calendar); accrual by itself — yearly or monthly, run by the daily cleanup, only the difference is written; start date per person with a part-year norm (the month of the start counts whole, rounded up to half a day).
+  - 2в — in review (decision 2027-01-27): holidays (list per year, "copy from last year", not taken from the balance by working-day policies, shown on the calendar); accrual by itself — yearly or monthly, run by the daily cleanup, only the difference is written; start date per person with a part-year norm (the month of the start counts whole, rounded up to half a day).
   - 2г NEXT (owner, 2026-11-10; no DB change): withdraw an absence right from the calendar; pick the day(s) of an absence on the grid; highlight the cell under the cursor; create an event or an absence by dragging across cells (down the hours, across the days) with snapping to the nearest division.
 - Later: event chip in task descriptions (with "smart chips everywhere": the task description has no chips at all yet); dragging a task to another day on the calendar; reminders when the site is closed (with push); an answer for one day of a series ("not going this time"); a repeat "on the last Friday of the month"; the landing card without "Soon" once sync (phase 3) is planned.
 - 3: external calendars — separate plan and approval (table `calendar_connections`, key `CALENDAR_TOKEN_KEY`, open webhook route in `src/proxy.ts`, outgoing ICS feed). Neutral names only.

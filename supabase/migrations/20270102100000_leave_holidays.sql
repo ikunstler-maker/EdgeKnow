@@ -1,7 +1,7 @@
 -- Doba, phase 2c: holidays, accrual by itself (yearly or monthly), a start date per
 -- person with a norm in proportion to the months left in the year.
--- The same in supabase/team/migrations/0047_leave_holidays.sql.
--- Rollback: supabase/rollbacks/20270101100000_leave_holidays.down.sql
+-- The same in supabase/team/migrations/0048_leave_holidays.sql.
+-- Rollback: supabase/rollbacks/20270102100000_leave_holidays.down.sql
 
 -- Holidays: a list per workspace, kept by who manages time off. A holiday isn't taken
 -- from the balance by policies that count working days (calendar-day policies take

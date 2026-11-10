@@ -7,7 +7,7 @@
 \set bob '00000000-0000-0000-0000-0000000000b1'
 \set as_alice 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000a1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000a1","email":"alice@team.test","ek_workspace":"00000000-0000-0000-0000-0000000000f1"}'''
 \set as_bob 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000b1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000b1","email":"bob@team.test","ek_workspace":"00000000-0000-0000-0000-0000000000f1"}'''
-\set as_carol 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000c1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000c1","email":"carol@team.test","ek_workspace":"00000000-0000-0000-0000-0000000000f1"}'''
+\set as_zed 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-00000000009f''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-00000000009f","email":"zed@elsewhere.test","ek_workspace":"00000000-0000-0000-0000-0000000000f1"}'''
 
 set role authenticated;
 :as_bob;
@@ -27,6 +27,6 @@ set role authenticated;
 select 'bob sees: ' || (select count(*) from public.leave_holidays) || ' holiday, start ' || (select string_agg(started_on::text, ',') from public.leave_member_settings);
 reset role;
 set role authenticated;
-:as_carol;
-select 'carol (not a member) sees: ' || (select count(*) from public.leave_holidays) || ' holidays, ' || (select count(*) from public.leave_member_settings) || ' start dates';
+:as_zed;
+select 'zed (not a member) sees: ' || (select count(*) from public.leave_holidays) || ' holidays, ' || (select count(*) from public.leave_member_settings) || ' start dates';
 reset role;

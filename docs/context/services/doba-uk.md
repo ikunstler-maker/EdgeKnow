@@ -1,6 +1,6 @@
 # Doba — корпоративний календар і відпустки
 
-> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2027-01-26 (фази 1а, 1б, 2а, 2б, 2в). Джерело правди — `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-26) і код. Англійський двійник: `doba-en.md`.
+> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2027-01-27 (фази 1а, 1б, 2а, 2б, 2в). Джерело правди — `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27) і код. Англійський двійник: `doba-en.md`.
 
 ## 1. Призначення
 
@@ -140,8 +140,8 @@
 | Дії | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
 | Компоненти | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`); чіп у вікі — `src/components/editor/event-chip.tsx` |
 | Логіка (дати, пояси, розкладка; форми даних відпусток) | `src/lib/calendar.ts`, `src/lib/time-off.ts` |
-| Міграції | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; командні `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0047_leave_holidays.sql` (центральні `20270101100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
-| Тести | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage57_leave_holidays.sql`; командні `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9k_leave_holidays.sql`; браузер: `scripts/e2e/calendar-checks.mjs` (запускає частина nodes) |
+| Міграції | `supabase/migrations/20261228100000_calendar_events.sql`, `20261229100000_time_off.sql`; командні `0043_calendar_events.sql`, `0044_time_off.sql`, `0045_calendar_repeats.sql`, `0046_calendar_links.sql`, `0048_leave_holidays.sql` (центральні `20270102100000_leave_holidays.sql`, `20261230100000_calendar_repeats.sql`, `20261231100000_calendar_links.sql`) |
+| Тести | `supabase/tests/stage53_calendar.sql`, `stage54_time_off.sql`, `stage55_calendar_repeats.sql`, `stage56_calendar_links.sql`, `stage58_leave_holidays.sql`; командні `team9g_calendar.sql`, `team9h_time_off.sql`, `team9i_calendar_repeats.sql`, `team9j_calendar_links.sql`, `team9l_leave_holidays.sql`; браузер: `scripts/e2e/calendar-checks.mjs` (запускає частина nodes) |
 
 ## 7. Важливі рішення
 

@@ -16,6 +16,7 @@ import { PageCover } from "@/components/pages/page-cover";
 import { PageHeader } from "@/components/pages/page-header";
 import { ShareButton } from "@/components/pages/share-dialog";
 import { PageExportButton } from "@/components/pages/page-export";
+import { DraftBar } from "@/components/pages/draft-bar";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
 import { ClearNewFlag } from "@/components/pages/clear-new-flag";
@@ -41,6 +42,8 @@ type PageRecord = {
   ack_revision: number;
   ack_editing: boolean;
   ack_groups: string[];
+  published_at: string | null;
+  is_draft: boolean;
   author: { name: string | null; email: string } | null;
 };
 
@@ -52,7 +55,7 @@ async function loadPage(wid: string, id: string): Promise<PageRecord | null> {
   const { data } = await supabase
     .from("pages")
     .select(
-      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, ack_label, ack_revision, ack_editing, ack_groups, author:profiles!pages_created_by_fkey(name, email)",
+      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, ack_label, ack_revision, ack_editing, ack_groups, published_at, is_draft, author:profiles!pages_created_by_fkey(name, email)",
     )
     .eq("id", id)
     .maybeSingle()
@@ -149,7 +152,7 @@ async function loadNewPage(wid: string, id: string, isNew: boolean, workspaceId:
   const ws = await workspaceId;
   if (!ws) return null;
   const now = new Date().toISOString();
-  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, ack_label: null, ack_revision: 0, ack_editing: false, ack_groups: [], author: null };
+  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, ack_label: null, ack_revision: 0, ack_editing: false, ack_groups: [], published_at: null, is_draft: true, author: null };
 }
 
 export default async function WikiPage({ params, searchParams }: PageProps<"/w/[wid]/p/[id]">) {
@@ -197,7 +200,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
       {!page.deleted_at && (
         <div className="mb-2 flex flex-wrap justify-end gap-2">
           <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
-          {(ack?.canManage || (!ack && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
+          {(ack?.canManage || (!ack && !page.is_draft && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
           <PageExportButton pageId={page.id} />
           <ShareButton pageId={page.id} />
         </div>
@@ -214,6 +217,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
         createdAt={page.created_at}
         updatedAt={page.updated_at}
       />
+      {page.is_draft && !page.deleted_at && <DraftBar pageId={page.id} ownDraft={page.published_at === null} canPublish={canEdit(page.my_role)} />}
       {ack && <AckBadge ack={ack} />}
       {frozen && canEdit(page.my_role) && !page.deleted_at && <p className="mt-2 text-xs text-muted" data-ack-frozen>{t.acks.frozenNote}</p>}
       <div className="mt-6">

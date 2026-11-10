@@ -39,6 +39,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 - **Read confirmations:** the page owner turns on a button ("Read" / "I accept the terms" / "I agree"); the page freezes; statistics of who confirmed; a new revision requires confirming again.
 - **Page from an external source:** an admin gives a URL with Markdown — the server fills and refreshes the page.
 - **Page backups** to Google Drive: daily and by button, as JSON and Markdown.
+- **Drafts:** a new page is a draft seen only by its owner, people invited to it personally and the workspace owner (a filter on top of normal access; admins and units don't open it); everything inside a draft is hidden too; an invitation opens only that one draft, and the share dialog offers to give the same access to the pages inside. "Publish" (owner or editor), optionally with the pages inside. Enforced in `page_role_of` (pages, tree, search, comments, files, notifications, chips) and `my_page_tree`; no read confirmations on a draft; drafts stay out of the Drive backup. Existing pages were published at creation time.
 - **"Export" menu** next to "Share": copy the page link (opens only for people with access); PDF and Markdown (Free); JSON, CSV, DOCX, HTML shown greyed out with a PRO badge. PDF: a print view of the page (`/p/<id>/print`, read-only editor, light theme) waits for embeds and pictures, then opens the browser's print window ("Save as PDF") — nothing runs on the server. Markdown: built in the browser from one server action that reads the embeds with the reader's own access; tables become Markdown tables (≤500 rows per sheet), task lists become checklists, other embeds a line with a link, chips links; anything hidden becomes "🔒 No access" without its name; comments are left out. Uploaded pictures and audio go into a .zip next to the .md (`files/`); pictures from other sites stay links.
 
 ### Search
@@ -49,7 +50,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 
 | What | State | Note |
 |---|---|---|
-| Drafts by default and "Publish" | planned | access change → separate approval; existing pages stay published |
+| Drafts by default and "Publish" | done | "back to draft" later |
 | "Export" menu: link, PDF, Markdown | done | JSON, CSV, DOCX, HTML shown with PRO; they need payments (stage 4) |
 | Real-time editing with cursors | planned (stage 3) | |
 | Page version history | planned | 7 days / 1 year / unlimited by plan |
@@ -63,7 +64,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 
 | Table | Holds |
 |---|---|
-| `pages` | pages: tree, title, content, version, trash |
+| `pages` | pages: tree, title, content, version, trash, `published_at` (empty = draft) |
 | `page_access`, `page_group_access` | access of people and units |
 | `comment_threads`, `comments` | comments |
 | `page_mentions` | mentions |
@@ -113,6 +114,5 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 
 ## 8. Known gaps and open questions
 
-- Drafts change access rules — a separate plan is needed: who sees a draft, what happens to subpages, how embeds and search behave.
 - Export formats and the Free/PRO line depend on pricing implementation.
 - Version history: where to store it and how much room it takes in a team database.

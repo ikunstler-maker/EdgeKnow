@@ -2,6 +2,9 @@
 -- of the units above it (up, leads only); a lead manages only their own branch.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -76,3 +79,6 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000047d1';
 select 'member sets a lead: ' || public.set_group_lead(:'ws', :'sales', '00000000-0000-0000-0000-0000000047d1', true)::text;
 reset role;
 select 'team copy has leads: ' || count(*) from jsonb_array_elements(public.team_sync_payload(:'ws') -> 'group_members') x where (x ->> 'is_lead')::boolean;
+
+reset role;
+alter table public.pages alter column published_at drop default;

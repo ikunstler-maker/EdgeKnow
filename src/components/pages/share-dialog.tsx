@@ -15,7 +15,7 @@ import {
   type PageSharing,
   type SharingPerson,
 } from "@/app/page-actions";
-import { errorMessage } from "./pages-provider";
+import { errorMessage, useOptionalPages } from "./pages-provider";
 
 const GRANT_ROLES: GrantRole[] = ["editor", "commenter", "viewer"];
 
@@ -48,6 +48,21 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
   const [newOwner, setNewOwner] = useState("");
   const [newGroup, setNewGroup] = useState("");
   const [newGroupRole, setNewGroupRole] = useState<GrantRole>("viewer");
+  // An invitation to a draft opens only that page: offer the same to the pages inside it.
+  const tree = useOptionalPages()?.pages ?? [];
+  const isDraft = Boolean(tree.find((p) => p.id === pageId)?.draft);
+  const inside = (() => {
+    const found: string[] = [];
+    let frontier = [pageId];
+    while (frontier.length) {
+      const next = tree.filter((p) => p.parentId && frontier.includes(p.parentId) && !found.includes(p.id)).map((p) => p.id);
+      found.push(...next);
+      frontier = next;
+    }
+    return found;
+  })();
+  const [offer, setOffer] = useState<{ member: string; role: GrantRole } | null>(null);
+  const [offerResult, setOfferResult] = useState<string | null>(null);
 
   const show = useCallback((result: ActionResult<PageSharing>) => {
     if (result.ok) setSharing(result);
@@ -146,14 +161,54 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
                     disabled={!newMember || pending}
                     onClick={() => {
                       const member = newMember;
+                      const role = newRole;
                       setNewMember("");
-                      run(() => setPageMemberRole(pageId, member, newRole));
+                      setOfferResult(null);
+                      run(async () => {
+                        const result = await setPageMemberRole(pageId, member, role);
+                        if (result.ok && isDraft && inside.length > 0) setOffer({ member, role });
+                        return result;
+                      });
                     }}
                     className={buttonClass}
                   >
                     {t.share.add}
                   </button>
                 </div>
+              )}
+
+              {offer && (
+                <div className="space-y-2 rounded-lg border border-border bg-surface p-3 text-sm" data-share-inside-offer>
+                  <p>{t.share.insideOffer(inside.length)}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        const { member, role } = offer;
+                        setOffer(null);
+                        startTransition(async () => {
+                          let done = 0;
+                          for (const id of inside) if ((await setPageMemberRole(id, member, role)).ok) done += 1;
+                          setOfferResult(t.share.insideDone(done, inside.length));
+                          await load();
+                        });
+                      }}
+                      className={buttonClass}
+                      data-share-inside-accept
+                    >
+                      {t.share.insideAccept}
+                    </button>
+                    <button type="button" onClick={() => setOffer(null)} className={buttonClass}>
+                      {t.share.insideDecline}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {offerResult && (
+                <p role="status" className="text-sm text-muted">
+                  {offerResult}
+                </p>
               )}
 
               <ul className="space-y-1" aria-label={t.share.people}>

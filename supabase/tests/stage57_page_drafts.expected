@@ -1,0 +1,55 @@
+a new page is a draft: true
+dave publishes his page: {"ok": true, "published": 1}
+published again changes nothing: {"ok": true, "published": 0}
+a page under a draft, published alone: 1
+tree marks: Bob under Dave=true, Dave page=false, Dave sketch=true, Plan appendix=false, Plan chapter=true, Secret plan=true
+bob (author) reads: Bob under Dave, Dave page, Plan appendix, Plan chapter, Secret plan
+bob tree: Bob under Dave*, Dave page, Plan appendix*, Plan chapter*, Secret plan* / tree = table
+bob search: Secret plan
+alice (workspace owner) reads: Bob under Dave, Dave page, Dave sketch, Plan appendix, Plan chapter, Secret plan
+alice tree: Bob under Dave*, Dave page, Dave sketch*, Plan appendix*, Plan chapter*, Secret plan* / tree = table
+dave (invited editor, owns the published parent) reads: Dave page, Dave sketch, Plan appendix, Secret plan
+dave tree: Dave page, Dave sketch*, Plan appendix*, Secret plan* / tree = table
+dave notified about the draft: 1
+erin (invited viewer) reads: Dave page, Plan appendix, Secret plan
+erin tree: Dave page, Plan appendix*, Secret plan* / tree = table
+carol (admin) reads: Dave page
+carol tree: Dave page / tree = table
+carol search: nothing
+carol role on the draft: none
+carol sharing of the draft: {"ok": false, "error": "forbidden"}
+frank (unit with access) reads: Dave page
+frank tree: Dave page / tree = table
+frank notified about the draft: 0
+frank comments on the draft: {"ok": false, "error": "forbidden"}
+ivan (leads the unit above) reads: Dave page
+gwen (guest, invited) reads: Plan appendix, Secret plan
+gwen tree: Plan appendix*, Secret plan* / tree = table
+hank (guest, not invited) reads: Dave page
+hank tree: Dave page / tree = table
+zed (another workspace) reads: nothing
+zed tree: nothing
+draft title in readers' notifications: 0
+bob invites erin to the chapter: true
+erin now reads: Dave page, Plan appendix, Plan chapter, Secret plan
+erin tree: Dave page, Plan appendix*, Plan chapter*, Secret plan* / tree = table
+erin (viewer) publishes: {"ok": false, "error": "forbidden"}
+gwen (guest commenter) publishes: {"ok": false, "error": "forbidden"}
+carol (admin) publishes: {"ok": false, "error": "forbidden"}
+frank (unit editor) publishes: {"ok": false, "error": "forbidden"}
+zed publishes: {"ok": false, "error": "forbidden"}
+psql: ERROR:  draft
+nothing was published by them: Dave sketch=true, Plan chapter=true, Secret plan=true
+bob publishes with children: 2
+after publishing: Bob under Dave=true, Dave page=false, Dave sketch=true, Plan appendix=false, Plan chapter=false, Secret plan=false
+carol (admin) now reads: Dave page, Plan appendix, Plan chapter, Secret plan
+carol tree: Dave page, Plan appendix, Plan chapter, Secret plan / tree = table
+frank now reads: Dave page, Plan appendix, Plan chapter, Secret plan
+frank search: Secret plan
+frank notified later: 0
+ivan now reads: Dave page, Plan appendix, Plan chapter, Secret plan
+hank now reads: Dave page
+zed now reads: nothing
+dave now reads: Dave page, Dave sketch, Plan appendix, Plan chapter, Secret plan
+dave publishes his sketch: 1
+dave publishes the draft Bob made under his page: {"ok": false, "error": "forbidden"}

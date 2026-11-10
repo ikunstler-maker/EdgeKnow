@@ -4,6 +4,9 @@
 \pset format unaligned
 \pset tuples_only on
 
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
+
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
  ('00000000-0000-0000-0000-0000000005a1', 'alice@access.test', now(), '{"full_name":"Alice"}'),
  ('00000000-0000-0000-0000-0000000005b1', 'bob@access.test', now(), '{"full_name":"Bob"}'),
@@ -169,3 +172,6 @@ select 'carol now owns: ' || string_agg(title, ', ' order by title)
 reset role;
 select 'audit: ' || string_agg(action || ' ' || details::text, '; ' order by id)
   from public.audit_log where workspace_id = :'ws' and (action = 'pages_reassigned' or details ->> 'attempted' = 'reassign_member_pages');
+
+reset role;
+alter table public.pages alter column published_at drop default;

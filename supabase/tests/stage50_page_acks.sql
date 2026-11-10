@@ -2,6 +2,9 @@
 -- owner and admins only, a deleted account kept as its id, new editions.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -104,3 +107,6 @@ select 'editable again: ' || (public.rename_page(:'page2', 'Draft 2') ->> 'ok');
 reset role;
 delete from public.workspaces where id in (:'ws', :'other');
 delete from auth.users where email like '%acks.test';
+
+reset role;
+alter table public.pages alter column published_at drop default;

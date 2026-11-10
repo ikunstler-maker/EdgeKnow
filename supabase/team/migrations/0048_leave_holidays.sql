@@ -1,6 +1,6 @@
 -- Doba, phase 2c (holidays, accrual by itself, start dates) in a team's own database
--- (as supabase/migrations/20270101100000_leave_holidays.sql).
--- Rollback: supabase/team/rollbacks/0047_leave_holidays.down.sql
+-- (as supabase/migrations/20270102100000_leave_holidays.sql).
+-- Rollback: supabase/team/rollbacks/0048_leave_holidays.down.sql
 
 -- Holidays: a list per workspace, kept by who manages time off. A holiday isn't taken
 -- from the balance by policies that count working days (calendar-day policies take

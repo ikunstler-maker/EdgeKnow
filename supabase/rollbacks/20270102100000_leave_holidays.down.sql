@@ -1,4 +1,58 @@
--- Undo 0047_leave_holidays.
+-- Undo 20270102100000_leave_holidays.
+create or replace function public.team_move_people(ws uuid)
+ returns jsonb
+ language sql
+ stable security definer
+ set search_path to ''
+as $function$
+  with ids as (
+    select owner_id as id from public.pages where workspace_id = ws
+    union select created_by from public.pages where workspace_id = ws
+    union select updated_by from public.pages where workspace_id = ws
+    union select deleted_by from public.pages where workspace_id = ws
+    union select user_id from public.page_access where workspace_id = ws
+    union select granted_by from public.page_access where workspace_id = ws
+    union select created_by from public.comment_threads where workspace_id = ws
+    union select resolved_by from public.comment_threads where workspace_id = ws
+    union select author_id from public.comments where workspace_id = ws
+    union select uploaded_by from public.attachments where workspace_id = ws
+    union select user_id from public.page_mentions where workspace_id = ws
+    union select mentioned_by from public.page_mentions where workspace_id = ws
+    union select user_id from public.page_contributions where workspace_id = ws
+    union select actor_id from public.audit_log where workspace_id = ws
+    union select user_id from public.workspace_members where workspace_id = ws
+    union select owner_id from public.workspaces where id = ws
+    union select reporter_id from public.tasks where workspace_id = ws
+    union select assignee_id from public.tasks where workspace_id = ws
+    union select updated_by from public.tasks where workspace_id = ws
+    union select deleted_by from public.tasks where workspace_id = ws
+    union select author_id from public.task_comments where workspace_id = ws
+    union select actor_id from public.task_events where workspace_id = ws
+    union select user_id from public.task_project_access where workspace_id = ws
+    union select created_by from public.task_projects where workspace_id = ws
+    union select owner_id from public.service_objects where workspace_id = ws
+    union select created_by from public.service_objects where workspace_id = ws
+    union select updated_by from public.service_objects where workspace_id = ws
+    union select deleted_by from public.service_objects where workspace_id = ws
+    union select user_id from public.service_object_access where workspace_id = ws
+    union select organizer_id from public.calendar_events where workspace_id = ws
+    union select created_by from public.calendar_events where workspace_id = ws
+    union select deleted_by from public.calendar_events where workspace_id = ws
+    union select user_id from public.calendar_event_attendees where workspace_id = ws
+    union select invited_by from public.calendar_event_attendees where workspace_id = ws
+    union select updated_by from public.calendar_settings where workspace_id = ws
+    union select updated_by from public.calendar_event_exceptions where workspace_id = ws
+    union select created_by from public.leave_policies where workspace_id = ws
+    union select user_id from public.leave_balances where workspace_id = ws
+    union select created_by from public.leave_balances where workspace_id = ws
+    union select user_id from public.leave_requests where workspace_id = ws
+    union select deputy_id from public.leave_requests where workspace_id = ws
+    union select decided_by from public.leave_requests where workspace_id = ws
+    union select cancelled_by from public.leave_requests where workspace_id = ws
+  )
+  select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'email', p.email, 'name', p.name, 'avatar_url', p.avatar_url, 'created_at', p.created_at) order by p.id), '[]')
+  from public.profiles p where p.id in (select id from ids where id is not null);
+$function$;
 drop function public.set_leave_start_date(uuid, uuid, date);
 drop function public.copy_leave_holidays(uuid, integer, integer);
 drop function public.delete_leave_holiday(uuid, date);

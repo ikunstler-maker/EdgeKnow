@@ -15,7 +15,23 @@ export type PageNode = {
   workspaceRole: GrantRole | null;
   // Asks readers to confirm it (shown with a quiet seal in the tree).
   needsAck?: boolean;
+  // Not published yet (the page or a page above it): only its people see it.
+  draft?: boolean;
 };
+
+// Pages that are drafts or sit under one (by parent): kept out of the workspace backup.
+export function draftPageIds(rows: { id: string; parent_id: string | null; published_at: string | null }[]): Set<string> {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const memo = new Map<string, boolean>();
+  const isDraft = (id: string, depth = 0): boolean => {
+    if (memo.has(id)) return memo.get(id)!;
+    const row = byId.get(id);
+    const result = Boolean(row && (row.published_at === null || (row.parent_id && depth < 100 && isDraft(row.parent_id, depth + 1))));
+    memo.set(id, result);
+    return result;
+  };
+  return new Set(rows.filter((row) => isDraft(row.id)).map((row) => row.id));
+}
 
 // Columns for the tree; my_role and shared_with_workspace are computed in the database.
 export const PAGE_TREE_COLUMNS = "id, parent_id, title, icon, position, owner_id, my_role, shared_with_workspace, ack_label";
@@ -30,6 +46,8 @@ export type PageRow = {
   my_role: PageRole;
   shared_with_workspace: GrantRole | null;
   ack_label: string | null;
+  // From my_page_tree only (the older way of reading the tree has no such column).
+  draft?: boolean;
 };
 
 export function toPageNode(row: PageRow): PageNode {
@@ -43,6 +61,7 @@ export function toPageNode(row: PageRow): PageNode {
     role: row.my_role,
     workspaceRole: row.shared_with_workspace,
     needsAck: Boolean(row.ack_label),
+    draft: Boolean(row.draft),
   };
 }
 
