@@ -162,7 +162,7 @@ export function Subtasks({
                   className="h-5 w-5 shrink-0 md:h-4 md:w-4"
                 />
                 <span className="font-mono text-xs text-muted">{taskKey(projectKey, child.number)}</span>
-                <Link href={workspacePath(shortId, `/tasks/${projectKey}/${child.number}`)} className={`min-w-0 flex-1 truncate hover:underline ${isDone ? "text-muted line-through" : ""}`}>
+                <Link prefetch={false} href={workspacePath(shortId, `/tasks/${projectKey}/${child.number}`)} className={`min-w-0 flex-1 truncate hover:underline ${isDone ? "text-muted line-through" : ""}`}>
                   {TYPE_ICONS[child.type]} {child.title}
                 </Link>
                 <span className="shrink-0 text-xs text-muted">{status?.name}</span>
@@ -218,7 +218,7 @@ export function TaskLinks({ shortId, taskId, links, canEdit }: { shortId: string
             <li key={link.id} className="flex min-h-9 flex-wrap items-center gap-2" data-link={link.other.key ?? "hidden"}>
               <span className="text-muted">{labelOf(link)}</span>
               {link.other.key ? (
-                <Link href={linkHref(shortId, link.other.key)} className={`hover:underline ${link.other.done || link.other.deleted ? "text-muted line-through" : ""}`}>
+                <Link prefetch={false} href={linkHref(shortId, link.other.key)} className={`hover:underline ${link.other.done || link.other.deleted ? "text-muted line-through" : ""}`}>
                   <span className="font-mono text-xs">{link.other.key}</span> {link.other.title}
                   {link.other.deleted && ` (${h.deletedTask})`}
                 </Link>

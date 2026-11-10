@@ -116,7 +116,7 @@ export function ServiceCollections({
     const here = pathname === href || pathname.startsWith(`${href}/`);
     return (
       <li key={key} className="flex items-center">
-        <Link href={href} onClick={onNavigate} data-angler-here={here ? "" : undefined} className={rowClass(here)} data-sidebar-object>
+        <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={here ? "" : undefined} className={rowClass(here)} data-sidebar-object>
           <span className="truncate">{o.title || t.pages.untitled}</span>
         </Link>
         {extra}

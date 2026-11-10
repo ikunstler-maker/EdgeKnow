@@ -78,7 +78,7 @@ export function Sidebar({
 
   // The bottom links are one row of icons (the name shows on hover and is read aloud).
   const iconLink = (href: string, label: string, icon: string, hint?: string) => (
-    <Link
+    <Link prefetch={false}
       href={href}
       onClick={onNavigate}
       title={hint ?? label}
@@ -199,7 +199,7 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
   const board = useSearchParams().get("board");
   return (
     <section aria-label={t.tasks.section} className="mb-2" data-sidebar-section="tasks">
-      <Link
+      <Link prefetch={false}
         href={base}
         onClick={onNavigate}
         data-angler-here={pathname === base ? "" : undefined}
@@ -215,7 +215,7 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
           const list = tasks?.project === project.id ? tasks.list : null;
           return (
             <li key={project.id}>
-              <Link href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
+              <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
                 <span className="shrink-0">{project.icon ?? "📋"}</span>
                 <span className="truncate">{project.name}</span>
                 <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
@@ -225,13 +225,13 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
                   {own.length > 0 && (
                     <ul aria-label={t.sidebar.mainBoard}>
                       <li>
-                        <Link href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
+                        <Link prefetch={false} href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
                           🗂 <span className="truncate">{t.sidebar.mainBoard}</span>
                         </Link>
                       </li>
                       {own.map((b) => (
                         <li key={b.id}>
-                          <Link href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
+                          <Link prefetch={false} href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
                             🗂 <span className="truncate">{b.name}</span>
                           </Link>
                         </li>
@@ -245,7 +245,7 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
                       const taskHref = `${href}/${task.number}`;
                       return (
                         <li key={task.id}>
-                          <Link href={taskHref} onClick={onNavigate} data-angler-here={pathname === taskHref ? "" : undefined} className={linkClass(pathname === taskHref)} data-sidebar-task>
+                          <Link prefetch={false} href={taskHref} onClick={onNavigate} data-angler-here={pathname === taskHref ? "" : undefined} className={linkClass(pathname === taskHref)} data-sidebar-task>
                             <span className="shrink-0 font-mono text-xs text-muted">{project.key}-{task.number}</span>
                             <span className="truncate">{task.title}</span>
                           </Link>
@@ -270,7 +270,7 @@ function ServiceObjects({ service, objects, collections, pathname, onNavigate }:
   const name = t.services.items[service as keyof typeof t.services.items]?.name ?? service;
   return (
     <section aria-label={name} className="mb-2" data-sidebar-section={service}>
-      <Link href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
+      <Link prefetch={false} href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
         {t.sidebar.allOf(name)}
       </Link>
       <ServiceCollections

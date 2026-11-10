@@ -83,7 +83,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={240}>
           <div role="menu" aria-label={task.key} className="p-1">
-            <Link href={taskHref(shortId, task.key)} className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface md:min-h-9">
+            <Link prefetch={false} href={taskHref(shortId, task.key)} className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface md:min-h-9">
               ↗ {w.open}
             </Link>
             {task.canEdit && (
@@ -264,7 +264,7 @@ export function TasksEmbedView({
           </span>
           <span className="text-xs text-muted">{w.shown(data.tasks.length, data.total)}</span>
           <span className="flex-1" />
-          <Link href={workspacePath(shortId, `/tasks/${data.project.key}${view === "list" ? "?view=list" : ""}`)} className="text-sm text-accent hover:underline">
+          <Link prefetch={false} href={workspacePath(shortId, `/tasks/${data.project.key}${view === "list" ? "?view=list" : ""}`)} className="text-sm text-accent hover:underline">
             {w.openInTasks} ↗
           </Link>
         </div>
@@ -282,7 +282,7 @@ export function TasksEmbedView({
                     .filter((task) => task.status_id === status.id)
                     .map((task) => (
                       <div key={task.id} className="rounded-md border border-border bg-background p-2 text-sm" data-embed-task={key(task.number)}>
-                        <Link href={taskHref(shortId, key(task.number))} className="block hover:underline">
+                        <Link prefetch={false} href={taskHref(shortId, key(task.number))} className="block hover:underline">
                           <span className="font-mono text-xs text-muted">{key(task.number)}</span> {task.title}
                         </Link>
                         {data.canEdit && <div className="mt-1">{statusSelect(task)}</div>}
@@ -309,7 +309,7 @@ export function TasksEmbedView({
                     />
                   )}
                   <span className="font-mono text-xs text-muted">{key(task.number)}</span>
-                  <Link href={taskHref(shortId, key(task.number))} className={`min-w-0 flex-1 truncate hover:underline ${done ? "text-muted line-through" : ""}`}>
+                  <Link prefetch={false} href={taskHref(shortId, key(task.number))} className={`min-w-0 flex-1 truncate hover:underline ${done ? "text-muted line-through" : ""}`}>
                     {TYPE_ICONS[task.type]} {task.title}
                   </Link>
                   {statusSelect(task)}
