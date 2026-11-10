@@ -80,6 +80,10 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Before payments: verify official prices (Vercel, Supabase, GitHub, Claude, payment provider), taxes with an accountant, actual Actions minutes over 2–3 months.
 - Implementation (later, stage 4): per-workspace feature flags + PRO badge component (greyed, explains, links to pricing); wiki export dialog with all formats (PDF/MD free; JSON/CSV/DOCX/HTML PRO).
 
+## Context pack (`docs/context/`, 2027-01-15)
+- Cards were written from the decision log and code structure; items marked "verify in code" / «звірити з кодом» need a check when that service is next touched.
+- Keep `-uk` and `-en` twins in sync in the same PR.
+
 ## Known gaps / follow-ups
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.
