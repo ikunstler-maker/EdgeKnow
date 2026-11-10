@@ -53,6 +53,9 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
   const workspace = await getWorkspace(id);
   if (!workspace) return null;
 
+  // Known from the workspace lookup itself: no team database, nothing more to ask.
+  if (workspace.hasTeamDatabase === false) return { client: central, workspaceId: workspace.id, location: "central" };
+
   const admin = createAdminClient();
   const user = await getCurrentUser();
   // One trip: where the workspace lives, when its members were last copied, and when this person joined.

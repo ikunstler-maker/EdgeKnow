@@ -73,6 +73,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | `attachments` | page files |
 
 - Content is saved through `/api/pages/<id>/content` and a database function with a version check.
+- The page tree for the left panel is read by `my_page_tree` (roles of all pages in one pass; test `stage51_fast_reads` compares it with reading the table row by row). A change to page access rules must update this function too.
 - The tables exist in both the central and the team database.
 
 ## 5. Links with other services

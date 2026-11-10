@@ -9,6 +9,10 @@ export type Workspace = {
   shortId: string;
   name: string;
   role: WorkspaceRole;
+  // From workspace_context(): whether the data lives in a team database, and when this
+  // person joined. Unknown (undefined) when the older two-step lookup answered.
+  hasTeamDatabase?: boolean;
+  joinedAt?: string | null;
 };
 
 export type WorkspaceSummary = { id: string; shortId: string; name: string };
@@ -30,6 +34,14 @@ export const listMyWorkspaces = cache(async (): Promise<WorkspaceSummary[]> => {
 export const getWorkspace = cache(async (shortId: string): Promise<Workspace | null> => {
   if (!/^[a-z0-9]{8}$/.test(shortId)) return null;
   const supabase = await createClient();
+  // One call for the workspace, the role and where the data lives.
+  const context = await supabase.rpc("workspace_context", { ws_short_id: shortId });
+  if (!context.error) {
+    const c = context.data as { id: string; short_id: string; name: string; role: WorkspaceRole; joined_at: string | null; team_database: boolean } | null;
+    return c ? { id: c.id, shortId: c.short_id, name: c.name, role: c.role, hasTeamDatabase: c.team_database, joinedAt: c.joined_at } : null;
+  }
+  // The function isn't there yet (a new version of the site reaches the server a
+  // moment before the database): the same answer in two steps.
   const { data } = await supabase
     .from("workspaces")
     .select("id, short_id, name")

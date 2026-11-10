@@ -31,6 +31,9 @@ export async function GET(request: NextRequest) {
     await timed(`access check (has_platform_access) #${round}`, () => supabase.rpc("has_platform_access"));
     await timed(`own profile #${round}`, () => supabase.from("profiles").select("id").eq("id", user.id).maybeSingle());
   }
+  for (const round of [1, 2]) {
+    await timed(`workspace, role and data location in one call (workspace_context) #${round}`, () => supabase.rpc("workspace_context", { ws_short_id: shortId }));
+  }
   const { data: workspace } = await timed("workspace by short id", () =>
     supabase.from("workspaces").select("id").eq("short_id", shortId).maybeSingle(),
   );
@@ -44,6 +47,7 @@ export async function GET(request: NextRequest) {
         await timed(`page tree from the ${data.location} database #${round}`, () =>
           data.client.from("pages").select(PAGE_TREE_COLUMNS).eq("workspace_id", workspace.id).is("deleted_at", null),
         );
+        await timed(`page tree in one pass (my_page_tree) from the ${data.location} database #${round}`, () => data.client.rpc("my_page_tree", { ws: workspace.id }));
         await timed(`task projects from the ${data.location} database #${round}`, () =>
           data.client.from("task_projects").select("id").eq("workspace_id", workspace.id),
         );

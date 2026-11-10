@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
@@ -11,6 +12,22 @@ import { getWorkspace, listMyWorkspaces } from "@/lib/workspace";
 import { AppShell } from "@/components/app-shell";
 import { PagesProvider } from "@/components/pages/pages-provider";
 import { TeamHealthBanner } from "@/components/team-health-banner";
+
+// The page tree in one pass (my_page_tree works every role out at once). Where the
+// function isn't there yet — the site is a moment ahead of the database — the same
+// rows come from the table, each checked by its rule.
+async function loadPageTree(supabase: SupabaseClient, workspaceId: string) {
+  const fast = await supabase.rpc("my_page_tree", { ws: workspaceId });
+  if (!fast.error || fast.error.code !== "PGRST202") return { data: fast.data as PageRow[] | null, error: fast.error };
+  const { data, error } = await supabase
+    .from("pages")
+    .select(PAGE_TREE_COLUMNS)
+    .eq("workspace_id", workspaceId)
+    .is("deleted_at", null)
+    .order("position")
+    .overrideTypes<PageRow[], { merge: false }>();
+  return { data: data as PageRow[] | null, error };
+}
 
 export default async function WorkspaceLayout({ children, params }: LayoutProps<"/w/[wid]">) {
   const { wid } = await params;
@@ -56,13 +73,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
   // Everything the shell needs, in one wave: each line is one trip to the database.
   // RLS returns only this workspace's pages, projects and objects the user has a role on.
   const [{ data: pages, error }, { data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }, { data: mayCreatePages }, { data: guestRows }, centralAllowed] = await Promise.all([
-    supabase
-      .from("pages")
-      .select(PAGE_TREE_COLUMNS)
-      .eq("workspace_id", workspace.id)
-      .is("deleted_at", null)
-      .order("position")
-      .overrideTypes<PageRow[], { merge: false }>(),
+    loadPageTree(supabase, workspace.id),
     supabase
       .from("task_projects")
       .select("id, key, name, icon")
