@@ -14,9 +14,17 @@ async function call<T extends object = object>(fn: string, args: Record<string, 
   const supabase = await writeClient();
   if (!supabase) return { ok: false, error: "team_setup" };
   const { data, error } = await supabase.rpc(fn, args);
+  // A column's own limits (who may take a task out, who may put one in) are refused by the database.
+  const gate = error?.message?.match(/column_(take|put)_forbidden/)?.[0];
+  if (gate) return { ok: false, error: gate };
   if (error || !data) return { ok: false, error: "unknown" };
   revalidatePath("/", "layout");
   return data as ActionResult<T>;
+}
+
+// A column's status button (short name, colour) and who may move tasks out of and into it.
+export async function setColumnOptions(statusId: string, options: { short_name?: string; color?: string | null; take_groups?: string[]; put_groups?: string[] }) {
+  return call("set_column_options", { target_status: statusId, options });
 }
 
 export async function createTaskProject(ws: string, name: string, key: string, icon: string | null) {

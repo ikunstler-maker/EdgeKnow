@@ -175,7 +175,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator('[data-task="MAR-1"]').getByRole("link").click();
   await openCard.waitFor({ timeout: 20000 });
   const colleagueId2 = sql("select id from public.profiles where email = 'colleague@alpha.test'");
-  await openCard.locator("[data-task-status]").selectOption({ label: "В роботі" });
+  // On a desktop the status is a row of buttons, one per column of the board.
+  await openCard.locator('[data-status-button="В роботі"]').click();
   await alice.waitForTimeout(800);
   // People are picked from a list with search, not a system list.
   await openCard.locator('[data-people="assignee"]').click();
@@ -319,6 +320,33 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const savedRule = sql("select event || ' ' || array_to_string(notify_roles, ',') from public.task_rules");
   check("the project owner adds a notification rule", savedRule === "comment reporter", savedRule);
   await alice.keyboard.press("Escape");
+
+  // A column's own button (short name and colour) and its own notifications.
+  await alice.locator('[data-column="В роботі"]').getByRole("button", { name: "Колонка «В роботі»", exact: true }).click();
+  await alice.locator("[data-column-short-name]").fill("Роблю");
+  await alice.locator('[data-column-color="#22c55e"]').click();
+  await alice.locator("[data-column-save]").click();
+  const buttonOf = () => sql("select coalesce(short_name, '') || ' ' || coalesce(color, '') from public.task_statuses where name = 'В роботі' and project_id = (select id from public.task_projects where key = 'MAR')");
+  check("the project owner gives a column a short name and a colour", await until(() => buttonOf() === "Роблю #22c55e", 15000), buttonOf());
+  await alice.reload();
+  await alice.locator("[data-task-board]").waitFor({ timeout: 20000 });
+  await alice.locator('[data-column="В роботі"]').getByRole("button", { name: "Колонка «В роботі»", exact: true }).click();
+  await alice.locator("[data-column-rules]").click();
+  const columnEvents = await alice.locator("[data-rule-event] option").evaluateAll((els) => els.map((el) => el.value).join(","));
+  check("the column's menu opens its own notifications: came, left, changed there", columnEvents === "enter_status,leave_status,change_in_status", columnEvents);
+  await alice.locator("[data-rule-event]").selectOption("leave_status");
+  await alice.locator('[data-rule-role="reporter"]').check();
+  await alice.locator("[data-rule-add]").click();
+  const leaveRule = () => sql("select count(*) from public.task_rules r join public.task_statuses s on s.id = r.status_id where r.event = 'leave_status' and s.name = 'В роботі'");
+  check("…and a rule made there is about that column", await until(() => leaveRule() === "1", 15000), leaveRule());
+  sql("delete from public.task_rules where event = 'leave_status'");
+  await alice.keyboard.press("Escape");
+  await alice.locator('[data-card="MAR-1"]').getByRole("link").first().click();
+  await alice.locator("[data-task-panel] [data-status-buttons], [data-status-buttons]").first().waitFor({ timeout: 20000 }).catch(() => {});
+  const shortShown = await alice.locator('[data-status-button="В роботі"]').first().innerText().catch(() => "");
+  check("the task's status button shows the column's short name", shortShown.trim() === "Роблю", shortShown);
+  await alice.locator("[data-task-panel-close]").click().catch(() => {});
+  await alice.waitForURL((url) => !url.searchParams.has("task"), { timeout: 15000 }).catch(() => {});
 
   // Analytics: the owner sees the team and every person (only counts).
   await alice.goto(`${APP}/w/${alphaShort}/analytics?days=30`);

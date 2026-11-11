@@ -106,6 +106,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       canEdit={canEdit(view.role)}
       canComment={canComment(view.role)}
       isOwner={view.role === "owner"}
+      moves={view.moves}
       inPanel={inPanel}
       origin={(origin as TaskOrigin | null) ?? null}
     />

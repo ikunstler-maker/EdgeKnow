@@ -19,7 +19,9 @@ export type NotificationItem = {
 };
 export type NotificationList = { unread: number; items: NotificationItem[] };
 
-export const RULE_EVENTS = ["enter_category", "enter_status", "assigned", "comment", "due_changed"] as const;
+export const RULE_EVENTS = ["enter_category", "enter_status", "leave_status", "change_in_status", "assigned", "comment", "due_changed"] as const;
+// Events that are about one column.
+export const COLUMN_EVENTS: readonly string[] = ["enter_status", "leave_status", "change_in_status"];
 export type RuleEvent = (typeof RULE_EVENTS)[number];
 export const RULE_ROLES = ["assignee", "reporter", "owner"] as const;
 export type RuleRole = (typeof RULE_ROLES)[number];

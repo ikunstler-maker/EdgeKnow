@@ -35,9 +35,8 @@ import {
   type TaskRow,
   type TaskBoardInfo,
   type TaskPlacement,
-  type TaskStatus,
-} from "@/lib/tasks";
-import { addColumnOnBoard, deleteTaskBoard, deleteTaskStatus, moveTaskOnBoard, saveTaskBoard, saveTaskStatus, setColumnFreezes, setFrozenMovesAdmin, updateTask, updateTaskProject } from "@/app/task-actions";
+  type TaskStatus, STATUS_COLORS } from "@/lib/tasks";
+import { addColumnOnBoard, deleteTaskBoard, deleteTaskStatus, moveTaskOnBoard, saveTaskBoard, saveTaskStatus, setColumnFreezes, setColumnOptions, setFrozenMovesAdmin, updateTask, updateTaskProject } from "@/app/task-actions";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { TaskRulesDialog } from "./task-rules";
 import { TemplatePicker, useTemplates } from "./task-templates";
@@ -111,6 +110,7 @@ export function TaskBoard({
   const [dragging, setDragging] = useState<string | null>(null);
   const [cardSettings, setCardSettings] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [columnRules, setColumnRules] = useState<string | null>(null);
   const templates = useTemplates(project.id, canEdit);
   const drafts = useTaskDrafts(project.id, initialTasks);
   // The server's answer replaces the local copy whenever the page refreshes.
@@ -394,6 +394,8 @@ export function TaskBoard({
                     lane={lane.id}
                     status={status}
                     index={index}
+                    groups={groups}
+                    onRules={() => setColumnRules(status.id)}
                     collapsed={view.closedColumns.includes(status.id)}
                     onCollapse={() => flip("closedColumns", status.id)}
                     count={statuses.length}
@@ -457,6 +459,7 @@ export function TaskBoard({
       {newTaskIn !== undefined && (
         <NewTaskDialog onCreate={drafts.create} projectId={project.id} canAddFields={isOwner} statuses={statuses} statusId={newTaskIn} members={members} fields={fields} template={templates.chosen} onClose={() => setNewTaskIn(undefined)} />
       )}
+      {columnRules && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} column={columnRules} onClose={() => setColumnRules(null)} />}
       {rulesOpen && <TaskRulesDialog projectId={project.id} statuses={allStatuses} boards={boards} members={members} onClose={() => setRulesOpen(false)} />}
       {cardSettings && (
         <CardSettings
@@ -567,7 +570,11 @@ function BoardColumn({
   render,
   collapsed,
   onCollapse,
+  groups,
+  onRules,
 }: {
+  groups: { id: string; name: string }[];
+  onRules: () => void;
   lane: string;
   status: TaskStatus;
   index: number;
@@ -633,8 +640,13 @@ function BoardColumn({
             <Icon name="drag" size={14} />
           </button>
         )}
-        <StatusDot category={status.category} />
+        <StatusDot category={status.category} color={status.color} />
         <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">{status.name}</h4>
+        {((status.take_groups?.length ?? 0) > 0 || (status.put_groups?.length ?? 0) > 0) && (
+          <span title={b.whoMoves} aria-label={b.whoMoves} role="img" className="text-muted" data-column-limited>
+            <Icon name="shield" size={14} />
+          </span>
+        )}
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
           {status.wip_limit !== null ? `${total}/${status.wip_limit}` : lane === "all" ? total : tasks.length}
         </span>
@@ -658,6 +670,8 @@ function BoardColumn({
           run={run}
           pending={pending}
           onClose={() => setMenu(false)}
+          groups={groups}
+          onRules={onRules}
         />
       )}
       <ul className="flex min-h-12 flex-col gap-2">
@@ -944,7 +958,11 @@ function ColumnMenu({
   run,
   pending,
   onClose,
+  groups,
+  onRules,
 }: {
+  groups: { id: string; name: string }[];
+  onRules: () => void;
   status: TaskStatus;
   statuses: TaskStatus[];
   canLeft: boolean;
@@ -959,6 +977,11 @@ function ColumnMenu({
   const [category, setCategory] = useState<StatusCategory>(status.category);
   const [limit, setLimit] = useState(status.wip_limit ? String(status.wip_limit) : "");
   const [freezes, setFreezes] = useState(!!status.freezes);
+  const [shortName, setShortName] = useState(status.short_name ?? "");
+  const [color, setColor] = useState(status.color ?? "");
+  const [take, setTake] = useState(status.take_groups ?? []);
+  const [put, setPut] = useState(status.put_groups ?? []);
+  const optionsChanged = shortName.trim() !== (status.short_name ?? "") || color !== (status.color ?? "") || take.join() !== (status.take_groups ?? []).join() || put.join() !== (status.put_groups ?? []).join();
   const [moveTo, setMoveTo] = useState(statuses.find((s) => s.id !== status.id)?.id ?? "");
   return (
     <form
@@ -968,7 +991,12 @@ function ColumnMenu({
         e.preventDefault();
         run(async () => {
           const saved = await saveTaskStatus(projectId, status.id, name, category, limit ? Number(limit) : null, null);
-          return saved.ok && freezes !== !!status.freezes ? setColumnFreezes(status.id, status.board_id ?? null, freezes) : saved;
+          if (!saved.ok) return saved;
+          if (optionsChanged) {
+            const options = await setColumnOptions(status.id, { short_name: shortName.trim(), color: color || null, take_groups: take, put_groups: put });
+            if (!options.ok) return options;
+          }
+          return freezes !== !!status.freezes ? setColumnFreezes(status.id, status.board_id ?? null, freezes) : saved;
         });
         onClose();
       }}
@@ -998,8 +1026,48 @@ function ColumnMenu({
         {b.wipLimit}
         <input type="number" min={1} max={999} value={limit} onChange={(e) => setLimit(e.target.value)} placeholder={b.noLimit} className={inputClass} />
       </label>
+      <fieldset className="space-y-2 border-t border-border pt-2" data-column-button>
+        <legend className="text-xs font-medium text-muted">{b.statusButton}</legend>
+        <label className="flex flex-col gap-1">
+          {b.shortName}
+          <input value={shortName} onChange={(e) => setShortName(e.target.value)} maxLength={12} placeholder={name.slice(0, 12)} className={inputClass} data-column-short-name />
+        </label>
+        <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={b.buttonColor}>
+          <button type="button" role="radio" aria-checked={!color} onClick={() => setColor("")} title={b.noColor} aria-label={b.noColor} className={`flex h-9 w-9 items-center justify-center rounded-full border md:h-6 md:w-6 ${!color ? "border-accent" : "border-border"}`}>
+            <Icon name="slash" size={12} className="text-muted" />
+          </button>
+          {STATUS_COLORS.map((value) => (
+            <button key={value} type="button" role="radio" aria-checked={color === value} onClick={() => setColor(value)} aria-label={value} style={{ background: value }} className={`h-9 w-9 rounded-full border-2 md:h-6 md:w-6 ${color === value ? "border-foreground" : "border-transparent"}`} data-column-color={value} />
+          ))}
+        </div>
+      </fieldset>
+      {groups.length > 0 && (
+        <fieldset className="space-y-2 border-t border-border pt-2" data-column-moves>
+          <legend className="text-xs font-medium text-muted">{b.whoMoves}</legend>
+          {([["take", b.takeFrom, take, setTake], ["put", b.putInto, put, setPut]] as const).map(([kind, label, chosen, setChosen]) => (
+            <details key={kind} className="rounded-md border border-border px-2 py-1" data-column-move={kind}>
+              <summary className="min-h-9 cursor-pointer py-1.5">
+                {label}: <span className="text-muted">{chosen.length ? chosen.map((id) => groups.find((g) => g.id === id)?.name ?? "—").join(", ") : b.everyone}</span>
+              </summary>
+              <div className="max-h-40 space-y-1 overflow-y-auto pb-1">
+                {groups.map((g) => (
+                  <label key={g.id} className="flex min-h-9 items-center gap-2 md:min-h-7">
+                    <input type="checkbox" checked={chosen.includes(g.id)} onChange={(e) => setChosen(e.target.checked ? [...chosen, g.id] : chosen.filter((x) => x !== g.id))} data-column-move-group={g.name} />
+                    {g.name}
+                  </label>
+                ))}
+              </div>
+            </details>
+          ))}
+          <p className="text-xs text-muted">{b.whoMovesHint}</p>
+        </fieldset>
+      )}
+      <button type="button" onClick={onRules} className={`${buttonClass} w-full justify-start`} data-column-rules>
+        <Icon name="bell" />
+        {b.columnRules}
+      </button>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={pending} className="min-h-9 rounded-md bg-accent px-3 text-white">
+        <button type="submit" disabled={pending} className="min-h-9 rounded-md bg-accent px-3 text-white" data-column-save>
           {t.common.save}
         </button>
         <button type="button" disabled={!canLeft || pending} onClick={() => onMove(-1)} className={buttonClass} aria-label={b.moveLeft}>

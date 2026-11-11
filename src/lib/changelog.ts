@@ -33,6 +33,17 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-e",
+    version: "0.30.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Rukh: кнопки статусу й правила колонок", en: "Rukh: status buttons and column rules" },
+    items: [
+      { id: "status-buttons", type: "added", scope: "tasks", title: { uk: "Статус задачі на комп'ютері — ряд кнопок; колонка має коротку назву й колір.", en: "A task's status on a computer is a row of buttons; a column has a short name and a colour." } },
+      { id: "column-notify", type: "added", scope: "tasks", title: { uk: "Сповіщення колонки: задача прийшла, пішла або змінилася, поки стоїть там.", en: "A column's notifications: a task came, left or changed while standing there." } },
+      { id: "column-moves", type: "added", scope: "tasks", title: { uk: "Для колонки можна задати, які підрозділи забирають з неї задачі і які кладуть у неї.", en: "A column can say which units take tasks out of it and which put tasks into it." } },
+    ],
+  },
+  {
     id: "2026-11-11-d",
     version: "0.29.0",
     date: "2026-11-11",

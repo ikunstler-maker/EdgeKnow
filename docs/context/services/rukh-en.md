@@ -65,11 +65,14 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 
 ### Notification rules
 - The project owner sets: event (a column of a type or a specific one, assignee or due date change, comment) → whom to tell (assignee, author, owners, people, units).
+- From a column's menu (package 2): the column's own notifications — a task came, left, changed while standing there (a comment is not a change).
 
 ### Access
 - Projects are created by those whose role allows it.
 - Project access: whole workspace (edit, comment or view) or closed with access for people and units.
 - A guest sees only projects shared with them.
+- Column (package 2): separately "who takes out" and "who puts in" — units; the project owner and workspace admins always may; the database enforces. A cross-board rule, an import and creating a task straight in a column are not checked.
+- A column has a short name and a colour: on a computer the status in the task card is a row of such buttons (scrolls by wheel and drag), on a phone a list.
 
 ## 3. Planned
 
@@ -92,7 +95,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 |---|---|
 | `task_projects` | projects |
 | `task_project_access`, `task_project_group_access` | project access |
-| `task_statuses` | columns |
+| `task_statuses` | columns (own short name and colour; units that may take tasks out / put tasks in) |
 | `tasks` | tasks |
 | `task_participants` | co-assignees and responsible people |
 | `task_boards`, `task_board_access`, `task_placements` | team boards and a task's place on each |
