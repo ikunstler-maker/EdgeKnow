@@ -46,6 +46,8 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [sideTab, setSideTab] = useState<"design" | "layers">("design");
+  // The right panel starts closed so the slide gets the room (owner, 2026-11-11).
+  const [sideOpen, setSideOpen] = useState(false);
   const [template, setTemplate] = useState<SlideTemplate>("titleText");
   const [embedMenu, setEmbedMenu] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -482,6 +484,11 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
           <button type="button" title={s.zoomIn} aria-label={s.zoomIn} onClick={() => setZoom((z) => Math.min(8, z * 1.25))} className={iconButton}>
             +
           </button>
+          {editable && (
+            <button type="button" title={s.sidePanel} aria-label={s.sidePanel} aria-pressed={sideOpen} onClick={() => setSideOpen((open) => !open)} className={`${iconButton} ${sideOpen ? "border-accent bg-accent/10" : ""}`} data-side-toggle>
+              <Icon name="layers" />
+            </button>
+          )}
           <span className="mx-1 h-6 w-px bg-border" />
           <SizePicker size={size} onChange={(next, fit) => (commit(resizeDeck(deckRef.current, next, fit)), setSelected([]))} />
           <span className="mx-1 h-6 w-px bg-border" />
@@ -703,7 +710,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
         </div>
 
         {/* Design and layers */}
-        {editable && (
+        {editable && sideOpen && (
           <aside className="shrink-0 space-y-3 overflow-y-auto border-t border-border p-2 text-sm md:w-60 md:border-l md:border-t-0" aria-label={s.sideTabs[sideTab]} data-deck-inspector>
             <div className="flex gap-1" role="tablist">
               {(["design", "layers"] as const).map((tab) => (
