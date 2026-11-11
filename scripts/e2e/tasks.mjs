@@ -250,6 +250,13 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
 
   // The board: quick add in a column, drag a card to another, a column limit, what the card shows.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  // A column folds to a narrow strip (its cards are not drawn) and the choice is remembered.
+  await alice.locator("[data-task-board] [data-fold-column]").first().waitFor({ timeout: 20000 });
+  await alice.locator("[data-task-board] [data-fold-column]").first().click();
+  await alice.reload();
+  await alice.locator("[data-column-folded]").first().waitFor({ timeout: 20000 }).catch(() => {});
+  check("a board column folds, and stays folded after a reload", (await alice.locator("[data-column-folded]").count()) === 1);
+  await alice.locator("[data-column-folded] button").first().click();
   await alice.locator("[data-task-board]").waitFor();
   await newTask(alice, "Board task", "Зробити");
   const card = alice.locator('[data-card="MAR-4"]');

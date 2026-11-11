@@ -47,7 +47,7 @@ const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
 const LINEAR = (type: NodeType) => type === "LINE" || type === "ARROW";
 const btn = "flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-sm hover:bg-white/10 disabled:opacity-40";
 // The editor is always dark; shared panels read these colour tokens.
-const DARK = { "--background": "#151922", "--foreground": "#f3f4f6", "--muted": "#9ca3af", "--border": "rgba(255,255,255,.12)", "--surface": "#1d2230" } as React.CSSProperties;
+const DARK = { "--background": "#151922", "--foreground": "#f3f4f6", "--muted": "#9ca3af", "--border": "rgba(255,255,255,.12)", "--surface": "#1d2230", "--overlay": "#1d2230" } as React.CSSProperties;
 const STYLE_KEYS = ["fill", "gradient", "fills", "stroke", "strokes", "strokeWidth", "dash", "radius", "shadow", "innerShadow", "blur", "bgBlur", "opacity", "color", "fontSize", "fontFamily", "bold", "italic", "underline", "lineHeight", "align", "vAlign"] as const;
 
 // The design editor (Bordy «Дизайн»): pages, an endless canvas, frames with nesting, the
