@@ -354,6 +354,7 @@ function SearchDialog({
               type="button"
               aria-pressed={mapsMode}
               onClick={() => setKind("maps")}
+              data-search-mode="maps"
               className={`min-h-9 rounded-full border px-3 text-xs ${mapsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
               {s.maps}
@@ -362,6 +363,7 @@ function SearchDialog({
               type="button"
               aria-pressed={boardsMode}
               onClick={() => setKind("boards")}
+              data-search-mode="boards"
               className={`min-h-9 rounded-full border px-3 text-xs ${boardsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
               {s.boards}
@@ -370,6 +372,7 @@ function SearchDialog({
               type="button"
               aria-pressed={eventsMode}
               onClick={() => setKind("events")}
+              data-search-mode="events"
               className={`min-h-9 rounded-full border px-3 text-xs ${eventsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
               data-search-events
             >
@@ -379,6 +382,7 @@ function SearchDialog({
               type="button"
               aria-pressed={sheetsMode}
               onClick={() => setKind("sheets")}
+              data-search-mode="sheets"
               className={`min-h-9 rounded-full border px-3 text-xs ${sheetsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
               {s.sheets}
@@ -387,6 +391,7 @@ function SearchDialog({
               type="button"
               aria-pressed={surveysMode}
               onClick={() => setKind("surveys")}
+              data-search-mode="surveys"
               className={`min-h-9 rounded-full border px-3 text-xs ${surveysMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
               {s.surveys}

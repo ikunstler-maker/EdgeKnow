@@ -153,7 +153,7 @@ await embed.locator('[data-map-node="Launch 2"]').waitFor({ timeout: 20000 }).ca
 check("…a change made elsewhere shows up without editing the page", (await embed.locator('[data-map-node="Launch 2"]').count()) === 1);
 
 await alice.getByRole("button", { name: /Пошук/ }).first().click();
-await alice.getByRole("button", { name: "Карти", exact: true }).click();
+await alice.locator('[data-search-mode="maps"]').click();
 await alice.getByLabel(/Шукати в назвах/).fill("Budget");
 await alice.locator("[data-map-results]").getByText("Launch map").waitFor({ timeout: 15000 }).catch(() => {});
 check("search “Maps” finds a map by the text of its nodes", (await alice.locator("[data-map-results]").getByText("Launch map").count()) === 1);
@@ -296,7 +296,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-board-embed="Retro board 2"]').count()) === 1);
 
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
-  await alice.getByRole("button", { name: "Дошки", exact: true }).click();
+  await alice.locator('[data-search-mode="boards"]').click();
   await alice.getByLabel(/Шукати в назвах/).fill("login page");
   await alice.locator("[data-board-results]").getByText("Retro board 2").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Boards” finds a board by the text of its sticky notes", (await alice.locator("[data-board-results]").getByText("Retro board 2").count()) === 1);
@@ -525,7 +525,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator('[data-sheet-embed="Budget 2"]').nth(1).waitFor({ timeout: 20000 }).catch(() => {});
   check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-sheet-embed="Budget 2"]').count()) === 2);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
-  await alice.getByRole("button", { name: "Таблиці", exact: true }).click();
+  await alice.locator('[data-search-mode="sheets"]').click();
   await alice.getByLabel(/Шукати в назвах/).fill("42");
   await alice.locator("[data-sheet-results]").getByText("Budget 2").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Tables” finds a table by the text of its cells", (await alice.locator("[data-sheet-results]").getByText("Budget 2").count()) === 1);
@@ -610,7 +610,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…someone who only answers sees the form (answered) but not the summary",
     (await colleague.locator("[data-survey-answered]").count()) === 1 && (await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").count()) === 1);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
-  await alice.getByRole("button", { name: "Опитування", exact: true }).click();
+  await alice.locator('[data-search-mode="surveys"]').click();
   await alice.getByLabel(/Шукати в назвах/).fill("lunch?");
   await alice.locator("[data-survey-hits]").getByText("Lunch poll").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Surveys” finds a survey by its question", (await alice.locator("[data-survey-hits]").getByText("Lunch poll").count()) === 1);
