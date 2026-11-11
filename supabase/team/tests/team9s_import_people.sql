@@ -1,0 +1,44 @@
+-- Rukh package 3 (part 1) in a team database: the tracker's people are seats the server
+-- brings; the project's owner seats them on members and the tasks follow; a restricted
+-- task comes over private.
+\pset format unaligned
+\pset tuples_only on
+\set VERBOSITY terse
+\set ws '00000000-0000-0000-0000-0000000000f1'
+\set as_alice 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000a1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000a1","email":"alice@team.test"}'''
+\set as_bob 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000b1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000b1","email":"bob@team.test"}'''
+\set as_carol 'set request.jwt.claim.sub = ''00000000-0000-0000-0000-0000000000c1''; set request.jwt.claims = ''{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000c1","email":"carol@team.test"}'''
+
+set role authenticated;
+:as_alice;
+select public.create_task_project(:'ws', 'Seats', 'SEA', null, array['To do', 'Doing', 'Done']) ->> 'id' as project \gset
+select id as todo from public.task_statuses where project_id = :'project' and category = 'todo' \gset
+select 'a person brings people: ' || coalesce(public.import_people(:'project', '[]')::text, 'null');
+reset role;
+set role service_role;
+select 'the server brings people: ' || public.import_people(:'project', jsonb_build_array(
+  jsonb_build_object('external_id', 'u1', 'name', 'Known One', 'user_id', '00000000-0000-0000-0000-0000000000a1', 'project_role', 'editor'),
+  jsonb_build_object('external_id', 'u2', 'name', 'Gone Away', 'roles', jsonb_build_array('Developers'), 'project_role', 'editor')))::text;
+select 'the server imports: ' || public.import_tasks(:'project', jsonb_build_array(
+  jsonb_build_object('external_key', 'SEA-1', 'number', 1, 'title', 'Open', 'status_id', :'todo', 'assignee_ext', 'u2', 'imported_assignee', 'Gone Away', 'reporter_ext', 'u1'),
+  jsonb_build_object('external_key', 'SEA-2', 'number', 2, 'title', 'Restricted', 'status_id', :'todo', 'assignee_ext', 'u2', 'imported_assignee', 'Gone Away', 'private', true)))::text;
+reset role;
+select id as gone from public.task_import_people where project_id = :'project' and external_id = 'u2' \gset
+set role authenticated;
+:as_bob;
+select 'bob sees tasks: ' || (select count(*) from public.tasks where project_id = :'project') || ', seats: ' || (select count(*) from public.task_import_people where project_id = :'project');
+select 'bob seats himself: ' || (public.seat_import_person(:'gone', '00000000-0000-0000-0000-0000000000b1') ->> 'error');
+reset role;
+set role authenticated;
+:as_alice;
+select 'alice seats bob: ' || public.seat_import_person(:'gone', '00000000-0000-0000-0000-0000000000b1')::text;
+select 'alice lists: ' || string_agg((p ->> 'name') || ' ' || (p ->> 'assigned') || '/' || (p ->> 'reported'), '; ') from jsonb_array_elements(public.list_import_people(:'project')) p;
+reset role;
+set role authenticated;
+:as_bob;
+select 'bob sees tasks: ' || count(*) || ', his: ' || count(*) filter (where assignee_id = '00000000-0000-0000-0000-0000000000b1') from public.tasks where project_id = :'project';
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
+select 'someone removed from the workspace sees seats: ' || (select count(*) from public.task_import_people) || ', seats a person: ' || (public.seat_import_person(:'gone', '00000000-0000-0000-0000-0000000000d7') ->> 'error');
+reset role;

@@ -295,7 +295,7 @@ export function TaskDetail({
           </Row>
           {!task.assignee_id && origin?.imported_assignee && (
             <p className="pb-1 pl-[7rem] text-xs text-muted" data-imported-assignee>
-              {k.importer.inTracker(origin.imported_assignee)}
+              {k.importer.inTracker(origin.imported_assignee)} · {k.importPeople.notSeated}
             </p>
           )}
           {(["co_assignee", "responsible"] as const).map((role) => (

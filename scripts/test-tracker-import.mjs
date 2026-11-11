@@ -2,7 +2,7 @@
 // statuses, numbers, links — without a network or a database.
 // Run: node --experimental-strip-types --no-warnings scripts/test-tracker-import.mjs
 import assert from "node:assert/strict";
-import { documentToBlocks, matchPeople, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
+import { documentToBlocks, matchPeople, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
 
 const text = (t, marks) => ({ type: "text", text: t, ...(marks ? { marks } : {}) });
 const doc = {
@@ -114,7 +114,7 @@ assert.deepEqual(
   { ...made.item, description: made.item.description.length },
   {
     external_key: "TMD-7", external_url: "https://team.example.net/browse/TMD-7", number: 7, title: "Prepare the landing", description: 11,
-    status_id: "col-review", type: "task", priority: "high", assignee_id: "m1", reporter_id: null, imported_assignee: null, imported_reporter: "Gone Person",
+    status_id: "col-review", type: "task", priority: "high", assignee_id: "m1", reporter_id: null, imported_assignee: null, imported_reporter: "Gone Person", assignee_ext: "a", reporter_ext: "d", private: false,
     labels: ["marketing", "q4"], start_date: "2026-11-02", due_date: "2026-11-20", estimate: 1.5,
     created_at: "2025-03-01T10:00:00.000+0200", updated_at: "2025-03-05T10:00:00.000+0200", done_at: null,
     custom: { "f-budget": 1200, "f-channel": ["opt-video"] },
@@ -134,3 +134,26 @@ for (const bad of ["http://team.atlassian.net", "https://atlassian.net.evil.exam
 }
 
 console.log("tracker import: ok");
+
+// People as seats, the tracker's roles as ours, restricted tasks as private.
+{
+  const roles = [{ name: "Administrators", users: ["u1"] }, { name: "Developers", users: ["u1", "u2"] }, { name: "Watchers", users: ["u3"] }];
+  const held = personRoles(roles, { Administrators: "owner", Developers: "editor", Watchers: null });
+  assert.deepEqual(held.ours, { u1: "owner", u2: "editor", u3: null }, "the highest mapped role wins; an unmapped role gives none");
+  assert.deepEqual(held.theirs.u1, ["Administrators", "Developers"]);
+  assert.deepEqual([suggestRole("Administrators"), suggestRole("Developers"), suggestRole("Viewers"), suggestRole("Service Desk Customers")], ["owner", "editor", "viewer", "commenter"]);
+  const mapping = { statuses: {}, types: {}, priorities: {}, people: { u1: "member-1" }, fields: {}, startField: null, personRoles: held.ours, trackerRoles: held.theirs };
+  const items = toPersonItems([{ id: "u1", name: "Ann", email: "ann@x.test" }, { id: "u2", name: " Bo ", email: null }, { id: "u2", name: "Bo again", email: null }, { id: "", name: "Nobody", email: null }], mapping);
+  assert.deepEqual(items, [
+    { external_id: "u1", name: "Ann", email: "ann@x.test", roles: ["Administrators", "Developers"], project_role: "owner", user_id: "member-1" },
+    { external_id: "u2", name: "Bo", email: null, roles: ["Developers"], project_role: "editor", user_id: null },
+  ]);
+  const base = { summary: "T", status: { id: "1" }, issuetype: { id: "2" }, assignee: { accountId: "u2", displayName: "Bo" }, reporter: { accountId: "u1", displayName: "Ann" } };
+  const open = parseIssue({ key: "K-1", fields: base }, "https://x.atlassian.net");
+  const closed = parseIssue({ key: "K-2", fields: { ...base, security: { name: "Staff" } } }, "https://x.atlassian.net");
+  assert.deepEqual([open.restricted, closed.restricted], [false, true]);
+  const made = toImportItem(closed, { ...mapping, statuses: { 1: "col" } });
+  assert.ok(!("error" in made));
+  assert.deepEqual([made.item.assignee_ext, made.item.reporter_ext, made.item.private, made.item.reporter_id, made.item.imported_assignee], ["u2", "u1", true, "member-1", "Bo"]);
+}
+console.log("people, roles and restricted tasks: ok");

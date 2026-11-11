@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { numberOfKey, parseField, parseIssue, parseStatus, parseType, parseUser, type TrackerField, type TrackerIssue, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
+import { numberOfKey, parseField, parseIssue, parseStatus, parseType, parseUser, type TrackerField, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
 
 // Reading another tracker (Rukh Р-3а): the cloud tracker's own API, called only from
 // the server with the person's access key. Nothing is ever written to the tracker.
@@ -23,13 +23,16 @@ export interface TrackerApi {
   priorities(access: TrackerAccess): Promise<string[]>;
   fields(access: TrackerAccess): Promise<TrackerField[]>;
   users(access: TrackerAccess, key: string): Promise<TrackerUser[]>;
+  // The project's roles with the people who hold each directly (members of a group that
+  // holds a role are not listed by the tracker here).
+  roles(access: TrackerAccess, key: string): Promise<TrackerRole[]>;
   count(access: TrackerAccess, key: string): Promise<number>;
   lastNumber(access: TrackerAccess, key: string): Promise<number>;
   // Issues in the order of their keys; `fields`: custom field ids to bring along.
   issues(access: TrackerAccess, key: string, cursor: string | null, size: number, fields: string[]): Promise<IssuePage>;
 }
 
-const BASE_FIELDS = ["summary", "description", "status", "issuetype", "priority", "assignee", "reporter", "creator", "labels", "duedate", "timeoriginalestimate", "created", "updated", "resolutiondate", "parent", "issuelinks"];
+const BASE_FIELDS = ["summary", "description", "status", "issuetype", "priority", "assignee", "reporter", "creator", "security", "labels", "duedate", "timeoriginalestimate", "created", "updated", "resolutiondate", "parent", "issuelinks"];
 
 async function call(access: TrackerAccess, path: string, body?: unknown): Promise<unknown> {
   let response: Response;
@@ -106,6 +109,21 @@ const cloud: TrackerApi = {
     }
     return [...users.values()].sort((a, b) => a.name.localeCompare(b.name));
   },
+  async roles(access, key) {
+    const index = obj(await call(access, `/rest/api/3/project/${encodeURIComponent(key)}/role`));
+    const roles: TrackerRole[] = [];
+    for (const [name, link] of Object.entries(index).slice(0, 30)) {
+      const id = /\/role\/(\d+)$/.exec(String(link))?.[1];
+      if (!id) continue;
+      const role = obj(await call(access, `/rest/api/3/project/${encodeURIComponent(key)}/role/${id}`));
+      const users = list(role.actors).flatMap((actor) => {
+        const account = obj(obj(actor).actorUser).accountId;
+        return typeof account === "string" && account ? [account] : [];
+      });
+      roles.push({ name: name.slice(0, 120), users });
+    }
+    return roles;
+  },
   async count(access, key) {
     return Number(obj(await call(access, "/rest/api/3/search/approximate-count", { jql: `project = "${key}"` })).count) || 0;
   },
@@ -150,6 +168,10 @@ function fake(dir: string): TrackerApi {
     priorities: async (access) => list(read(access).priorities).map(String),
     fields: async (access) => list(read(access).fields).flatMap((f) => parseField(f) ?? []),
     users: async (access, key) => (project(access, key), list(read(access).users).flatMap((u) => parseUser(u) ?? [])),
+    roles: async (access, key) => (
+      project(access, key),
+      list(read(access).roles).flatMap((r) => (typeof obj(r).name === "string" ? [{ name: String(obj(r).name), users: list(obj(r).users).map(String) }] : []))
+    ),
     count: async (access, key) => all(access, key).length,
     lastNumber: async (access, key) => Math.max(0, ...all(access, key).map((i) => numberOfKey(i.key) ?? 0)),
     issues: async (access, key, cursor, size) => {

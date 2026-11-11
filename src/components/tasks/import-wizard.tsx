@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { TASK_PRIORITIES, TASK_TYPES, personLabel } from "@/lib/tasks";
-import { parseTrackerLink, suggestPriority, suggestType, type OurPriority, type OurType } from "@/lib/tracker-convert";
+import { OUR_ROLES, parseTrackerLink, suggestPriority, suggestRole, suggestType, type OurPriority, type OurRole, type OurType } from "@/lib/tracker-convert";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState, ImportTarget } from "@/lib/tracker/types";
 import { trackerConnect, trackerForget, trackerOutline, trackerPreview, trackerStart, trackerState, trackerStep } from "@/app/task-import-actions";
 import { Button, buttonClass, inputClass } from "@/components/ui/button";
@@ -244,6 +244,7 @@ function firstPlan(outline: ImportOutline): ImportPlan {
     types: Object.fromEntries(outline.types.map((type) => [type.id, suggestType(type)])),
     priorities: Object.fromEntries(outline.priorities.map((name) => [name, suggestPriority(name)])),
     people: outline.ours.people,
+    roles: Object.fromEntries((outline.roles ?? []).map((role) => [role.name, suggestRole(role.name)])),
     fields: outline.fields.filter((f) => f.id !== start?.id).map((f) => f.id),
     startField: start?.id ?? null,
   };
@@ -409,6 +410,20 @@ function PlanForm({ outline, plan, setPlan, pending, onBack, onNext }: { outline
         />
       </Group>
 
+      {(outline.roles ?? []).length > 0 && (
+        <Group title={m.roles}>
+          <p className="text-xs text-muted">{m.rolesHint}</p>
+          <div data-import-roles>
+            <Pairs
+              items={outline.roles.map((role) => ({ id: role.name, name: `${role.name} · ${role.users.length}` }))}
+              value={Object.fromEntries(outline.roles.map((role) => [role.name, plan.roles?.[role.name] ?? ""]))}
+              options={[{ value: "", label: m.noRole }, ...OUR_ROLES.map((role) => ({ value: role, label: t.tasks.roles[role] }))]}
+              onChange={(roles) => setPlan({ ...plan, roles: Object.fromEntries(Object.entries(roles).map(([name, role]) => [name, (role || null) as OurRole | null])) })}
+            />
+          </div>
+        </Group>
+      )}
+
       <Group title={m.fields}>
         {outline.fields.length === 0 ? (
           <p className="text-sm text-muted">{m.noFields}</p>
@@ -487,6 +502,7 @@ function RunView({ shortId, state, moving, pending, onResume, onForget, onAnothe
       {progress && done && (
         <div className="mt-3 space-y-1 text-sm" data-import-report>
           <p>{m.report.created(progress.created)}</p>
+          {(progress.people ?? 0) > 0 && <p data-import-report-people>{m.report.people(progress.people ?? 0, progress.seated ?? 0)}</p>}
           {progress.updated > 0 && <p>{m.report.updated(progress.updated)}</p>}
           <p>{m.report.parents(progress.parents)}</p>
           <p>{m.report.links(progress.links)}</p>

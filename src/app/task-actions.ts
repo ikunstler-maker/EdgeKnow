@@ -27,6 +27,21 @@ export async function setColumnOptions(statusId: string, options: { short_name?:
   return call("set_column_options", { target_status: statusId, options });
 }
 
+// The tracker's people of a project (seats) with how many tasks each holds and wrote: for
+// the project's owner and workspace admins; anyone else gets an empty list.
+export type ImportPersonRow = { id: string; name: string; email: string | null; tracker_roles: string[]; project_role: string | null; user_id: string | null; assigned: number; reported: number };
+export async function listImportPeople(projectId: string): Promise<ImportPersonRow[]> {
+  const supabase = await writeClient();
+  if (!supabase) return [];
+  const { data } = await supabase.rpc("list_import_people", { target_project: projectId });
+  return Array.isArray(data) ? (data as ImportPersonRow[]) : [];
+}
+
+// Seat a tracker person on a member (null frees the seat): their tasks follow.
+export async function seatImportPerson(personId: string, memberId: string | null) {
+  return call<{ assigned: number; reported: number }>("seat_import_person", { target_person: personId, member: memberId });
+}
+
 export async function createTaskProject(ws: string, name: string, key: string, icon: string | null) {
   const s = t.tasks.defaultStatuses;
   return call<{ id: string; key: string }>("create_task_project", {

@@ -33,6 +33,17 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-f",
+    version: "0.31.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Rukh: люди й ролі з іншого трекера", en: "Rukh: people and roles from another tracker" },
+    items: [
+      { id: "import-seats", type: "added", scope: "tasks", title: { uk: "Людей з трекера можна прив'язати до учасників пізніше: їхні задачі переходять слідом.", en: "People from the tracker can be tied to members later: their tasks follow." } },
+      { id: "import-roles", type: "added", scope: "tasks", title: { uk: "Ролі з трекера стають ролями в проєкті.", en: "The tracker's roles become roles in the project." } },
+      { id: "import-private", type: "added", scope: "tasks", title: { uk: "Задачі з обмеженим доступом переносяться приватними.", en: "Restricted tasks come over private." } },
+    ],
+  },
+  {
     id: "2026-11-11-e",
     version: "0.30.0",
     date: "2026-11-11",

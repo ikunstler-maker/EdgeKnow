@@ -12,7 +12,7 @@ import type { Person } from "@/lib/tasks";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { TrackerError, trackerApi, type TrackerAccess } from "@/lib/tracker/api";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState } from "@/lib/tracker/types";
-import { matchPeople, parseTrackerLink, suggestPriority, toImportItem, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
+import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toImportItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 
 // Moving tasks in from another tracker (Rukh Р-3а). Only the workspace's owner and
@@ -122,13 +122,15 @@ export async function trackerOutline(shortId: string, importId: string): Promise
   try {
     const api = trackerApi();
     const access = accessOf(row);
-    const [project, statuses, priorities, users, total, allFields] = await Promise.all([
+    const [project, statuses, priorities, users, total, allFields, roles] = await Promise.all([
       api.project(access, row.source_project),
       api.statuses(access, row.source_project),
       api.priorities(access),
       api.users(access, row.source_project),
       api.count(access, row.source_project),
       api.fields(access),
+      // Roles are a help, not a need: a key that may not read them still imports.
+      api.roles(access, row.source_project).catch(() => []),
     ]);
     // Of the site's many custom fields, only those the first tasks actually fill.
     const sample = await api.issues(access, row.source_project, null, PAGE, allFields.map((f) => f.id));
@@ -145,6 +147,7 @@ export async function trackerOutline(shortId: string, importId: string): Promise
         types: project.types,
         priorities,
         users,
+        roles: roles.filter((r) => r.users.length > 0),
         fields: allFields.filter((f) => filled(f.id)).slice(0, 30),
         ours: { ...ours, people: matchPeople(users, ours.members) },
       },
@@ -161,7 +164,9 @@ function checkedPlan(plan: ImportPlan, members: Person[]): ImportPlan | null {
   if (target.kind === "rename" && (!UUID.test(target.projectId) || !KEY.test(target.otherKey) || target.otherKey === target.key)) return null;
   const people: Record<string, string | null> = {};
   for (const [id, member] of Object.entries(plan.people ?? {})) people[id] = member && memberIds.has(member) ? member : null;
-  return { ...plan, people, fields: [...new Set(plan.fields ?? [])].slice(0, 30) };
+  const roles: Record<string, OurRole | null> = {};
+  for (const [name, role] of Object.entries(plan.roles ?? {}).slice(0, 30)) roles[name] = role && OUR_ROLES.includes(role) ? role : null;
+  return { ...plan, people, roles, fields: [...new Set(plan.fields ?? [])].slice(0, 30) };
 }
 
 // Step 4: the first three tasks as they will look here (nothing is written yet).
@@ -292,7 +297,14 @@ export async function trackerStart(shortId: string, importId: string, plan: Impo
   try {
     const api = trackerApi();
     const access = accessOf(row);
-    const [statuses, allFields, total, last] = await Promise.all([api.statuses(access, row.source_project), api.fields(access), api.count(access, row.source_project), api.lastNumber(access, row.source_project)]);
+    const [statuses, allFields, total, last, users, roles] = await Promise.all([
+      api.statuses(access, row.source_project),
+      api.fields(access),
+      api.count(access, row.source_project),
+      api.lastNumber(access, row.source_project),
+      api.users(access, row.source_project),
+      api.roles(access, row.source_project).catch(() => []),
+    ]);
     const prepared = await prepareProject(db, ctx.workspace.id, checked, statuses, allFields.filter((f) => checked.fields.includes(f.id)));
     if (!prepared.ok) return prepared;
     const home = await filesHome(ctx.admin, ctx.workspace.id);
@@ -309,9 +321,22 @@ export async function trackerStart(shortId: string, importId: string, plan: Impo
       fields: prepared.fieldMap,
       startField: checked.startField,
     };
+    // The tracker's people come first, as seats: by email or the wizard's choice a seat
+    // is tied to a member at once, the rest wait for the project's owner.
+    const held = personRoles(roles, Object.fromEntries(roles.map((r) => [r.name, checked.roles?.[r.name] ?? null])));
+    mapping.personRoles = held.ours;
+    mapping.trackerRoles = held.theirs;
+    const progress = newProgress(total);
+    for (let at = 0; at < users.length; at += 400) {
+      const { data } = await home.rows.rpc("import_people", { target_project: prepared.projectId, items: toPersonItems(users.slice(at, at + 400), mapping) });
+      const result = data as { ok?: boolean; people?: number; seated?: number } | null;
+      if (!result?.ok) return fail("unknown");
+      progress.people = (progress.people ?? 0) + (result.people ?? 0);
+      progress.seated = (progress.seated ?? 0) + (result.seated ?? 0);
+    }
     const { error } = await ctx.admin
       .from("task_imports")
-      .update({ project_id: prepared.projectId, mode: checked.target.kind === "merge" ? "merge" : "new", mapping, state: "running", progress: newProgress(total), last_error: null, updated_at: new Date().toISOString() })
+      .update({ project_id: prepared.projectId, mode: checked.target.kind === "merge" ? "merge" : "new", mapping, state: "running", progress, last_error: null, updated_at: new Date().toISOString() })
       .eq("id", row.id);
     if (error) return fail("unknown");
     revalidatePath("/", "layout");
@@ -381,6 +406,9 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
         for (const note of new Set(made.problems)) progress.notes[note] = (progress.notes[note] ?? 0) + 1;
       }
       if (items.length) {
+        // People of these tasks the project's list didn't have (left the tracker, for one).
+        const people = toPersonItems(page.issues.flatMap((issue) => [issue.assignee, issue.reporter].flatMap((u) => (u ? [u] : []))), row.mapping);
+        if (people.length) await home.rows.rpc("import_people", { target_project: row.project_id, items: people });
         const { data, error } = await home.rows.rpc("import_tasks", { target_project: row.project_id, items });
         const result = data as { ok?: boolean; error?: string; created?: number; updated?: number; number?: number } | null;
         if (error || !result?.ok) {
