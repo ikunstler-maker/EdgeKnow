@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { workspacePath } from "@/lib/paths";
-import { TYPE_ICONS, taskKey, type LinkKind, type LinkedTask, type TaskRow, type TaskStatus } from "@/lib/tasks";
+import { taskKey, type LinkKind, type LinkedTask, type TaskRow, type TaskStatus } from "@/lib/tasks";
 import { addTaskLink, checklistToSubtasks, createTask, deleteTaskLink, updateTask } from "@/app/task-actions";
+import { Icon } from "@/components/ui/icon";
+import { TypeIcon } from "./task-icons";
 
 const k = t.tasks;
 const h = t.tasks.hierarchy;
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
+const inputClass = "min-h-11 rounded-lg border border-border bg-background px-2 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
 
 export type ProjectTask = Pick<TaskRow, "id" | "number" | "title" | "status_id" | "parent_id" | "type">;
 export type TaskLinkView = { id: string; kind: LinkKind; outgoing: boolean; other: LinkedTask };
@@ -83,7 +85,8 @@ export function ParentPicker({ task, tasks, canEdit, projectKey }: { task: Proje
         <option value="">{h.noParent}</option>
         {options.map((other) => (
           <option key={other.id} value={other.id}>
-            {TYPE_ICONS[other.type]} {taskKey(projectKey, other.number)} {other.title}
+            <TypeIcon type={other.type} className="mr-1 inline" />
+            {taskKey(projectKey, other.number)} {other.title}
           </option>
         ))}
       </select>
@@ -98,7 +101,8 @@ export function BlockedNotice({ links }: { links: TaskLinkView[] }) {
   if (!blockers.length) return null;
   return (
     <p className="mt-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm" data-blocked-notice>
-      🔒 {h.blocked}: {blockers.map((l) => l.other.key ?? h.hidden).join(", ")}
+      <Icon name="lock" className="mr-1 inline" />
+      {h.blocked}: {blockers.map((l) => l.other.key ?? h.hidden).join(", ")}
     </p>
   );
 }
@@ -163,7 +167,8 @@ export function Subtasks({
                 />
                 <span className="font-mono text-xs text-muted">{taskKey(projectKey, child.number)}</span>
                 <Link prefetch={false} href={workspacePath(shortId, `/tasks/${projectKey}/${child.number}`)} className={`min-w-0 flex-1 truncate hover:underline ${isDone ? "text-muted line-through" : ""}`}>
-                  {TYPE_ICONS[child.type]} {child.title}
+                  <TypeIcon type={child.type} className="mr-1 inline" />
+                  {child.title}
                 </Link>
                 <span className="shrink-0 text-xs text-muted">{status?.name}</span>
               </li>
@@ -223,11 +228,11 @@ export function TaskLinks({ shortId, taskId, links, canEdit }: { shortId: string
                   {link.other.deleted && ` (${h.deletedTask})`}
                 </Link>
               ) : (
-                <span className="italic text-muted">🔒 {h.hidden}</span>
+                <span className="italic text-muted"><Icon name="lock" className="mr-1.5 inline" />{h.hidden}</span>
               )}
               {canEdit && (
                 <button type="button" disabled={pending} onClick={() => run(() => deleteTaskLink(link.id))} aria-label={h.removeLink} className="min-h-9 px-2 text-muted hover:text-danger">
-                  ×
+                  <Icon name="close" />
                 </button>
               )}
             </li>

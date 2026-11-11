@@ -42,6 +42,7 @@ import {
   type UnitOverlap,
 } from "@/lib/time-off";
 import { buttonClass, inputClass, primaryClass } from "./calendar-parts";
+import { Icon } from "@/components/ui/icon";
 
 const o = t.timeOff;
 const TABS = ["mine", "inbox", "team", "settings"] as const;
@@ -76,14 +77,14 @@ export function DobaNav({ shortId, current }: { shortId: string; current: "event
     <Link
       href={href}
       aria-current={current === key ? "page" : undefined}
-      className={`inline-flex min-h-11 items-center px-3 text-sm first:rounded-l-md last:rounded-r-md md:min-h-9 ${current === key ? "bg-accent text-white" : "hover:bg-surface"}`}
+      className={`inline-flex min-h-10 items-center rounded-md px-3 text-[13px] font-medium md:h-7 md:min-h-0 ${current === key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
       data-doba-nav={key}
     >
       {o.nav[key]}
     </Link>
   );
   return (
-    <nav className="flex rounded-md border border-border" aria-label={t.calendar.title}>
+    <nav className="inline-flex rounded-lg border border-border bg-hover p-0.5" aria-label={t.calendar.title}>
       {item("events", workspacePath(shortId, "/calendar"))}
       {item("timeOff", workspacePath(shortId, "/calendar/time-off"))}
     </nav>
@@ -177,7 +178,7 @@ export function TimeOffScreen({
   if (guest) {
     return (
       <main className="flex min-w-0 flex-1 flex-col px-3 py-4 md:px-6" data-time-off>
-        <h1 className="text-2xl font-semibold">📅 {o.title}</h1>
+        <h1 className="text-xl font-semibold tracking-tight"><Icon name="calendar" className="mr-1.5 inline" />{o.title}</h1>
         <p className="mt-3 text-muted">{o.guest}</p>
       </main>
     );
@@ -192,7 +193,7 @@ export function TimeOffScreen({
   return (
     <main className="flex min-w-0 flex-1 flex-col px-3 py-4 md:px-6" data-time-off>
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-2xl font-semibold">📅 {o.title}</h1>
+        <h1 className="mr-auto text-xl font-semibold tracking-tight"><Icon name="calendar" className="mr-1.5 inline" />{o.title}</h1>
         <DobaNav shortId={shortId} current="timeOff" />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -252,7 +253,8 @@ export function TimeOffScreen({
                 ))}
               </ul>
               <button type="button" onClick={() => setAsking(true)} className={`${primaryClass} mt-4`} data-new-leave>
-                ＋ {o.newRequest}
+                <Icon name="plus" className="mr-1 inline" />
+                {o.newRequest}
               </button>
             </>
           )}
@@ -316,7 +318,7 @@ export function TimeOffScreen({
               {absences.map((a) => (
                 <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2" data-absence={a.person}>
                   <span className="text-xl" aria-hidden="true">
-                    {a.remote ? "🏠" : "🌴"}
+                    <Icon name={a.remote ? "home" : "sun"} size={14} className="inline" />
                   </span>
                   <div className="min-w-48 flex-1">
                     <p className="truncate font-medium">{a.person}</p>
@@ -752,7 +754,8 @@ function Settings({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="mr-auto text-sm font-medium text-muted">{s.policies}</h2>
             <button type="button" onClick={() => setEditing({ id: null, fields: NEW_POLICY })} className={buttonClass} data-add-policy>
-              ＋ {s.addPolicy}
+              <Icon name="plus" className="mr-1 inline" />
+              {s.addPolicy}
             </button>
           </div>
           {message && (
@@ -890,7 +893,7 @@ function Settings({
                   <span className="w-28 shrink-0 text-sm text-muted">{new Intl.DateTimeFormat(dateLocale(), { weekday: "short", day: "numeric", month: "short" }).format(parseDay(h.day))}</span>
                   <span className="min-w-0 flex-1 truncate">{h.name}</span>
                   <button type="button" disabled={busy} onClick={() => act(() => deleteHoliday(shortId, workspaceId, h.day))} className="inline-flex h-11 w-11 items-center justify-center rounded-md hover:bg-surface md:h-9 md:w-9" aria-label={s.deleteHoliday(h.name)}>
-                    ✕
+                    <Icon name="close" />
                   </button>
                 </li>
               ))}

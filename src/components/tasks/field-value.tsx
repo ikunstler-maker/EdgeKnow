@@ -2,6 +2,7 @@
 
 import { t } from "@/i18n";
 import { isEmptyValue, personLabel, type Person, type TaskField } from "@/lib/tasks";
+import { Icon } from "@/components/ui/icon";
 
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
 
@@ -152,7 +153,7 @@ export function FieldValue({
           />
           {field.kind === "url" && text && (
             <a href={text} target="_blank" rel="noreferrer noopener" className="shrink-0 text-sm" aria-label={f.open}>
-              ↗
+              <Icon name="arrow-up-right" />
             </a>
           )}
         </span>

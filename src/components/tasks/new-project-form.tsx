@@ -6,24 +6,25 @@ import { t } from "@/i18n";
 import { suggestKey } from "@/lib/tasks";
 import { workspacePath } from "@/lib/paths";
 import { createTaskProject } from "@/app/task-actions";
+import { buttonClass, inputClass } from "@/components/ui/button";
 
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-3 text-base md:text-sm";
 
-// A new project: a name, a key suggested from it (editable) and an icon.
+// A new project: a name, a key suggested from it (editable) and, if the person
+// wants one, an emoji of their own as its icon.
 export function NewProjectForm({ workspaceId, shortId }: { workspaceId: string; shortId: string }) {
   const k = t.tasks;
   const router = useRouter();
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [keyTouched, setKeyTouched] = useState(false);
-  const [icon, setIcon] = useState("📋");
+  const [icon, setIcon] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const shownKey = keyTouched ? key : name.trim() ? suggestKey(name) : "";
 
   return (
     <form
-      className="mt-8 rounded-lg border border-border p-4"
+      className="pt-1"
       aria-label={k.newProject}
       onSubmit={(event) => {
         event.preventDefault();
@@ -34,17 +35,16 @@ export function NewProjectForm({ workspaceId, shortId }: { workspaceId: string; 
         });
       }}
     >
-      <h2 className="font-semibold">{k.newProject}</h2>
-      <div className="mt-3 grid gap-3 sm:grid-cols-[4rem_1fr_10rem]">
-        <label className="flex flex-col gap-1 text-sm">
+      <div className="grid gap-3 sm:grid-cols-[4.5rem_1fr_9rem]">
+        <label className="flex flex-col gap-1 text-sm text-muted">
           {k.projectIcon}
-          <input value={icon} onChange={(e) => setIcon(e.target.value)} maxLength={4} className={`${inputClass} text-center`} />
+          <input value={icon} onChange={(e) => setIcon(e.target.value)} maxLength={4} placeholder="—" className={`${inputClass} text-center text-foreground`} />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-muted">
           {k.projectName}
-          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} className={inputClass} />
+          <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} autoFocus className={`${inputClass} text-foreground`} />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-sm text-muted">
           {k.projectKey}
           <input
             value={shownKey}
@@ -53,17 +53,17 @@ export function NewProjectForm({ workspaceId, shortId }: { workspaceId: string; 
               setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10));
             }}
             required
-            className={`${inputClass} font-mono uppercase`}
+            className={`${inputClass} font-mono uppercase text-foreground`}
           />
         </label>
       </div>
-      <p className="mt-1 text-xs text-muted">{k.projectKeyHint}</p>
+      <p className="mt-2 text-xs text-muted">{k.projectKeyHint}</p>
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">
           {error}
         </p>
       )}
-      <button type="submit" disabled={pending || !name.trim() || shownKey.length < 2} className="mt-3 min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-60">
+      <button type="submit" disabled={pending || !name.trim() || shownKey.length < 2} className={buttonClass("primary", "mt-4 px-4")}>
         {k.create}
       </button>
     </form>

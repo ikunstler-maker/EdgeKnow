@@ -118,6 +118,7 @@ check("only the owner may drive the setup", setupAsGuest.status === 403, String(
 
 // Tasks of a team workspace live in its own database.
 await gammaTab.goto(`${APP}/w/${gammaShort}/tasks`);
+await gammaTab.locator("[data-new-project]").click();
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByLabel("Назва проєкту").fill("Delta tasks");
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByRole("button", { name: "Створити" }).click();
 await gammaTab.waitForURL(/\/tasks\/DT$/, { timeout: 15000 });

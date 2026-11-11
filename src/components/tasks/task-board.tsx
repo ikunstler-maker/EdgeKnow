@@ -24,10 +24,8 @@ import type { ActionResult } from "@/lib/action-result";
 import { workspacePath } from "@/lib/paths";
 import {
   CARD_FIELDS,
-  PRIORITY_ICONS,
   TASK_PRIORITIES,
   TASK_TYPES,
-  TYPE_ICONS,
   personLabel,
   progressOf,
   taskKey,
@@ -46,11 +44,15 @@ import { TaskRulesDialog } from "./task-rules";
 import { TemplatePicker, useTemplates } from "./task-templates";
 import { NewTaskDialog } from "./new-task-dialog";
 import { DraftCard, useTaskDrafts } from "./task-drafts";
+import { Avatar, PriorityIcon, TypeIcon } from "./task-icons";
+import { Icon } from "@/components/ui/icon";
+import { MenuItem, Popover } from "@/components/ui/popover";
+import { buttonClass as uiButton, iconButtonClass } from "@/components/ui/button";
 
 const k = t.tasks;
 const b = t.tasks.board;
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const inputClass = "min-h-11 rounded-lg border border-border bg-background px-2 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 const shortDate = (value: string) => new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "short" }).format(new Date(value));
 type Group = "none" | "assignee" | "priority" | "type";
 
@@ -162,9 +164,9 @@ export function TaskBoard({
           { id: "none", label: k.unassigned, match: (task: TaskRow) => !task.assignee_id },
         ]
       : group === "priority"
-        ? TASK_PRIORITIES.map((p) => ({ id: p, label: `${PRIORITY_ICONS[p]} ${k.priorities[p]}`, match: (task: TaskRow) => task.priority === p }))
+        ? TASK_PRIORITIES.map((p) => ({ id: p, label: k.priorities[p], match: (task: TaskRow) => task.priority === p }))
         : group === "type"
-          ? TASK_TYPES.map((p) => ({ id: p, label: `${TYPE_ICONS[p]} ${k.types[p]}`, match: (task: TaskRow) => task.type === p }))
+          ? TASK_TYPES.map((p) => ({ id: p, label: k.types[p], match: (task: TaskRow) => task.type === p }))
           : [{ id: "all", label: "", match: () => true }];
 
   // closestCorners alone measures to column corners, so a tall column far away loses to the
@@ -226,58 +228,84 @@ export function TaskBoard({
   };
 
   const cardFields = new Set(project.card_fields);
+  const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
   const dragged = dragging ? tasks.find((x) => x.id === dragging) : null;
 
   return (
     <div>
-      <FilterBar filters={filters} setFilters={setFilters} members={members} statuses={statuses} fields={fields} labels={labels} showStatus={false} />
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-        <label className="flex items-center gap-1 text-muted">
-          {b.group}
-          <select value={group} onChange={(e) => setGroup(e.target.value as Group)} className={inputClass}>
-            <option value="none">{b.groups.none}</option>
-            <option value="assignee">{b.groups.assignee}</option>
-            <option value="priority">{b.groups.priority}</option>
-            <option value="type">{b.groups.type}</option>
-          </select>
-        </label>
-        <span className="text-xs text-muted">{k.count(shown.length, tasks.length)}</span>
-        {canEdit && <TemplatePicker templates={templates.templates} chosen={templates.chosen} onPick={templates.pick} />}
-        {isOwner && (
-          <label className="ml-auto flex min-h-11 items-center gap-2 text-muted md:min-h-9">
-            <input
-              type="checkbox"
-              checked={project.time_last_column === true}
-              disabled={pending}
-              onChange={(e) => run(() => updateTaskProject(project.id, { time_last_column: e.target.checked }))}
-              data-time-last-column
-            />
-            {k.columnTime.countLast}
-          </label>
-        )}
-        {isOwner && boards.length > 0 && (
-          <label className="flex min-h-11 items-center gap-2 text-muted md:min-h-9">
-            <input
-              type="checkbox"
-              checked={project.frozen_moves_admin !== false}
-              disabled={pending}
-              onChange={(e) => run(() => setFrozenMovesAdmin(project.id, e.target.checked))}
-              data-frozen-admin
-            />
-            {t.tasks.boards.frozenAdminOnly}
-          </label>
-        )}
-        {isOwner && (
-          <button type="button" className={buttonClass} onClick={() => setRulesOpen(true)} data-open-rules>
-            ⚡ {t.notifications.rules.button}
-          </button>
-        )}
-        {isOwner && (
-          <button type="button" className={buttonClass} onClick={() => setCardSettings(true)}>
-            🗂 {b.cardSettings}
-          </button>
-        )}
-      </div>
+      <FilterBar
+        filters={filters}
+        setFilters={setFilters}
+        members={members}
+        statuses={statuses}
+        fields={fields}
+        labels={labels}
+        showStatus={false}
+        trailing={
+          <>
+            <span className="text-xs text-muted">{k.count(shown.length, tasks.length)}</span>
+            <label className="flex items-center gap-1 text-xs text-muted">
+              {b.group}
+              <select value={group} onChange={(e) => setGroup(e.target.value as Group)} className={inputClass}>
+                <option value="none">{b.groups.none}</option>
+                <option value="assignee">{b.groups.assignee}</option>
+                <option value="priority">{b.groups.priority}</option>
+                <option value="type">{b.groups.type}</option>
+              </select>
+            </label>
+            {canEdit && <TemplatePicker templates={templates.templates} chosen={templates.chosen} onPick={templates.pick} />}
+            {isOwner && (
+              <button type="button" className={iconButtonClass("ghost")} onClick={() => setCardSettings(true)} aria-label={b.cardSettings} title={b.cardSettings}>
+                <Icon name="layers" size={18} />
+              </button>
+            )}
+            {isOwner && (
+              <button type="button" className={iconButtonClass("ghost")} onClick={() => setRulesOpen(true)} aria-label={t.notifications.rules.button} title={t.notifications.rules.button} data-open-rules>
+                <Icon name="bell" size={18} />
+              </button>
+            )}
+            {isOwner && (
+              <button type="button" className={iconButtonClass("ghost")} onClick={(e) => setSettingsAnchor(settingsAnchor ? null : e.currentTarget)} aria-label={b.settings} title={b.settings} aria-expanded={settingsAnchor !== null} data-board-settings>
+                <Icon name="sliders" size={18} />
+              </button>
+            )}
+            {canEdit && statuses.length > 0 && (
+              <button type="button" className={uiButton("primary")} onClick={() => setNewTaskIn(statuses[0].id)} data-new-task-top>
+                <Icon name="plus" />
+                {t.tasks.newTask.title}
+              </button>
+            )}
+          </>
+        }
+      />
+      {settingsAnchor && (
+        <Popover anchor={settingsAnchor} onClose={() => setSettingsAnchor(null)} width={320}>
+          <div className="space-y-1 p-2 text-sm" data-board-settings-panel>
+            <label className="flex min-h-11 items-center gap-2 md:min-h-9">
+              <input
+                type="checkbox"
+                checked={project.time_last_column === true}
+                disabled={pending}
+                onChange={(e) => run(() => updateTaskProject(project.id, { time_last_column: e.target.checked }))}
+                data-time-last-column
+              />
+              {k.columnTime.countLast}
+            </label>
+            {boards.length > 0 && (
+              <label className="flex min-h-11 items-center gap-2 md:min-h-9">
+                <input
+                  type="checkbox"
+                  checked={project.frozen_moves_admin !== false}
+                  disabled={pending}
+                  onChange={(e) => run(() => setFrozenMovesAdmin(project.id, e.target.checked))}
+                  data-frozen-admin
+                />
+                {t.tasks.boards.frozenAdminOnly}
+              </label>
+            )}
+          </div>
+        </Popover>
+      )}
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">
           {error}
@@ -335,6 +363,7 @@ export function TaskBoard({
                         fields={cardFields}
                         customFields={fields.filter((f) => cardFields.has(f.id))}
                         personOf={personOf}
+                        members={members}
                         progress={progress.get(task.id)}
                         blocked={blocked.has(task.id)}
                         canEdit={canEdit}
@@ -342,6 +371,11 @@ export function TaskBoard({
                           const before = tasks;
                           setTasks(tasks.map((x) => (x.id === task.id ? { ...x, priority } : x)));
                           run(() => updateTask(task.id, { priority }), () => setTasks(before));
+                        }}
+                        onAssignee={(assignee_id) => {
+                          const before = tasks;
+                          setTasks(tasks.map((x) => (x.id === task.id ? { ...x, assignee_id } : x)));
+                          run(() => updateTask(task.id, { assignee_id }), () => setTasks(before));
                         }}
                       />
                     )}
@@ -354,7 +388,7 @@ export function TaskBoard({
         </div>
         <DragOverlay>
           {dragged && (
-            <div className="w-64 rotate-2 rounded-lg border border-accent bg-background p-3 text-sm shadow-xl">
+            <div className="w-64 rotate-2 rounded-xl border border-accent bg-background p-2.5 text-sm shadow-2xl">
               <span className="font-mono text-xs text-muted">{taskKey(project.key, dragged.number)}</span>
               <p>{dragged.title}</p>
             </div>
@@ -436,12 +470,12 @@ function BoardColumn({
       }}
       data-column={status.name}
       style={handle.transform ? { transform: `translate3d(${handle.transform.x}px, ${handle.transform.y}px, 0)` } : undefined}
-      className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 ${handle.isDragging ? "relative z-20 border-accent bg-background shadow-xl" : isOver ? "border-accent bg-accent/5" : "border-border bg-surface/50"}`}
+      className={`flex w-72 shrink-0 flex-col rounded-xl border p-2 ${handle.isDragging ? "relative z-20 border-accent bg-background shadow-xl" : isOver ? "border-accent bg-accent/5" : "border-transparent bg-surface"}`}
     >
       <div className="flex items-center gap-2 px-1 pb-2">
         {isOwner && (
-          <button type="button" {...handle.listeners} {...handle.attributes} aria-label={b.dragColumn(status.name)} className="-ml-1 h-8 w-6 cursor-grab touch-none rounded text-muted hover:bg-border" data-column-handle>
-            ⠿
+          <button type="button" {...handle.listeners} {...handle.attributes} aria-label={b.dragColumn(status.name)} className="-ml-1 flex h-8 w-6 cursor-grab touch-none items-center justify-center rounded text-muted hover:bg-hover" data-column-handle>
+            <Icon name="drag" size={14} />
           </button>
         )}
         <span className={`h-2 w-2 shrink-0 rounded-full ${status.category === "done" ? "bg-emerald-500" : status.category === "doing" ? "bg-sky-500" : status.category === "review" ? "bg-violet-500" : "bg-slate-400"}`} />
@@ -450,8 +484,8 @@ function BoardColumn({
           {status.wip_limit !== null ? `${total}/${status.wip_limit}` : total}
         </span>
         {isOwner && (
-          <button type="button" aria-label={b.columnMenu(status.name)} aria-expanded={menu} onClick={() => setMenu(!menu)} className="h-8 w-8 rounded text-muted hover:bg-border">
-            ⋯
+          <button type="button" aria-label={b.columnMenu(status.name)} aria-expanded={menu} onClick={() => setMenu(!menu)} className="flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-hover">
+            <Icon name="more" />
           </button>
         )}
       </div>
@@ -477,8 +511,9 @@ function BoardColumn({
       </ul>
       {drafts && <div className="mt-2 flex flex-col gap-2">{drafts}</div>}
       {showQuickAdd && (
-        <button type="button" onClick={onNewTask} aria-label={t.tasks.newTask.openIn(status.name)} className="mt-2 min-h-11 w-full rounded-md px-2 text-left text-sm text-muted hover:bg-border md:min-h-9" data-new-task-open>
-          {t.tasks.newTask.open}
+        <button type="button" onClick={onNewTask} aria-label={t.tasks.newTask.openIn(status.name)} className="mt-2 flex min-h-11 w-full items-center gap-1.5 rounded-lg px-2 text-left text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8" data-new-task-open>
+          <Icon name="plus" />
+          {t.tasks.newTask.title}
         </button>
       )}
     </div>
@@ -503,10 +538,12 @@ function BoardCard({
   fields,
   customFields,
   personOf,
+  members,
   progress,
   blocked,
   canEdit,
   onPriority,
+  onAssignee,
 }: {
   task: TaskRow;
   href: string;
@@ -515,159 +552,211 @@ function BoardCard({
   fields: Set<string>;
   customFields: TaskField[];
   personOf: Map<string, Person>;
+  members: Person[];
   progress?: { done: number; total: number };
   blocked: boolean;
   canEdit: boolean;
   onPriority?: (priority: TaskPriority) => void;
+  onAssignee?: (assignee: string | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || !!task.snapshot });
+  // The priority mark and the avatar open a small list to change them in place.
+  const [menu, setMenu] = useState<{ kind: "priority" | "assignee"; anchor: HTMLElement } | null>(null);
   const today = new Date().toISOString().slice(0, 10);
   const overdue = task.due_date && task.due_date < today && status.category !== "done";
   const assignee = personOf.get(task.assignee_id ?? "");
   const reporter = personOf.get(task.reporter_id ?? "");
+  const editable = canEdit && !task.snapshot;
+  // A control on a draggable card: its own presses must not start a drag.
+  const own = { onPointerDown: (e: React.PointerEvent) => e.stopPropagation(), onKeyDown: (e: React.KeyboardEvent) => e.stopPropagation() };
+  const hit = "-my-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-hover md:my-0 md:h-6 md:w-6";
+  const open = (kind: "priority" | "assignee") => (e: React.MouseEvent<HTMLElement>) => setMenu(menu?.kind === kind ? null : { kind, anchor: e.currentTarget });
+  const assigneeName = assignee ? personLabel(assignee) : k.unassigned;
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       data-card={key}
-      className={`rounded-lg border border-border bg-background p-3 text-sm shadow-sm ${isDragging ? "opacity-40" : ""} ${canEdit ? "cursor-grab" : ""}`}
+      className={`rounded-xl border border-border bg-background p-2.5 text-sm transition-colors hover:border-border-strong ${isDragging ? "opacity-40" : ""} ${canEdit ? "cursor-grab" : ""}`}
     >
-      <div className="flex items-center gap-1 text-xs text-muted">
-        {fields.has("type") && <span title={k.types[task.type]}>{TYPE_ICONS[task.type]}</span>}
+      <div className="flex items-center gap-1.5 text-xs text-muted">
         {fields.has("key") && <span className="font-mono">{key}</span>}
         <span className="flex-1" />
         {task.frozen && (
-          <span title={task.snapshot ? t.tasks.boards.snapshotHint : t.tasks.boards.frozenHint} aria-label={t.tasks.boards.frozen} data-card-frozen>
-            ❄
+          <span title={task.snapshot ? t.tasks.boards.snapshotHint : t.tasks.boards.frozenHint} aria-label={t.tasks.boards.frozen} role="img" data-card-frozen>
+            <Icon name="snow" size={14} />
           </span>
         )}
         {task.private && (
-          <span title={k.privacy.privateHint} aria-label={k.privacy.private} data-card-private>
-            🔒
+          <span title={k.privacy.privateHint} aria-label={k.privacy.private} role="img" data-card-private>
+            <Icon name="lock" size={14} />
           </span>
         )}
         {blocked && status.category !== "done" && (
-          <span title={k.hierarchy.blocked} aria-label={k.hierarchy.blockedShort} className="text-danger" data-card-blocked>
-            🔒
+          <span title={k.hierarchy.blocked} aria-label={k.hierarchy.blockedShort} role="img" className="text-danger" data-card-blocked>
+            <Icon name="alert" size={14} />
           </span>
         )}
+        {fields.has("priority") &&
+          (editable && onPriority ? (
+            <button type="button" {...own} onClick={open("priority")} aria-label={`${b.cardFields.priority}: ${k.priorities[task.priority]} · ${key}`} title={`${b.cardFields.priority}: ${k.priorities[task.priority]}`} aria-expanded={menu?.kind === "priority"} className={hit} data-card-priority={task.priority}>
+              <PriorityIcon priority={task.priority} size={16} />
+            </button>
+          ) : (
+            <span title={`${b.cardFields.priority}: ${k.priorities[task.priority]}`} aria-label={`${b.cardFields.priority}: ${k.priorities[task.priority]}`} role="img" data-card-priority={task.priority}>
+              <PriorityIcon priority={task.priority} size={16} />
+            </span>
+          ))}
       </div>
-      <Link prefetch={false} href={href} className={`mt-1 block font-medium hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
+      <Link prefetch={false} href={href} className={`mt-1 block text-sm font-medium leading-snug hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
         {task.title}
       </Link>
-      {/* Every field chosen in "What to show on the card" is shown, empty ones as "—": the card grows instead of hiding them. */}
-      <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 text-xs" data-card-fields>
+      {/* What "What to show on the card" chose, as compact marks; a field with nothing in it takes no room. */}
+      <div className="mt-2 flex flex-wrap items-center gap-1 text-[11px] text-muted" data-card-fields>
         {fields.has("type") && (
-          <CardRow label={b.cardFields.type}>
-            {TYPE_ICONS[task.type]} {k.types[task.type]}
-          </CardRow>
+          <CardChip label={b.cardFields.type}>
+            <TypeIcon type={task.type} size={12} />
+            {k.types[task.type]}
+          </CardChip>
         )}
-        {fields.has("priority") && (
-          <CardRow label={b.cardFields.priority}>
-            {canEdit && onPriority ? (
-              <select
-                value={task.priority}
-                aria-label={`${b.cardFields.priority}: ${key}`}
-                data-card-priority
-                onPointerDown={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-                onChange={(e) => onPriority(e.target.value as TaskPriority)}
-                className="min-h-8 w-full rounded border border-border bg-background px-1 md:min-h-7"
-              >
-                {TASK_PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {PRIORITY_ICONS[p]} {k.priorities[p]}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <>
-                {PRIORITY_ICONS[task.priority]} {k.priorities[task.priority]}
-              </>
-            )}
-          </CardRow>
+        {fields.has("due") && task.due_date && (
+          <CardChip label={b.cardFields.due} className={overdue ? "bg-danger/10 font-medium text-danger" : ""}>
+            <Icon name="calendar" size={12} />
+            {shortDate(task.due_date)}
+          </CardChip>
         )}
-        {fields.has("assignee") && <CardRow label={b.cardFields.assignee}>{assignee ? personLabel(assignee) : k.unassigned}</CardRow>}
-        {fields.has("reporter") && <CardRow label={b.cardFields.reporter}>{reporter ? personLabel(reporter) : EMPTY}</CardRow>}
-        {fields.has("labels") && (
-          <CardRow label={b.cardFields.labels}>
-            {task.labels.length ? (
-              <span className="flex flex-wrap gap-1">
-                {task.labels.map((label) => (
-                  <span key={label} className="rounded bg-surface px-1.5">
-                    {label}
-                  </span>
-                ))}
-              </span>
-            ) : (
-              EMPTY
-            )}
-          </CardRow>
+        {fields.has("start") && task.start_date && (
+          <CardChip label={b.cardFields.start} data={b.cardFields.start}>
+            <Icon name="play" size={12} />
+            {shortDate(task.start_date)}
+          </CardChip>
         )}
-        {fields.has("due") && (
-          <CardRow label={b.cardFields.due}>
-            <span className={overdue ? "font-medium text-danger" : ""}>{task.due_date ? shortDate(task.due_date) : EMPTY}</span>
-          </CardRow>
+        {fields.has("estimate") && task.estimate !== null && (
+          <CardChip label={b.cardFields.estimate}>
+            <Icon name="clock" size={12} />
+            {task.estimate} {k.hoursShort}
+          </CardChip>
         )}
-        {fields.has("start") && <CardRow label={b.cardFields.start}>{task.start_date ? shortDate(task.start_date) : EMPTY}</CardRow>}
-        {fields.has("estimate") && <CardRow label={b.cardFields.estimate}>{task.estimate !== null ? `${task.estimate} ${k.hoursShort}` : EMPTY}</CardRow>}
-        {(fields.has("subtasks") || (task.type === "epic" && progress)) && (
-          <CardRow label={b.cardFields.subtasks}>
-            {progress ? (
-              <span title={k.hierarchy.progress(progress.done, progress.total)} data-card-progress className={progress.done === progress.total ? "text-emerald-600 dark:text-emerald-400" : ""}>
-                ☑ {progress.done}/{progress.total}
-              </span>
-            ) : (
-              EMPTY
-            )}
-          </CardRow>
+        {(fields.has("subtasks") || task.type === "epic") && progress && (
+          <CardChip label={k.hierarchy.progress(progress.done, progress.total)} className={progress.done === progress.total ? "text-emerald-600 dark:text-emerald-400" : ""}>
+            <Icon name="subtask" size={12} />
+            <span data-card-progress>
+              {progress.done}/{progress.total}
+            </span>
+          </CardChip>
         )}
-        {fields.has("created") && <CardRow label={b.cardFields.created}>{shortDate(task.created_at)}</CardRow>}
-        {fields.has("updated") && <CardRow label={b.cardFields.updated}>{shortDate(task.updated_at)}</CardRow>}
+        {fields.has("labels") &&
+          task.labels.map((label) => (
+            <CardChip key={label} label={b.cardFields.labels}>
+              #{label}
+            </CardChip>
+          ))}
         {customFields.map((field) => {
           const value = task.custom?.[field.id];
-          const empty = value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length);
+          const empty = value === undefined || value === null || value === "" || value === false || (Array.isArray(value) && !value.length);
+          if (empty) return null;
           const chosen = (id: unknown) => field.options.find((o) => o.id === id);
           return (
-            <CardRow key={field.id} label={field.name} data={field.name}>
-              {empty ? (
-                EMPTY
-              ) : field.kind === "select" || field.kind === "multiselect" ? (
-                <span className="flex flex-wrap gap-1">
-                  {(Array.isArray(value) ? value : [value]).map((id) => (
-                    <span key={String(id)} className="rounded-full px-2 text-white" style={{ background: chosen(id)?.color ?? "var(--accent)" }}>
-                      {chosen(id)?.label}
-                    </span>
-                  ))}
-                </span>
+            <CardChip key={field.id} label={field.name} data={field.name} bare={field.kind === "select" || field.kind === "multiselect"}>
+              {field.kind === "select" || field.kind === "multiselect" ? (
+                (Array.isArray(value) ? value : [value]).map((id) => (
+                  <span key={String(id)} className="rounded-md px-1.5 py-0.5 text-white" style={{ background: chosen(id)?.color ?? "var(--accent)" }}>
+                    {chosen(id)?.label}
+                  </span>
+                ))
               ) : field.kind === "color" ? (
-                <span className="inline-block h-3 w-6 rounded" style={{ background: String(value) }} />
+                <span className="inline-block h-3 w-5 rounded" style={{ background: String(value) }} />
               ) : field.kind === "checkbox" || field.kind === "toggle" ? (
-                value ? "✓" : EMPTY
+                <>
+                  <Icon name="check" size={12} />
+                  {field.name}
+                </>
               ) : field.kind === "person" ? (
                 personLabel(personOf.get(String(value)))
               ) : (
                 String(value)
               )}
-            </CardRow>
+            </CardChip>
           );
         })}
-      </dl>
+        {fields.has("reporter") && reporter && (
+          <CardChip label={b.cardFields.reporter} data={b.cardFields.reporter}>
+            <Icon name="edit" size={12} />
+            {personLabel(reporter)}
+          </CardChip>
+        )}
+        {fields.has("created") && (
+          <CardChip label={b.cardFields.created}>
+            <Icon name="plus" size={12} />
+            {shortDate(task.created_at)}
+          </CardChip>
+        )}
+        {fields.has("updated") && (
+          <CardChip label={b.cardFields.updated}>
+            <Icon name="refresh" size={12} />
+            {shortDate(task.updated_at)}
+          </CardChip>
+        )}
+        <span className="flex-1" />
+        {fields.has("assignee") &&
+          (editable && onAssignee ? (
+            <button type="button" {...own} onClick={open("assignee")} aria-label={`${b.cardFields.assignee}: ${assigneeName} · ${key}`} title={`${b.cardFields.assignee}: ${assigneeName}`} aria-expanded={menu?.kind === "assignee"} className={`${hit} rounded-full`} data-card-assignee>
+              <Avatar person={assignee} />
+            </button>
+          ) : (
+            <span title={`${b.cardFields.assignee}: ${assigneeName}`} aria-label={`${b.cardFields.assignee}: ${assigneeName}`} role="img" data-card-assignee>
+              <Avatar person={assignee} />
+            </span>
+          ))}
+      </div>
+      {menu && (
+        <Popover anchor={menu.anchor} onClose={() => setMenu(null)} width={menu.kind === "priority" ? 200 : 240}>
+          <div {...own} role="menu" aria-label={menu.kind === "priority" ? b.cardFields.priority : b.cardFields.assignee} data-card-menu={menu.kind}>
+            {menu.kind === "priority"
+              ? TASK_PRIORITIES.map((p) => (
+                  <MenuItem
+                    key={p}
+                    onSelect={() => {
+                      setMenu(null);
+                      if (p !== task.priority) onPriority?.(p);
+                    }}
+                  >
+                    <span className="flex flex-1 items-center gap-2" data-priority-option={p}>
+                      <PriorityIcon priority={p} size={16} />
+                      {k.priorities[p]}
+                    </span>
+                    {p === task.priority && <Icon name="check" className="text-accent" />}
+                  </MenuItem>
+                ))
+              : [null, ...members].map((person) => (
+                  <MenuItem
+                    key={person?.id ?? "none"}
+                    onSelect={() => {
+                      setMenu(null);
+                      if ((person?.id ?? null) !== (task.assignee_id ?? null)) onAssignee?.(person?.id ?? null);
+                    }}
+                  >
+                    <span className="flex min-w-0 flex-1 items-center gap-2" data-assignee-option={person?.id ?? "none"}>
+                      <Avatar person={person ?? undefined} />
+                      <span className="truncate">{person ? personLabel(person) : k.unassigned}</span>
+                    </span>
+                    {(person?.id ?? null) === (task.assignee_id ?? null) && <Icon name="check" className="text-accent" />}
+                  </MenuItem>
+                ))}
+          </div>
+        </Popover>
+      )}
     </div>
   );
 }
 
-const EMPTY = "—";
-
-function CardRow({ label, data, children }: { label: string; data?: string; children: React.ReactNode }) {
+// One piece of a card's metadata; its name shows as a hint and is read aloud.
+function CardChip({ label, data, bare = false, className = "", children }: { label: string; data?: string; bare?: boolean; className?: string; children: React.ReactNode }) {
   return (
-    <>
-      <dt className="text-muted">{label}</dt>
-      <dd className="min-w-0 break-words" data-card-field={data}>
-        {children}
-      </dd>
-    </>
+    <span title={label} aria-label={label} data-card-field={data} className={`inline-flex max-w-full items-center gap-1 ${bare ? "" : "rounded-md bg-hover px-1.5 py-0.5"} ${className}`}>
+      {children}
+    </span>
   );
 }
 
@@ -726,7 +815,8 @@ function ColumnMenu({
       <label className="flex items-start gap-2" title={t.tasks.boards.freezesHint}>
         <input type="checkbox" checked={freezes} onChange={(e) => setFreezes(e.target.checked)} className="mt-1" data-column-freezes />
         <span>
-          ❄ {t.tasks.boards.freezes}
+          <Icon name="snow" className="mr-1 inline" />
+          {t.tasks.boards.freezes}
           <span className="block text-xs text-muted">{t.tasks.boards.freezesHint}</span>
         </span>
       </label>
@@ -739,10 +829,10 @@ function ColumnMenu({
           {t.common.save}
         </button>
         <button type="button" disabled={!canLeft || pending} onClick={() => onMove(-1)} className={buttonClass} aria-label={b.moveLeft}>
-          ←
+          <Icon name="arrow-left" />
         </button>
         <button type="button" disabled={!canRight || pending} onClick={() => onMove(1)} className={buttonClass} aria-label={b.moveRight}>
-          →
+          <Icon name="arrow-right" />
         </button>
       </div>
       {statuses.length > 1 && (
@@ -801,8 +891,8 @@ function CardSettings({ selected, fields, onClose, onSave }: { selected: string[
     setChosen(next);
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={b.cardSettings} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-xl bg-background p-4 shadow-xl sm:rounded-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={b.cardSettings} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-border-strong bg-overlay p-5 shadow-2xl sm:rounded-2xl">
         <h2 className="font-semibold">{b.cardSettings}</h2>
         <p className="mt-1 text-sm text-muted">{b.cardSettingsIntro}</p>
         <div className="mt-3 grid grid-cols-2 gap-1 text-sm">
@@ -815,7 +905,7 @@ function CardSettings({ selected, fields, onClose, onSave }: { selected: string[
           {fields.map((field) => (
             <label key={field.id} className="flex min-h-11 items-center gap-2 md:min-h-9">
               <input type="checkbox" checked={chosen.has(field.id)} onChange={() => flip(field.id)} className="h-5 w-5" />
-              🧩 {field.name}
+              {field.name}
             </label>
           ))}
         </div>
@@ -936,7 +1026,8 @@ function BoardTabs({
           </form>
         ) : (
           <button type="button" onClick={() => open(null)} className="min-h-11 px-2 text-sm text-muted hover:text-foreground md:min-h-9" data-board-add>
-            ＋ {bt.add}
+            <Icon name="plus" className="mr-1 inline" />
+            {bt.add}
           </button>
         ))}
     </div>

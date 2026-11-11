@@ -8,6 +8,7 @@ import { personLabel, type Person } from "@/lib/tasks";
 import { prepareImage } from "@/lib/image-compression";
 import { deleteTaskFile } from "@/app/task-file-actions";
 import { useOptionalPages } from "@/components/pages/pages-provider";
+import { Icon, type IconName } from "@/components/ui/icon";
 
 export type TaskFileView = { id: string; name: string; mime_type: string; bytes: number; uploaded_by: string | null; created_at: string };
 
@@ -32,7 +33,7 @@ const typeOf = (file: File) => {
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
   return BY_EXTENSION[extension] ?? (file.type === "application/x-zip-compressed" ? "application/zip" : file.type);
 };
-const iconOf = (type: string) => (type.startsWith("image/") ? "🖼️" : type === "application/pdf" ? "📕" : type.includes("sheet") || type.includes("excel") || type === "text/csv" ? "📊" : type.includes("presentation") || type.includes("powerpoint") ? "📽️" : type === "application/zip" ? "🗜️" : "📄");
+const iconOf = (type: string): IconName => (type.startsWith("image/") ? "image" : type.includes("sheet") || type.includes("excel") || type === "text/csv" ? "table" : type.includes("presentation") || type.includes("powerpoint") ? "play" : type === "application/zip" ? "folder" : type === "application/pdf" ? "file" : "file-text");
 
 // The files of a task: attach (button or drop), open, download, remove.
 export function TaskFiles({
@@ -127,7 +128,7 @@ export function TaskFiles({
                 <img src={href(file.id)} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded object-cover" />
               ) : (
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center text-xl" aria-hidden>
-                  {iconOf(file.mime_type)}
+                  <Icon name={iconOf(file.mime_type)} size={18} className="text-muted" />
                 </span>
               )}
               <div className="min-w-0 flex-1">
@@ -140,7 +141,7 @@ export function TaskFiles({
               </div>
               {!guest && (
                 <a href={href(file.id, true)} aria-label={`${f.download}: ${file.name}`} className="flex min-h-11 min-w-11 items-center justify-center rounded hover:bg-surface md:min-h-9 md:min-w-9">
-                  ⬇️
+                  <Icon name="download" />
                 </a>
               )}
               {(canEdit || file.uploaded_by === me) && (
@@ -158,7 +159,7 @@ export function TaskFiles({
                   }}
                   className="min-h-11 min-w-11 rounded text-muted hover:bg-surface hover:text-danger md:min-h-9 md:min-w-9"
                 >
-                  ✕
+                  <Icon name="close" />
                 </button>
               )}
             </li>
@@ -169,6 +170,7 @@ export function TaskFiles({
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           <input ref={input} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && void upload(e.target.files).then(() => (e.target.value = ""))} aria-label={f.attach} />
           <button type="button" disabled={busy !== null} onClick={() => input.current?.click()} className="min-h-11 rounded-md border border-border px-3 hover:bg-surface disabled:opacity-60 md:min-h-9">
+            <Icon name="paperclip" className="mr-1 inline" />
             {f.attach}
           </button>
           <span className="text-xs text-muted">{busy ? f.uploading(busy) : f.dropHint}</span>

@@ -136,6 +136,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
   check("…and the switcher in the sidebar opens Tasks", true);
   await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+  // The form opens in a dialog from the page's one primary button.
+  await alice.locator("[data-new-project]").click();
   const form = alice.getByRole("form", { name: "Новий проєкт" });
   await form.getByLabel("Назва проєкту").fill("Маркетинг");
   check("the project key is suggested from its name", (await form.getByLabel(/Ключ/).inputValue()) === "MAR");
@@ -181,7 +183,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const made = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "From a colleague" } });
   check("a member makes tasks in the project", made.data?.key === "MAR-3", JSON.stringify(made.data));
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
-  await alice.getByRole("button", { name: "⚙️ Доступ і налаштування" }).click();
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
   const dialog = alice.getByRole("dialog", { name: /Доступ до проєкту/ });
   await dialog.getByRole("combobox").first().selectOption("viewer");
   await alice.waitForTimeout(1500);
@@ -195,18 +197,18 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
 
   // The project's own fields: a dropdown with its items and a toggle, then values on a task.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
-  await alice.getByRole("link", { name: "🧩 Поля задач" }).click();
+  await alice.getByRole("link", { name: "Поля задач" }).click();
   await alice.waitForURL(/\/tasks\/MAR\/fields$/);
-  await alice.getByRole("button", { name: "＋ Додати поле" }).click();
+  await alice.getByRole("button", { name: "Додати поле" }).click();
   const fieldForm = alice.getByRole("form", { name: "Додати поле" });
   await fieldForm.getByLabel("Назва поля").fill("Формат");
   await fieldForm.getByLabel("Формат", { exact: true }).selectOption("select");
   await fieldForm.getByLabel("Пункт 1").fill("Відео");
-  await fieldForm.getByRole("button", { name: "＋ Додати пункт" }).click();
+  await fieldForm.getByRole("button", { name: "Додати пункт" }).click();
   await fieldForm.getByLabel("Пункт 2").fill("Статика");
   await fieldForm.getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-custom-field="Формат"]').waitFor({ timeout: 15000 });
-  await alice.getByRole("button", { name: "＋ Додати поле" }).click();
+  await alice.getByRole("button", { name: "Додати поле" }).click();
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Назва поля").fill("Погоджено");
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Формат", { exact: true }).selectOption("toggle");
   await alice.getByRole("form", { name: "Додати поле" }).getByRole("button", { name: "Зберегти" }).click();
@@ -257,24 +259,29 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await columnForm.getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-column="В роботі"] [data-wip]', { hasText: "1/1" }).waitFor({ timeout: 15000 }).catch(() => {});
   check("a column limit shows as count/limit", (await alice.locator('[data-column="В роботі"] [data-wip]').innerText()) === "1/1");
-  await alice.getByRole("button", { name: "🗂 Що показувати на картці" }).click();
+  await alice.getByRole("button", { name: "Що показувати на картці" }).click();
   const cardDialog = alice.getByRole("dialog", { name: "Що показувати на картці" });
   await cardDialog.getByLabel("Автор").check();
-  await cardDialog.getByLabel("🧩 Формат").check();
+  await cardDialog.getByLabel("Формат", { exact: true }).check();
   await cardDialog.getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').waitFor({ timeout: 15000 }).catch(() => {});
   check("the card shows the chosen fields, own ones too", (await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').getByText("Відео").count()) === 1);
   await cardDialog.waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
-  await alice.getByRole("button", { name: "🗂 Що показувати на картці" }).click();
+  await alice.getByRole("button", { name: "Що показувати на картці" }).click();
   await cardDialog.getByLabel("Початок").check();
   await cardDialog.getByRole("button", { name: "Зберегти" }).click();
-  await alice.locator('[data-card="MAR-1"] dt', { hasText: "Початок" }).waitFor({ timeout: 15000 }).catch(() => {});
-  check("…every chosen field shows, an empty one as “—”", (await alice.locator('[data-card="MAR-1"] dt', { hasText: "Початок" }).count()) === 1);
+  await cardDialog.waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+  check("…a chosen field with nothing in it takes no room on the card", (await alice.locator('[data-card="MAR-1"] [data-card-field="Початок"]').count()) === 0 && (await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').count()) === 1);
   const marOnePriority = () => sql("select priority from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   const priorityBefore = marOnePriority();
-  await alice.locator('[data-card="MAR-1"] [data-card-priority]').selectOption("highest");
+  // The priority mark on the card opens a small list.
+  const pickPriority = async (value) => {
+    await alice.locator('[data-card="MAR-1"] [data-card-priority]').click();
+    await alice.locator(`[data-card-menu="priority"] [data-priority-option="${value}"]`).click();
+  };
+  await pickPriority("highest");
   check("the priority changes right on the card", await until(() => marOnePriority() === "highest", 15000), marOnePriority());
-  await alice.locator('[data-card="MAR-1"] [data-card-priority]').selectOption(priorityBefore);
+  await pickPriority(priorityBefore);
   await until(() => marOnePriority() === priorityBefore, 15000);
 
   // Notification rules (the project owner) and the bell.
@@ -372,7 +379,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…a key no one can see is refused", sql(`select count(*) from public.task_links where target_id = ${marTask(2)} or source_id = ${marTask(2)}`) === "1");
   sql(`update public.tasks set description = '[{"id":"c1","type":"checkListItem","props":{"checked":false},"content":[{"type":"text","text":"Check fonts","styles":{}}],"children":[]},{"id":"c2","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"Done already","styles":{}}],"children":[]}]' where id = ${marTask(2)}`);
   await alice.reload();
-  await alice.getByRole("button", { name: "☑ Зробити підзадачі з чек-листа опису" }).click();
+  await alice.getByRole("button", { name: "Зробити підзадачі з чек-листа опису" }).click();
   await alice.getByText("Створено підзадач: 1").waitFor({ timeout: 15000 }).catch(() => {});
   check("the open checklist items become subtasks", sql(`select string_agg(title, ',' order by number) from public.tasks where parent_id = ${marTask(2)}`) === "Sub one,Sub two,Check fonts");
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);

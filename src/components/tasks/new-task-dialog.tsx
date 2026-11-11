@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
 import { fromTemplate, type TaskTemplate } from "@/lib/task-templates";
-import { TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, PRIORITY_ICONS, fieldApplies, isEmptyValue, personLabel, type Person, type TaskField, type TaskStatus, type TaskType } from "@/lib/tasks";
+import { TASK_PRIORITIES, TASK_TYPES, fieldApplies, isEmptyValue, personLabel, type Person, type TaskField, type TaskStatus, type TaskType } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
 import { QuickAddField } from "./fields-editor";
+import { Icon } from "@/components/ui/icon";
 
 const n = t.tasks.newTask;
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 // Plain text from the dialog → the editor's paragraphs.
 const toDescription = (text: string) =>
@@ -105,7 +106,7 @@ export function NewTaskDialog({
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold">{n.title}</h2>
           <button type="button" onClick={close} aria-label={n.close} className="h-9 w-9 rounded text-muted hover:bg-surface">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="space-y-3 overflow-y-auto px-4 py-3 text-sm">
@@ -129,7 +130,7 @@ export function NewTaskDialog({
               <select value={type} onChange={(e) => setType(e.target.value as TaskType)} className={inputClass}>
                 {TASK_TYPES.map((x) => (
                   <option key={x} value={x}>
-                    {TYPE_ICONS[x]} {t.tasks.types[x]}
+                    {t.tasks.types[x]}
                   </option>
                 ))}
               </select>
@@ -139,7 +140,7 @@ export function NewTaskDialog({
               <select value={priority} onChange={(e) => setPriority(e.target.value)} className={inputClass}>
                 {TASK_PRIORITIES.map((x) => (
                   <option key={x} value={x}>
-                    {PRIORITY_ICONS[x]} {t.tasks.priorities[x]}
+                    {t.tasks.priorities[x]}
                   </option>
                 ))}
               </select>

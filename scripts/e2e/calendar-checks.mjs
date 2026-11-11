@@ -14,6 +14,7 @@ export async function calendarChecks() {
   check("the start page has the calendar working", (await alice.locator('[data-service="calendar"]', { hasText: "Скоро" }).count()) === 0);
   await alice.goto(`${base}?view=list`);
   await alice.locator("[data-new-event]").click();
+  await alice.locator('[data-create-now="event"]').click();
   const form = alice.locator("[data-event-form]");
   await form.locator('[data-event-field="title"]').fill("Sprint review");
   await form.locator('[data-event-field="visibility"]').selectOption("request");
@@ -26,6 +27,7 @@ export async function calendarChecks() {
 
   // A link that isn't https never saves.
   await alice.locator("[data-new-event]").click();
+  await alice.locator('[data-create-now="event"]').click();
   await form.locator('[data-event-field="title"]').fill("Bad link");
   await form.locator('[data-event-field="link"]').fill("http://plain.example.test");
   check("a link without https can't be saved", await form.locator("[data-save-event]").isDisabled());
@@ -187,6 +189,7 @@ export async function repeatChecks() {
   // A weekly series, four times, from the form.
   await alice.goto(`${base}?view=list`);
   await alice.locator("[data-new-event]").click();
+  await alice.locator('[data-create-now="event"]').click();
   const form = alice.locator("[data-event-form]");
   await form.locator('[data-event-field="title"]').fill("Standup");
   await form.locator('[data-event-field="repeat"]').selectOption("weekly");
@@ -304,6 +307,7 @@ export async function linkChecks() {
   await aliceClient.rpc("set_workspace_group_member", { ws: alphaId, target_group: unit.id, member: colleagueId, included: true });
   await alice.goto(`${base}?view=list`);
   await alice.locator("[data-new-event]").click();
+  await alice.locator('[data-create-now="event"]').click();
   const form = alice.locator("[data-event-form]");
   await form.locator('[data-event-field="title"]').fill("Quarter plan");
   await form.locator('[data-event-field="visibility"]').selectOption("private");
@@ -456,7 +460,11 @@ export async function gridChecks() {
   // The "absence" mode in the month: a drag across three days asks for time off on them.
   await colleague.goto(`${base}?view=month&date=${day1}`);
   await colleague.locator("[data-month]").waitFor({ timeout: 15000 });
+  // What a drag on the grid makes is chosen in the "Create" menu.
+  await colleague.locator("[data-new-event]").click();
   await colleague.locator('[data-create-mode="absence"]').click();
+  await colleague.keyboard.press("Escape");
+  await colleague.locator("[data-create-menu]").waitFor({ state: "detached", timeout: 10000 });
   const from = await colleague.locator(`[data-month] [data-day="${day1}"]`).boundingBox();
   const to = await colleague.locator(`[data-month] [data-day="${day3}"]`).boundingBox();
   await colleague.mouse.move(from.x + from.width / 2, from.y + from.height - 6);
