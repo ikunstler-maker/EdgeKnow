@@ -10,6 +10,7 @@ import { useOptionalPages } from "@/components/pages/pages-provider";
 import { createSurvey, surveyView, surveysForEmbed, type SurveySummary, type SurveyView } from "@/app/survey-actions";
 import { SurveyForm } from "@/components/surveys/survey-form";
 import { SurveyResults } from "@/components/surveys/survey-results";
+import { Icon } from "@/components/ui/icon";
 
 const e = t.surveys.embed;
 // The page editor must not see the form's keys, clipboard or drops.
@@ -95,7 +96,7 @@ export function SurveyEmbed({
           <option value="">{e.choose}</option>
           {(list ?? []).map((item) => (
             <option key={item.id} value={item.id}>
-              📝 {item.title || t.surveys.untitled}
+              {item.title || t.surveys.untitled}
             </option>
           ))}
         </select>
@@ -105,7 +106,8 @@ export function SurveyEmbed({
               {e.form}
             </button>
             <button type="button" onClick={() => onPick(picked, "summary")} className="min-h-9 rounded-md border border-border px-3 hover:bg-surface">
-              📊 {e.summary}
+              <Icon name="chart" className="mr-1 inline" />
+              {e.summary}
             </button>
           </>
         )}
@@ -130,24 +132,26 @@ export function SurveyEmbed({
   } else if (view === undefined) {
     body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
-    body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
+    body = <p className="text-sm text-muted"><Icon name="lock" className="mr-1.5 inline" />{e.noAccess}</p>;
   } else {
     const survey = readSurvey(view.data);
     body = (
       <>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
-            📝 {view.title || t.surveys.untitled}
+            <Icon name="file-text" className="mr-1 inline" />
+            {view.title || t.surveys.untitled}
             {mode === "summary" && ` · ${e.summary}`}
           </span>
           <span className="flex-1" />
           {pageEditable && (
             <button type="button" onClick={() => onPick(view.id, mode === "form" ? "summary" : "form")} className="text-sm text-muted hover:text-foreground hover:underline">
-              {mode === "form" ? `📊 ${e.summary}` : e.form}
+              {mode === "form" ? e.summary : e.form}
             </button>
           )}
           <Link href={workspacePath(shortId, `/surveys/${view.id}`)} className="text-sm text-accent hover:underline">
-            {e.openEditor} ↗
+            {e.openEditor}
+            <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
           </Link>
         </div>
         {survey.description && mode === "form" && <p className="whitespace-pre-line text-sm text-muted">{survey.description}</p>}

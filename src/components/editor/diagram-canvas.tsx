@@ -53,6 +53,7 @@ import {
   MAX_NODES,
   SHAPES,
 } from "@/lib/diagram";
+import { Icon } from "@/components/ui/icon";
 
 const d = t.editor.diagram;
 const SAVE_DELAY_MS = 400;
@@ -344,14 +345,17 @@ function Canvas({ data, height, editable, onChange, onHeightChange, large }: Dia
         <div className="flex flex-wrap items-center gap-1.5 border-b border-border p-1.5" role="toolbar" aria-label={d.toolbar}>
           <div role="group" aria-label={d.tools} className="flex gap-0.5 rounded-md bg-surface p-0.5">
             <button type="button" aria-pressed={tool === "hand"} onClick={() => setTool("hand")} title={d.handHint} className={toolClass(tool === "hand")}>
-              ✋ {d.hand}
+              <Icon name="hand" className="mr-1 inline" />
+              {d.hand}
             </button>
             <button type="button" aria-pressed={tool === "select"} onClick={() => setTool("select")} title={d.selectHint} className={toolClass(tool === "select")}>
-              ⬚ {d.select}
+              <Icon name="square" className="mr-1 inline" />
+              {d.select}
             </button>
           </div>
           <button type="button" onClick={addNode} className={buttonClass}>
-            ＋ {d.addNode}
+            <Icon name="plus" className="mr-1 inline" />
+            {d.addNode}
           </button>
           <button type="button" onClick={duplicate} disabled={!selectedNodes.length} className={buttonClass}>
             {d.duplicate}
@@ -429,7 +433,7 @@ function Canvas({ data, height, editable, onChange, onHeightChange, large }: Dia
             −
           </button>
           <button type="button" onClick={() => flow.zoomIn()} aria-label={d.zoomIn} title={d.zoomIn} className={buttonClass}>
-            ＋
+            <Icon name="plus" />
           </button>
           <button type="button" onClick={() => flow.fitView({ padding: 0.2, maxZoom: 1 })} aria-label={d.fit} title={d.fit} className={buttonClass}>
             ⤢

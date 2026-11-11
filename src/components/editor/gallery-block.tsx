@@ -9,6 +9,7 @@ import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeEmbedUrl, youTubeThumbnailUrl, youTubeWatchUrl } from "@/lib/youtube";
 import { EditorPageContext } from "./navigation-block";
 import { fetchYouTubeInfo } from "./youtube-block";
+import { Icon } from "@/components/ui/icon";
 
 const g = t.editor.gallery;
 const MAX_ITEMS = 50;
@@ -166,7 +167,8 @@ function GalleryToolbar({ props, layout, size, items, onChange, save }: { props:
         </button>
         {items.length > 0 && (
           <button type="button" onClick={() => setEditing(!editing)} aria-expanded={editing} className={`${button} ml-auto`}>
-            ✎ {g.edit} ({items.length})
+            <Icon name="edit" className="mr-1 inline" />
+            {g.edit} ({items.length})
           </button>
         )}
         <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={(e) => (upload(e.target.files, "image"), (e.target.value = ""))} data-gallery-file="image" />
@@ -192,13 +194,13 @@ function GalleryToolbar({ props, layout, size, items, onChange, save }: { props:
                 className="min-h-9 min-w-0 flex-1 rounded border border-border bg-background px-2"
               />
               <button type="button" disabled={index === 0} onClick={() => move(index, -1)} aria-label={g.up} className="min-h-9 min-w-9 disabled:opacity-30">
-                ↑
+                <Icon name="arrow-up" />
               </button>
               <button type="button" disabled={index === items.length - 1} onClick={() => move(index, 1)} aria-label={g.down} className="min-h-9 min-w-9 disabled:opacity-30">
-                ↓
+                <Icon name="arrow-down" />
               </button>
               <button type="button" onClick={() => save(items.filter((x) => x.id !== item.id))} aria-label={g.remove} className="min-h-9 min-w-9 text-danger">
-                ✕
+                <Icon name="close" />
               </button>
             </li>
           ))}
@@ -219,12 +221,12 @@ function Thumb({ item, className = "" }: { item: Item; className?: string }) {
         <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
       ) : (
         <span aria-hidden className="text-2xl">
-          🎵
+          <Icon name="play" />
         </span>
       )}
       {item.kind === "youtube" && (
         <span aria-hidden className="absolute rounded-full bg-black/60 px-2 text-sm text-white">
-          ▶
+          <Icon name="play" />
         </span>
       )}
     </span>
@@ -238,7 +240,7 @@ function Viewer({ item, onOpen, tall = false }: { item: Item; onOpen: () => void
   if (item.kind === "audio") {
     return (
       <figure className="flex flex-col gap-2 rounded-lg bg-surface p-4" data-gallery-audio>
-        <figcaption className="font-medium">🎵 {label(item)}</figcaption>
+        <figcaption className="font-medium"><Icon name="play" className="mr-1 inline" />{label(item)}</figcaption>
         {/* Only our own audio files play; anything else shows just its name. */}
         {item.url.startsWith(ATTACHMENT_SCHEME) && <audio controls preload="metadata" src={source(item.url)} className="w-full" />}
       </figure>
@@ -308,10 +310,10 @@ function Carousel({ items, onOpen }: { items: Item[]; onOpen: (i: number) => voi
       {items.length > 1 && (
         <>
           <button type="button" onClick={() => go(-1)} aria-label={g.previous} className={`${arrow} left-2`}>
-            ‹
+            <Icon name="chevron-left" />
           </button>
           <button type="button" onClick={() => go(1)} aria-label={g.next} className={`${arrow} right-2`}>
-            ›
+            <Icon name="chevron-right" />
           </button>
           <p className="mt-1 text-center text-xs text-muted" aria-live="polite" data-gallery-position>
             {g.position(at + 1, items.length)}
@@ -329,7 +331,7 @@ function List({ items, thumbs, onOpen }: { items: Item[]; thumbs: boolean; onOpe
       {items.map((item, i) => (
         <li key={item.id} className="py-1">
           <button type="button" onClick={() => (item.kind === "image" ? onOpen(i) : setOpen(open === item.id ? null : item.id))} aria-expanded={item.kind === "image" ? undefined : open === item.id} className="flex min-h-11 w-full items-center gap-3 rounded-md px-1 text-left hover:bg-surface">
-            {thumbs ? <Thumb item={item} className="h-10 w-14 shrink-0" /> : <span aria-hidden>{item.kind === "image" ? "🖼" : item.kind === "youtube" ? "▶" : "🎵"}</span>}
+            {thumbs ? <Thumb item={item} className="h-10 w-14 shrink-0" /> : <Icon name={item.kind === "image" ? "image" : "play"} className="text-muted" />}
             <span className="min-w-0 flex-1 truncate">{label(item)}</span>
             <span className="text-xs text-muted">{g.kinds[item.kind]}</span>
           </button>
@@ -383,13 +385,13 @@ function Lightbox({ items, start, onClose }: { items: Item[]; start: number; onC
     <div role="dialog" aria-modal="true" aria-label={label(item)} className="fixed inset-0 z-[60] flex flex-col bg-black/90 p-4" onClick={onClose} data-gallery-lightbox>
       <div className="flex justify-end">
         <button type="button" onClick={onClose} aria-label={g.close} className={arrow}>
-          ✕
+          <Icon name="close" />
         </button>
       </div>
       <div className="flex min-h-0 flex-1 items-center gap-2" onClick={(e) => e.stopPropagation()}>
         {items.length > 1 && (
           <button type="button" onClick={() => go(-1)} aria-label={g.previous} className={arrow}>
-            ‹
+            <Icon name="chevron-left" />
           </button>
         )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center">
@@ -406,7 +408,7 @@ function Lightbox({ items, start, onClose }: { items: Item[]; start: number; onC
         </div>
         {items.length > 1 && (
           <button type="button" onClick={() => go(1)} aria-label={g.next} className={arrow}>
-            ›
+            <Icon name="chevron-right" />
           </button>
         )}
       </div>

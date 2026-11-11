@@ -10,6 +10,7 @@ import {
   youTubeWatchUrl,
 } from "@/lib/youtube";
 import type { YouTubeInfo } from "@/app/api/youtube/route";
+import { Icon } from "@/components/ui/icon";
 
 export async function fetchYouTubeInfo(url: string): Promise<YouTubeInfo> {
   try {
@@ -124,7 +125,7 @@ function YouTubeView({ props, editable, onEmbed }: YouTubeViewProps) {
           <span className="ek-youtube-playlist">{t.editor.youtube.playlist}</span>
         )}
         <span className="ek-youtube-play" aria-hidden="true">
-          ▶
+          <Icon name="play" />
         </span>
       </button>
       <div className="ek-youtube-meta">

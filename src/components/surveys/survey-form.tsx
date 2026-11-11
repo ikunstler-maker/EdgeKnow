@@ -17,6 +17,7 @@ import {
   type SurveyTransport,
 } from "@/lib/surveys";
 import { FILE_ACCEPT, MAX_FILE_BYTES, uploadSurveyFile } from "./survey-files";
+import { Icon } from "@/components/ui/icon";
 
 const f = t.surveys.form;
 const field = "min-h-11 w-full rounded-md border border-border bg-background px-3 text-base md:min-h-9 md:text-sm";
@@ -302,7 +303,7 @@ function QuestionInput({ question, value, onChange }: { question: Question; valu
               onClick={() => onChange(current === n && !question.required ? undefined : n)}
               className={`flex h-11 w-11 items-center justify-center rounded-md text-2xl md:h-9 md:w-9 ${n <= current ? "text-amber-500" : "text-muted opacity-40"}`}
             >
-              ★
+              <Icon name="star" />
             </button>
           ))}
         </div>
@@ -355,10 +356,10 @@ function FileInput({
         <ul className="flex flex-col gap-1 text-sm">
           {ids.map((fileId) => (
             <li key={fileId} className="flex items-center gap-2">
-              <span aria-hidden="true">📎</span>
+              <Icon name="paperclip" />
               <span className="min-w-0 flex-1 truncate">{names[fileId] ?? fileId}</span>
               <button type="button" onClick={() => onChange(ids.filter((x) => x !== fileId))} aria-label={f.removeFile} title={f.removeFile} className="min-h-9 rounded px-2 text-xs text-muted hover:bg-surface">
-                ✕
+                <Icon name="close" />
               </button>
             </li>
           ))}

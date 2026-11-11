@@ -10,6 +10,7 @@ import { pageExport } from "@/app/page-export-actions";
 import { Popover } from "@/components/ui/popover";
 import { ProBadge } from "@/components/ui/pro-badge";
 import { usePages } from "./pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const x = t.pageExport;
 const PRO_FORMATS = [x.json, x.csv, x.docx, x.html];
@@ -27,7 +28,7 @@ const EXTENSIONS: Record<string, string> = {
   "audio/wav": "wav",
 };
 
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 const itemClass = "flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm md:min-h-9";
 
 // A file name from the page title: letters of any language, digits, spaces and dashes.
@@ -139,15 +140,18 @@ export function PageExportButton({ pageId }: { pageId: string }) {
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={260}>
           <div role="menu" aria-label={x.menu}>
             <button type="button" role="menuitem" onClick={copyLink} className={`${itemClass} hover:bg-surface`} data-export-copy-link>
-              🔗 {x.copyLink}
+              <Icon name="link" className="mr-1 inline" />
+              {x.copyLink}
             </button>
             <p className="px-3 pb-1 text-xs text-muted">{x.linkHint}</p>
             <p className="mt-1 border-t border-border px-3 pb-1 pt-2 text-xs font-medium text-muted">{x.exportHeading}</p>
             <button type="button" role="menuitem" onClick={openPdf} disabled={busy} className={`${itemClass} hover:bg-surface disabled:opacity-60`} data-export-format="pdf">
-              📄 {x.pdf}
+              <Icon name="file-text" className="mr-1 inline" />
+              {x.pdf}
             </button>
             <button type="button" role="menuitem" onClick={exportMarkdown} disabled={busy} className={`${itemClass} hover:bg-surface disabled:opacity-60`} data-export-format="md">
-              📝 {x.markdown}
+              <Icon name="file-text" className="mr-1 inline" />
+              {x.markdown}
             </button>
             {PRO_FORMATS.map((format) => (
               <button key={format} type="button" role="menuitem" disabled aria-disabled="true" title={x.proHint} className={`${itemClass} cursor-not-allowed text-muted`} data-export-format={format.toLowerCase()}>

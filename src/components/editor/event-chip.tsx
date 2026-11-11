@@ -8,6 +8,7 @@ import { eventChips } from "@/app/calendar-actions";
 import type { EventChip } from "@/lib/calendar";
 import { workspacePath } from "@/lib/paths";
 import { useOptionalPages } from "@/components/pages/pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 // A calendar event as a chip in the text (Doba, phase 2b). Only the event's id is
 // stored; the title and time are read live with the reader's own access — who can't see
@@ -81,14 +82,15 @@ export function EventChipView({ eventId }: { eventId: string }) {
   if (event === undefined) {
     return (
       <span contentEditable={false} className={`${pill} ek-chip bg-surface text-muted`} data-event-chip="loading">
-        📅 …
+        <Icon name="calendar" size={12} className="inline" /> …
       </span>
     );
   }
   if (event === null || !workspace) {
     return (
       <span contentEditable={false} className={`${pill} ek-chip bg-surface text-muted`} title={w.noAccess} data-event-chip="hidden">
-        🔒 {w.noAccess}
+        <Icon name="lock" className="mr-1 inline" />
+        {w.noAccess}
       </span>
     );
   }
@@ -99,10 +101,10 @@ export function EventChipView({ eventId }: { eventId: string }) {
         className={`${pill} border border-border bg-background text-foreground hover:bg-surface ${event.cancelled ? "line-through opacity-60" : ""}`}
         title={`${event.title} · ${eventWhen(event)}`}
       >
-        <span aria-hidden="true">📅</span>
+        <Icon name="calendar" />
         <span className="truncate">{event.title}</span>
         <span className="shrink-0 text-muted">
-          {event.recurring ? "↻ " : ""}
+          {event.recurring && <Icon name="refresh" size={11} className="mr-0.5 inline" />}
           {eventWhen(event)}
         </span>
       </Link>

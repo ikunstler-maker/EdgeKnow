@@ -12,6 +12,7 @@ import {
 import { t } from "@/i18n";
 import { directImageUrl, isDriveImageUrl, isExternalImageUrl } from "@/lib/attachments";
 import { getImageQuality, IMAGE_QUALITIES, setImageQuality, type ImageQuality } from "@/lib/image-compression";
+import { Icon } from "@/components/ui/icon";
 
 // The image panel: upload (with the quality choice) or a link to an image elsewhere.
 export function ImageFilePanel(props: FilePanelProps) {
@@ -173,7 +174,7 @@ export function PreviewToggleButton() {
       className="bn-button"
       label={label}
       mainTooltip={label}
-      icon={<span aria-hidden="true">🖼</span>}
+      icon={<Icon name="image" />}
       isSelected={props.showPreview}
       onClick={() => editor.updateBlock(block, { props: { showPreview: !props.showPreview } as never })}
     />

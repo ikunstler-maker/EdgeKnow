@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { createSurvey, deleteSurveyForever, trashSurvey } from "@/app/survey-actions";
 
-const buttonClass = "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 export function NewSurveyButton({ shortId }: { shortId: string }) {
   const router = useRouter();

@@ -139,6 +139,17 @@ async function loadSource(workspaceId: string, pageId: string) {
   return { id: data.id as string, info, content };
 }
 
+// A page fed from outside often opens with a heading that repeats its name; the
+// name is already the page's title, so that first heading is not shown twice.
+function withoutTitleHeading(content: unknown, title: string): unknown {
+  if (!Array.isArray(content) || content.length === 0) return content;
+  const first = content[0] as { type?: string; content?: unknown } | null;
+  if (first?.type !== "heading" || !Array.isArray(first.content)) return content;
+  const text = first.content.map((part) => (part && typeof (part as { text?: unknown }).text === "string" ? (part as { text: string }).text : "")).join("");
+  const same = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  return same(text) !== "" && same(text) === same(title) ? content.slice(1) : content;
+}
+
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">): Promise<Metadata> {
   const { wid, id } = await params;
   const page = await loadPage(wid, id);
@@ -171,7 +182,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
   if (!page || page.workspace_id !== workspace.id) {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">{t.pages.notFoundTitle}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.pages.notFoundTitle}</h1>
         <p className="mt-3 text-muted">{t.pages.notFound}</p>
       </main>
     );
@@ -194,19 +205,20 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
 
   return (
     <div className="flex flex-1 flex-col">
+    {/* One bar for the page: where its text comes from on the left, its actions on the right. */}
+    {!page.deleted_at && (
+      <div className="sticky top-0 z-20 flex min-h-12 flex-wrap items-center justify-end gap-1.5 border-b border-border bg-background/90 px-3 py-1.5 backdrop-blur md:px-4" data-page-bar>
+        <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
+        {(ack?.canManage || (!ack && !page.is_draft && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
+        {canEdit(page.my_role) && !source && !isNew && <PageHistoryButton pageId={page.id} canRestore={editableMeta} />}
+        <PageExportButton pageId={page.id} />
+        <ShareButton pageId={page.id} />
+      </div>
+    )}
     <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editableMeta} />
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
       {isNew && <ClearNewFlag />}
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
-      {!page.deleted_at && (
-        <div className="mb-2 flex flex-wrap justify-end gap-2">
-          <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
-          {(ack?.canManage || (!ack && !page.is_draft && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
-          {canEdit(page.my_role) && !source && !isNew && <PageHistoryButton pageId={page.id} canRestore={editableMeta} />}
-          <PageExportButton pageId={page.id} />
-          <ShareButton pageId={page.id} />
-        </div>
-      )}
       <PageHeader
         key={page.id}
         id={page.id}
@@ -226,7 +238,7 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
         <PageBody
           key={`${page.id}-${source?.info.lang ?? ""}`}
           pageId={page.id}
-          initialContent={source?.content ?? page.content}
+          initialContent={source ? withoutTitleHeading(source.content ?? page.content, page.title) : page.content}
           initialVersion={page.version}
           editable={editable}
           canComment={canComment}

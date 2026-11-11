@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
 import { canEdit, childrenOf, rootsOf, subtreeIds, type PageNode } from "@/lib/pages";
+import { Icon } from "@/components/ui/icon";
 
 type Option = { page: PageNode; depth: number };
 
@@ -65,7 +66,8 @@ export function MoveDialog({
         <h2 className="border-b border-border px-4 py-3 font-semibold">{t.pages.move.title}</h2>
         <div className="flex-1 overflow-y-auto p-2">
           <button type="button" onClick={() => choose(null)} className={rowClass(current === null)}>
-            ⬆️ {t.pages.move.topLevel}
+            <Icon name="upload" className="mr-1 inline" />
+            {t.pages.move.topLevel}
           </button>
           {options.map(({ page, depth }) => (
             <button
@@ -75,7 +77,7 @@ export function MoveDialog({
               className={rowClass(current === page.id)}
               style={{ paddingLeft: 12 + depth * 16 }}
             >
-              <span>{page.icon ?? "📄"}</span>
+              {page.icon ? <span>{page.icon}</span> : <Icon name="file-text" className="text-muted" />}
               <span className="truncate">{page.title || t.pages.untitled}</span>
             </button>
           ))}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
+import { Icon } from "@/components/ui/icon";
 
 export type Heading = { id: string; level: number; text: string };
 
@@ -124,7 +125,7 @@ export function TableOfContents({
         </nav>
       )}
       {variant === "column" && (
-        <nav aria-label={t.toc.title} className="sticky top-12 hidden max-h-[calc(100dvh-6rem)] overflow-y-auto xl:block">
+        <nav aria-label={t.toc.title} className="sticky top-16 hidden max-h-[calc(100dvh-6rem)] overflow-y-auto border-l border-border pl-2 [scrollbar-width:none] xl:block [&::-webkit-scrollbar]:hidden">
           <p className="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-muted">{t.toc.title}</p>
           <HeadingList headings={headings} active={active} />
         </nav>
@@ -138,7 +139,8 @@ export function TableOfContents({
             asButton ? "" : "xl:hidden"
           }`}
         >
-          ☰ {t.toc.open}
+          <Icon name="list" className="mr-1 inline" />
+          {t.toc.open}
         </button>
       )}
 
@@ -160,7 +162,7 @@ export function TableOfContents({
                   aria-label={t.toc.close}
                   className="min-h-11 min-w-11"
                 >
-                  ✕
+                  <Icon name="close" />
                 </button>
               </div>
               <HeadingList headings={headings} active={active} onPick={() => setSheetOpen(false)} />

@@ -3,15 +3,16 @@
 import { defaultProps } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import { t } from "@/i18n";
+import { Icon, type IconName } from "@/components/ui/icon";
 
 export const CALLOUT_VARIANTS = ["info", "warning", "success", "error"] as const;
 type CalloutVariant = (typeof CALLOUT_VARIANTS)[number];
 
-const ICONS: Record<CalloutVariant, string> = {
-  info: "ℹ️",
-  warning: "⚠️",
-  success: "✅",
-  error: "⛔",
+const ICONS: Record<CalloutVariant, IconName> = {
+  info: "info",
+  warning: "alert",
+  success: "check-circle",
+  error: "close",
 };
 
 // A highlighted paragraph with an icon. Clicking the icon cycles through the four kinds.
@@ -39,7 +40,7 @@ export const calloutBlock = createReactBlockSpec(
             title={t.editor.callout.variants[variant]}
             onClick={() => editor.updateBlock(block, { props: { variant: next } })}
           >
-            {ICONS[variant]}
+            <Icon name={ICONS[variant]} size={18} />
           </button>
           <div className="ek-callout-text" ref={contentRef} />
         </div>

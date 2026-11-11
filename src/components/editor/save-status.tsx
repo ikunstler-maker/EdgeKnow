@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { dateLocale, t } from "@/i18n";
 import type { Conflict, SaveStatus } from "./use-autosave";
+import { Icon } from "@/components/ui/icon";
 
 const noop = () => () => {};
 
@@ -20,7 +21,7 @@ export function SaveIndicator({ status }: { status: SaveStatus }) {
   const warn = status === "offline" || status === "error" || status === "too_large";
   return (
     <span role="status" aria-live="polite" className={`text-xs ${warn ? "text-danger" : "text-muted"}`}>
-      {status === "saved" ? "✓ " : ""}
+      {status === "saved" && <Icon name="check" size={12} className="mr-1 inline" />}
       {text[status]}
     </span>
   );

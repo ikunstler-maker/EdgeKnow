@@ -16,6 +16,7 @@ import {
   type SharingPerson,
 } from "@/app/page-actions";
 import { errorMessage, useOptionalPages } from "./pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const GRANT_ROLES: GrantRole[] = ["editor", "commenter", "viewer"];
 
@@ -114,7 +115,7 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
         <div className="flex items-center border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold">{t.share.title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
 
@@ -308,7 +309,7 @@ function ShareDialog({ pageId, onClose }: { pageId: string; onClose: () => void 
                     {sharing.groups.map((group) => (
                       <li key={group.group_id} className="flex min-h-11 flex-wrap items-center gap-2">
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate">👥 {t.share.groupLabel(group.name, group.members)}</span>
+                          <span className="block truncate"><Icon name="users" className="mr-1.5 inline" />{t.share.groupLabel(group.name, group.members)}</span>
                           {group.inherited_from && (
                             <span className="block truncate text-xs text-muted">
                               {group.inherited_title !== null

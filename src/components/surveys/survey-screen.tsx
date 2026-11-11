@@ -12,9 +12,13 @@ import { SurveyBuilder } from "./survey-builder";
 import { SurveyForm } from "./survey-form";
 import { SurveyResults } from "./survey-results";
 import { SurveySettings } from "./survey-settings";
+import { Icon } from "@/components/ui/icon";
+import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
+import type { IconName } from "@/components/ui/icon";
 
 const s = t.surveys;
 type Tab = "build" | "fill" | "results" | "settings";
+const TAB_ICONS: Record<Tab, IconName> = { build: "edit", fill: "file-text", results: "chart", settings: "settings" };
 
 // One survey: its name and description, then tabs — the questions (editors), the
 // form to answer, the answers (those who manage it) and the settings (editors).
@@ -116,27 +120,26 @@ export function SurveyScreen({
   ];
 
   return (
-    <div className="mx-auto mt-2 flex w-full max-w-3xl flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              schedule({ title: e.target.value });
-            }}
-            placeholder={s.titlePlaceholder}
-            aria-label={s.titlePlaceholder}
-            maxLength={200}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none"
-          />
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">{title || s.untitled}</h1>
-        )}
-        <span className="text-xs text-muted" role="status" data-save-status={status}>
-          {status === "saving" ? s.saving : status === "saved" ? s.saved : ""}
-        </span>
-        {access && (
+    <StudioShell
+      service="surveys"
+      backHref={workspacePath(shortId, "/surveys")}
+      backLabel={s.back}
+      title={title}
+      onTitle={
+        canEdit
+          ? (value) => {
+              setTitle(value);
+              schedule({ title: value });
+            }
+          : undefined
+      }
+      titleLabel={s.titlePlaceholder}
+      untitled={s.untitled}
+      status={status}
+      savingLabel={s.saving}
+      savedLabel={s.saved}
+      access={
+        access && (
           <ObjectAccessButton
             label={s.access}
             title={s.accessTitle}
@@ -149,93 +152,89 @@ export function SurveyScreen({
               setGroupRole: (group, r) => setSurveyGroupRole(shortId, id, group, r),
             }}
           />
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={async () => {
-              await trashSurvey(shortId, id);
-              router.push(workspacePath(shortId, "/surveys"));
-            }}
-            className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
-          >
-            🗑️ {s.toBin}
-          </button>
-        )}
-      </div>
-      {canEdit ? (
-        <textarea
-          value={survey.description ?? ""}
-          maxLength={4000}
-          rows={2}
-          placeholder={s.descriptionPlaceholder}
-          aria-label={s.descriptionPlaceholder}
-          onChange={(e) => change({ ...survey, description: e.target.value || undefined })}
-          className="mt-1 w-full resize-y bg-transparent text-sm text-muted outline-none"
-        />
-      ) : (
-        survey.description && <p className="mt-1 whitespace-pre-line text-sm text-muted">{survey.description}</p>
-      )}
-
-      {status === "conflict" && (
-        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          {s.conflict}
-          <button type="button" onClick={() => window.location.reload()} className="min-h-9 rounded-md border border-border bg-background px-3">
-            {s.reload}
-          </button>
-        </p>
-      )}
-      {error && status === "error" && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
-
-      {tabs.length > 1 && (
-        <div role="tablist" className="mt-3 flex gap-1 overflow-x-auto border-b border-border">
-          {tabs.map((one) => (
-            <button
-              key={one.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === one.key}
-              onClick={() => {
-                setTab(one.key);
-                if (one.key !== "build") void refreshState();
-              }}
-              className={`-mb-px min-h-11 whitespace-nowrap border-b-2 px-3 text-sm md:min-h-9 ${tab === one.key ? "border-accent font-medium" : "border-transparent text-muted hover:text-foreground"}`}
-            >
-              {one.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-4" role="tabpanel">
-        {tab === "build" && canEdit && (
-          <>
-            <SurveyBuilder survey={survey} onChange={change} hasAnswers={(state.count ?? 0) > 0} />
-          </>
-        )}
-        {tab === "fill" && (
-          <>
-            {canEdit && <p className="mb-3 text-xs text-muted">{s.form.preview}</p>}
-            {/* Opens afresh when the survey starts or stops taking answers, or takes them differently. */}
-            <SurveyForm
-              key={`${state.closed}|${state.once}|${state.editable}|${state.anonymous}`}
-              shortId={shortId}
-              id={id}
-              survey={survey}
-              state={state}
-              onSent={() => {
-                void refreshState();
-              }}
+        )
+      }
+      more={
+        canEdit
+          ? [
+              {
+                label: s.toBin,
+                icon: "trash",
+                danger: true,
+                onSelect: async () => {
+                  await trashSurvey(shortId, id);
+                  router.push(workspacePath(shortId, "/surveys"));
+                },
+                attrs: { "data-to-bin": "" },
+              },
+            ]
+          : []
+      }
+      notices={<StudioNotices conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-3xl flex-col px-4 py-5">
+          {canEdit ? (
+            <textarea
+              value={survey.description ?? ""}
+              maxLength={4000}
+              rows={2}
+              placeholder={s.descriptionPlaceholder}
+              aria-label={s.descriptionPlaceholder}
+              onChange={(e) => change({ ...survey, description: e.target.value || undefined })}
+              className="w-full resize-y rounded-lg bg-transparent px-2 py-1 text-sm text-muted outline-none hover:bg-hover focus:bg-hover"
             />
-          </>
-        )}
-        {tab === "results" && state.manager && <SurveyResults shortId={shortId} id={id} survey={survey} canDelete />}
-        {tab === "settings" && canEdit && <SurveySettings shortId={shortId} id={id} title={title} state={state} onState={refreshState} />}
+          ) : (
+            survey.description && <p className="mt-1 whitespace-pre-line text-sm text-muted">{survey.description}</p>
+          )}
+          {tabs.length > 1 && (
+            <div role="tablist" className="mt-3 inline-flex max-w-full self-start overflow-x-auto rounded-lg border border-border bg-hover p-0.5">
+              {tabs.map((one) => (
+                <button
+                  key={one.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === one.key}
+                  onClick={() => {
+                    setTab(one.key);
+                    if (one.key !== "build") void refreshState();
+                  }}
+                  className={`inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[13px] font-medium md:h-7 md:min-h-0 ${tab === one.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+                >
+                  <Icon name={TAB_ICONS[one.key]} />
+                  {one.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4" role="tabpanel">
+            {tab === "build" && canEdit && (
+              <>
+                <SurveyBuilder survey={survey} onChange={change} hasAnswers={(state.count ?? 0) > 0} />
+              </>
+            )}
+            {tab === "fill" && (
+              <>
+                {canEdit && <p className="mb-3 text-xs text-muted">{s.form.preview}</p>}
+                {/* Opens afresh when the survey starts or stops taking answers, or takes them differently. */}
+                <SurveyForm
+                  key={`${state.closed}|${state.once}|${state.editable}|${state.anonymous}`}
+                  shortId={shortId}
+                  id={id}
+                  survey={survey}
+                  state={state}
+                  onSent={() => {
+                    void refreshState();
+                  }}
+                />
+              </>
+            )}
+            {tab === "results" && state.manager && <SurveyResults shortId={shortId} id={id} survey={survey} canDelete />}
+            {tab === "settings" && canEdit && <SurveySettings shortId={shortId} id={id} title={title} state={state} onState={refreshState} />}
+          </div>
+        </div>
       </div>
-    </div>
+    </StudioShell>
   );
 }

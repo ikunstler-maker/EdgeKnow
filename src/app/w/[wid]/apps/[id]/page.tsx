@@ -10,6 +10,7 @@ import type { Person } from "@/lib/tasks";
 import type { ObjectAccess } from "@/components/access/object-access";
 import { AppLogo } from "@/components/apps/app-logo";
 import { AppSettings } from "@/components/apps/app-settings";
+import { Icon } from "@/components/ui/icon";
 
 export const metadata: Metadata = { title: `${t.apps.title} · ${t.app.name}` };
 
@@ -64,14 +65,15 @@ export default async function AppPage({ params }: PageProps<"/w/[wid]/apps/[id]"
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
-      <Link href={workspacePath(workspace.shortId, "/apps")} className="text-sm text-muted hover:text-foreground hover:underline">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 md:py-8">
+      <Link href={workspacePath(workspace.shortId, "/apps")} className="inline-flex min-h-11 items-center gap-1 text-sm text-muted hover:text-foreground md:min-h-8">
+        <Icon name="arrow-left" />
         {s.back}
       </Link>
       <div className="mt-4 flex flex-wrap items-start gap-4">
         <AppLogo src={appLogoSrc(workspace.shortId, app)} name={name} size={72} />
         <div className="min-w-0 flex-1">
-          <h1 className="break-words text-2xl font-semibold">{name}</h1>
+          <h1 className="break-words text-xl font-semibold tracking-tight">{name}</h1>
           {app.category && <span className="mt-1 inline-block rounded-full bg-surface px-2 py-0.5 text-xs text-muted">{app.category}</span>}
           {app.description && <p className="mt-2 whitespace-pre-line text-muted">{app.description}</p>}
           <p className="mt-1 truncate text-xs text-muted">{app.url}</p>
@@ -82,7 +84,7 @@ export default async function AppPage({ params }: PageProps<"/w/[wid]/apps/[id]"
         target="_blank"
         rel="noopener noreferrer"
         title={s.openHint(name)}
-        className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-accent px-5 text-sm font-medium text-white md:min-h-9"
+        className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white hover:brightness-110 md:h-8 md:min-h-0"
         data-app-open
       >
         {s.open}

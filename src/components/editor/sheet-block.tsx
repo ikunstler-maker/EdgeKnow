@@ -9,6 +9,7 @@ import { workspacePath } from "@/lib/paths";
 import { readWorkbook, type SheetData } from "@/lib/sheets";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { createSheet, saveSheet, sheetView, sheetsForEmbed, type SheetSummary, type SheetView } from "@/app/sheet-actions";
+import { Icon } from "@/components/ui/icon";
 
 const SheetEditor = dynamic(() => import("@/components/sheets/sheet-editor"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>{t.sheets.embed.loading}</p> });
 const SheetChartView = dynamic(() => import("@/components/sheets/sheet-chart"), { ssr: false });
@@ -130,16 +131,16 @@ export function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId
           <option value="">{e.choose}</option>
           {(list ?? []).map((item) => (
             <option key={item.id} value={item.id}>
-              📊 {item.title || t.sheets.untitled}
+              {item.title || t.sheets.untitled}
             </option>
           ))}
         </select>
         {chosen && (
           <select defaultValue="" onChange={(event) => event.target.value && onPick(chosen.id, event.target.value)} aria-label={t.sheets.charts.heading} className="min-h-9 rounded-md border border-border bg-background px-2">
-            <option value="">📈 {t.sheets.charts.heading}…</option>
+            <option value="">{t.sheets.charts.heading}…</option>
             {chosen.charts.map((chart) => (
               <option key={chart.id} value={chart.id}>
-                📈 {e.chart(chart.title || t.sheets.charts.untitled)}
+                {e.chart(chart.title || t.sheets.charts.untitled)}
               </option>
             ))}
           </select>
@@ -170,7 +171,7 @@ export function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId
   } else if (view === undefined) {
     body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
-    body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
+    body = <p className="text-sm text-muted"><Icon name="lock" className="mr-1.5 inline" />{e.noAccess}</p>;
   } else {
     const workbook = readWorkbook(view.data, t.sheets.firstSheet);
     const chart = chartId ? workbook.charts?.find((one) => one.id === chartId) : undefined;
@@ -178,12 +179,14 @@ export function SheetEmbed({ sheetId, chartId, pageEditable, onPick }: { sheetId
       <>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
-            {chart ? "📈" : "📊"} {view.title || t.sheets.untitled}
+            <Icon name={chart ? "chart" : "table"} className="mr-1.5 inline text-muted" />
+          {view.title || t.sheets.untitled}
             {chart && ` · ${chart.title || t.sheets.charts.untitled}`}
           </span>
           <span className="flex-1" />
           <Link href={workspacePath(shortId, `/sheets/${view.id}`)} className="text-sm text-accent hover:underline">
-            {e.openEditor} ↗
+            {e.openEditor}
+            <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
           </Link>
         </div>
         {chartId ? (
