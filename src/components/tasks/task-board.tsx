@@ -636,7 +636,7 @@ function BoardColumn({
         <StatusDot category={status.category} />
         <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">{status.name}</h4>
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
-          {status.wip_limit !== null ? `${total}/${status.wip_limit}` : total}
+          {status.wip_limit !== null ? `${total}/${status.wip_limit}` : lane === "all" ? total : tasks.length}
         </span>
         <button type="button" onClick={onCollapse} aria-label={b.foldColumn(status.name)} title={b.foldColumn(status.name)} aria-expanded className="hidden h-8 w-8 items-center justify-center rounded text-muted hover:bg-hover md:flex" data-fold-column>
           <Icon name="chevron-left" size={14} />

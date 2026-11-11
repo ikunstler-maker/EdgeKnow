@@ -33,6 +33,18 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-d",
+    version: "0.29.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Rukh: дошка для великих проєктів", en: "Rukh: a board for large projects" },
+    items: [
+      { id: "board-lanes", type: "improved", scope: "tasks", title: { uk: "Групування за виконавцем: смуга на людину з аватаром і кількістю, смуги згортаються.", en: "Grouping by assignee: a lane per person with avatar and count; lanes fold." } },
+      { id: "board-order", type: "added", scope: "tasks", title: { uk: "Порядок карток (нові, старі, змінені, термін, пріоритет, найдовше чекають) і фільтр за часом.", en: "Card order (newest, oldest, changed, due, priority, waiting longest) and a time filter." } },
+      { id: "board-fold", type: "added", scope: "tasks", title: { uk: "Колонку можна згорнути; довга колонка показує 50 карток і «Показати ще».", en: "A column can be folded; a long column shows 50 cards and “Show more”." } },
+      { id: "dark-selects", type: "fixed", scope: "global", title: { uk: "Темна тема: спадні списки читаються; опис задачі без сірої плашки.", en: "Dark theme: dropdown lists are readable; a task's description has no grey plate." } },
+    ],
+  },
+  {
     id: "2026-11-11-c",
     version: "0.28.0",
     date: "2026-11-11",

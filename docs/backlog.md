@@ -25,7 +25,13 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - 3б (DB approved 2026-11-11, items 3–4): comments with dates and authors, status history, files, formatted descriptions; the access key encrypted, server only. Files go to the team's Google Drive, up to 250 MB per file and 10 GB per ZIP; whatever did not come over is listed and can be pulled later.
   - 3в one-way catch-up while the team moves (old tracker → us), search by the old link.
   - The tracker's name may show only in the wizard's source list; everywhere else "Import from another tracker".
-- Then: "My tasks" (today, overdue, next, waiting for my review), time spent, sprints and backlog, recurring tasks, bulk actions on the board.
+- **Before the move everything must exist in the service (owner, 2026-11-11); the real move comes later on a test account.** Order agreed, each package its own PR; DB changes of packages 2–4 approved in principle, the exact list is shown before each:
+  - Package 1 (no DB): assignee lanes that fold (as in the owner's tracker), card order and time filter, folding columns, long columns in pages of 50, all tasks loaded in pages (the owner's project has 6,500+ tasks); dark-theme dropdown and description fixes — in review.
+  - Package 2 (DB): status as a row of buttons on a computer (short name + colour per column, set by the project owner or a workspace admin; scrolls by wheel and drag); notifications set in the column itself (task came / left / changed while there → whom to tell); who may take a task out of a column and, separately, who may put one in (units per column; the project's owner and workspace admins always may; the database refuses).
+  - Package 3 (DB): people as slots (a tracker person with name and email, tied to a member at once or later, re-seatable; their tasks and comments follow) instead of names in text; the tracker's project roles → our project roles (private tasks for restricted issues); then 3б and 3в.
+  - Package 4 (DB): time spent next to the estimate, "My tasks", large files in ordinary attachments (250 MB, ZIP 10 GB, on Drive), recurring tasks; sprints last.
+- **Must come later (owner, 2026-11-11): access rights carried over one to one from the tracker's permission scheme,** so anyone can move from it comfortably — today only "who sees and edits the project, with which role" is planned.
+- Later still: bulk actions on the board; not shipping done tasks to the board at all (today all tasks load, 50 a column are drawn).
 - Small, later: vacation mark next to a person in the task (from Doba); "Done" strike-through is gone by design.
 
 ## Workspace settings (owner, 2026-11-11; decision 2026-11-11)
