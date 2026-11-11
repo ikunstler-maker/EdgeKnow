@@ -1,0 +1,25 @@
+owner sets 3: true
+kept: Work #22c55e 1
+bad colour: invalid
+long short name: invalid
+a unit of another workspace: invalid
+leave rule: true
+change rule: true
+a leave rule needs its column: invalid
+anna sets a column: forbidden
+anna 1 -> 3: true
+psql: ERROR:  column_take_forbidden
+psql: ERROR:  column_take_forbidden
+boris may: false take from 3, true put into 5
+psql: ERROR:  column_put_forbidden
+anna 3 -> 4: true
+boris told it left 3: 1
+psql: ERROR:  column_take_forbidden
+anna renames it in 4: true
+boris told it changed in 4: 1
+where it stands: Four
+owner 4 -> 5: true
+owner 5 -> 1: true
+psql: ERROR:  column_put_forbidden
+outsider sets a column: forbidden
+outsider reads moves: {}
