@@ -185,3 +185,7 @@ The team's shared calendar and time-off management in one place: events and meet
 - Outside busy time: one address per person; shown to its owner in the week only; a calendar that needs a sign-in can't be read (that is phase 3c); tests replace the network with files (`CALENDAR_FAKE_DIR`, never on the real site).
 - The feed is refreshed by the outside calendar itself (often every few hours); it covers a year ahead; its time-off entries carry the policy's name.
 - The landing still shows the calendar as "Soon" (its card promises sync, which is phase 3).
+
+## Screen header (updated 2026-11-11)
+- One row: the "Calendar / Time off" switch, the range "Month / Week / List", one "Create" button (an event or an absence; the same menu chooses what a drag on the grid makes), the calendar address, settings.
+- Second row: "Today", arrows, the period, "Availability" (in the week) and the tasks shown. Explanations live in "i" hints; no permanent paragraphs above the grid.

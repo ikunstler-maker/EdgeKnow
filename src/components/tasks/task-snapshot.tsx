@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { dateLocale, t } from "@/i18n";
 import { personLabel, type Person, type TaskField } from "@/lib/tasks";
 import type { TaskComment, TaskEvent } from "./task-detail";
+import { Icon } from "@/components/ui/icon";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 const k = t.tasks;
@@ -57,7 +58,7 @@ export function TaskSnapshot({
     if (field.kind === "select") return optionLabel(field, value);
     if (field.kind === "multiselect" && Array.isArray(value)) return value.map((v) => optionLabel(field, v)).join(", ");
     if (field.kind === "person") return who(String(value));
-    if (typeof value === "boolean") return value ? "✓" : "✗";
+    if (typeof value === "boolean") return value ? "✓" : "—";
     return String(value);
   };
   const rows: [string, string][] = [
@@ -101,7 +102,7 @@ export function TaskSnapshot({
           <h2 className="text-sm font-medium text-muted">{s.files}</h2>
           <ul className="mt-2 space-y-1 text-sm">
             {files.map((f) => (
-              <li key={f.id}>📎 {f.name}</li>
+              <li key={f.id}><Icon name="paperclip" className="mr-1.5 inline" />{f.name}</li>
             ))}
           </ul>
         </section>

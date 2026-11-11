@@ -10,8 +10,8 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Design system & UI overhaul (owner, 2026-11-11; decision 2026-11-11) — 6 PRs, in order
 - PR 1 Foundation: surface tokens, hairlines, radii, thin scrollbars; `Icon` set; `ServiceIcon` for 15 services + home; shared `Button`/`Dialog`/`Segmented`/`Hint`; four service categories; no comparisons with other products in UI strings — DONE (#144).
-- PR 2 Navigation: left panel (workspace & account menu, service switcher with Ctrl/Cmd+E, dock, collapse with Ctrl/Cmd+\, no task list), start page grouped by category, search, notifications, Apus 40×40 — in review.
-- PR 3 Rukh & Doba: project creation in a dialog, one header row + one filter row, new task cards; calendar header, time off.
+- PR 2 Navigation: left panel (workspace & account menu, service switcher with Ctrl/Cmd+E, dock, collapse with Ctrl/Cmd+\, no task list), start page grouped by category, search, notifications, Apus 40×40; service marks as block glyphs from the owner's file — DONE (#145).
+- PR 3 Rukh & Doba: project creation in a dialog, one header row + one filter row, new task cards; calendar header, time off — in review.
 - PR 4 Studio editors: full-viewport shell with a 48 px top bar for Sota, Kadry, Bordy, Nodo; Export / Import and More menus; file-format names instead of program names in the table strings.
 - PR 5 Wika, Questa, Obriy: page top bar, the title once, contents rail on the right; survey tabs and builder; app gallery.
 - PR 6 The rest: profile, settings, every dialog, trash, analytics, sign-in, `/about` (its emoji), `/changelog`, `/help`; final emoji sweep with an automatic check.

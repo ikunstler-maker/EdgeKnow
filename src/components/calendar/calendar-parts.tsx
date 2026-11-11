@@ -6,10 +6,11 @@ import { dropFeed, issueFeed, loadFeed, saveCalendarSettings } from "@/app/calen
 import { connectOutsideCalendar, disconnectOutsideCalendar, loadConnection, refreshOutsideCalendar } from "@/app/calendar-external-actions";
 import type { ConnectionState } from "@/lib/calendar-external";
 import { browserTimeZone, timeZones, type CalendarPerson, type CalendarSettings } from "@/lib/calendar";
+import { Icon } from "@/components/ui/icon";
 
 const c = t.calendar;
 export const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-export const buttonClass = "inline-flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+export const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 export const primaryClass = "inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60 md:min-h-9";
 
 // People as chips with a search box: for the invited and for "whose time to show".
@@ -56,7 +57,7 @@ export function PeoplePicker({
           <span key={id} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-border bg-surface pl-2 text-sm" data-picked={nameOf(id)}>
             {nameOf(id)}
             <button type="button" onClick={() => onChange(picked.filter((p) => p !== id))} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-background" aria-label={c.form.removePerson(nameOf(id))}>
-              ✕
+              <Icon name="close" />
             </button>
           </span>
         ))}

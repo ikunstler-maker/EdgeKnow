@@ -7,11 +7,12 @@ import { RULE_EVENTS, RULE_ROLES, type RuleEvent, type RuleRole, type TaskRule }
 import { personLabel, type Person, type StatusCategory, type TaskBoardInfo, type TaskStatus } from "@/lib/tasks";
 import { deleteTaskRule, loadTaskRules, saveTaskRule } from "@/app/notification-actions";
 import { usePages } from "@/components/pages/pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const r = t.notifications.rules;
 const k = t.tasks;
 const CATEGORIES: StatusCategory[] = ["todo", "doing", "review", "done"];
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
+const inputClass = "min-h-11 rounded-lg border border-border bg-background px-2 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
 
 // The project owner's rules: "when this happens to a task, tell these people".
 export function TaskRulesDialog({
@@ -119,9 +120,9 @@ export function TaskRulesDialog({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={r.title} onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-xl bg-background shadow-xl sm:rounded-xl" data-task-rules>
         <div className="flex items-center border-b border-border px-4 py-3">
-          <h2 className="flex-1 font-semibold">⚡ {r.title}</h2>
+          <h2 className="flex-1 font-semibold"><Icon name="bell" className="mr-1.5 inline" />{r.title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm">
@@ -141,7 +142,7 @@ export function TaskRulesDialog({
                     <b>{r.when}</b> {when} → <b>{r.notify}</b>: {who}
                   </span>
                   <button type="button" onClick={() => remove(rule.id)} aria-label={r.remove} title={r.remove} className="min-h-9 min-w-9 text-danger">
-                    🗑
+                    <Icon name="trash" />
                   </button>
                 </li>
               );

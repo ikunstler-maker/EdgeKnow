@@ -38,12 +38,17 @@ import { EventDialog, type DialogState } from "./event-dialog";
 import { DobaNav, MyAbsenceDialog, RequestDialog } from "./time-off-screen";
 import { useDayDrag } from "./use-day-drag";
 import { CalendarSettingsDialog, FeedDialog, PeoplePicker } from "./calendar-parts";
+import { Icon } from "@/components/ui/icon";
+import { Hint } from "@/components/ui/hint";
+import { MenuItem, Popover } from "@/components/ui/popover";
+import { buttonClass as uiButton, iconButtonClass } from "@/components/ui/button";
+import { ServiceIcon } from "@/components/services/service-icon";
 
 const c = t.calendar;
 const HOUR_PX = 48;
 // The part of a day column events take while colleagues' busy time is shown beside them.
 const EVENTS_SHARE = 66;
-const buttonClass = "inline-flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 // Which tasks to show is kept on this device (the server draws the default, "mine").
 const taskModeListeners = new Set<() => void>();
@@ -292,12 +297,13 @@ export function CalendarScreen({
     }
   };
   // The button: an event at the next full hour, or a request for today.
-  const openNew = () => {
+  const openNew = (mode: "event" | "absence" = createMode) => {
     if (guest) return;
-    if (createMode === "absence") return pick({ kind: "days", first: dayKey(new Date()), last: dayKey(new Date()) });
+    if (mode === "absence") return pick({ kind: "days", first: dayKey(new Date()), last: dayKey(new Date()) });
     const start = new Date(Math.ceil(Date.now() / 3_600_000) * 3_600_000);
     pick({ kind: "time", start, end: new Date(start.getTime() + 3_600_000) });
   };
+  const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null);
   const openMyAbsence = (id: string) => setMyAbsence(id);
   const myAbsence = myAbsenceId ? (myRequests.find((r) => r.id === myAbsenceId) ?? null) : null;
   const restore = async (id: string) => {
@@ -307,67 +313,14 @@ export function CalendarScreen({
 
   return (
     <main className="flex min-w-0 flex-1 flex-col px-3 py-4 md:px-6" data-calendar>
+      {/* One header row: the section, its two screens, the range, and one way to create. */}
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-2xl font-semibold">📅 {c.title}</h1>
+        <h1 className="mr-auto flex items-center gap-2 text-xl font-semibold tracking-tight">
+          <ServiceIcon serviceId="calendar" size={24} />
+          {c.title}
+        </h1>
         {!guest && <DobaNav shortId={shortId} current="events" />}
-        {!guest && (
-          <div className="flex rounded-md border border-border" role="group" aria-label={c.create.label} title={c.create.hint}>
-            {(["event", "absence"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={createMode === mode}
-                onClick={() => setCreateMode(mode)}
-                className={`min-h-11 px-3 text-sm first:rounded-l-md last:rounded-r-md md:min-h-9 ${createMode === mode ? "bg-surface font-medium" : "text-muted hover:bg-surface"}`}
-                data-create-mode={mode}
-              >
-                {c.create.modes[mode]}
-              </button>
-            ))}
-          </div>
-        )}
-        {!guest && (
-          <button type="button" onClick={openNew} className="inline-flex min-h-11 items-center rounded-md bg-accent px-4 text-sm font-medium text-white hover:opacity-90 md:min-h-9" data-new-event>
-            ＋ {createMode === "absence" ? c.create.modes.absence : c.newEvent}
-          </button>
-        )}
-        <button type="button" onClick={() => setShowFeed(true)} className={buttonClass} aria-label={c.feed.open} title={c.feed.open} data-open-feed>
-          🔗
-        </button>
-        {admin && (
-          <button type="button" onClick={() => setShowSettings(true)} className={buttonClass} aria-label={c.settings.title} title={c.settings.title}>
-            ⚙️
-          </button>
-        )}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setAnchor(today)} className={buttonClass}>
-          {c.today}
-        </button>
-        <button type="button" onClick={() => step(-1)} className={`${buttonClass} w-11 px-0 md:w-9`} aria-label={c.prev}>
-          ‹
-        </button>
-        <button type="button" onClick={() => step(1)} className={`${buttonClass} w-11 px-0 md:w-9`} aria-label={c.next}>
-          ›
-        </button>
-        <h2 className="min-w-0 flex-1 truncate text-base font-medium first-letter:uppercase" data-calendar-heading>
-          {heading}
-        </h2>
-        <label className="flex items-center gap-1 text-sm">
-          <span className="text-muted" aria-hidden="true">
-            ✅
-          </span>
-          <span className="sr-only">{c.tasks.label}</span>
-          <select value={taskMode} onChange={(e) => chooseTaskMode(e.target.value as TaskMode)} className="min-h-11 rounded-md border border-border bg-background px-2 text-sm md:min-h-9" data-task-mode>
-            {TASK_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {c.tasks.modes[mode]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="flex rounded-md border border-border" role="tablist" aria-label={c.viewLabel}>
+        <div className="inline-flex rounded-lg border border-border bg-hover p-0.5" role="tablist" aria-label={c.viewLabel}>
           {(["month", "week", "list"] as const).map((v) => (
             <button
               key={v}
@@ -375,22 +328,104 @@ export function CalendarScreen({
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={`min-h-11 px-3 text-sm first:rounded-l-md last:rounded-r-md md:min-h-9 ${view === v ? "bg-accent text-white" : "hover:bg-surface"}`}
+              className={`min-h-10 rounded-md px-3 text-[13px] font-medium md:h-7 md:min-h-0 ${view === v ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
               data-calendar-view={v}
             >
               {c.views[v]}
             </button>
           ))}
         </div>
+        {!guest && (
+          <button type="button" onClick={(e) => setCreateAnchor(createAnchor ? null : e.currentTarget)} aria-expanded={createAnchor !== null} className={uiButton("primary")} data-new-event>
+            <Icon name="plus" />
+            {c.create.button}
+            <Icon name="chevron-down" size={14} />
+          </button>
+        )}
+        <button type="button" onClick={() => setShowFeed(true)} className={iconButtonClass("ghost")} aria-label={c.feed.open} title={c.feed.open} data-open-feed>
+          <Icon name="link" size={18} />
+        </button>
+        {admin && (
+          <button type="button" onClick={() => setShowSettings(true)} className={iconButtonClass("ghost")} aria-label={c.settings.title} title={c.settings.title}>
+            <Icon name="settings" size={18} />
+          </button>
+        )}
       </div>
-
-      {!guest && view === "week" && (
-        <div className="mt-2">
-          <PeoplePicker label={c.availability} hint={c.availabilityHint} people={people.filter((p) => p.id !== me)} picked={watched} onChange={setWatched} max={10} />
-        </div>
+      {createAnchor && (
+        <Popover anchor={createAnchor} onClose={() => setCreateAnchor(null)} width={280}>
+          <div data-create-menu>
+            {(["event", "absence"] as const).map((mode) => (
+              <MenuItem
+                key={mode}
+                onSelect={() => {
+                  setCreateAnchor(null);
+                  setCreateMode(mode);
+                  openNew(mode);
+                }}
+              >
+                <span className="flex flex-1 items-center gap-2" data-create-now={mode}>
+                  <Icon name={mode === "event" ? "calendar" : "sun"} className="text-muted" />
+                  {c.create.modes[mode]}
+                </span>
+              </MenuItem>
+            ))}
+            <div className="mt-1 border-t border-border px-2.5 pb-1.5 pt-2">
+              <p className="flex items-center gap-1 text-xs text-muted">
+                {c.create.label}
+                <Hint label={c.create.label} text={createMode === "absence" ? c.create.absenceHint : c.create.eventHint} />
+              </p>
+              <div className="mt-1 inline-flex rounded-lg border border-border bg-hover p-0.5" role="group" aria-label={c.create.label}>
+                {(["event", "absence"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={createMode === mode}
+                    onClick={() => setCreateMode(mode)}
+                    className={`min-h-10 rounded-md px-3 text-[13px] font-medium md:h-7 md:min-h-0 ${createMode === mode ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+                    data-create-mode={mode}
+                  >
+                    {c.create.modes[mode]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Popover>
       )}
 
-      {!guest && view !== "list" && <p className="mt-2 hidden text-xs text-muted md:block">{createMode === "absence" ? c.create.absenceHint : c.create.eventHint}</p>}
+      {/* One compact bar: where we are in time, whose time is shown, and the tasks. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setAnchor(today)} className={uiButton("subtle")}>
+          {c.today}
+        </button>
+        <button type="button" onClick={() => step(-1)} className={iconButtonClass("ghost")} aria-label={c.prev}>
+          <Icon name="chevron-left" size={18} />
+        </button>
+        <button type="button" onClick={() => step(1)} className={iconButtonClass("ghost")} aria-label={c.next}>
+          <Icon name="chevron-right" size={18} />
+        </button>
+        <h2 className="min-w-0 truncate text-sm font-medium first-letter:uppercase" data-calendar-heading>
+          {heading}
+        </h2>
+        {!guest && view === "week" && (
+          <div className="flex min-w-0 items-center gap-1">
+            <PeoplePicker label={c.availability} people={people.filter((p) => p.id !== me)} picked={watched} onChange={setWatched} max={10} />
+            <Hint label={c.availability} text={c.availabilityHint} />
+          </div>
+        )}
+        <label className="ml-auto flex items-center gap-1.5 text-sm">
+          <Icon name="task" className="text-muted" />
+          <span className="sr-only">{c.tasks.label}</span>
+          <select value={taskMode} onChange={(e) => chooseTaskMode(e.target.value as TaskMode)} className="min-h-11 rounded-lg border border-border bg-background px-2 text-[13px] hover:border-border-strong md:h-8 md:min-h-0" data-task-mode>
+            {TASK_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {c.tasks.modes[mode]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {note && (
         <p className="mt-2 rounded-md border border-border bg-surface p-2 text-sm" role="status" data-calendar-note>
           {note}
@@ -524,7 +559,9 @@ function EventChip({ event, onOpen, withTime = true }: { event: CalendarEvent; o
     >
       {withTime && !event.all_day && <span className="mr-1 opacity-80">{timeOf(start)}</span>}
       {event.title}
-      {event.recurring && <span className="ml-1 opacity-70" aria-label={c.repeat.title} data-recurring>↻</span>}
+      {event.recurring && <span className="ml-1 opacity-70" aria-label={c.repeat.title} data-recurring>
+            <Icon name="refresh" size={11} className="inline" />
+          </span>}
     </button>
   );
 }
@@ -556,7 +593,7 @@ function WaitingChip({ request, name, onOpen }: { request: MyLeaveRequest; name:
       title={`${name} · ${t.timeOff.status.pending}`}
       data-my-request={request.status}
     >
-      <span aria-hidden="true">⏳</span> {name}
+      <Icon name="clock" size={12} className="inline" /> {name}
     </button>
   );
 }
@@ -576,13 +613,13 @@ function AbsenceChip({ absence, href, onOpen }: { absence: Absence; href: string
         data-absence={absence.person}
         data-my-absence-chip
       >
-        <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span> {absence.person}
+        <Icon name={absence.remote ? "home" : "sun"} size={12} className="inline" /> {absence.person}
       </button>
     );
   }
   return (
     <Link href={href} onClick={(e) => e.stopPropagation()} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={absenceTitle(absence)} data-absence={absence.person}>
-      <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span> {absence.person}
+      <Icon name={absence.remote ? "home" : "sun"} size={12} className="inline" /> {absence.person}
     </Link>
   );
 }
@@ -601,7 +638,7 @@ function TaskCard({ task, href }: { task: CalendarTask; href: string }) {
       title={`${task.key} ${task.title}`}
       data-calendar-task={task.key}
     >
-      <span aria-hidden="true">✅</span> <span className="text-muted">{task.key}</span> {task.title}
+      <Icon name="task" size={12} className="inline" /> <span className="text-muted">{task.key}</span> {task.title}
     </Link>
   );
 }
@@ -719,7 +756,7 @@ function MonthView({
               </button>
               {holiday && (
                 <p className="truncate px-1 text-[10px] leading-4 text-muted" title={holiday.name}>
-                  <span aria-hidden="true">🎉</span> <span className="hidden sm:inline">{holiday.name}</span>
+                  <Icon name="star" size={12} className="inline" /> <span className="hidden sm:inline">{holiday.name}</span>
                 </p>
               )}
               <div className="hidden space-y-0.5 sm:block">
@@ -729,7 +766,7 @@ function MonthView({
                 {off.length === 1 && off[0].user_id === me && <AbsenceChip absence={off[0]} href={timeOffHref} onOpen={onMyAbsence} />}
                 {off.length > 0 && !(off.length === 1 && off[0].user_id === me) && (
                   <Link href={timeOffHref} className="block truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted hover:text-foreground" title={off.map(absenceTitle).join("\n")} data-absences={off.length}>
-                    <span aria-hidden="true">🌴</span> {off.length === 1 ? off[0].person : c.offCount(off.length)}
+                    <Icon name="sun" size={12} className="inline" /> {off.length === 1 ? off[0].person : c.offCount(off.length)}
                   </Link>
                 )}
                 {dayEvents.slice(0, 3).map((event) => (
@@ -737,7 +774,7 @@ function MonthView({
                 ))}
                 {dueOn(tasks, day).length > 0 && (
                   <button type="button" onClick={() => onPickDay(day)} className="block w-full truncate rounded border border-border bg-background px-1 text-left text-xs leading-5 text-muted hover:text-foreground" data-month-tasks={dueOn(tasks, day).length}>
-                    <span aria-hidden="true">✅</span> {c.tasks.count(dueOn(tasks, day).length)}
+                    <Icon name="task" size={12} className="inline" /> {c.tasks.count(dueOn(tasks, day).length)}
                   </button>
                 )}
                 {dayEvents.length > 3 && (
@@ -855,7 +892,8 @@ function WeekView({
             {head.format(day)}
             {holidayOn(holidays, day) && (
               <span className="block truncate text-[10px] font-normal leading-3 text-muted" title={holidayOn(holidays, day)?.name} data-holiday={holidayOn(holidays, day)?.name}>
-                🎉 {holidayOn(holidays, day)?.name}
+                <Icon name="star" className="mr-1 inline" />
+                {holidayOn(holidays, day)?.name}
               </span>
             )}
           </div>
@@ -1019,7 +1057,9 @@ function WeekView({
                   >
                     <span className="block truncate font-medium">
                       {p.item.title}
-                      {p.item.recurring && <span className="ml-1 opacity-70" aria-label={c.repeat.title} data-recurring>↻</span>}
+                      {p.item.recurring && <span className="ml-1 opacity-70" aria-label={c.repeat.title} data-recurring>
+            <Icon name="refresh" size={11} className="inline" />
+          </span>}
                     </span>
                     {p.height >= 40 && <span className="block truncate opacity-80">{timeOf(new Date(p.item.starts_at))}</span>}
                   </button>
@@ -1082,7 +1122,7 @@ function ListView({
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate font-medium ${event.my_status === "declined" ? "text-muted line-through" : ""}`}>{event.title}</span>
                     <span className="block truncate text-xs text-muted">
-                      {[c.kinds[event.visibility], event.recurring ? `↻ ${c.repeat.title.toLowerCase()}` : null, event.location, event.my_status ? c.details.status[event.my_status] : null].filter(Boolean).join(" · ")}
+                      {[c.kinds[event.visibility], event.recurring ? c.repeat.title.toLowerCase() : null, event.location, event.my_status ? c.details.status[event.my_status] : null].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                   {event.requests > 0 && <span className="rounded-full bg-accent px-2 text-xs text-white">{c.details.requestsCount(event.requests)}</span>}
@@ -1117,7 +1157,7 @@ function ListView({
             {absences.slice(0, 30).map((absence) => (
               <li key={absence.id}>
                 <Link href={timeOffHref} className="flex min-h-11 items-center gap-2 rounded-md border border-border px-2 text-sm hover:bg-surface" title={absenceTitle(absence)}>
-                  <span aria-hidden="true">{absence.remote ? "🏠" : "🌴"}</span>
+                  <Icon name={absence.remote ? "home" : "sun"} size={12} className="inline" />
                   <span className="min-w-0 flex-1 truncate">{absence.person}</span>
                   <span className="shrink-0 text-xs text-muted">
                     {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(fromDayKey(absence.start_date))}

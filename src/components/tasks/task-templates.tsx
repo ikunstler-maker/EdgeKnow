@@ -6,11 +6,12 @@ import { t } from "@/i18n";
 import { defaultTemplate, type TaskTemplate, type TemplateData } from "@/lib/task-templates";
 import { deleteTaskTemplate, loadTaskTemplates, saveTaskTemplate } from "@/app/task-actions";
 import { Popover } from "@/components/ui/popover";
+import { Icon } from "@/components/ui/icon";
 
 const m = t.tasks.templates;
 const k = t.tasks;
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-const buttonClass = "inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9";
+const inputClass = "min-h-11 rounded-lg border border-border bg-background px-2 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 // The templates one sees in a project (its own and the project's), and the one picked
 // for new tasks: the default until the person picks another.
@@ -50,7 +51,7 @@ export function TemplatePicker({ templates, chosen, onPick }: { templates: TaskT
         className="flex min-h-11 max-w-44 shrink-0 items-center gap-1 rounded-md border border-border px-2 text-sm hover:bg-surface md:min-h-9"
         data-template-picker
       >
-        <span aria-hidden>📋</span>
+        <Icon name="template" className="text-muted" />
         <span className="truncate">{chosen ? chosen.name : m.pick}</span>
       </button>
       {anchor && (
@@ -112,9 +113,9 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-xl bg-background shadow-xl sm:rounded-xl">
         <div className="flex items-center border-b border-border px-4 py-3">
-          <h2 className="flex-1 font-semibold">📋 {title}</h2>
+          <h2 className="flex-1 font-semibold"><Icon name="template" className="mr-1.5 inline" />{title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm">{children}</div>
@@ -184,7 +185,8 @@ export function TemplatesButton({ projectId, isOwner }: { projectId: string; isO
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={buttonClass} data-open-templates>
-        📋 {m.button}
+        <Icon name="template" className="mr-1 inline" />
+        {m.button}
       </button>
       {open && <TemplatesDialog projectId={projectId} isOwner={isOwner} onClose={() => setOpen(false)} />}
     </>
@@ -232,7 +234,7 @@ function TemplatesDialog({ projectId, isOwner, onClose }: { projectId: string; i
                   title={m.remove}
                   className="min-h-9 min-w-9 text-danger"
                 >
-                  🗑
+                  <Icon name="trash" />
                 </button>
               </>
             )}

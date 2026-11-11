@@ -5,12 +5,14 @@ import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, u
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
-import { FIELD_KINDS, TASK_TYPES, TYPE_ICONS, type FieldKind, type FieldOption, type TaskField, type TaskType } from "@/lib/tasks";
+import { FIELD_KINDS, TASK_TYPES, type FieldKind, type FieldOption, type TaskField, type TaskType } from "@/lib/tasks";
 import { deleteTaskField, saveTaskField } from "@/app/task-actions";
+import { Icon } from "@/components/ui/icon";
+import { TypeIcon } from "./task-icons";
 
 const f = t.tasks.customFields;
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const inputClass = "min-h-11 rounded-lg border border-border bg-background px-2 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 const LISTS: FieldKind[] = ["select", "multiselect"];
 const PALETTE = ["#94a3b8", "#f87171", "#fb923c", "#facc15", "#4ade80", "#2dd4bf", "#60a5fa", "#a78bfa", "#f472b6"];
 
@@ -107,10 +109,10 @@ export function FieldsEditor({ projectId, fields: saved }: { projectId: string; 
                 <span className="font-medium">{field.name}</span> <span className="text-muted">· {f.kinds[field.kind]}</span>
                 {field.required && <span className="text-muted"> · {f.required}</span>}
                 <span className="block text-xs text-muted">
-                  {field.task_types?.length ? field.task_types.map((type) => `${TYPE_ICONS[type]} ${t.tasks.types[type]}`).join(", ") : f.allTypes}
+                  {field.task_types?.length ? field.task_types.map((type) => t.tasks.types[type]).join(", ") : f.allTypes}
                   {LISTS.includes(field.kind) && ` · ${field.options.map((o) => o.label).join(", ")}`}
                 </span>
-                {field.hint && <span className="block text-xs text-muted">💬 {field.hint}</span>}
+                {field.hint && <span className="block text-xs text-muted"><Icon name="info" className="mr-1.5 inline" />{field.hint}</span>}
               </span>
               <button type="button" className={buttonClass} disabled={pending} onClick={() => setDraft(toDraft(field))}>
                 {f.edit}
@@ -139,7 +141,8 @@ export function FieldsEditor({ projectId, fields: saved }: { projectId: string; 
             className={buttonClass}
             onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "" })}
           >
-            ＋ {f.add}
+            <Icon name="plus" className="mr-1 inline" />
+            {f.add}
           </button>
         )
       )}
@@ -163,7 +166,7 @@ function SortableField({ id, name, disabled, children }: { id: string; name: str
       data-custom-field={name}
     >
       <button type="button" {...drag.listeners} {...drag.attributes} aria-label={f.dragHandle(name)} disabled={disabled} className="h-9 w-7 cursor-grab touch-none rounded text-muted hover:bg-surface disabled:cursor-default disabled:opacity-40" data-field-handle>
-        ⠿
+        <Icon name="drag" />
       </button>
       {children}
     </li>
@@ -185,7 +188,9 @@ export function QuickAddField({ projectId, nested = false }: { projectId: string
         onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "" })}
         data-quick-add-field
       >
-        ＋ {f.quickAdd}
+        <Icon name="plus" className="mr-1 inline" />
+        <Icon name="plus" className="mr-1 inline" />
+        {f.quickAdd}
       </button>
     );
   return (
@@ -295,10 +300,10 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
                 [next[i - 1], next[i]] = [next[i], next[i - 1]];
                 set({ options: next });
               }} className={buttonClass}>
-                ↑
+                <Icon name="arrow-up" />
               </button>
               <button type="button" aria-label={f.removeOption} onClick={() => set({ options: draft.options.filter((o) => o.id !== option.id) })} className={buttonClass}>
-                ✕
+                <Icon name="close" />
               </button>
             </div>
           ))}
@@ -307,7 +312,8 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
             className={buttonClass}
             onClick={() => set({ options: [...draft.options, { id: newOptionId(), label: "", color: PALETTE[draft.options.length % PALETTE.length] }] })}
           >
-            ＋ {f.addOption}
+            <Icon name="plus" className="mr-1 inline" />
+            {f.addOption}
           </button>
         </fieldset>
       )}
@@ -323,7 +329,8 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
                 onChange={(e) => set({ types: e.target.checked ? [...draft.types, type] : draft.types.filter((x) => x !== type) })}
                 className="h-5 w-5"
               />
-              {TYPE_ICONS[type]} {t.tasks.types[type]}
+              <TypeIcon type={type} className="mr-1 inline" />
+              {t.tasks.types[type]}
             </label>
           ))}
         </div>

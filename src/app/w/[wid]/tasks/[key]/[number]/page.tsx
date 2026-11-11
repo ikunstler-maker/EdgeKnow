@@ -10,6 +10,7 @@ import type { TaskFileView } from "@/components/tasks/task-files";
 import { getCurrentUser } from "@/lib/auth";
 import { TaskDetail, type TaskComment, type TaskEvent } from "@/components/tasks/task-detail";
 import { TaskSnapshot, type TaskSnapshotData } from "@/components/tasks/task-snapshot";
+import { Icon } from "@/components/ui/icon";
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[key]/[number]">): Promise<Metadata> {
   const { key, number } = await params;
@@ -53,6 +54,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
     return (
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         <Link href={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)} className="text-sm text-muted hover:text-foreground hover:underline">
+          <Icon name="arrow-left" className="mr-1 inline" />
           {t.tasks.backToProject(view.project.name)}
         </Link>
         <TaskSnapshot
@@ -93,6 +95,7 @@ export default async function TaskPage({ params }: PageProps<"/w/[wid]/tasks/[ke
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
       <Link href={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)} className="text-sm text-muted hover:text-foreground hover:underline">
+        <Icon name="arrow-left" className="mr-1 inline" />
         {t.tasks.backToProject(view.project.name)}
       </Link>
       <TaskDetail

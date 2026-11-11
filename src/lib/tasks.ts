@@ -9,8 +9,6 @@ export type ProjectRole = "owner" | "editor" | "commenter" | "viewer";
 
 export const TASK_TYPES: TaskType[] = ["task", "bug", "idea", "epic"];
 export const TASK_PRIORITIES: TaskPriority[] = ["highest", "high", "medium", "low", "lowest"];
-export const TYPE_ICONS: Record<TaskType, string> = { task: "✅", bug: "🐞", idea: "💡", epic: "⚡" };
-export const PRIORITY_ICONS: Record<TaskPriority, string> = { highest: "⏫", high: "🔼", medium: "▪️", low: "🔽", lowest: "⏬" };
 
 export type ProjectSummary = { id: string; key: string; name: string; icon: string | null };
 // For the sidebar: a project's extra boards, and the objects of the other services.

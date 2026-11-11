@@ -5,11 +5,12 @@ import Link from "next/link";
 import { createReactBlockSpec, createReactInlineContentSpec } from "@blocknote/react";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
-import { TYPE_ICONS, type StatusCategory, type TaskStatus } from "@/lib/tasks";
+import { type StatusCategory, type TaskStatus } from "@/lib/tasks";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
 import { projectStatuses, projectsForEmbed, setTaskStatusFromPage, taskEmbed, type ChipProject, type TaskEmbed } from "@/app/task-wiki-actions";
 import { refreshTaskChips, useTaskChip } from "./task-chip-store";
+import { TypeIcon } from "@/components/tasks/task-icons";
 
 const w = t.tasks.wiki;
 const pillClass =
@@ -73,7 +74,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
         aria-haspopup="menu"
         title={`${task.key} ${task.title}`}
       >
-        <span aria-hidden="true">{TYPE_ICONS[task.type]}</span>
+        <TypeIcon type={task.type} />
         <span className="font-mono text-[0.9em] text-muted">{task.key}</span>
         <span className={`truncate ${task.category === "done" ? "line-through" : ""}`}>{task.title}</span>
         <span className={`rounded-full px-1.5 text-[0.85em] ${CATEGORY_CLASS[task.category]}`} data-task-chip-status>
@@ -310,7 +311,8 @@ export function TasksEmbedView({
                   )}
                   <span className="font-mono text-xs text-muted">{key(task.number)}</span>
                   <Link prefetch={false} href={taskHref(shortId, key(task.number))} className={`min-w-0 flex-1 truncate hover:underline ${done ? "text-muted line-through" : ""}`}>
-                    {TYPE_ICONS[task.type]} {task.title}
+                    <TypeIcon type={task.type} className="mr-1 inline" />
+                    {task.title}
                   </Link>
                   {statusSelect(task)}
                 </li>

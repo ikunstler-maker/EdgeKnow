@@ -47,6 +47,7 @@ import {
   type SeriesScope,
 } from "@/lib/calendar";
 import { PeoplePicker, buttonClass, inputClass, primaryClass } from "./calendar-parts";
+import { Icon } from "@/components/ui/icon";
 
 const c = t.calendar;
 
@@ -280,7 +281,7 @@ function EventView({
           {event.title}
         </h2>
         <button type="button" onClick={onClose} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-surface md:h-9 md:w-9" aria-label={c.form.close}>
-          ✕
+          <Icon name="close" />
         </button>
       </div>
       <p className="mt-1 flex flex-wrap items-center gap-2 text-sm">
@@ -291,20 +292,26 @@ function EventView({
         {series?.changed && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">{c.repeat.dayChanged}</span>}
       </p>
       <p className="mt-3 first-letter:uppercase" data-event-when>
-        🕑 {whenText(event)}
+        <Icon name="clock" className="mr-1 inline" />
+        {whenText(event)}
       </p>
       {otherZone && <p className="text-xs text-muted">{d.zoneNote(toZonedInput(event.starts_at, event.time_zone).slice(11), event.time_zone)}</p>}
       {series && (
         <p className="mt-1 text-sm text-muted" data-event-repeat>
-          ↻ {repeatText(series)}
+          <Icon name="refresh" className="mr-1 inline" />
+          {repeatText(series)}
         </p>
       )}
-      {event.reminder_minutes ? <p className="mt-1 text-sm text-muted">🔔 {c.reminder.options[String(event.reminder_minutes)]}</p> : null}
-      {event.location && <p className="mt-2 break-words">📍 {event.location}</p>}
+      {event.reminder_minutes ? <p className="mt-1 text-sm text-muted"><Icon name="bell" className="mr-1.5 inline" />{c.reminder.options[String(event.reminder_minutes)]}</p> : null}
+      {event.location && <p className="mt-2 break-words">
+              <Icon name="pin" className="mr-1 inline text-muted" />
+              {event.location}
+            </p>}
       {event.meeting_url && (
         <p className="mt-2">
           <a href={event.meeting_url} target="_blank" rel="noopener noreferrer" className={primaryClass}>
-            🎥 {d.joinMeeting}
+            <Icon name="play" className="mr-1 inline" />
+            {d.joinMeeting}
           </a>
         </p>
       )}
@@ -843,7 +850,7 @@ function EventForm({
                   <span key={unit} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-border bg-surface pl-2 text-sm" data-picked-unit>
                     {units.find((u) => u.id === unit)?.name}
                     <button type="button" onClick={() => setAddUnits(addUnits.filter((u) => u !== unit))} className="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-background" aria-label={f.removePerson(units.find((u) => u.id === unit)?.name ?? "")}>
-                      ✕
+                      <Icon name="close" />
                     </button>
                   </span>
                 ))}

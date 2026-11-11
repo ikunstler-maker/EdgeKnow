@@ -20,7 +20,9 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 ### Board and list
 - Columns are statuses. Column types: "To do", "In progress", "In review", "Done".
 - Drag between and inside columns; on a phone — long press. Columns themselves can be dragged.
-- Column limits, priority right on the card, choice of fields shown on the card.
+- Column limits, choice of fields shown on the card.
+- **Task card** (updated 2026-11-11): the key and a priority mark on top, then the title, and at the bottom compact marks of the chosen fields (type, dates, estimate, labels, own fields) with the assignee's avatar. A field with no value takes no room. Priority and assignee change right on the card: a click on the mark or the avatar opens a short list.
+- **Project screen:** one header row (the project, "Board / List", and on the right "Task fields", "Templates", "Access and settings") and one filter row (search, people, quick filters, grouping, card fields, notification rules, board settings, "New task"). A new project is created in a dialog from the "New project" button. The left panel lists projects and boards, no tasks.
 - "List" view, filters.
 - **Time in columns:** how long a task spent in each column (computed from history).
 
