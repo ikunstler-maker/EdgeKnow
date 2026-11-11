@@ -112,6 +112,19 @@ body {
 
 /* ---------- Editor (BlockNote) ---------- */
 
+/* A task's description sits on the card itself: no grey plate of its own. */
+[data-task-description] .bn-editor {
+  background: transparent;
+}
+
+/* The list a <select> opens is drawn by the system: give it the theme's own colours,
+   or a see-through control shows light letters on a light list in the dark theme. */
+select option,
+select optgroup {
+  background-color: var(--overlay);
+  color: var(--foreground);
+}
+
 .ek-editor .bn-editor {
   /* The page already has side margins; the editor shouldn't add its own. */
   padding-inline: 0;
