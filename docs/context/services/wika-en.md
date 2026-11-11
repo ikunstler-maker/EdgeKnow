@@ -117,3 +117,6 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 ## 8. Known gaps and open questions
 
 - Export formats and the Free/PRO line depend on pricing implementation.
+
+## Screen (updated 2026-11-11)
+- A page has one sticky bar on top: on the left where its text comes from (when the page is fed from an address), on the right "Confirmations", "History", "Export", "Share". On a page fed from outside, a first heading that repeats the page's name is not shown twice. The contents on the right are a thin sticky rail without the system scrollbar. Icons in the editor, callouts, chips and blocks are drawn; an emoji stays only as a page icon a person picked.

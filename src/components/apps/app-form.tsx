@@ -12,7 +12,7 @@ import { AppLogo } from "./app-logo";
 const f = t.apps.form;
 const errorText = (code: string) => t.apps.errors[code] ?? t.common.unknownError;
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-3 text-base md:min-h-9 md:text-sm";
-const buttonClass = "inline-flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 const primaryClass = "inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9";
 
 // Sends a logo picture to the app (owners and admins; checked again on the server).

@@ -20,6 +20,7 @@ import type { MentionPerson } from "@/lib/comments";
 import { pagePath } from "@/lib/paths";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
+import { Icon } from "@/components/ui/icon";
 
 const ch = t.editor.chips;
 const COLOR_NAMES = Object.keys(CHIP_COLORS) as ChipColor[];
@@ -101,7 +102,7 @@ function DropdownChipView({
         style={{ background: colors.bg, color: colors.fg }}
       >
         <span className="truncate">{label}</span>
-        {editable && <span aria-hidden="true">▾</span>}
+        {editable && <Icon name="chevron-down" />}
       </button>
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={editing ? 300 : 220}>
@@ -138,7 +139,7 @@ function DropdownChipView({
                   <span className={pillClass} style={{ background: CHIP_COLORS[o.color].bg, color: CHIP_COLORS[o.color].fg }}>
                     {o.label || ch.untitledOption}
                   </span>
-                  {o.id === value && <span className="ml-auto text-accent">✓</span>}
+                  {o.id === value && <Icon name="check" size={14} className="ml-auto text-accent" />}
                 </button>
               ))}
               <div className="my-1 border-t border-border" />
@@ -147,7 +148,8 @@ function DropdownChipView({
                 onClick={() => setEditing(true)}
                 className="flex min-h-11 w-full items-center rounded-md px-3 text-left text-sm hover:bg-surface md:min-h-9"
               >
-                ⚙️ {ch.configure}
+                <Icon name="settings" className="mr-1 inline" />
+                {ch.configure}
               </button>
             </div>
           )}
@@ -238,7 +240,7 @@ function ChipOptionsEditor({
               onClick={() => setDraft(draft.filter((_, j) => j !== i))}
               className="h-9 w-8 shrink-0 rounded-md text-muted hover:bg-surface disabled:opacity-40"
             >
-              ✕
+              <Icon name="close" />
             </button>
           </li>
         ))}
@@ -249,7 +251,8 @@ function ChipOptionsEditor({
         onClick={() => setDraft([...draft, { id: newOptionId(), label: "", color: COLOR_NAMES[draft.length % COLOR_NAMES.length] }])}
         className="min-h-9 w-full rounded-md border border-dashed border-border text-sm text-muted hover:bg-surface disabled:opacity-50"
       >
-        ＋ {ch.addOption}
+        <Icon name="plus" className="mr-1 inline" />
+        {ch.addOption}
       </button>
       <div className="flex justify-end gap-2 pt-1">
         <button type="button" onClick={onCancel} className="min-h-9 rounded-md border border-border px-3 text-sm hover:bg-surface">
@@ -289,7 +292,8 @@ function PageChipView({ pageId }: { pageId: string }) {
   if (!pages || !page) {
     return (
       <span contentEditable={false} className={`${pillClass} ek-chip bg-surface text-muted`} title={ch.noAccess}>
-        🔒 {ch.noAccess}
+        <Icon name="lock" className="mr-1 inline" />
+        {ch.noAccess}
       </span>
     );
   }
@@ -299,7 +303,7 @@ function PageChipView({ pageId }: { pageId: string }) {
       contentEditable={false}
       className={`${pillClass} ek-chip ek-chip-link border border-border bg-background text-foreground hover:bg-surface`}
     >
-      <span aria-hidden="true">{page.icon ?? "📄"}</span>
+      {page.icon ? <span aria-hidden="true">{page.icon}</span> : <Icon name="file-text" className="text-muted" />}
       <span className="truncate">{page.title || t.pages.untitled}</span>
     </Link>
   );
@@ -325,7 +329,7 @@ function PersonChipView({ userId, label }: { userId: string; label: string }) {
   const name = people.find((p) => p.userId === userId)?.label ?? label;
   return (
     <span contentEditable={false} className={`${pillClass} ek-chip bg-accent/10 text-accent`} title={name}>
-      <span aria-hidden="true">👤</span>
+      <Icon name="user" />
       <span className="truncate">{name || ch.someone}</span>
     </span>
   );

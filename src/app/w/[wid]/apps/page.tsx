@@ -7,6 +7,10 @@ import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { AppTile } from "@/components/apps/app-tile";
 import { AppBinActions, NewAppButton } from "@/components/apps/app-form";
+import { Icon } from "@/components/ui/icon";
+import { buttonClass } from "@/components/ui/button";
+import { Hint } from "@/components/ui/hint";
+import { ServiceIcon } from "@/components/services/service-icon";
 
 export const metadata: Metadata = { title: `${t.apps.title} · ${t.app.name}` };
 
@@ -37,20 +41,26 @@ export default async function AppsPage({ params, searchParams }: PageProps<"/w/[
   const withCategory = (c: string) => (c ? `${base}?c=${encodeURIComponent(c)}` : base);
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex-1 text-2xl font-semibold">🧩 {bin ? `${s.title} · ${s.bin}` : s.title}</h1>
+    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 md:py-8">
+      <header className="flex flex-wrap items-center gap-2">
+        <h1 className="flex min-w-0 flex-1 items-center gap-2 text-xl font-semibold tracking-tight">
+          <ServiceIcon serviceId="apps" size={28} />
+          <span className="truncate">{bin ? `${s.title} · ${s.bin}` : s.title}</span>
+          {!bin && <Hint label={s.title} text={s.intro} />}
+        </h1>
         {manager && (
-          <Link href={bin ? base : `${base}?bin=1`} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+          <Link href={bin ? base : `${base}?bin=1`} className={buttonClass("ghost")}>
+            <Icon name={bin ? "arrow-left" : "trash"} />
             {bin ? s.hideBin : s.showBin}
           </Link>
         )}
-      </div>
+        {!bin && manager && <NewAppButton shortId={workspace.shortId} categories={categories} />}
+      </header>
       {bin ? (
         apps.length === 0 ? (
-          <p className="mt-6 text-muted">{s.binEmpty}</p>
+          <p className="mt-5 rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">{s.binEmpty}</p>
         ) : (
-          <ul className="mt-6 divide-y divide-border rounded-lg border border-border">
+          <ul className="mt-5 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {apps.map((a) => (
               <li key={a.id} className="flex min-h-14 flex-wrap items-center gap-3 px-3 py-2">
                 <span className="min-w-0 flex-1 truncate font-medium">{a.title || s.untitled}</span>
@@ -61,12 +71,6 @@ export default async function AppsPage({ params, searchParams }: PageProps<"/w/[
         )
       ) : (
         <>
-          <p className="mt-1 text-muted">{s.intro}</p>
-          {manager && (
-            <div className="mt-4">
-              <NewAppButton shortId={workspace.shortId} categories={categories} />
-            </div>
-          )}
           {categories.length > 0 && (
             <nav aria-label={s.categories} className="mt-4 flex flex-wrap gap-2" data-app-categories>
               <Link href={withCategory("")} aria-current={!chosen ? "page" : undefined} className={chipClass(!chosen)}>
@@ -80,7 +84,7 @@ export default async function AppsPage({ params, searchParams }: PageProps<"/w/[
             </nav>
           )}
           {shown.length === 0 ? (
-            <p className="mt-6 text-muted">{chosen ? s.noneInCategory : manager ? s.noneAdmin : s.none}</p>
+            <p className="mt-5 rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">{chosen ? s.noneInCategory : manager ? s.noneAdmin : s.none}</p>
           ) : (
             <ul className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2" data-apps>
               {shown.map((a) => (

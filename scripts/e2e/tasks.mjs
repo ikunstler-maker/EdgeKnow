@@ -638,8 +638,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await dialog.getByLabel("Група", { exact: true }).selectOption({ label: "Reviewers · 1 особа" });
   await dialog.getByLabel("Роль групи").selectOption("commenter");
   await dialog.getByRole("button", { name: "Додати" }).nth(1).click();
-  await dialog.getByText("👥 Reviewers · 1 особа").waitFor({ timeout: 15000 }).catch(() => {});
-  check("the page owner gives the group a role in the share dialog", (await dialog.getByText("👥 Reviewers · 1 особа").count()) === 1);
+  await dialog.locator("span", { hasText: "Reviewers · 1 особа" }).first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("the page owner gives the group a role in the share dialog", (await dialog.locator("span", { hasText: "Reviewers · 1 особа" }).count()) >= 1);
   check("…and the colleague in the group gets it", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === "commenter");
   await alice.keyboard.press("Escape");
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=groups`);

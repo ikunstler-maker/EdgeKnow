@@ -33,6 +33,7 @@ import {
 } from "@/app/comment-actions";
 import type { schema } from "./schema";
 import { useOptionalPages } from "@/components/pages/pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 type Editor = typeof schema.BlockNoteEditor;
 type Draft = { from: number; to: number; quoted: string };
@@ -714,7 +715,7 @@ export function CommentsSheet({
         <div className="flex items-center border-b border-border px-4 py-2">
           <p className="flex-1 font-semibold">{title}</p>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

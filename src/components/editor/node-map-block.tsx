@@ -9,6 +9,7 @@ import { workspacePath } from "@/lib/paths";
 import { readMap, type MapData } from "@/lib/nodes";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { createNodeMap, nodeObjectView, nodeObjectsForEmbed, saveNodeMap, type NodeObjectSummary, type NodeObjectView } from "@/app/node-actions";
+import { Icon } from "@/components/ui/icon";
 
 const MindMapCanvas = dynamic(() => import("@/components/nodes/mind-map-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>…</p> });
 const DiagramCanvas = dynamic(() => import("./diagram-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>…</p> });
@@ -92,7 +93,8 @@ export function NodeMapEmbed({ objectId, pageEditable, onPick }: { objectId: str
           <option value="">{e.choose}</option>
           {(list ?? []).map((item) => (
             <option key={item.id} value={item.id}>
-              {item.kind === "flow" ? "🔀" : "🧠"} {item.title || t.nodes.untitled}
+              <Icon name={item.kind === "flow" ? "layers" : "share"} className="mr-1.5 inline text-muted" />
+                {item.title || t.nodes.untitled}
             </option>
           ))}
         </select>
@@ -120,17 +122,19 @@ export function NodeMapEmbed({ objectId, pageEditable, onPick }: { objectId: str
   } else if (view === undefined) {
     body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
-    body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
+    body = <p className="text-sm text-muted"><Icon name="lock" className="mr-1.5 inline" />{e.noAccess}</p>;
   } else {
     body = (
       <>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
-            {view.kind === "flow" ? "🔀" : "🧠"} {view.title || t.nodes.untitled}
+            <Icon name={view.kind === "flow" ? "layers" : "share"} className="mr-1.5 inline text-muted" />
+          {view.title || t.nodes.untitled}
           </span>
           <span className="flex-1" />
           <Link href={workspacePath(shortId, `/nodes/${view.id}`)} className="text-sm text-accent hover:underline">
-            {e.openEditor} ↗
+            {e.openEditor}
+            <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
           </Link>
         </div>
         {view.kind === "flow" ? (

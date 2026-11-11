@@ -54,6 +54,7 @@ import { publishSidebarToc, setTocPlacement, useTocPlacement, type TocPlacement 
 import { useAutosave } from "./use-autosave";
 import { SaveIndicator, ConflictBanner } from "./save-status";
 import { fetchYouTubeInfo } from "./youtube-block";
+import { Icon } from "@/components/ui/icon";
 
 type Editor = typeof schema.BlockNoteEditor;
 
@@ -78,7 +79,7 @@ function CommentButton({ onComment }: { onComment: () => void }) {
     <Components.FormattingToolbar.Button
       mainTooltip={t.comments.add}
       label={t.comments.add}
-      icon={<span aria-hidden="true">💬</span>}
+      icon={<Icon name="comment" />}
       onClick={onComment}
     />
   );
@@ -117,7 +118,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.editor.youtube.subtext,
     aliases: t.editor.youtube.aliases,
     group: mediaGroup ?? t.editor.groups.media,
-    icon: <span aria-hidden="true">▶️</span>,
+    icon: <Icon name="play" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "youtube" }),
   };
   const lastMedia = mediaGroup ? items.findLastIndex((item) => item.group === mediaGroup) : -1;
@@ -126,7 +127,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.editor.gallery.subtext,
     aliases: t.editor.gallery.aliases,
     group: mediaGroup ?? t.editor.groups.media,
-    icon: <span aria-hidden="true">🖼</span>,
+    icon: <Icon name="image" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "gallery" }),
   };
   if (lastMedia >= 0) items.splice(lastMedia + 1, 0, youtube, gallery);
@@ -136,7 +137,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.editor.diagram.subtext,
     aliases: t.editor.diagram.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">🔷</span>,
+    icon: <Icon name="layers" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "diagram" }),
   };
   // Headings in one group: H1–H4, the subtitle, then the collapsible ones.
@@ -173,7 +174,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.editor.chips.dropdownSubtext,
     aliases: t.editor.chips.dropdownAliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">🏷️</span>,
+    icon: <Icon name="tag" />,
     onItemClick: () => {
       const preset = chipPresets()[0];
       editor.insertInlineContent([
@@ -196,7 +197,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.editor.linkCard.subtext,
     aliases: t.editor.linkCard.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">🔗</span>,
+    icon: <Icon name="link" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "linkCard" }),
   };
   const navigation: DefaultReactSuggestionItem = {
@@ -204,7 +205,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.editor.navigation.subtext,
     aliases: t.editor.navigation.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">🧭</span>,
+    icon: <Icon name="list" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "navigation" }),
   };
   const tasksEmbed: DefaultReactSuggestionItem = {
@@ -212,7 +213,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.tasks.wiki.embedSubtext,
     aliases: t.tasks.wiki.embedAliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">📋</span>,
+    icon: <Icon name="template" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "tasks" }),
   };
   // A task chip is picked from the "@" menu, like pages and people.
@@ -221,7 +222,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.tasks.wiki.chipSubtext,
     aliases: t.tasks.wiki.chipAliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">✅</span>,
+    icon: <Icon name="task" />,
     onItemClick: () => editor.getExtension(SuggestionMenu)?.openSuggestionMenu("@", { deleteTriggerCharacter: true, ignoreQueryLength: true }),
   };
   const nodeMap: DefaultReactSuggestionItem = {
@@ -229,7 +230,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.nodes.embed.subtext,
     aliases: t.nodes.embed.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">🧠</span>,
+    icon: <Icon name="share" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "nodeMap" }),
   };
   const boardEmbed: DefaultReactSuggestionItem = {
@@ -237,7 +238,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.boards.embed.subtext,
     aliases: t.boards.embed.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">🎨</span>,
+    icon: <Icon name="note" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "boardEmbed" }),
   };
   const sheetEmbed: DefaultReactSuggestionItem = {
@@ -245,7 +246,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.sheets.embed.subtext,
     aliases: t.sheets.embed.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">📊</span>,
+    icon: <Icon name="table" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "sheetEmbed" }),
   };
   const surveyEmbed: DefaultReactSuggestionItem = {
@@ -253,7 +254,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     subtext: t.surveys.embed.subtext,
     aliases: t.surveys.embed.aliases,
     group: t.editor.groups.special,
-    icon: <span aria-hidden="true">📝</span>,
+    icon: <Icon name="file-text" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "surveyEmbed" }),
   };
   return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed, sheetEmbed, surveyEmbed];
@@ -266,7 +267,7 @@ async function eventMentionItems(editor: Editor, shortId: string, query: string)
   return found.slice(0, 5).map((event) => ({
     title: `${event.title} · ${eventWhen(event)}`,
     group: t.calendar.chip.group,
-    icon: <span aria-hidden="true">📅</span>,
+    icon: <Icon name="calendar" />,
     onItemClick: () => {
       rememberEvent({ ...event, cancelled: false });
       editor.insertInlineContent([{ type: "eventChip", props: { eventId: event.id } }, " "]);
@@ -281,7 +282,7 @@ async function taskMentionItems(editor: Editor, shortId: string, query: string, 
   const found = tasks.map((task) => ({
     title: `${task.key} ${task.title}`,
     group: t.tasks.wiki.mentionGroup,
-    icon: <span aria-hidden="true">✅</span>,
+    icon: <Icon name="task" />,
     onItemClick: () => {
       rememberTask(task);
       insert(task.id);
@@ -295,7 +296,7 @@ async function taskMentionItems(editor: Editor, shortId: string, query: string, 
         .map((project) => ({
           title: t.tasks.wiki.newTaskIn(project.key, title),
           group: t.tasks.wiki.newTaskGroup,
-          icon: <span aria-hidden="true">＋</span>,
+          icon: <Icon name="plus" />,
           onItemClick: async () => {
             const made = await createTaskFromPage(shortId, project.id, title, pageId);
             if (made.ok) insert(made.id);
@@ -310,7 +311,7 @@ function mentionItems(editor: Editor, people: MentionPerson[], pages: PageNode[]
   const personItems = people.map((person) => ({
     title: person.label,
     group: t.editor.chips.people,
-    icon: <span aria-hidden="true">👤</span>,
+    icon: <Icon name="user" />,
     onItemClick: () => editor.insertInlineContent([{ type: "personChip", props: { userId: person.userId, label: person.label } }, " "]),
   }));
   const pageItems = pages
@@ -318,7 +319,7 @@ function mentionItems(editor: Editor, people: MentionPerson[], pages: PageNode[]
     .map((page) => ({
       title: page.title || t.pages.untitled,
       group: t.editor.chips.pages,
-      icon: <span aria-hidden="true">{page.icon ?? "📄"}</span>,
+      icon: page.icon ? <span aria-hidden="true">{page.icon}</span> : <Icon name="file-text" className="text-muted" />,
       onItemClick: () => editor.insertInlineContent([{ type: "pageChip", props: { pageId: page.id } }, " "]),
     }));
   return [...personItems, ...pageItems];
@@ -644,16 +645,19 @@ function RightPanelHeader({
         {tabs ? (
           <div role="tablist" aria-label={t.toc.panel} className="flex gap-0.5">
             <button type="button" role="tab" aria-selected={tab === "toc"} onClick={() => onTab("toc")} className={tabClass(tab === "toc")}>
-              ☰ {t.toc.title}
+              <Icon name="list" className="mr-1 inline" />
+              {t.toc.title}
             </button>
             <button type="button" role="tab" aria-selected={tab === "comments"} onClick={() => onTab("comments")} className={tabClass(tab === "comments")}>
-              💬 {t.comments.column}
+              <Icon name="info" className="mr-1 inline" />
+              {t.comments.column}
               {commentCount > 0 && ` ${commentCount}`}
             </button>
           </div>
         ) : (
           <span className="px-3 text-sm text-muted">
-            💬 {t.comments.column}
+            <Icon name="info" className="mr-1 inline" />
+            {t.comments.column}
             {commentCount > 0 && ` ${commentCount}`}
           </span>
         )}
@@ -665,7 +669,7 @@ function RightPanelHeader({
             title={t.toc.placementLabel}
             className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-background hover:text-foreground"
           >
-            ⚙
+            <Icon name="settings" />
           </button>
         )}
       </div>
@@ -685,7 +689,7 @@ function RightPanelHeader({
                 }}
                 className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-surface md:min-h-9"
               >
-                <span className="w-4 text-accent">{placement === value ? "✓" : ""}</span>
+                <span className="w-4 text-accent">{placement === value && <Icon name="check" size={14} />}</span>
                 {t.toc.placements[value]}
               </button>
             ))}
@@ -704,7 +708,8 @@ function CommentsButton({ controller, onOpen }: { controller: CommentsController
       onClick={onOpen}
       className="fixed bottom-18 right-4 z-30 min-h-11 rounded-full border border-border bg-background px-4 text-sm shadow-lg"
     >
-      💬 {t.comments.open(controller.visible.length)}
+      <Icon name="info" className="mr-1 inline" />
+      {t.comments.open(controller.visible.length)}
     </button>
   );
 }

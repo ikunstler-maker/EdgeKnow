@@ -11,6 +11,7 @@ import { Popover } from "@/components/ui/popover";
 import { projectStatuses, projectsForEmbed, setTaskStatusFromPage, taskEmbed, type ChipProject, type TaskEmbed } from "@/app/task-wiki-actions";
 import { refreshTaskChips, useTaskChip } from "./task-chip-store";
 import { TypeIcon } from "@/components/tasks/task-icons";
+import { Icon } from "@/components/ui/icon";
 
 const w = t.tasks.wiki;
 const pillClass =
@@ -51,14 +52,15 @@ export function TaskChipView({ taskId }: { taskId: string }) {
   if (task === undefined) {
     return (
       <span contentEditable={false} className={`${pillClass} ek-chip bg-surface text-muted`} data-task-chip="loading">
-        ✅ …
+        <Icon name="task" size={12} className="inline" /> …
       </span>
     );
   }
   if (task === null || !shortId) {
     return (
       <span contentEditable={false} className={`${pillClass} ek-chip bg-surface text-muted`} title={w.chipNoAccess} data-task-chip="hidden">
-        🔒 {w.chipNoAccess}
+        <Icon name="lock" className="mr-1 inline" />
+        {w.chipNoAccess}
       </span>
     );
   }
@@ -85,7 +87,8 @@ export function TaskChipView({ taskId }: { taskId: string }) {
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={240}>
           <div role="menu" aria-label={task.key} className="p-1">
             <Link prefetch={false} href={taskHref(shortId, task.key)} className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface md:min-h-9">
-              ↗ {w.open}
+              <Icon name="arrow-up-right" className="mr-1 inline" />
+              {w.open}
             </Link>
             {task.canEdit && (
               <>
@@ -107,7 +110,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm hover:bg-surface md:min-h-9"
                   >
                     <span className={`rounded-full px-2 text-xs ${CATEGORY_CLASS[status.category]}`}>{status.name}</span>
-                    {status.name === task.status && <span className="ml-auto text-accent">✓</span>}
+                    {status.name === task.status && <Icon name="check" size={14} className="ml-auto text-accent" />}
                   </button>
                 ))}
               </>
@@ -203,7 +206,7 @@ export function TasksEmbedView({
         <option value="">{w.chooseProject}</option>
         {(projects ?? []).map((p) => (
           <option key={p.id} value={p.id}>
-            {p.icon ?? "📋"} {p.name} ({p.key})
+            {p.icon ? `${p.icon} ` : ""}{p.name} ({p.key})
           </option>
         ))}
       </select>
@@ -261,12 +264,13 @@ export function TasksEmbedView({
       <>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
-            {data.project.icon ?? "📋"} {data.project.name}
+            {data.project.icon ? `${data.project.icon} ` : ""}{data.project.name}
           </span>
           <span className="text-xs text-muted">{w.shown(data.tasks.length, data.total)}</span>
           <span className="flex-1" />
           <Link prefetch={false} href={workspacePath(shortId, `/tasks/${data.project.key}${view === "list" ? "?view=list" : ""}`)} className="text-sm text-accent hover:underline">
-            {w.openInTasks} ↗
+            {w.openInTasks}
+            <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
           </Link>
         </div>
         {data.tasks.length === 0 ? (

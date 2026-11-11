@@ -8,9 +8,10 @@ import type { ActionResult } from "@/lib/action-result";
 import { ACK_LABELS, ackCsv, formatAckDate, type AckLabel, type AckRevision, type PageAck } from "@/lib/page-acks";
 import { ackPage, disablePageAck, pageAckDetails, pageAckEdition, setPageAck, type AckStats } from "@/app/page-ack-actions";
 import { errorMessage } from "./pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const a = t.acks;
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 const When = ({ iso }: { iso: string }) => (
   <time dateTime={iso} suppressHydrationWarning>
     {formatAckDate(iso, currentLocale())}
@@ -24,12 +25,12 @@ export function AckBadge({ ack }: { ack: PageAck }) {
     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" data-ack-badge={ack.editing ? "editing" : signed ? "signed" : "open"}>
       {signed && !ack.editing ? (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 font-medium text-emerald-700 dark:text-emerald-400">
-          <span aria-hidden="true">✓</span>
+          <Icon name="check" />
           {a.badgeSigned}
         </span>
       ) : (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 py-1 font-medium text-accent">
-          <span aria-hidden="true">✍</span>
+          <Icon name="edit" />
           {ack.editing ? a.editingBadge : a.badge}
         </span>
       )}
@@ -53,7 +54,7 @@ export function AckPanel({ pageId, ack }: { pageId: string; ack: PageAck }) {
       ) : signedAt ? (
         <p className="flex items-center gap-2 text-sm font-medium" data-ack-signed>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400" aria-hidden="true">
-            ✓
+            <Icon name="check" />
           </span>
           <span>
             {a.signed("")}
@@ -84,7 +85,8 @@ export function AckPanel({ pageId, ack }: { pageId: string; ack: PageAck }) {
             className="min-h-11 rounded-lg bg-accent px-5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
             data-ack-sign
           >
-            ✍ {a.labels[ack.label]}
+            <Icon name="edit" className="mr-1 inline" />
+            {a.labels[ack.label]}
           </button>
         </div>
       )}
@@ -212,7 +214,7 @@ function AckDialog({ pageId, ack, onClose }: { pageId: string; ack: PageAck | nu
         <div className="flex items-center border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold">{a.title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto p-4">

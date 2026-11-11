@@ -1003,13 +1003,13 @@ check("help linked from the workspace menu, with every section", (await alice.lo
 
 await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
 await alice.waitForSelector(".bn-editor");
-const counter = alice.getByRole("button", { name: /📊/ });
+const counter = alice.locator("[data-page-stats]");
 await counter.waitFor();
 // "📊 1 234 слова · 6 хв" → 1234 (thousands are separated by a space).
-const parseWords = (text) => Number((text.match(/📊\s*([\d\s\u00a0\u202f]*\d)/)?.[1] ?? "0").replace(/\D/g, ""));
+const parseWords = (text) => Number((text.match(/^\s*([\d\s\u00a0\u202f]*\d)/)?.[1] ?? "0").replace(/\D/g, ""));
 const wordsOf = async () => parseWords(await counter.innerText());
 const wordsBefore = await wordsOf();
-check("page counter shows words", /📊\s*[\d\s\u00a0\u202f]+ сл(ово|ова|ів)/.test(await counter.innerText()), await counter.innerText());
+check("page counter shows words", /^\s*[\d\s\u00a0\u202f]+ сл(ово|ова|ів)/.test(await counter.innerText()), await counter.innerText());
 await counter.click();
 check("counter details list characters and paragraphs", (await alice.getByText("Символів без пробілів").count()) === 1 && (await alice.getByText("Абзаців").count()) === 1);
 await alice.keyboard.press("Escape");
@@ -1020,8 +1020,8 @@ await alice.keyboard.press("Enter");
 await alice.keyboard.type("лічильник рахує нові слова");
 await alice.waitForFunction(
   (before) => {
-    const button = [...document.querySelectorAll("button")].find((b) => b.textContent?.startsWith("📊"));
-    const words = Number((button?.textContent.match(/📊\s*([\d\s\u00a0\u202f]*\d)/)?.[1] ?? "0").replace(/\D/g, ""));
+    const button = document.querySelector("[data-page-stats]");
+    const words = Number((button?.textContent.match(/^\s*([\d\s\u00a0\u202f]*\d)/)?.[1] ?? "0").replace(/\D/g, ""));
     return words >= before + 4;
   },
   wordsBefore,

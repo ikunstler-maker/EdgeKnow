@@ -7,9 +7,10 @@ import { pageVersion, pageVersions, restorePageVersion, type PageVersionItem } f
 import { compareVersions, PagePreview } from "@/components/editor/page-preview";
 import { ProBadge } from "@/components/ui/pro-badge";
 import { usePages } from "./pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const h = t.history;
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const until = (from: string, to: string) => {
@@ -91,7 +92,7 @@ function HistoryDialog({ pageId, canRestore, onClose }: { pageId: string; canRes
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold">{h.title}</h2>
           <button type="button" onClick={onClose} aria-label={h.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">

@@ -548,7 +548,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-service-menu-button]").first().click();
   await alice.locator("[data-service-menu]").getByRole("link", { name: "Опитування" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/surveys$`), { timeout: 15000 });
-  await alice.getByRole("button", { name: "＋ Нове опитування" }).click();
+  await alice.getByRole("button", { name: "Нове опитування" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/surveys/[0-9a-f-]{36}$`), { timeout: 15000 });
   const surveyId = alice.url().split("/").at(-1);
   check("a new survey is open to the workspace for answering only", sql(`select workspace_role from public.service_objects where id = '${surveyId}'`) === "viewer");

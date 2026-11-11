@@ -49,3 +49,6 @@ The company apps section: a gallery of the company's outside apps and services, 
 - Search across apps (together with search across presentations).
 - Showing an app inside the platform — only if needed (site policy change → approval).
 - An app catalogue and review of others' apps — later.
+
+## Screen (updated 2026-11-11)
+- Gallery: one header row with the service mark, a hint and the "Add an app" button; tiles are raised cards with a hairline.

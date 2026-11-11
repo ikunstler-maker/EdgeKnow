@@ -83,3 +83,6 @@ Answer tables are reachable through database functions only.
 
 - Confirm the "I'm not a robot" check shows on open forms once the keys are added.
 - The personal-data warning on open forms — align with the privacy policy before launch.
+
+## Screen (updated 2026-11-11)
+- The survey screen is a studio with the same bar as other documents; the tabs "Questions / Fill in / Answers / Settings" carry icons. The builder has no outer section frame: each question is its own raised card, option fields are quiet until hovered.

@@ -2,6 +2,7 @@
 
 import { t } from "@/i18n";
 import { usePages } from "./pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 export function NewPageButton() {
   const { create, pending } = usePages();
@@ -12,7 +13,8 @@ export function NewPageButton() {
       disabled={pending}
       className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 py-2 font-medium text-white hover:opacity-90 disabled:opacity-60"
     >
-      ＋ {t.sidebar.newPage}
+      <Icon name="plus" className="mr-1 inline" />
+      {t.sidebar.newPage}
     </button>
   );
 }

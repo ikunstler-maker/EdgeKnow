@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { dateLocale, t } from "@/i18n";
 import { pageStats, type PageStats } from "@/lib/page-stats";
 import { Popover } from "@/components/ui/popover";
+import { Icon } from "@/components/ui/icon";
 
 // The editor publishes its document here (counted with a short delay while
 // typing); the counter next to the page dates shows the result.
@@ -58,8 +59,10 @@ export function PageStatsButton() {
         aria-expanded={Boolean(anchor)}
         onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}
         className="rounded px-1 hover:bg-surface hover:text-foreground"
+        data-page-stats
       >
-        📊 {t.pageStats.summary(current.words, number.format(current.words), current.readingMinutes)}
+        <Icon name="chart" className="mr-1 inline" />
+        {t.pageStats.summary(current.words, number.format(current.words), current.readingMinutes)}
       </button>
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={260}>
