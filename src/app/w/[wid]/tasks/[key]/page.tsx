@@ -45,23 +45,25 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   // The project's tasks in one pass (project_tasks works the access out once). Where the
   // function isn't there yet — the site is a moment ahead of the database — the same rows
   // come from the table, each checked by its rule.
-  const fast = await db
-    .rpc("project_tasks", { target_project: view.project.id })
-    .select(TASK_COLUMNS)
-    .is("deleted_at", null)
-    .order("number", { ascending: false });
-  const tasks = (
-    fast.error?.code === "PGRST202"
-      ? (
-          await db
-            .from("tasks")
-            .select(TASK_COLUMNS)
-            .eq("project_id", view.project.id)
-            .is("deleted_at", null)
-            .order("number", { ascending: false })
-        ).data
-      : fast.data
-  ) as TaskRow[] | null;
+  // Read a thousand at a time (the database answers with at most that many rows at once),
+  // so a project with thousands of tasks shows all of them.
+  const everything = async <T,>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { code?: string } | null }>): Promise<{ rows: T[]; code?: string }> => {
+    const rows: T[] = [];
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await page(from, from + 999);
+      if (error) return { rows, code: error.code };
+      rows.push(...((data ?? []) as T[]));
+      if (((data ?? []) as T[]).length < 1000) break;
+    }
+    return { rows };
+  };
+  const fast = await everything<TaskRow>((from, to) =>
+    db.rpc("project_tasks", { target_project: view.project.id }).select(TASK_COLUMNS).is("deleted_at", null).order("number", { ascending: false }).range(from, to),
+  );
+  const tasks =
+    fast.code === "PGRST202"
+      ? (await everything<TaskRow>((from, to) => db.from("tasks").select(TASK_COLUMNS).eq("project_id", view.project.id).is("deleted_at", null).order("number", { ascending: false }).range(from, to))).rows
+      : fast.rows;
   // Which tasks are blocked by an unfinished one (step Z3).
   const doneStatuses = new Set(view.statuses.filter((s) => s.category === "done").map((s) => s.id));
   const blocked = [...(await blockedIn(db, view.workspace.id, new Map((tasks ?? []).map((task) => [task.id, doneStatuses.has(task.status_id)]))))];
@@ -126,7 +128,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           statuses={view.statuses}
           boards={view.boards}
           groups={view.groups}
-          placements={((await db.from("task_placements").select("task_id, board_id, status_id, frozen_at, snapshot").in("status_id", view.statuses.map((s) => s.id))).data ?? []) as TaskPlacement[]}
+          placements={(await everything<TaskPlacement>((from, to) => db.from("task_placements").select("task_id, board_id, status_id, frozen_at, snapshot, updated_at").in("status_id", view.statuses.map((s) => s.id)).order("task_id").order("board_key").range(from, to))).rows}
           tasks={tasks ?? []}
           members={view.members}
           fields={view.fields}

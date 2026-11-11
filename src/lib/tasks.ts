@@ -24,7 +24,7 @@ export type TaskStatus = { id: string; name: string; category: StatusCategory; p
 // Extra boards of a project, each for a team (package 11); columns without a board are on the main one.
 export type TaskBoardInfo = { id: string; name: string; group_id: string | null; position: number; access?: string[] };
 // Where a task stands on one board (package 11).
-export type TaskPlacement = { task_id: string; board_id: string | null; status_id: string; frozen_at: string | null; snapshot: Record<string, unknown> | null };
+export type TaskPlacement = { task_id: string; board_id: string | null; status_id: string; frozen_at: string | null; snapshot: Record<string, unknown> | null; updated_at?: string };
 // `guest`: shown with the mark «Гість» wherever the person appears.
 export type Person = { id: string; name: string | null; email: string; guest?: boolean };
 
@@ -53,6 +53,8 @@ export type TaskRow = {
   // On a board where the task stopped (frozen); snapshot: only its frozen copy is seen.
   frozen?: boolean;
   snapshot?: boolean;
+  // When it came to the column it stands in on the board being shown.
+  entered_at?: string;
 };
 
 export type FieldKind = "text" | "longtext" | "number" | "select" | "multiselect" | "checkbox" | "toggle" | "date" | "color" | "url" | "person";

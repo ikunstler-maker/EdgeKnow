@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -104,7 +104,10 @@ export function TaskBoard({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [filters, setFilters] = useFilters(project.id);
-  const [group, setGroup] = useState<Group>("none");
+  const [view, setView] = useBoardView(project.id);
+  const group = view.group;
+  const setGroup = (next: Group) => setView({ ...view, group: next });
+  const flip = (list: "closedColumns" | "closedLanes", id: string) => setView({ ...view, [list]: view[list].includes(id) ? view[list].filter((x) => x !== id) : [...view[list], id] });
   const [dragging, setDragging] = useState<string | null>(null);
   const [cardSettings, setCardSettings] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -127,7 +130,7 @@ export function TaskBoard({
         .filter((p) => (p.board_id ?? null) === currentBoard)
         .flatMap((p): TaskRow[] => {
           const live = tasks.find((x) => x.id === p.task_id);
-          if (live) return [{ ...live, status_id: p.status_id, frozen: !!p.frozen_at }];
+          if (live) return [{ ...live, status_id: p.status_id, frozen: !!p.frozen_at, entered_at: p.updated_at }];
           return p.snapshot ? [snapshotRow(p)] : [];
         })
     : tasks;
@@ -142,7 +145,34 @@ export function TaskBoard({
   const progress = useMemo(() => progressOf(tasks, allStatuses), [tasks, allStatuses]);
   const blocked = useMemo(() => new Set(blockedList), [blockedList]);
   const shown = applyFilters(boardRows, filters, { me, projectKey: project.key, statuses: allStatuses });
-  const ordered = [...shown].sort((a, b) => a.position - b.position || a.number - b.number);
+  // How long a task has stood in its column (since it came there; else since it last changed).
+  const waitingSince = (task: TaskRow) => Date.parse(task.entered_at ?? task.updated_at);
+  const aged = shown.filter((task) => {
+    const days = (since: number) => (Date.now() - since) / 86_400_000;
+    switch (view.age) {
+      case "updated_7":
+        return days(Date.parse(task.updated_at)) <= 7;
+      case "updated_30":
+        return days(Date.parse(task.updated_at)) <= 30;
+      case "waiting_3":
+        return days(waitingSince(task)) >= 3;
+      case "waiting_7":
+        return days(waitingSince(task)) >= 7;
+      default:
+        return true;
+    }
+  });
+  const byHand = (a: TaskRow, b: TaskRow) => a.position - b.position || a.number - b.number;
+  const SORTS: Record<BoardSort, (a: TaskRow, b: TaskRow) => number> = {
+    manual: byHand,
+    created_new: (a, b) => b.created_at.localeCompare(a.created_at),
+    created_old: (a, b) => a.created_at.localeCompare(b.created_at),
+    updated_new: (a, b) => b.updated_at.localeCompare(a.updated_at),
+    due_soon: (a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") || byHand(a, b),
+    priority: (a, b) => TASK_PRIORITIES.indexOf(a.priority) - TASK_PRIORITIES.indexOf(b.priority) || byHand(a, b),
+    waiting: (a, b) => waitingSince(a) - waitingSince(b),
+  };
+  const ordered = [...aged].sort(SORTS[view.sort] ?? byHand);
 
   const run = (action: () => Promise<ActionResult>, rollback?: () => void) =>
     startTransition(async () => {
@@ -244,7 +274,21 @@ export function TaskBoard({
         showStatus={false}
         trailing={
           <>
-            <span className="text-xs text-muted">{k.count(shown.length, tasks.length)}</span>
+            <span className="text-xs text-muted">{k.count(aged.length, tasks.length)}</span>
+            <select value={view.sort} onChange={(e) => setView({ ...view, sort: e.target.value as BoardSort })} aria-label={b.sort} title={b.sort} className={inputClass} data-board-sort>
+              {BOARD_SORTS.map((value) => (
+                <option key={value} value={value}>
+                  {b.sorts[value]}
+                </option>
+              ))}
+            </select>
+            <select value={view.age} onChange={(e) => setView({ ...view, age: e.target.value as BoardAge })} aria-label={b.age} title={b.age} className={inputClass} data-board-age>
+              {BOARD_AGES.map((value) => (
+                <option key={value} value={value}>
+                  {b.ages[value]}
+                </option>
+              ))}
+            </select>
             <label className="flex items-center gap-1 text-xs text-muted">
               {b.group}
               <select value={group} onChange={(e) => setGroup(e.target.value as Group)} className={inputClass}>
@@ -332,7 +376,17 @@ export function TaskBoard({
         <div className="mt-3 space-y-4" data-task-board>
           {lanes.map((lane) => (
             <section key={lane.id} aria-label={lane.label || b.title}>
-              {lane.label && <h3 className="mb-1 text-sm font-medium text-muted">{lane.label}</h3>}
+              {lane.label && (
+                <h3 className="mb-1">
+                  <button type="button" onClick={() => flip("closedLanes", lane.id)} aria-expanded={!view.closedLanes.includes(lane.id)} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-1 text-left text-sm font-medium hover:bg-hover md:min-h-8" data-lane={lane.label}>
+                    <Icon name={view.closedLanes.includes(lane.id) ? "chevron-right" : "chevron-down"} size={14} className="text-muted" />
+                    {group === "assignee" && <Avatar person={personOf.get(lane.id)} size={20} />}
+                    <span className="truncate">{lane.label}</span>
+                    <span className="text-xs font-normal text-muted" data-lane-count>{ordered.filter(lane.match).length}</span>
+                  </button>
+                </h3>
+              )}
+              {!(lane.label && view.closedLanes.includes(lane.id)) && (
               <ScrollRow>
                 {statuses.map((status, index) => (
                   <BoardColumn
@@ -340,6 +394,8 @@ export function TaskBoard({
                     lane={lane.id}
                     status={status}
                     index={index}
+                    collapsed={view.closedColumns.includes(status.id)}
+                    onCollapse={() => flip("closedColumns", status.id)}
                     count={statuses.length}
                     statuses={statuses}
                     tasks={ordered.filter((task) => task.status_id === status.id && lane.match(task))}
@@ -384,6 +440,7 @@ export function TaskBoard({
                 ))}
                 {isOwner && lane.id === lanes[0].id && <AddColumn projectId={project.id} boardId={boards.some((x) => x.id === boardId) ? boardId : null} run={run} pending={pending} />}
               </ScrollRow>
+              )}
             </section>
           ))}
         </div>
@@ -414,6 +471,39 @@ export function TaskBoard({
       )}
     </div>
   );
+}
+
+const COLUMN_PAGE = 50;
+const BOARD_SORTS = ["manual", "created_new", "created_old", "updated_new", "due_soon", "priority", "waiting"] as const;
+type BoardSort = (typeof BOARD_SORTS)[number];
+const BOARD_AGES = ["any", "updated_7", "updated_30", "waiting_3", "waiting_7"] as const;
+type BoardAge = (typeof BOARD_AGES)[number];
+type BoardView = { sort: BoardSort; age: BoardAge; group: Group; closedColumns: string[]; closedLanes: string[] };
+const PLAIN_VIEW: BoardView = { sort: "manual", age: "any", group: "none", closedColumns: [], closedLanes: [] };
+
+// How this person looks at the project's board (order, grouping, folded columns and
+// lanes): remembered in this browser, per project.
+function useBoardView(projectId: string) {
+  const storageKey = `ek-board-view-${projectId}`;
+  const [view, setView] = useState<BoardView>(PLAIN_VIEW);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from this browser after the first render
+      if (saved) setView({ ...PLAIN_VIEW, ...JSON.parse(saved) });
+    } catch {
+      // Nothing remembered.
+    }
+  }, [storageKey]);
+  const update = (next: BoardView) => {
+    setView(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // Not remembered this time.
+    }
+  };
+  return [view, update] as const;
 }
 
 // The row of columns scrolls sideways; an arrow on an edge says there are more columns
@@ -475,10 +565,14 @@ function BoardColumn({
   pending,
   run,
   render,
+  collapsed,
+  onCollapse,
 }: {
   lane: string;
   status: TaskStatus;
   index: number;
+  collapsed: boolean;
+  onCollapse: () => void;
   count: number;
   statuses: TaskStatus[];
   tasks: TaskRow[];
@@ -495,6 +589,8 @@ function BoardColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `column:${lane}:${status.id}`, data: { status: status.id }, disabled: !canEdit });
   const [menu, setMenu] = useState(false);
+  // A long column draws its first cards; the rest come on demand.
+  const [limit, setLimit] = useState(COLUMN_PAGE);
   const handle = useDraggable({ id: `col:${status.id}`, disabled: !isOwner || pending });
   const over = status.wip_limit !== null && total > status.wip_limit;
   const move = (direction: -1 | 1) => {
@@ -505,6 +601,22 @@ function BoardColumn({
     run(() => saveTaskStatus(projectId, status.id, status.name, status.category, status.wip_limit, position));
   };
 
+  // Folded: a narrow strip with the name and the count; its cards are not drawn at all
+  // (a card can still be dropped on it).
+  if (collapsed) {
+    return (
+      <div ref={setNodeRef} data-column={status.name} data-column-folded className={`flex w-11 shrink-0 flex-col items-center gap-2 rounded-xl border py-2 ${isOver ? "border-accent bg-accent/5" : "border-transparent bg-surface"}`}>
+        <button type="button" onClick={onCollapse} aria-label={b.unfoldColumn(status.name)} title={b.unfoldColumn(status.name)} aria-expanded={false} className="flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-foreground md:h-8 md:w-8">
+          <Icon name="chevron-right" size={14} />
+        </button>
+        <StatusDot category={status.category} />
+        <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} data-wip>
+          {total}
+        </span>
+        <span className="text-sm font-semibold [writing-mode:vertical-rl]">{status.name}</span>
+      </div>
+    );
+  }
   return (
     <div
       ref={(node) => {
@@ -526,6 +638,9 @@ function BoardColumn({
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
           {status.wip_limit !== null ? `${total}/${status.wip_limit}` : total}
         </span>
+        <button type="button" onClick={onCollapse} aria-label={b.foldColumn(status.name)} title={b.foldColumn(status.name)} aria-expanded className="hidden h-8 w-8 items-center justify-center rounded text-muted hover:bg-hover md:flex" data-fold-column>
+          <Icon name="chevron-left" size={14} />
+        </button>
         {isOwner && (
           <button type="button" aria-label={b.columnMenu(status.name)} aria-expanded={menu} onClick={() => setMenu(!menu)} className="flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-hover">
             <Icon name="more" />
@@ -546,12 +661,17 @@ function BoardColumn({
         />
       )}
       <ul className="flex min-h-12 flex-col gap-2">
-        {tasks.map((task) => (
+        {tasks.slice(0, limit).map((task) => (
           <DropBefore key={task.id} lane={lane} status={status.id} before={task.id}>
             {render(task)}
           </DropBefore>
         ))}
       </ul>
+      {tasks.length > limit && (
+        <button type="button" onClick={() => setLimit(limit + COLUMN_PAGE)} className="mt-2 min-h-11 w-full rounded-lg border border-dashed border-border px-2 text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-9" data-column-more>
+          {b.showMore(Math.min(COLUMN_PAGE, tasks.length - limit), tasks.length - limit)}
+        </button>
+      )}
       {drafts && <div className="mt-2 flex flex-col gap-2">{drafts}</div>}
       {showQuickAdd && (
         <button type="button" onClick={onNewTask} aria-label={t.tasks.newTask.openIn(status.name)} className="mt-2 flex min-h-11 w-full items-center gap-1.5 rounded-lg px-2 text-left text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8" data-new-task-open>
