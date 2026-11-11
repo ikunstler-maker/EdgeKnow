@@ -5,6 +5,7 @@ import { t } from "@/i18n";
 import { sizeOf, type Deck, type Slide } from "@/lib/slides";
 import { EASINGS, slideOffsets, smartFrame } from "@/lib/slide-motion";
 import { SlideView } from "./slide-view";
+import { Icon } from "@/components/ui/icon";
 
 const p = t.slides.player;
 type Anim = { from: Slide; to: Slide; start: number };
@@ -137,19 +138,19 @@ export function DeckPlayer({ deck, deckId, shortId, title, presenter, startAt = 
       <div className={`absolute inset-x-0 bottom-0 flex items-center gap-2 bg-black/60 px-3 py-2 text-sm transition-opacity ${chrome ? "opacity-100" : "pointer-events-none opacity-0"}`} onClick={(e) => e.stopPropagation()}>
         <span className="min-w-0 flex-1 truncate">{title || t.slides.untitled}</span>
         <button type="button" onClick={() => show(index - 1)} disabled={index === 0} className="min-h-11 rounded px-3 hover:bg-white/10 disabled:opacity-40" aria-label={p.prev}>
-          ←
+          <Icon name="arrow-left" />
         </button>
         <span aria-live="polite" data-player-count>
           {index + 1} / {count}
         </span>
         <button type="button" onClick={() => show(index + 1)} disabled={index === count - 1} className="min-h-11 rounded px-3 hover:bg-white/10 disabled:opacity-40" aria-label={p.next}>
-          →
+          <Icon name="arrow-right" />
         </button>
         <button type="button" onClick={() => void toggleFull()} className="min-h-11 rounded px-3 hover:bg-white/10" aria-label={p.fullscreen} title={p.fullscreen}>
-          ⛶
+          <Icon name="maximize" />
         </button>
         <button type="button" onClick={() => window.close()} className="min-h-11 rounded px-3 hover:bg-white/10" aria-label={p.close} title={p.close}>
-          ✕
+          <Icon name="close" />
         </button>
       </div>
     </div>
@@ -204,13 +205,15 @@ function PresenterView({ deck, shortId, title, index, onGo, stage }: { deck: Dec
       </div>
       <div className="flex items-center justify-center gap-3">
         <button type="button" onClick={() => onGo(index - 1)} disabled={index === 0} className="min-h-11 rounded border border-white/20 px-4 hover:bg-white/10 disabled:opacity-40" data-presenter-prev>
-          ← {p.prev}
+          <Icon name="arrow-left" className="mr-1 inline" />
+          {p.prev}
         </button>
         <span className="tabular-nums" data-presenter-count>
           {index + 1} / {deck.slides.length}
         </span>
         <button type="button" onClick={() => onGo(index + 1)} disabled={index === deck.slides.length - 1} className="min-h-11 rounded border border-white/20 px-4 hover:bg-white/10 disabled:opacity-40" data-presenter-next>
-          {p.next} →
+          {p.next}
+          <Icon name="arrow-right" className="ml-1 inline" />
         </button>
       </div>
     </div>

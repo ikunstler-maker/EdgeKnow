@@ -68,3 +68,6 @@ The node space: mind maps for laying out thoughts, and diagrams for processes an
 ## 8. Known gaps and open questions
 
 - Free limit "number of maps" — open pricing question.
+
+## Screen (updated 2026-11-11)
+- The map or diagram screen is a studio: the canvas takes the full height under the bar and its toolbar.

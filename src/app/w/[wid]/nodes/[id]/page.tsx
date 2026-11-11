@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { withPaths } from "@/lib/groups";
-import Link from "next/link";
 import { t } from "@/i18n";
-import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import type { ObjectAccess } from "@/components/access/object-access";
@@ -55,10 +53,7 @@ export default async function NodeMapPage({ params }: PageProps<"/w/[wid]/nodes/
   }
 
   return (
-    <main className="flex w-full flex-1 flex-col px-4 py-4">
-      <Link href={workspacePath(workspace.shortId, "/nodes")} className="text-sm text-muted hover:text-foreground hover:underline">
-        {t.nodes.back}
-      </Link>
+    <main className="flex w-full min-w-0 flex-1 flex-col">
       <NodeMapScreen
         key={map.id}
         kind={map.kind === "flow" ? "flow" : "mindmap"}

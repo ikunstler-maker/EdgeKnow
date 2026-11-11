@@ -5,10 +5,12 @@ import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, 
 import { t } from "@/i18n";
 import type { SlideNode } from "@/lib/slides";
 import { childrenOf, isContainer } from "@/lib/design";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { TOOL_ICON } from "@/components/slides/tool-icons";
 
 const g = t.design;
 const l = t.slides.layers;
-const icon = (n: SlideNode) => ({ TEXT: "T", RECTANGLE: "▭", ELLIPSE: "◯", LINE: "╱", ARROW: "➚", IMAGE: "🖼", EMBED: "⧉", FRAME: n.autoLayout ? "⊞" : "#", GROUP: "▣", VECTOR: "✒" })[n.type];
+const icon = (n: SlideNode): IconName => (n.type === "FRAME" && n.autoLayout ? "columns" : (TOOL_ICON[n.type] ?? "square"));
 const small = "flex h-9 w-7 shrink-0 items-center justify-center rounded text-xs hover:bg-white/10";
 
 // The layer tree of a page: nesting shown by indent, folding, search; dragging a layer
@@ -110,10 +112,10 @@ function Row({
       data-layer-depth={depth}
     >
       <button type="button" className={small} onClick={onToggle} aria-label={open ? g.collapse(node.name) : g.expand(node.name)} disabled={!hasKids} style={{ visibility: hasKids ? "visible" : "hidden" }}>
-        {open ? "▾" : "▸"}
+        <Icon name={open ? "chevron-down" : "chevron-right"} size={12} />
       </button>
       <span {...listeners} {...attributes} className="w-5 shrink-0 cursor-grab touch-none text-center text-xs opacity-70" aria-label={l.drag(node.name)}>
-        {icon(node)}
+        <Icon name={icon(node)} size={14} />
       </span>
       {renaming ? (
         <input
@@ -134,10 +136,10 @@ function Row({
         </button>
       )}
       <button type="button" className={small} aria-pressed={!!node.hidden} aria-label={node.hidden ? l.show(node.name) : l.hide(node.name)} onClick={() => onNode(node.id, (n) => ({ ...n, hidden: !n.hidden || undefined }))} data-layer-hide>
-        {node.hidden ? "◌" : "👁"}
+        <Icon name={node.hidden ? "eye-off" : "eye"} size={14} />
       </button>
       <button type="button" className={small} aria-pressed={!!node.locked} aria-label={node.locked ? l.unlock(node.name) : l.lock(node.name)} onClick={() => onNode(node.id, (n) => ({ ...n, locked: !n.locked || undefined }))} data-layer-lock>
-        {node.locked ? "🔒" : "🔓"}
+        <Icon name={node.locked ? "lock" : "unlock"} size={14} />
       </button>
     </li>
   );

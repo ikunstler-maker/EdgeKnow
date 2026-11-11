@@ -8,7 +8,7 @@ import type { SheetData } from "@/lib/sheets";
 import { createSheet } from "@/app/sheet-actions";
 
 const f = t.sheets.files;
-const button = "inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const button = "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 export const ACCEPT = ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv";
 
 // An Excel or CSV file as a workbook (step Т2), read in the browser.

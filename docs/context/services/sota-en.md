@@ -78,3 +78,6 @@ Spreadsheets with formulas people already know, Excel/CSV files and charts that 
 - The end-to-end test of the table embed in the wiki used to be flaky — verify the current state.
 - Scripts: where they run, which limits, what they may read.
 - Free limit "number of tables" — open pricing question.
+
+## Screen (updated 2026-11-11)
+- The table screen is a studio: the grid takes the full height; charts live in a side panel ("Charts" in the bar, "New chart" is the main action); saving as XLSX/CSV and adding sheets from a file are in the "Export / Import" menu.

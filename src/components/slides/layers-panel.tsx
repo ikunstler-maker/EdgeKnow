@@ -4,9 +4,10 @@ import { useId } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
 import type { Slide, SlideNode } from "@/lib/slides";
+import { Icon } from "@/components/ui/icon";
+import { TOOL_ICON } from "@/components/slides/tool-icons";
 
 const l = t.slides.layers;
-const icon = (type: SlideNode["type"]) => ({ TEXT: "T", RECTANGLE: "▭", ELLIPSE: "◯", LINE: "╱", ARROW: "➚", IMAGE: "🖼", EMBED: "⧉", FRAME: "#", GROUP: "▣", VECTOR: "✒" })[type];
 const smallButton = "flex h-11 w-9 shrink-0 items-center justify-center rounded text-sm hover:bg-surface md:h-8 md:w-7";
 
 // The layers of a slide, top first: pick, rename, drag to reorder, hide, lock.
@@ -58,9 +59,9 @@ function LayerRow({ node, active, onSelect, onNode }: { node: SlideNode; active:
       data-layer={node.name}
     >
       <button type="button" {...listeners} {...attributes} className={`${smallButton} cursor-grab touch-none text-muted`} aria-label={l.drag(node.name)}>
-        ⠿
+        <Icon name="drag" />
       </button>
-      <span className="w-5 shrink-0 text-center text-xs text-muted">{node.groupId ? "▣" : icon(node.type)}</span>
+      <Icon name={node.groupId ? "group" : (TOOL_ICON[node.type] ?? "square")} size={14} className="mx-0.5 text-muted" />
       <input
         value={node.name}
         onChange={(e) => onNode(node.id, (n) => ({ ...n, name: e.target.value.slice(0, 80) }))}
@@ -69,10 +70,10 @@ function LayerRow({ node, active, onSelect, onNode }: { node: SlideNode; active:
         className={`min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none md:min-h-8 ${node.hidden ? "text-muted line-through" : ""}`}
       />
       <button type="button" className={smallButton} aria-pressed={!!node.hidden} aria-label={node.hidden ? l.show(node.name) : l.hide(node.name)} title={node.hidden ? l.show(node.name) : l.hide(node.name)} onClick={() => onNode(node.id, (n) => ({ ...n, hidden: !n.hidden || undefined }))} data-layer-hide>
-        {node.hidden ? "◌" : "👁"}
+        <Icon name={node.hidden ? "eye-off" : "eye"} size={14} />
       </button>
       <button type="button" className={smallButton} aria-pressed={!!node.locked} aria-label={node.locked ? l.unlock(node.name) : l.lock(node.name)} title={node.locked ? l.unlock(node.name) : l.lock(node.name)} onClick={() => onNode(node.id, (n) => ({ ...n, locked: !n.locked || undefined }))} data-layer-lock>
-        {node.locked ? "🔒" : "🔓"}
+        <Icon name={node.locked ? "lock" : "unlock"} size={14} />
       </button>
     </li>
   );

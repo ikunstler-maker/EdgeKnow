@@ -273,6 +273,41 @@ const ICONS = {
     </>
   ),
 
+  // Drawing tools
+  cursor: p("M5.5 4.5 11 19l2.2-6.3 6.3-2.2z"),
+  hand: p("M8 11.5V6a1.5 1.5 0 0 1 3 0v4.5V4.5a1.5 1.5 0 0 1 3 0V10.5 6a1.5 1.5 0 0 1 3 0v8.5a6 6 0 0 1-6 6h-.7a5 5 0 0 1-4-2L4.7 15a1.5 1.5 0 0 1 2.4-1.8L8 14.3"),
+  type: p("M5.5 7V5.5h13V7M12 5.5v13M9.5 18.5h5"),
+  square: <rect x="4.5" y="5.5" width="15" height="13" rx="2" />,
+  circle: <circle cx="12" cy="12" r="7.5" />,
+  slash: p("M5.5 18.5 18.5 5.5"),
+  pen: p("M5 19l1.2-4.7L16.5 4a1.8 1.8 0 0 1 2.5 0l1 1a1.8 1.8 0 0 1 0 2.5L9.7 17.8zM14.5 6l3.5 3.5"),
+  embed: (
+    <>
+      <rect x="3.5" y="5.5" width="11" height="9" rx="2" />
+      {p("M9.5 14.5v2a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2h-4")}
+    </>
+  ),
+  group: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2.5" strokeDasharray="2.5 2.5" />
+      <rect x="8" y="8" width="8" height="8" rx="1.5" />
+    </>
+  ),
+  ungroup: (
+    <>
+      <rect x="4" y="4" width="8" height="8" rx="1.5" />
+      <rect x="12" y="12" width="8" height="8" rx="1.5" />
+    </>
+  ),
+  "align-left": p("M4.5 4.5v15M8 9h10M8 15h6"),
+  "align-center": p("M12 4.5v15M6.5 9h11M8.5 15h7"),
+  "align-right": p("M19.5 4.5v15M6 9h10M10 15h6"),
+  "align-top": p("M4.5 4.5h15M9 8v10M15 8v6"),
+  "align-middle": p("M4.5 12h15M9 6.5v11M15 8.5v7"),
+  "align-bottom": p("M4.5 19.5h15M9 6v10M15 10v6"),
+  "to-front": p("M12 15V5m-4 4 4-4 4 4M5 19h14"),
+  "to-back": p("M12 9v10m-4-4 4 4 4-4M5 5h14"),
+
   // Task types and priorities
   task: (
     <>

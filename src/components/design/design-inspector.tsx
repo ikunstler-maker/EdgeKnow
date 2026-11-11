@@ -3,6 +3,7 @@
 import { t } from "@/i18n";
 import { newId, type AutoLayout, type Interaction, type Paint, type SlideNode, type StrokePaint } from "@/lib/slides";
 import { DEVICES, type DesignPage } from "@/lib/design";
+import { Icon } from "@/components/ui/icon";
 
 const g = t.design;
 const p = t.design.prototype;
@@ -221,12 +222,12 @@ export function PaintsPanel({ node, set, onImageFill }: { node: SlideNode; set: 
                   ))}
                 </select>
                 <button type="button" className={chip(false)} onClick={() => onImageFill(i)}>
-                  🖼
+                  <Icon name="image" />
                 </button>
               </>
             )}
             <button type="button" className={chip(!!f.hidden)} aria-label={g.paints.hide} onClick={() => setFill(i, { ...f, hidden: !f.hidden || undefined })}>
-              👁
+              <Icon name="eye" />
             </button>
             <button type="button" className={chip(false)} aria-label={g.paints.remove} onClick={() => set({ fills: fills.filter((_, j) => j !== i) })}>
               −
@@ -293,7 +294,7 @@ export function PrototypePanel({ node, page, frames, set, onFlows }: { node: Sli
       {isTop && (
         <Section title={p.flows}>
           {page.flows.some((f) => f.start === node.id) ? (
-            <p className="text-xs opacity-80">▶ {page.flows.find((f) => f.start === node.id)!.name}</p>
+            <p className="text-xs opacity-80"><Icon name="play" className="mr-1.5 inline" />{page.flows.find((f) => f.start === node.id)!.name}</p>
           ) : (
             <button type="button" className={`${chip(false)} w-full`} onClick={() => onFlows([...page.flows, { id: newId(), name: p.flowName(page.flows.length + 1), start: node.id }])} data-add-flow>
               {p.addFlow}

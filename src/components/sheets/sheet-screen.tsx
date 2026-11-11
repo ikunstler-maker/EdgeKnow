@@ -13,6 +13,9 @@ import { useOptionalPages } from "@/components/pages/pages-provider";
 import { ACCEPT, readSheetFile } from "./sheet-files";
 import { SheetCharts } from "./sheet-charts";
 import type { SheetChart } from "@/lib/sheet-charts";
+import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
+import { buttonClass } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 
 const SheetEditor = dynamic(() => import("./sheet-editor"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.sheets.loading}</p> });
 
@@ -52,6 +55,9 @@ export function SheetScreen({
   const [liveSheets, setLiveSheets] = useState(initial.sheets);
   const [selection, setSelection] = useState<{ sheet: string; range: string } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Charts sit in a panel beside the sheet: open when the table has any, or when one is being made.
+  const [chartsOpen, setChartsOpen] = useState(() => (initial.charts ?? []).length > 0);
+  const [newChart, setNewChart] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // A guest doesn't take the table away as a file.
   const canExport = useOptionalPages()?.workspace.role !== "guest";
@@ -140,28 +146,46 @@ export function SheetScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
+  const editable = canEdit && status !== "conflict";
   return (
-    <div className="mt-2 flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              schedule({ title: e.target.value });
-            }}
-            placeholder={s.titlePlaceholder}
-            aria-label={s.titlePlaceholder}
-            maxLength={200}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none"
-          />
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">{title || s.untitled}</h1>
-        )}
-        <span className="text-xs text-muted" role="status" data-save-status={status}>
-          {status === "saving" ? s.saving : status === "saved" ? s.saved : ""}
-        </span>
-        {access && (
+    <StudioShell
+      service="sheets"
+      backHref={workspacePath(shortId, "/sheets")}
+      backLabel={s.back}
+      title={title}
+      onTitle={
+        canEdit
+          ? (value) => {
+              setTitle(value);
+              schedule({ title: value });
+            }
+          : undefined
+      }
+      titleLabel={s.titlePlaceholder}
+      untitled={s.untitled}
+      status={status}
+      savingLabel={s.saving}
+      savedLabel={s.saved}
+      center={
+        (charts.length > 0 || editable) && (
+          <button type="button" onClick={() => setChartsOpen(!chartsOpen)} aria-pressed={chartsOpen} className={buttonClass(chartsOpen ? "subtle" : "ghost")} data-charts-toggle>
+            <Icon name="chart" />
+            {s.charts.heading}
+            {charts.length > 0 && <span className="text-xs text-muted">{charts.length}</span>}
+          </button>
+        )
+      }
+      files={[
+        ...(canExport
+          ? [
+              { label: s.files.saveXlsx, hint: s.files.saveXlsxHint, icon: "download" as const, onSelect: () => void exportAs("xlsx"), attrs: { "data-export": "xlsx" } },
+              { label: s.files.saveCsv, hint: s.files.saveCsvHint, icon: "download" as const, onSelect: () => void exportAs("csv"), attrs: { "data-export": "csv" } },
+            ]
+          : []),
+        ...(editable ? [{ label: s.files.addSheets, icon: "upload" as const, onSelect: () => fileInput.current?.click(), attrs: { "data-import": "sheets" } }] : []),
+      ]}
+      access={
+        access && (
           <ObjectAccessButton
             label={s.access}
             title={s.accessTitle}
@@ -174,95 +198,96 @@ export function SheetScreen({
               setGroupRole: (group, r) => setSheetGroupRole(shortId, id, group, r),
             }}
           />
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={async () => {
-              await trashSheet(shortId, id);
-              router.push(workspacePath(shortId, "/sheets"));
-            }}
-            className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
-          >
-            🗑️ {s.toBin}
-          </button>
-        )}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2" data-sheet-files>
-        {canExport && (
-          <>
-            <button type="button" title={s.files.saveXlsxHint} onClick={() => void exportAs("xlsx")} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
-              {s.files.saveXlsx}
-            </button>
-            <button type="button" title={s.files.saveCsvHint} onClick={() => void exportAs("csv")} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
-              {s.files.saveCsv}
-            </button>
-          </>
-        )}
-        {canEdit && status !== "conflict" && (
-          <>
-            <input
-              ref={fileInput}
-              type="file"
-              accept={ACCEPT}
-              className="hidden"
-              aria-label={s.files.addSheets}
-              data-add-sheet-file
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (file) void addSheets(file);
-              }}
-            />
-            <button type="button" onClick={() => fileInput.current?.click()} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
-              {s.files.addSheets}
-            </button>
-          </>
-        )}
-        {notice && (
-          <span role="status" className="text-sm text-muted">
-            {notice}
-          </span>
-        )}
-      </div>
-      {!canEdit && <p className="mt-1 text-sm text-muted">{s.readOnly}</p>}
-      {status === "conflict" && (
-        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          {s.conflict}
-          <button type="button" onClick={() => window.location.reload()} className="min-h-9 rounded-md border border-border bg-background px-3">
-            {s.reload}
-          </button>
-        </p>
-      )}
-      {error && status === "error" && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
-      <div className="mt-3 h-[calc(100dvh-12rem)] min-h-[420px] overflow-hidden rounded-lg border border-border bg-white text-black" data-sheet>
-        <SheetEditor
-          key={round}
-          initial={initial}
-          editable={canEdit && status !== "conflict"}
-          onChange={(data) => {
-            latest.current = { ...data, charts };
-            setLiveSheets(data.sheets);
-            schedule({ data: latest.current });
-          }}
-          onSelection={(sheet, range) => setSelection((now) => (now?.sheet === sheet && now.range === range ? now : { sheet, range }))}
-        />
-      </div>
-      <SheetCharts
-        charts={charts}
-        sheets={liveSheets}
-        selection={selection}
-        canEdit={canEdit && status !== "conflict"}
-        onCharts={(next) => {
-          setCharts(next);
-          latest.current = { ...latest.current, charts: next };
-          schedule({ data: latest.current });
+        )
+      }
+      primary={
+        editable
+          ? {
+              label: s.charts.add,
+              hint: s.charts.addHint,
+              icon: "chart",
+              onSelect: () => {
+                setChartsOpen(true);
+                setNewChart(true);
+              },
+              attrs: { "data-new-chart": "" },
+            }
+          : undefined
+      }
+      more={
+        canEdit
+          ? [
+              {
+                label: s.toBin,
+                icon: "trash",
+                danger: true,
+                onSelect: async () => {
+                  await trashSheet(shortId, id);
+                  router.push(workspacePath(shortId, "/sheets"));
+                },
+                attrs: { "data-to-bin": "" },
+              },
+            ]
+          : []
+      }
+      notices={
+        <>
+          {notice && (
+            <p role="status" className="text-muted" data-sheet-notice>
+              {notice}
+            </p>
+          )}
+          <StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />
+        </>
+      }
+    >
+      {/* The file picker lives outside the menu, so it is still there when the menu has closed. */}
+      <input
+        ref={fileInput}
+        type="file"
+        accept={ACCEPT}
+        className="hidden"
+        aria-label={s.files.addSheets}
+        data-add-sheet-file
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void addSheets(file);
         }}
       />
-    </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden bg-white text-black" data-sheet>
+          <SheetEditor
+            key={round}
+            initial={initial}
+            editable={editable}
+            onChange={(data) => {
+              latest.current = { ...data, charts };
+              setLiveSheets(data.sheets);
+              schedule({ data: latest.current });
+            }}
+            onSelection={(sheet, range) => setSelection((now) => (now?.sheet === sheet && now.range === range ? now : { sheet, range }))}
+          />
+        </div>
+        {chartsOpen && (
+          <aside className="absolute inset-y-0 right-0 z-10 w-[min(24rem,100%)] overflow-y-auto border-l border-border bg-background p-3 shadow-xl lg:static lg:shadow-none" data-charts-panel>
+            <SheetCharts
+              charts={charts}
+              sheets={liveSheets}
+              selection={selection}
+              canEdit={editable}
+              startNew={newChart}
+              onStarted={() => setNewChart(false)}
+              onClose={() => setChartsOpen(false)}
+              onCharts={(next) => {
+                setCharts(next);
+                latest.current = { ...latest.current, charts: next };
+                schedule({ data: latest.current });
+              }}
+            />
+          </aside>
+        )}
+      </div>
+    </StudioShell>
   );
 }

@@ -11,6 +11,7 @@ import { ObjectAccessButton, type ObjectAccess } from "@/components/access/objec
 import { saveBoard, setBoardGroupRole, setBoardMemberRole, setBoardWorkspaceRole, toggleBoardVote, trashBoard } from "@/app/board-actions";
 import { BoardSessionBar, useBoardSession } from "./board-session-bar";
 import type { BoardController, StickyInfo } from "./board-canvas";
+import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
 
 const BoardCanvas = dynamic(() => import("./board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.boards.loading}</p> });
 
@@ -101,28 +102,30 @@ export function BoardScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
+  const editable = canEdit && status !== "conflict";
   return (
-    <div className="mt-2 flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              schedule({ title: e.target.value });
-            }}
-            placeholder={b.titlePlaceholder}
-            aria-label={b.titlePlaceholder}
-            maxLength={200}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none"
-          />
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">{title || b.untitled}</h1>
-        )}
-        <span className="text-xs text-muted" role="status" data-save-status={status}>
-          {status === "saving" ? b.saving : status === "saved" ? b.saved : ""}
-        </span>
-        {access && (
+    <StudioShell
+      service="boards"
+      backHref={workspacePath(shortId, "/boards")}
+      backLabel={b.back}
+      title={title}
+      onTitle={
+        canEdit
+          ? (value) => {
+              setTitle(value);
+              schedule({ title: value });
+            }
+          : undefined
+      }
+      titleLabel={b.titlePlaceholder}
+      untitled={b.untitled}
+      status={status}
+      savingLabel={b.saving}
+      savedLabel={b.saved}
+      center={undefined}
+      files={[]}
+      access={
+        access && (
           <ObjectAccessButton
             label={b.access}
             title={b.accessTitle}
@@ -130,74 +133,69 @@ export function BoardScreen({
             access={access}
             members={members}
             actions={{
-              setWorkspaceRole: (role) => setBoardWorkspaceRole(shortId, id, role),
-              setMemberRole: (member, role) => setBoardMemberRole(shortId, id, member, role),
-              setGroupRole: (group, role) => setBoardGroupRole(shortId, id, group, role),
+              setWorkspaceRole: (r) => setBoardWorkspaceRole(shortId, id, r),
+              setMemberRole: (member, r) => setBoardMemberRole(shortId, id, member, r),
+              setGroupRole: (group, r) => setBoardGroupRole(shortId, id, group, r),
             }}
           />
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={async () => {
-              await trashBoard(shortId, id);
-              router.push(workspacePath(shortId, "/boards"));
+        )
+      }
+      primary={undefined}
+      more={[
+        ...(canEdit
+          ? [
+              {
+                label: b.toBin,
+                icon: "trash" as const,
+                danger: true,
+                onSelect: async () => {
+                  await trashBoard(shortId, id);
+                  router.push(workspacePath(shortId, "/boards"));
+                },
+                attrs: { "data-to-bin": "" },
+              },
+            ]
+          : []),
+      ]}
+      notices={<StudioNotices readOnly={canEdit ? null : b.readOnly} conflict={status === "conflict" ? b.conflict : null} reloadLabel={b.reload} error={status === "error" ? error : null} />}
+    >
+      <div className="relative min-h-0 flex-1">
+        <div className="h-full overflow-hidden" data-board>
+          <BoardCanvas
+            shortId={shortId}
+            boardId={id}
+            onPictureError={(message) => {
+              setStatus("error");
+              setError(message);
             }}
-            className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
-          >
-            🗑️ {b.toBin}
-          </button>
-        )}
-      </div>
-      {canEdit ? <p className="mt-1 hidden text-xs text-muted md:block">{b.hints}</p> : <p className="mt-1 text-sm text-muted">{b.readOnly}</p>}
-      {status === "conflict" && (
-        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          {b.conflict}
-          <button type="button" onClick={() => window.location.reload()} className="min-h-9 rounded-md border border-border bg-background px-3">
-            {b.reload}
-          </button>
-        </p>
-      )}
-      {error && status === "error" && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
-      <BoardSessionBar
-        shortId={shortId}
-        id={id}
-        title={title}
-        role={role}
-        controller={controller}
-        stickies={stickies}
-        selected={selected}
-        state={live}
-        showResults={showResults}
-        setShowResults={setShowResults}
-      />
-      <div className="mt-3 h-[calc(100dvh-14rem)] min-h-[420px] overflow-hidden rounded-lg border border-border" data-board>
-        <BoardCanvas
+            initial={initial}
+            editable={editable}
+            onChange={(data) => schedule({ data })}
+            onReady={setController}
+            onStickies={setStickies}
+            onSelect={setSelected}
+            votes={live.session ? { open: live.session.votingOpen, tally: live.session.tally, mine: live.session.mine, show: showResults } : null}
+            onVote={async (sticky) => {
+              const result = await toggleBoardVote(shortId, id, sticky);
+              if (!result.ok) setError(b.errors[result.error] ?? t.common.unknownError);
+              await live.refresh();
+            }}
+            chips={live.chips}
+          />
+        </div>
+        <BoardSessionBar
           shortId={shortId}
-          boardId={id}
-          onPictureError={(message) => {
-            setStatus("error");
-            setError(message);
-          }}
-          initial={initial}
-          editable={canEdit && status !== "conflict"}
-          onChange={(data) => schedule({ data })}
-          onReady={setController}
-          onStickies={setStickies}
-          onSelect={setSelected}
-          votes={live.session ? { open: live.session.votingOpen, tally: live.session.tally, mine: live.session.mine, show: showResults } : null}
-          onVote={async (sticky) => {
-            const result = await toggleBoardVote(shortId, id, sticky);
-            if (!result.ok) setError(b.errors[result.error] ?? t.common.unknownError);
-            await live.refresh();
-          }}
-          chips={live.chips}
+          id={id}
+          title={title}
+          role={role}
+          controller={controller}
+          stickies={stickies}
+          selected={selected}
+          state={live}
+          showResults={showResults}
+          setShowResults={setShowResults}
         />
       </div>
-    </div>
+    </StudioShell>
   );
 }

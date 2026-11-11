@@ -11,6 +11,9 @@ import { LayersPanel } from "./layers-panel";
 import { SizePicker } from "./size-picker";
 import { EMBED_KINDS, type EmbedKind } from "@/lib/slides";
 import { NodeShape, SlideView } from "./slide-view";
+import { Icon } from "@/components/ui/icon";
+import { ALIGN_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
+import { MenuItem, Popover } from "@/components/ui/popover";
 
 const s = t.slides;
 type Tool = "select" | NodeType;
@@ -23,7 +26,7 @@ type Drag =
 
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
 const LINEAR = (type: NodeType) => type === "LINE" || type === "ARROW";
-const iconButton = "flex h-11 min-w-11 items-center justify-center rounded-md border border-border px-2 text-sm hover:bg-surface disabled:opacity-40 md:h-9 md:min-w-9";
+const iconButton = "flex h-11 min-w-11 items-center justify-center rounded-lg border border-border px-2 text-[13px] hover:bg-hover disabled:opacity-40 md:h-8 md:min-w-8";
 const HISTORY = 100;
 
 // The slide editor: slides on the left (drag to reorder), the slide on a canvas that
@@ -375,6 +378,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
 
   // Slides: add after the current one, duplicate, delete, reorder.
   const placeholders = { title: s.placeholders.title, subtitle: s.placeholders.subtitle, text: s.placeholders.text, caption: s.placeholders.caption };
+  const [notesOpen, setNotesOpen] = useState(false);
   const addSlide = () => {
     const next = [...deck.slides];
     next.splice(slideIndex + 1, 0, templateSlide(template, themeOf(deck), placeholders, size));
@@ -382,17 +386,20 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
     setCurrent(slideIndex + 1);
     setSelected([]);
   };
-  const duplicateSlide = () => {
-    const copy = { ...slide, id: newId(), nodes: slide.nodes.map((n) => ({ ...n, id: newId() })) };
+  // Any slide of the rail, not only the open one (its hover buttons and its menu).
+  const duplicateSlide = (at = slideIndex) => {
+    const source = deck.slides[at];
+    const copy = { ...source, id: newId(), nodes: source.nodes.map((n) => ({ ...n, id: newId() })) };
     const next = [...deck.slides];
-    next.splice(slideIndex + 1, 0, copy);
+    next.splice(at + 1, 0, copy);
     commit({ ...deck, slides: next });
-    setCurrent(slideIndex + 1);
+    setCurrent(at + 1);
+    setSelected([]);
   };
-  const deleteSlide = () => {
+  const deleteSlide = (at = slideIndex) => {
     if (deck.slides.length < 2) return;
-    commit({ ...deck, slides: deck.slides.filter((_, i) => i !== slideIndex) });
-    setCurrent(Math.max(0, slideIndex - 1));
+    commit({ ...deck, slides: deck.slides.filter((_, i) => i !== at) });
+    setCurrent(Math.max(0, at <= slideIndex ? slideIndex - 1 : slideIndex));
     setSelected([]);
   };
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }), useSensor(KeyboardSensor));
@@ -411,9 +418,9 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
   const handleSize = 14 / scale;
 
   return (
-    <div className="mt-3 flex flex-1 flex-col gap-2" data-deck-editor>
+    <div className="flex min-h-0 flex-1 flex-col" data-deck-editor>
       {editable && (
-        <div className="flex flex-wrap items-center gap-1" role="toolbar" aria-label={s.canvas}>
+        <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-2 py-1" role="toolbar" aria-label={s.canvas}>
           {(["select", "TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW"] as Tool[]).map((x) => (
             <button
               key={x}
@@ -425,11 +432,11 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
               className={`${iconButton} ${tool === x ? "border-accent bg-accent/10" : ""}`}
               data-tool={x}
             >
-              {x === "select" ? "↖" : x === "TEXT" ? "T" : x === "RECTANGLE" ? "▭" : x === "ELLIPSE" ? "◯" : x === "LINE" ? "╱" : "➚"}
+              <Icon name={TOOL_ICON[x]} />
             </button>
           ))}
           <button type="button" title={s.tools.image} aria-label={s.tools.image} onClick={() => fileRef.current?.click()} className={iconButton} data-tool="IMAGE">
-            🖼
+            <Icon name="image" />
           </button>
           <input
             ref={fileRef}
@@ -460,10 +467,10 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
           </span>
           <span className="mx-1 h-6 w-px bg-border" />
           <button type="button" title={s.undo} aria-label={s.undo} disabled={!past.length} onClick={undo} className={iconButton} data-undo>
-            ↶
+            <Icon name="undo" />
           </button>
           <button type="button" title={s.redo} aria-label={s.redo} disabled={!future.length} onClick={redo} className={iconButton} data-redo>
-            ↷
+            <Icon name="redo" />
           </button>
           <span className="mx-1 h-6 w-px bg-border" />
           <button type="button" title={s.zoomOut} aria-label={s.zoomOut} onClick={() => setZoom((z) => Math.max(0.25, z / 1.25))} className={iconButton}>
@@ -507,33 +514,39 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
         </div>
       )}
 
-      <div className="flex min-h-[460px] flex-1 flex-col gap-2 md:flex-row">
-        {/* Slides */}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {/* Slides: a slim rail; a new slide at its top, copy and delete on each thumbnail. */}
         <DndContext id={dndId} sensors={sensors} onDragEnd={onSlideDrop}>
-          <nav aria-label={s.slides} className="flex shrink-0 gap-2 overflow-auto md:w-44 md:flex-col" data-slide-list>
-            {deck.slides.map((x, i) => (
-              <SlideThumb key={x.id} size={size} slide={x} index={i} active={i === slideIndex} shortId={shortId} draggable={editable} onPick={() => (setCurrent(i), setSelected([]), setEditing(null))} />
-            ))}
+          <nav aria-label={s.slides} className="flex shrink-0 gap-2 overflow-auto border-b border-border p-2 md:w-[180px] md:flex-col md:border-b-0 md:border-r" data-slide-list>
             {editable && (
-              <div className="flex shrink-0 gap-1 md:flex-col">
-                <select value={template} onChange={(e) => setTemplate(e.target.value as SlideTemplate)} aria-label={s.templateLabel} title={s.templateLabel} className="min-h-11 rounded-md border border-border bg-background px-1 text-xs md:min-h-9" data-slide-template>
+              <div className="flex shrink-0 gap-1 md:sticky md:top-0 md:z-10 md:bg-background md:pb-1">
+                <button type="button" onClick={addSlide} className={`${iconButton} flex-1 gap-1 bg-hover font-medium`} data-add-slide>
+                  <Icon name="plus" />
+                  {s.addSlide}
+                </button>
+                <select value={template} onChange={(e) => setTemplate(e.target.value as SlideTemplate)} aria-label={s.templateLabel} title={s.templateLabel} className="h-11 w-11 rounded-lg border border-border bg-background px-1 text-xs md:h-8 md:w-9" data-slide-template>
                   {TEMPLATES.map((x) => (
                     <option key={x} value={x}>
                       {s.templates[x]}
                     </option>
                   ))}
                 </select>
-                <button type="button" onClick={addSlide} className={iconButton} data-add-slide>
-                  {s.addSlide}
-                </button>
-                <button type="button" onClick={duplicateSlide} title={s.duplicateSlide} aria-label={s.duplicateSlide} className={iconButton}>
-                  ⧉
-                </button>
-                <button type="button" onClick={deleteSlide} disabled={deck.slides.length < 2} title={s.deleteSlide} aria-label={s.deleteSlide} className={iconButton}>
-                  🗑
-                </button>
               </div>
             )}
+            {deck.slides.map((x, i) => (
+              <SlideThumb
+                key={x.id}
+                size={size}
+                slide={x}
+                index={i}
+                active={i === slideIndex}
+                shortId={shortId}
+                draggable={editable}
+                onPick={() => (setCurrent(i), setSelected([]), setEditing(null))}
+                onDuplicate={editable ? () => duplicateSlide(i) : undefined}
+                onDelete={editable && deck.slides.length > 1 ? () => deleteSlide(i) : undefined}
+              />
+            ))}
           </nav>
         </DndContext>
 
@@ -548,7 +561,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
             const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
             if (file) void addImage(file);
           }}
-          className="relative min-h-[320px] min-w-0 flex-1 overflow-auto rounded-lg bg-slate-200 outline-none focus-visible:ring-2 focus-visible:ring-accent dark:bg-[#090B0E]"
+          className="relative min-h-[240px] min-w-0 flex-1 overflow-auto bg-shell outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
           data-deck-canvas
         >
           <div className="flex min-h-full min-w-full items-center justify-center p-4" style={{ width: SLIDE_W * scale + 32, height: SLIDE_H * scale + 32 }}>
@@ -691,7 +704,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
 
         {/* Design and layers */}
         {editable && (
-          <aside className="shrink-0 space-y-3 overflow-y-auto text-sm md:max-h-[calc(100dvh-12rem)] md:w-64" aria-label={s.sideTabs[sideTab]} data-deck-inspector>
+          <aside className="shrink-0 space-y-3 overflow-y-auto border-t border-border p-2 text-sm md:w-60 md:border-l md:border-t-0" aria-label={s.sideTabs[sideTab]} data-deck-inspector>
             <div className="flex gap-1" role="tablist">
               {(["design", "layers"] as const).map((tab) => (
                 <button key={tab} type="button" role="tab" aria-selected={sideTab === tab} onClick={() => setSideTab(tab)} className={`min-h-11 flex-1 rounded-md border text-sm md:min-h-9 ${sideTab === tab ? "border-accent bg-accent/10" : "border-border"}`} data-side-tab={tab}>
@@ -715,16 +728,16 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
                   <div className="grid grid-cols-3 gap-1">
                     {(["left", "centerX", "right", "top", "middle", "bottom"] as AlignMode[]).map((m) => (
                       <button key={m} type="button" onClick={() => place(align(picked, m, size))} className={iconButton} title={s.aligns[m]} aria-label={s.aligns[m]} data-align={m}>
-                        {{ left: "⇤", centerX: "↔", right: "⇥", top: "⤒", middle: "↕", bottom: "⤓" }[m]}
+                        <Icon name={ALIGN_ICON[m]} />
                       </button>
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-1">
                     <button type="button" disabled={picked.length < 3} onClick={() => place(distribute(picked, "x"))} className={iconButton} title={s.distributeX} aria-label={s.distributeX}>
-                      ⋯
+                      <Icon name="more" />
                     </button>
                     <button type="button" disabled={picked.length < 3} onClick={() => place(distribute(picked, "y"))} className={iconButton} title={s.distributeY} aria-label={s.distributeY}>
-                      ⋮
+                      <Icon name="more" className="rotate-90" />
                     </button>
                   </div>
                 </fieldset>
@@ -737,20 +750,23 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
                 <legend className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">{s.arrange}</legend>
                 <div className="grid grid-cols-2 gap-1">
                   <button type="button" onClick={group} disabled={picked.length < 2} className={iconButton} data-group>
-                    ▣ {s.group.split(" (")[0]}
+                    <Icon name="group" className="mr-1 inline" />
+                    {s.group.split(" (")[0]}
                   </button>
                   <button type="button" onClick={ungroup} disabled={!picked.some((n) => n.groupId)} className={iconButton} data-ungroup>
-                    ▢ {s.ungroup.split(" (")[0]}
+                    <Icon name="ungroup" className="mr-1 inline" />
+                    {s.ungroup.split(" (")[0]}
                   </button>
                   <button type="button" onClick={() => reorder("front")} className={iconButton} title={s.toFront} aria-label={s.toFront}>
-                    ⬆
+                    <Icon name="upload" />
                   </button>
                   <button type="button" onClick={() => reorder("back")} className={iconButton} title={s.toBack} aria-label={s.toBack}>
-                    ⬇
+                    <Icon name="download" />
                   </button>
                 </div>
                 <button type="button" onClick={removeSelected} className={`${iconButton} w-full text-danger`} data-delete-node>
-                  🗑 {s.deleteNode}
+                  <Icon name="trash" className="mr-1 inline" />
+                  {s.deleteNode}
                 </button>
               </fieldset>
             )}
@@ -758,27 +774,59 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
         )}
       </div>
       {editable && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted">{t.slides.notesLabel}</span>
-          <textarea
-            key={slide.id}
-            defaultValue={slide.notes ?? ""}
-            onBlur={(e) => e.target.value !== (slide.notes ?? "") && updateSlide((x) => ({ ...x, notes: e.target.value.slice(0, 20000) || undefined }))}
-            placeholder={t.slides.notesPlaceholder}
-            rows={3}
-            className="min-h-20 rounded-md border border-border bg-background p-2 text-base md:text-sm"
-            data-slide-notes
-          />
-        </label>
+        // Speaker notes: a slim bar that opens into a drawer.
+        <div className="shrink-0 border-t border-border" data-notes-drawer={notesOpen ? "open" : "closed"}>
+          <button type="button" onClick={() => setNotesOpen(!notesOpen)} aria-expanded={notesOpen} className="flex min-h-11 w-full items-center gap-1.5 px-3 text-xs text-muted hover:bg-hover hover:text-foreground md:h-7 md:min-h-0" data-notes-toggle>
+            <Icon name={notesOpen ? "chevron-down" : "chevron-up"} size={12} />
+            {t.slides.notesLabel}
+            {slide.notes && !notesOpen && <span className="min-w-0 flex-1 truncate text-left opacity-70">· {slide.notes}</span>}
+          </button>
+          {notesOpen && (
+            <textarea
+              key={slide.id}
+              defaultValue={slide.notes ?? ""}
+              onBlur={(e) => e.target.value !== (slide.notes ?? "") && updateSlide((x) => ({ ...x, notes: e.target.value.slice(0, 20000) || undefined }))}
+              placeholder={t.slides.notesPlaceholder}
+              aria-label={t.slides.notesLabel}
+              rows={4}
+              autoFocus
+              className="block max-h-[40vh] min-h-24 w-full resize-y border-t border-border bg-background p-3 text-base outline-none md:text-sm"
+              data-slide-notes
+            />
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-function SlideThumb({ slide, size, index, active, shortId, draggable, onPick }: { slide: Slide; size: { w: number; h: number }; index: number; active: boolean; shortId: string; draggable: boolean; onPick: () => void }) {
+function SlideThumb({
+  slide,
+  size,
+  index,
+  active,
+  shortId,
+  draggable,
+  onPick,
+  onDuplicate,
+  onDelete,
+}: {
+  slide: Slide;
+  size: { w: number; h: number };
+  index: number;
+  active: boolean;
+  shortId: string;
+  draggable: boolean;
+  onPick: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
+}) {
   const { setNodeRef: dropRef, isOver } = useDroppable({ id: slide.id, disabled: !draggable });
   const { setNodeRef, transform, isDragging, listeners, attributes } = useDraggable({ id: slide.id, disabled: !draggable });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+  // A right click (or a long press) on a thumbnail offers the same two actions.
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const action = "flex h-11 w-11 items-center justify-center rounded-md bg-black/60 text-white hover:bg-black/80 md:h-6 md:w-6";
   return (
     <div
       ref={(node) => {
@@ -786,7 +834,12 @@ function SlideThumb({ slide, size, index, active, shortId, draggable, onPick }: 
         setNodeRef(node);
       }}
       style={style}
-      className={`relative w-36 shrink-0 md:w-full ${isDragging ? "z-20 opacity-80" : ""}`}
+      onContextMenu={(event) => {
+        if (!onDuplicate) return;
+        event.preventDefault();
+        setMenu(event.currentTarget);
+      }}
+      className={`group relative w-36 shrink-0 md:w-full ${isDragging ? "z-20 opacity-80" : ""}`}
       data-slide-thumb={index + 1}
     >
       <button
@@ -796,11 +849,37 @@ function SlideThumb({ slide, size, index, active, shortId, draggable, onPick }: 
         onClick={onPick}
         aria-current={active ? "true" : undefined}
         aria-label={draggable ? s.dragSlide(index + 1) : s.slideN(index + 1)}
-        className={`block w-full touch-none overflow-hidden rounded-md border-2 ${active ? "border-accent" : isOver ? "border-accent/60" : "border-border"}`}
+        className={`block w-full touch-none overflow-hidden rounded-lg border-2 ${active ? "border-accent" : isOver ? "border-accent/60" : "border-border"}`}
       >
         <SlideView slide={slide} shortId={shortId} size={size} className="mx-auto block max-h-40 w-full" style={{ aspectRatio: `${size.w} / ${size.h}` }} />
       </button>
       <span className="pointer-events-none absolute left-1 top-1 rounded bg-black/50 px-1 text-xs text-white">{index + 1}</span>
+      {onDuplicate && (
+        <span className="absolute right-1 top-1 flex gap-0.5 opacity-0 focus-within:opacity-100 group-hover:opacity-100">
+          <button type="button" onClick={onDuplicate} title={s.duplicateSlide} aria-label={`${s.duplicateSlide}: ${index + 1}`} className={action} data-slide-duplicate>
+            <Icon name="copy" size={14} />
+          </button>
+          {onDelete && (
+            <button type="button" onClick={onDelete} title={s.deleteSlide} aria-label={`${s.deleteSlide}: ${index + 1}`} className={action} data-slide-delete>
+              <Icon name="trash" size={14} />
+            </button>
+          )}
+        </span>
+      )}
+      {menu && (
+        <Popover anchor={menu} onClose={() => setMenu(null)} width={200}>
+          <MenuItem onSelect={() => (setMenu(null), onDuplicate?.())}>
+            <Icon name="copy" className="text-muted" />
+            {s.duplicateSlide}
+          </MenuItem>
+          {onDelete && (
+            <MenuItem danger onSelect={() => (setMenu(null), onDelete())}>
+              <Icon name="trash" />
+              {s.deleteSlide}
+            </MenuItem>
+          )}
+        </Popover>
+      )}
     </div>
   );
 }

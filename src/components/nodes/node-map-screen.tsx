@@ -9,6 +9,7 @@ import type { Person } from "@/lib/tasks";
 import { saveNodeMap, setNodeMapGroupRole, setNodeMapMemberRole, setNodeMapWorkspaceRole, trashNodeMap } from "@/app/node-actions";
 import { useRouter } from "next/navigation";
 import { workspacePath } from "@/lib/paths";
+import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
 
 const MindMapCanvas = dynamic(() => import("./mind-map-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
 const DiagramCanvas = dynamic(() => import("@/components/editor/diagram-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
@@ -100,28 +101,42 @@ export function NodeMapScreen({
     schedule({ data: next });
   };
 
+  const editable = canEdit && status !== "conflict";
+  // The diagram takes a height in pixels: all the room under the bar and its own toolbar.
+  const flowBox = useRef<HTMLDivElement>(null);
+  const [flowHeight, setFlowHeight] = useState(640);
+  useEffect(() => {
+    const box = flowBox.current;
+    if (!box) return;
+    const measure = () => setFlowHeight(Math.max(320, box.clientHeight - 56));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className="mt-2 flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              schedule({ title: e.target.value });
-            }}
-            placeholder={n.titlePlaceholder}
-            aria-label={n.titlePlaceholder}
-            maxLength={200}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none"
-          />
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">{title || n.untitled}</h1>
-        )}
-        <span className="text-xs text-muted" role="status" data-save-status={status}>
-          {status === "saving" ? n.saving : status === "saved" ? n.saved : ""}
-        </span>
-        {access && (
+    <StudioShell
+      service="nodes"
+      backHref={workspacePath(shortId, "/nodes")}
+      backLabel={n.back}
+      title={title}
+      onTitle={
+        canEdit
+          ? (value) => {
+              setTitle(value);
+              schedule({ title: value });
+            }
+          : undefined
+      }
+      titleLabel={n.titlePlaceholder}
+      untitled={n.untitled}
+      status={status}
+      savingLabel={n.saving}
+      savedLabel={n.saved}
+      center={undefined}
+      files={[]}
+      access={
+        access && (
           <ObjectAccessButton
             label={n.access}
             title={n.accessTitle}
@@ -129,48 +144,46 @@ export function NodeMapScreen({
             access={access}
             members={members}
             actions={{
-              setWorkspaceRole: (role) => setNodeMapWorkspaceRole(shortId, id, role),
-              setMemberRole: (member, role) => setNodeMapMemberRole(shortId, id, member, role),
-              setGroupRole: (group, role) => setNodeMapGroupRole(shortId, id, group, role),
+              setWorkspaceRole: (r) => setNodeMapWorkspaceRole(shortId, id, r),
+              setMemberRole: (member, r) => setNodeMapMemberRole(shortId, id, member, r),
+              setGroupRole: (group, r) => setNodeMapGroupRole(shortId, id, group, r),
             }}
           />
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={async () => {
-              await trashNodeMap(shortId, id);
-              router.push(workspacePath(shortId, "/nodes"));
-            }}
-            className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
-          >
-            🗑️ {n.toBin}
-          </button>
-        )}
-      </div>
-      {!canEdit && <p className="mt-1 text-sm text-muted">{n.readOnly}</p>}
-      {status === "conflict" && (
-        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          {n.conflict}
-          <button type="button" onClick={() => window.location.reload()} className="min-h-9 rounded-md border border-border bg-background px-3">
-            {n.reload}
-          </button>
-        </p>
-      )}
+        )
+      }
+      primary={undefined}
+      more={[
+        ...(canEdit
+          ? [
+              {
+                label: n.toBin,
+                icon: "trash" as const,
+                danger: true,
+                onSelect: async () => {
+                  await trashNodeMap(shortId, id);
+                  router.push(workspacePath(shortId, "/nodes"));
+                },
+                attrs: { "data-to-bin": "" },
+              },
+            ]
+          : []),
+      ]}
+      notices={<StudioNotices readOnly={canEdit ? null : n.readOnly} conflict={status === "conflict" ? n.conflict : null} reloadLabel={n.reload} error={null} />}
+    >
       {kind === "flow" ? (
-        <div className="mt-3" data-flow>
+        <div ref={flowBox} className="min-h-0 flex-1 overflow-hidden" data-flow>
           <DiagramCanvas
             large
             data={diagram}
-            height={640}
-            editable={canEdit && status !== "conflict"}
+            height={flowHeight}
+            editable={editable}
             onChange={(next) => schedule({ data: JSON.parse(next) })}
             onHeightChange={() => {}}
           />
         </div>
       ) : (
-        <MindMapCanvas shortId={shortId} map={map} editable={canEdit && status !== "conflict"} onChange={changeMap} onLocalChange={setMap} />
+        <MindMapCanvas shortId={shortId} map={map} editable={editable} onChange={changeMap} onLocalChange={setMap} />
       )}
-    </div>
+    </StudioShell>
   );
 }
