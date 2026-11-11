@@ -18,7 +18,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Rules for all six: no database, access or server-action changes; phone controls stay 44 px; test hooks stay, a scenario step is updated only where the control itself changes kind; pinned services and the collapsed panel are remembered per browser. Emoji a person picked (Wika page icons, Rukh project icons) stay.
 
 ## Rukh: task card, quick view, move from another tracker (owner, 2026-11-11; decision 2026-11-11)
-- Р-1 two-column task card, people/parent/link search, label marks, grouped history, board tidy-up; Р-2 task panel over the board (`?task=N`); left panel as a tree (projects → boards → tasks with column dot and priority) — in review.
+- Р-1 two-column task card, people/parent/link search, label marks, grouped history, board tidy-up; Р-2 task panel over the board (`?task=N`); left panel as a tree (projects → boards → tasks with column dot and priority) — DONE (#151).
 - Р-3 move from another tracker (DB changes → owner's separate OK before coding, with the exact list):
   - 3а import wizard from an export file: same task numbers, statuses → columns, types, priorities, labels, own fields, epics/subtasks, links, people by email (a missing person's name kept as text); dry-run preview and a "moved N of N" report.
   - 3б direct connection (the owner's tracker is the cloud one): comments with dates and authors, status history, files, formatted descriptions; the access key encrypted, server only. Files go to the team's Google Drive, up to 250 MB per file and 10 GB per ZIP; whatever did not come over is listed and can be pulled later.
