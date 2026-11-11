@@ -250,7 +250,7 @@ export function BoardSessionBar({
             {b.task.button}
           </button>
           {menu === "task" && sticky && (
-            <div className="absolute right-0 bottom-full z-20 mb-2 w-72 rounded-lg border border-border bg-background p-3 shadow-lg" role="dialog" aria-label={b.task.title}>
+            <div className="absolute right-0 bottom-full z-20 mb-2 w-72 rounded-lg border border-border border border-border-strong bg-overlay p-3 shadow-lg" role="dialog" aria-label={b.task.title}>
               <p className="text-sm font-medium">{b.task.title}</p>
               <p className="mt-1 line-clamp-2 text-sm text-muted">{sticky.text || b.voting.untitledSticky}</p>
               {projects && projects.length === 0 ? (

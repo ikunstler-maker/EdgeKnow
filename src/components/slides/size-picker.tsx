@@ -42,7 +42,7 @@ export function SizePicker({ size, onChange }: { size: Size; onChange: (size: Si
         {current ?? z.custom} · {size.w}×{size.h}
       </button>
       {open && (
-        <div className="absolute left-0 z-40 mt-1 w-72 space-y-3 rounded-lg border border-border bg-background p-3 text-sm shadow-xl" role="dialog" aria-label={z.title} data-size-dialog>
+        <div className="absolute left-0 z-40 mt-1 w-72 space-y-3 rounded-lg border border-border border border-border-strong bg-overlay p-3 text-sm shadow-2xl" role="dialog" aria-label={z.title} data-size-dialog>
           <p className="font-medium">{z.title}</p>
           <div className="grid grid-cols-4 gap-1">
             {ASPECTS.map((a) => (

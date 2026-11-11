@@ -281,7 +281,7 @@ export function NewAppButton({ shortId, categories }: { shortId: string; categor
       </button>
       {open &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => setOpen(false)}>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={() => setOpen(false)}>
             <div
               role="dialog"
               aria-modal="true"

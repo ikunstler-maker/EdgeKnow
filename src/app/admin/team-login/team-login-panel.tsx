@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { t } from "@/i18n";
 import { checkTeamProject, type CheckStep } from "./actions";
+import { Icon } from "@/components/ui/icon";
 
 function CopyBlock({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -105,7 +106,8 @@ export function TeamLoginPanel({ configured, issuer, sql }: { configured: boolea
             <ul className="mt-3 flex flex-col gap-1 text-sm">
               {steps.map((step) => (
                 <li key={step.id}>
-                  {step.ok ? "✅" : "❌"} {tl.steps[step.id]}
+                  <Icon name={step.ok ? "check-circle" : "close"} className={`mr-1.5 inline ${step.ok ? "text-emerald-500" : "text-danger"}`} />
+              {tl.steps[step.id]}
                   <span className="block break-all text-xs text-muted">{step.detail}</span>
                 </li>
               ))}

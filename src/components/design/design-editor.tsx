@@ -28,7 +28,7 @@ import { ChildPanel, FramePanel, PaintsPanel, PrototypePanel, Section } from "./
 import { exportFrame } from "./design-export";
 import { TaskFromText } from "./task-from-text";
 import { Icon } from "@/components/ui/icon";
-import { ALIGN_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
+import { ALIGN_ICON, EMBED_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
 
 const g = t.design;
 const s = t.slides;
@@ -768,7 +768,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                       className="flex min-h-9 w-full items-center gap-2 rounded px-2 text-left text-sm hover:bg-white/10"
                       data-embed-kind={k}
                     >
-                      {s.embeds.icons[k]} {s.embeds.kinds[k]}
+                      <Icon name={EMBED_ICON[k] ?? "embed"} /> {s.embeds.kinds[k]}
                     </button>
                   ))}
                 </div>

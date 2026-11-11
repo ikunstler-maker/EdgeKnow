@@ -45,7 +45,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
       const notice = frozen as { name: string; reason: string | null };
       return (
         <main className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center">
-          <h1 className="text-2xl font-semibold">{t.workspace.frozenTitle(notice.name)}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t.workspace.frozenTitle(notice.name)}</h1>
           <p className="mt-3 text-muted">{t.workspace.frozen}</p>
           {notice.reason && <p className="mt-3 rounded-lg border border-border p-3 text-sm">{notice.reason}</p>}
           <Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-lg border border-border px-4 hover:bg-surface">
@@ -56,7 +56,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     }
     return (
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">{t.workspace.noAccessTitle}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.workspace.noAccessTitle}</h1>
         <p className="mt-3 text-muted">{t.workspace.noAccess}</p>
         <Link
           href="/"

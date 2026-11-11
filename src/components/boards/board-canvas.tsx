@@ -400,7 +400,7 @@ export default function BoardCanvas({
       </div>
 
       {chooser && (
-        <div className="absolute inset-x-4 top-20 z-10 mx-auto max-w-lg rounded-xl border border-border bg-background p-4 shadow-xl" role="dialog" aria-label={b.templates.title} data-template-chooser>
+        <div className="absolute inset-x-4 top-20 z-10 mx-auto max-w-lg rounded-xl border border-border border border-border-strong bg-overlay p-4 shadow-2xl" role="dialog" aria-label={b.templates.title} data-template-chooser>
           <p className="font-medium">{b.templates.title}</p>
           <p className="mt-1 text-sm text-muted">{b.templates.intro}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">

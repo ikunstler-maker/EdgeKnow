@@ -66,7 +66,7 @@ function ClearFormattingButton() {
     <Components.FormattingToolbar.Button
       mainTooltip={t.editor.clearFormatting}
       label={t.editor.clearFormatting}
-      icon={<span aria-hidden="true">⌫</span>}
+      icon={<Icon name="close" />}
       onClick={() => editor.removeStyles(editor.getActiveStyles())}
     />
   );

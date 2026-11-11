@@ -5,10 +5,10 @@
   "scripts": {
     "predev": "node scripts/copy-excalidraw-assets.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/copy-excalidraw-assets.mjs",
+    "prebuild": "node scripts/check-ui-emoji.mjs && node scripts/copy-excalidraw-assets.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint && node scripts/check-ui-emoji.mjs",
     "test:db": "scripts/test-db.sh",
     "postinstall": "patch-package"
   },

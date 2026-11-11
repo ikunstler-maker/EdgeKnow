@@ -201,7 +201,7 @@ const checkDelta = () =>
 const healthy = await checkDelta();
 check("the health check finds the team database well and measures it", healthy.health === "ok" && healthy.databaseBytes > 0, JSON.stringify(healthy));
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=team`);
-check("…and the database tab shows it", (await gammaTab.getByText("✅ База працює.").count()) === 1 && (await gammaTab.getByText(/Зайнято: база — [0-9.]+ МБ з 500 МБ/).count()) === 1);
+check("…and the database tab shows it", (await gammaTab.getByText("База працює.").count()) === 1 && (await gammaTab.getByText(/Зайнято: база — [0-9.]+ МБ з 500 МБ/).count()) === 1);
 const realKey = sql(`select secret_key_encrypted from public.team_databases where workspace_id = '${deltaId}'`);
 sql(`update public.team_databases set secret_key_encrypted = '${readFileSync(".team-stacks/team-b/bogus-key.txt", "utf8").trim()}' where workspace_id = '${deltaId}'`);
 const revoked = await checkDelta();

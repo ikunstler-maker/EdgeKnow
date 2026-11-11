@@ -5,6 +5,7 @@ import { markChangelogSeen } from "./changelog-link";
 import { createPortal } from "react-dom";
 import { dateLocale, t } from "@/i18n";
 import { ACTION_TYPES, releaseAnchor, type ServiceScope, type UpdateActionType } from "@/lib/changelog";
+import { Icon } from "@/components/ui/icon";
 
 const c = t.changelog;
 
@@ -140,10 +141,11 @@ export function ChangelogView({ releases }: { releases: ShownRelease[] }) {
                 <span aria-hidden>•</span>
                 <span>{c.version(r.version)}</span>
                 <button type="button" onClick={() => copy(r.id)} className="ml-auto min-h-11 rounded px-2 text-xs hover:bg-surface md:min-h-8" aria-label={`${c.copyLink}: ${r.title}`} data-release-link>
-                  {copied === r.id ? `✓ ${c.copied}` : `🔗 ${c.copyLink}`}
+                  <Icon name={copied === r.id ? "check" : "link"} className="mr-1 inline" />
+                {copied === r.id ? c.copied : c.copyLink}
                 </button>
               </header>
-              <h2 className="mt-2 text-lg font-semibold">✦ {r.title}</h2>
+              <h2 className="mt-2 text-lg font-semibold">{r.title}</h2>
               {r.description && <p className="mt-1 text-muted">{r.description}</p>}
               {r.media && (
                 <button type="button" onClick={() => setMedia(r.media)} aria-label={c.openMedia} className="mt-3 block w-full overflow-hidden rounded-lg border border-border">
@@ -185,7 +187,7 @@ function MediaBox({ media, onClose }: { media: NonNullable<ShownRelease["media"]
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={media.alt} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={onClose} data-changelog-lightbox>
       <button type="button" onClick={onClose} aria-label={c.close} className="absolute right-4 top-4 min-h-11 min-w-11 rounded-full bg-white/15 text-2xl text-white">
-        ✕
+        <Icon name="close" />
       </button>
       {media.kind === "video" ? (
         <video src={media.src} controls autoPlay className="max-h-[85vh] max-w-full" onClick={(e) => e.stopPropagation()} />

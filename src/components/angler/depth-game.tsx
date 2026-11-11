@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
+import { Icon } from "@/components/ui/icon";
 
 // "Depth": a calm little game hidden behind the angler fish. You lead its lure
 // with the mouse, a finger or the arrow keys; glowing plankton and jellyfish
@@ -297,7 +298,7 @@ export function DepthGame({ onClose }: { onClose: () => void }) {
         aria-label={t.common.close}
         className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
       >
-        ✕
+        <Icon name="close" />
       </button>
     </div>,
     document.body,

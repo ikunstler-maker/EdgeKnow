@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import { formatBytes } from "@/lib/format-bytes";
 import type { TaskFilesStatus } from "@/lib/drive/workspace-files";
+import { Icon } from "@/components/ui/icon";
 
 const st = t.storage;
 
@@ -126,7 +127,10 @@ export function StoragePanel({
         <h2 className="text-lg font-semibold">{st.heading}</h2>
         {drive ? (
           <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
-            <p className="font-medium">🟢 {st.connected(drive.account_email)}</p>
+            <p className="flex items-center gap-2 font-medium">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+            {st.connected(drive.account_email)}
+          </p>
             <p className="text-muted">{st.connectedBy(drive.connected_by ?? "—", when(drive.connected_at))}</p>
             {drive.status === "error" && (
               <p role="alert" className="rounded-md bg-danger/10 px-2 py-1 text-danger">
@@ -139,7 +143,8 @@ export function StoragePanel({
               rel="noopener noreferrer"
               className="inline-block text-accent underline"
             >
-              {st.openFolder} ↗
+              {st.openFolder}
+              <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
             </a>
             <p className="text-xs text-muted">{st.sharedDriveHint}</p>
           </div>

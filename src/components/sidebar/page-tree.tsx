@@ -350,7 +350,7 @@ function TreeRow({
               title={t.sidebar.moreActions}
               className={`${rowAction} ${menuAnchor ? "flex" : "flex [@media(hover:hover)]:hidden [@media(hover:hover)]:group-hover:flex [@media(hover:hover)]:group-focus-within:flex"}`}
             >
-              ⋯
+              <Icon name="more" />
             </button>
           </>
         )}

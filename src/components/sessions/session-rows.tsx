@@ -2,8 +2,9 @@
 
 import { dateLocale, t } from "@/i18n";
 import type { SessionItem } from "@/app/session-actions";
+import { Icon } from "@/components/ui/icon";
 
-const icon = { phone: "📱", tablet: "📱", computer: "💻", unknown: "❔" } as const;
+const icon = { phone: "phone", tablet: "phone", computer: "monitor", unknown: "help" } as const;
 
 // "5 min ago", "2 h ago", "3 days ago" in the interface language.
 function ago(iso: string) {
@@ -32,7 +33,7 @@ export function SessionRows({
     <ul className="flex flex-col divide-y divide-border rounded-xl border border-border" data-sessions>
       {sessions.map((x) => (
         <li key={x.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm" data-session={x.kind}>
-          <span aria-hidden>{icon[x.kind]}</span>
+          <Icon name={icon[x.kind]} size={18} className="text-muted" />
           <span className="min-w-0 flex-1">
             <span className="block">
               {ss.kinds[x.kind]}

@@ -12,7 +12,7 @@ import { SizePicker } from "./size-picker";
 import { EMBED_KINDS, type EmbedKind } from "@/lib/slides";
 import { NodeShape, SlideView } from "./slide-view";
 import { Icon } from "@/components/ui/icon";
-import { ALIGN_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
+import { ALIGN_ICON, EMBED_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
 import { MenuItem, Popover } from "@/components/ui/popover";
 
 const s = t.slides;
@@ -458,7 +458,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
               <div className="absolute left-0 z-40 mt-1 w-60 rounded-lg border border-border bg-background p-1 shadow-xl" role="menu" aria-label={s.embeds.title}>
                 {EMBED_KINDS.map((k) => (
                   <button key={k} type="button" role="menuitem" onClick={() => addEmbed(k)} className="flex min-h-11 w-full items-center gap-2 rounded px-2 text-left text-sm hover:bg-surface md:min-h-9" data-embed-kind={k}>
-                    <span>{s.embeds.icons[k]}</span>
+                    <Icon name={EMBED_ICON[k] ?? "embed"} className="text-muted" />
                     {s.embeds.kinds[k]}
                   </button>
                 ))}

@@ -110,7 +110,7 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-xl bg-background shadow-xl sm:rounded-xl">
         <div className="flex items-center border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold"><Icon name="template" className="mr-1.5 inline" />{title}</h2>

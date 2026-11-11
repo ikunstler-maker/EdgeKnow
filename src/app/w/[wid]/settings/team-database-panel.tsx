@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
+import { Icon } from "@/components/ui/icon";
+
+const stepMark = (state: "done" | "failed" | "running" | "waiting") => (
+  <Icon
+    name={state === "done" ? "check-circle" : state === "failed" ? "close" : state === "running" ? "clock" : "minus"}
+    className={`mr-1.5 inline ${state === "done" ? "text-emerald-500" : state === "failed" ? "text-danger" : "text-muted"}`}
+  />
+);
 
 export type TeamDatabaseStatus = {
   projectUrl: string | null;
@@ -134,7 +142,7 @@ export function TeamDatabasePanel({
   if (status?.step === "done" || (status && status.step === null)) {
     return (
       <section className="flex flex-col gap-2 rounded-lg border border-border p-4">
-        <h2 className="font-semibold">✅ {td.connectedTitle}</h2>
+        <h2 className="font-semibold"><Icon name="check-circle" className="mr-1.5 inline" />{td.connectedTitle}</h2>
         <p className="text-sm">{td.connected}</p>
         {status.projectUrl && (
           <code className="break-all rounded bg-surface px-2 py-1 text-sm">
@@ -194,13 +202,7 @@ export function TeamDatabasePanel({
         <ol className="flex flex-col gap-1 text-sm">
           {STEPS.map((step, index) => (
             <li key={step}>
-              {index < current || progress.step === "done"
-                ? "✅"
-                : index === current
-                  ? progress.error
-                    ? "❌"
-                    : "⏳"
-                  : "▫️"}{" "}
+              {stepMark(index < current || progress.step === "done" ? "done" : index === current ? (progress.error ? "failed" : "running") : "waiting")}
               {td.steps[step]}
               {index === current && progress.copying && !progress.error && (
                 <span className="text-muted"> — {progress.copying}</span>
@@ -429,7 +431,7 @@ function ReturnPanel({ workspaceId, initial, initialError }: { workspaceId: stri
   if (progress.step === "done") {
     return (
       <section role="status" className="flex flex-col gap-2 rounded-lg border border-border p-4">
-        <h2 className="font-semibold">✅ {td.returnedTitle}</h2>
+        <h2 className="font-semibold"><Icon name="check-circle" className="mr-1.5 inline" />{td.returnedTitle}</h2>
         <p className="text-sm">{td.returned}</p>
       </section>
     );
@@ -443,7 +445,8 @@ function ReturnPanel({ workspaceId, initial, initialError }: { workspaceId: stri
       <ol className="flex flex-col gap-1 text-sm">
         {steps.map((step, index) => (
           <li key={step}>
-            {index < current ? "✅" : index === current ? (progress.error ? "❌" : "⏳") : "▫️"} {td.returnSteps[step]}
+            {stepMark(index < current ? "done" : index === current ? (progress.error ? "failed" : "running") : "waiting")}
+              {td.returnSteps[step]}
             {index === current && progress.copying && !progress.error && <span className="text-muted"> — {progress.copying}</span>}
           </li>
         ))}

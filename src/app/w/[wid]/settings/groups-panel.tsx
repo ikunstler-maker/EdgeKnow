@@ -5,6 +5,7 @@ import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, u
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { createGroup, deleteGroup, moveGroup, renameGroup, setGroupLead, setGroupMember } from "@/app/workspace-actions";
+import { Icon } from "@/components/ui/icon";
 
 export type GroupItem = { id: string; name: string; memberIds: string[]; leadIds?: string[]; parentId: string | null; position: number };
 export type GroupPerson = { userId: string; name: string | null; email: string };
@@ -117,7 +118,8 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
               <UnitCard key={group.id} group={group} depth={depth} disabled={pending}>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 font-medium">
-                    {depth === 0 ? "🏢" : "👥"} {group.name} <span className="text-sm font-normal text-muted">· {g.count(inGroup.length)}</span>
+                    <Icon name={depth === 0 ? "home" : "users"} className="mr-1.5 inline text-muted" />
+              {group.name} <span className="text-sm font-normal text-muted">· {g.count(inGroup.length)}</span>
                   </p>
                   <button
                     type="button"
@@ -129,7 +131,8 @@ export function GroupsPanel({ workspaceId, groups, people }: { workspaceId: stri
                     }}
                     data-group-add-sub
                   >
-                    ＋ {g.addSub}
+                    <Icon name="plus" className="mr-1 inline" />
+                    {g.addSub}
                   </button>
                   <select
                     value=""
@@ -257,7 +260,7 @@ function UnitCard({ group, depth, disabled, children }: { group: GroupItem; dept
       data-group-depth={depth}
     >
       <button type="button" {...listeners} {...attributes} disabled={disabled} aria-label={g.dragUnit(group.name)} className="h-11 w-7 shrink-0 cursor-grab touch-none rounded text-muted hover:bg-surface">
-        ⠿
+        <Icon name="drag" />
       </button>
       <div className="min-w-0 flex-1">{children}</div>
     </li>

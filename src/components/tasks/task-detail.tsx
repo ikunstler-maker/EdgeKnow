@@ -152,10 +152,10 @@ export function TaskDetail({
               const value = e.currentTarget.value.trim();
               if (value && value !== task.title) change({ title: value });
             }}
-            className="mt-1 w-full resize-none bg-transparent text-2xl font-semibold outline-none [field-sizing:content]"
+            className="mt-1 w-full resize-none bg-transparent text-xl font-semibold tracking-tight outline-none [field-sizing:content]"
           />
         ) : (
-          <h1 className="mt-1 text-2xl font-semibold">{task.title}</h1>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{task.title}</h1>
         )}
         {error && (
           <p role="alert" className="mt-2 text-sm text-danger">
