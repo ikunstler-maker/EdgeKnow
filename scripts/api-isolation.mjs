@@ -204,6 +204,7 @@ const bobActions = {
   "give himself alpha's map": ["set_service_object_member_role", { target_object: alphaMap?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
   "set who may move tasks in alpha's column": ["set_column_options", { target_status: alphaColumn?.id, options: { short_name: "x", take_groups: [] } }],
+  "seat himself as a tracker person of alpha": ["seat_import_person", { target_person: "00000000-0000-0000-0000-000000000000", member: "00000000-0000-0000-0000-000000000000" }],
   "change the key of alpha's project": ["set_task_project_key", { target_project: alphaProject?.id, new_key: "MINE" }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
@@ -227,6 +228,7 @@ check("bob can't call the server-only domain confirmation", selfConfirm.status >
 // Importing tasks from another tracker is the server's alone (Rukh Р-3а).
 for (const [fn, body] of [
   ["import_tasks", { target_project: alphaProject?.id, items: [] }],
+  ["import_people", { target_project: alphaProject?.id, items: [] }],
   ["import_task_relations", { target_project: alphaProject?.id, items: [] }],
   ["make_room_for_import", { target_project: alphaProject?.id, last_number: 5 }],
 ]) {

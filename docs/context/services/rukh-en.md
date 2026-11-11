@@ -54,6 +54,9 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - Nobody is notified about imported tasks and no "changed" lines are written; each task gets its original "created" line. Running an import again updates tasks by their old key and never doubles them. The move runs page by page while the wizard is open and continues from where it stopped.
 - **The access key** is kept encrypted in `task_imports` (central database, server only, never sent to the browser) and can be deleted with the connection. The tracker is only read. Only the vendor's cloud addresses are accepted. The tracker's name shows only in the wizard's source list.
 - An imported task shows "Moved from <old key>" with a link to the old tracker.
+- Tracker people (package 3, part 1): each person is a "seat" in the project; tied to a member at once by email or the wizard's choice, otherwise later in "Access and settings" → "People from the tracker" (project owner or workspace admin). Seating and re-seating hand over the tasks the person held or wrote; nobody is notified.
+- Tracker roles → our project roles (a wizard step); a seated member gets the role if theirs is lower. Roles held through a tracker group are not seen.
+- A task the tracker restricts comes over private (the existing private-task rule).
 
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.
@@ -105,6 +108,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_page_links` | links between tasks and wiki pages |
 | `task_comments`, `task_events` | comments and history |
 | `task_files` | files |
+| `task_import_people` | люди трекера як місця: ім'я, пошта, ролі, до кого прив'язано |
 | `task_rules` | notification rules and rules between boards |
 | `task_imports` (central database only, server only) | a move from another tracker: its address, the encrypted access key, the mapping, progress and report |
 

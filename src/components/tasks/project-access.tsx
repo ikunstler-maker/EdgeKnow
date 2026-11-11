@@ -9,6 +9,7 @@ import { personLabel, type Person } from "@/lib/tasks";
 import { setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject } from "@/app/task-actions";
 import { setTaskProjectKey } from "@/app/task-import-actions";
 import { Icon } from "@/components/ui/icon";
+import { ImportPeople } from "./import-people";
 
 export type ProjectAccess = {
   workspaceRole: string | null;
@@ -220,6 +221,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
             </section>
           )}
 
+          <ImportPeople projectId={project.id} members={members} />
           <ProjectKeyForm project={project} />
 
           <div className="border-t border-border pt-4">

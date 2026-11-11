@@ -1,4 +1,4 @@
-import type { Block, OurPriority, OurType, TrackerField, TrackerStatus, TrackerType, TrackerUser } from "@/lib/tracker-convert";
+import type { Block, OurPriority, OurRole, OurType, TrackerField, TrackerRole, TrackerStatus, TrackerType, TrackerUser } from "@/lib/tracker-convert";
 import type { Person } from "@/lib/tasks";
 
 // What the import wizard and the server say to each other (Rukh Р-3а).
@@ -11,6 +11,8 @@ export type ImportOutline = {
   types: TrackerType[];
   priorities: string[];
   users: TrackerUser[];
+  // The tracker project's roles and who holds each.
+  roles: TrackerRole[];
   // Custom fields that hold something in the first tasks (the rest can't be seen cheaply).
   fields: TrackerField[];
   ours: {
@@ -35,6 +37,8 @@ export type ImportPlan = {
   types: Record<string, OurType>;
   priorities: Record<string, OurPriority>;
   people: Record<string, string | null>;
+  // tracker role name → the role of ours its people get in the project (null: none)
+  roles?: Record<string, OurRole | null>;
   fields: string[];
   startField: string | null;
 };
@@ -63,6 +67,9 @@ export type ImportProgress = {
   links: number;
   // Links and parents whose other task isn't among the imported ones.
   missing: number;
+  // Tracker people brought as seats, and how many of them sit on a member already.
+  people?: number;
+  seated?: number;
   // Tasks left out, with the reason (first 200).
   skipped: { key: string; reason: string }[];
   // What was shortened or left out inside tasks: reason → how many tasks.

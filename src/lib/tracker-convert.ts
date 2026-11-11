@@ -8,6 +8,10 @@ export type OurCategory = "todo" | "doing" | "review" | "done";
 export type OurFieldKind = "text" | "number" | "date" | "select" | "multiselect" | "person" | "url";
 
 export type TrackerUser = { id: string; name: string; email: string | null };
+// A role of the tracker's project and the ids of the people who hold it directly.
+export type TrackerRole = { name: string; users: string[] };
+export type OurRole = "owner" | "editor" | "commenter" | "viewer";
+export const OUR_ROLES: OurRole[] = ["owner", "editor", "commenter", "viewer"];
 export type TrackerStatus = { id: string; name: string; category: OurCategory };
 export type TrackerType = { id: string; name: string; subtask: boolean; epic: boolean };
 export type TrackerField = { id: string; name: string; kind: OurFieldKind };
@@ -30,6 +34,8 @@ export type TrackerIssue = {
   resolved: string | null;
   parent: string | null;
   links: TrackerLink[];
+  // The tracker limits who sees this task (it comes over private).
+  restricted: boolean;
   // Every other field as the tracker gave it (custom fields by their id).
   raw: Record<string, unknown>;
 };
@@ -48,6 +54,10 @@ export type ImportMapping = {
   fields: Record<string, { id: string; kind: OurFieldKind; options?: Record<string, string> }>;
   // The tracker field that holds the start date, if any.
   startField: string | null;
+  // tracker user id → the role of ours their tracker roles map to (highest of them)
+  personRoles?: Record<string, OurRole | null>;
+  // tracker user id → the names of their roles in the tracker's project
+  trackerRoles?: Record<string, string[]>;
 };
 
 // ---- Formatted text: the tracker's document → our editor's blocks ---------------------------
@@ -253,6 +263,43 @@ export function matchPeople(users: TrackerUser[], members: { id: string; name: s
   return out;
 }
 
+// The role of ours a person gets: the highest among those their tracker roles map to.
+export function personRoles(roles: TrackerRole[], chosen: Record<string, OurRole | null>): { ours: Record<string, OurRole | null>; theirs: Record<string, string[]> } {
+  const ours: Record<string, OurRole | null> = {};
+  const theirs: Record<string, string[]> = {};
+  for (const role of roles) {
+    const mapped = chosen[role.name] ?? null;
+    for (const user of role.users) {
+      theirs[user] = [...(theirs[user] ?? []), role.name].slice(0, 20);
+      const now = ours[user] ?? null;
+      if (mapped && (!now || OUR_ROLES.indexOf(mapped) < OUR_ROLES.indexOf(now))) ours[user] = mapped;
+      else if (!(user in ours)) ours[user] = null;
+    }
+  }
+  return { ours, theirs };
+}
+
+// A sensible first guess for a tracker role by its name.
+export function suggestRole(name: string): OurRole | null {
+  const n = name.toLowerCase();
+  if (/admin|адмін|owner|власник/.test(n)) return "owner";
+  if (/view|read|observer|перегляд|спостер/.test(n)) return "viewer";
+  if (/comment|client|customer|комент|клієнт/.test(n)) return "commenter";
+  if (/atlassian-addons/.test(n)) return null;
+  return "editor";
+}
+
+// What import_people takes for these tracker people.
+export type ImportPersonItem = { external_id: string; name: string; email: string | null; roles: string[]; project_role: OurRole | null; user_id: string | null };
+export function toPersonItems(users: TrackerUser[], mapping: ImportMapping): ImportPersonItem[] {
+  const seen = new Set<string>();
+  return users.flatMap((user) => {
+    if (!user.id || !user.name.trim() || seen.has(user.id)) return [];
+    seen.add(user.id);
+    return [{ external_id: user.id.slice(0, 200), name: user.name.trim().slice(0, 120), email: user.email, roles: mapping.trackerRoles?.[user.id] ?? [], project_role: mapping.personRoles?.[user.id] ?? null, user_id: mapping.people[user.id] ?? null }];
+  });
+}
+
 // ---- One issue → what import_tasks takes -----------------------------------------------------
 
 export type ImportItem = {
@@ -268,6 +315,10 @@ export type ImportItem = {
   reporter_id: string | null;
   imported_assignee: string | null;
   imported_reporter: string | null;
+  // The tracker's ids of the two people: their seats are tied to the task.
+  assignee_ext: string | null;
+  reporter_ext: string | null;
+  private: boolean;
   labels: string[];
   start_date: string | null;
   due_date: string | null;
@@ -341,6 +392,9 @@ export function toImportItem(issue: TrackerIssue, mapping: ImportMapping): { ite
       reporter_id: reporter.id,
       imported_assignee: assignee.name,
       imported_reporter: reporter.name,
+      assignee_ext: issue.assignee?.id ?? null,
+      reporter_ext: issue.reporter?.id ?? null,
+      private: issue.restricted,
       labels: labels.slice(0, 20),
       start_date: mapping.startField ? dateOf(issue.raw[mapping.startField]) : null,
       due_date: dateOf(issue.due),
@@ -436,6 +490,7 @@ export function parseIssue(value: unknown, site: string): TrackerIssue | null {
     resolved: str(fields.resolutiondate) || null,
     parent: str(obj(fields.parent).key) || null,
     links,
+    restricted: fields.security !== null && fields.security !== undefined,
     raw: fields,
   };
 }

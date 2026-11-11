@@ -831,10 +831,11 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
       priorities: ["High", "Low"],
       fields: [],
       users: [{ accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }],
+      roles: [{ name: "Developers", users: ["u-alice", "u-gone"] }, { name: "Empty role", users: [] }],
       issues: [
         issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01" }),
         issue(2, { summary: "Old child", status: statuses[1], issuetype: { id: "12" }, parent: { key: "OLD-1" }, issuelinks: [{ type: { name: "Blocks" }, outwardIssue: { key: "OLD-5" } }] }),
-        issue(5, { summary: "Old done", status: statuses[2], issuetype: { id: "11" }, resolutiondate: "2025-03-04T10:00:00.000+0000" }),
+        issue(5, { summary: "Old done", status: statuses[2], issuetype: { id: "11" }, assignee: { accountId: "u-gone", displayName: "Gone Person" }, security: { name: "Staff only" }, resolutiondate: "2025-03-04T10:00:00.000+0000" }),
       ],
     }),
   );
@@ -853,6 +854,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator("[data-import-found]").waitFor({ timeout: 30000 });
   const kept = sql("select secret_encrypted not like '%fake-tracker-key%' and secret_encrypted like 'v1.%' from public.task_imports");
   check("the tracker's key is kept encrypted, and people are matched by email", kept === "t" && (await alice.locator("[data-import-people-found]").innerText()).includes("1 з 1"), kept);
+  const roleRows = await alice.locator("[data-import-roles] select").evaluateAll((els) => els.map((el) => el.value).join(","));
+  check("the tracker's roles that have people are offered a role of ours", roleRows === "editor", roleRows);
   await alice.locator("[data-import-to-preview]").click();
   await alice.locator('[data-import-preview-task="OLD-1"]').waitFor({ timeout: 30000 });
   check("the dry run shows the first tasks, and nothing is written yet", (await alice.locator("[data-import-preview-task]").count()) === 3 && sql("select count(*) from public.task_projects where key = 'OLD'") === "0");
@@ -877,6 +880,22 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator("[data-project-key-save]").click();
   await alice.waitForURL(/\/tasks\/OLDER$/, { timeout: 20000 }).catch(() => {});
   check("a project's key changes, and its tasks keep their numbers", sql("select count(*) from public.task_projects where key = 'OLDER'") === "1" && alice.url().endsWith("/tasks/OLDER"), alice.url());
+  // The tracker's people are seats: the one nobody knew is tied to a member later, and
+  // the tasks follow (the restricted one too, which comes over private).
+  const seatOf = () => sql(`select p.name || ' ' || coalesce(p.project_role, '-') || ' ' || array_to_string(p.tracker_roles, ',') || ' ' || coalesce((select email from public.profiles where id = p.user_id), 'free') from public.task_import_people p where p.external_id = 'u-gone'`);
+  check("a tracker person nobody knows is kept as a seat with the role mapped", seatOf() === "Gone Person editor Developers free", seatOf());
+  const restricted = () => sql(`select t.private || ' ' || coalesce((select email from public.profiles where id = t.assignee_id), t.imported_assignee) from public.tasks t where t.project_id = (select id from public.task_projects where key = 'OLDER') and t.number = 5`);
+  check("a restricted task comes over private", restricted() === "true Gone Person", restricted());
+  const colleagueSeat = sql("select id from public.profiles where email = 'colleague@alpha.test'");
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
+  await alice.locator('[data-import-person="Gone Person"] [data-import-person-seat]').waitFor({ timeout: 20000 });
+  await alice.locator('[data-import-person="Gone Person"] [data-import-person-seat]').selectOption(colleagueSeat);
+  await alice.locator("[data-import-people-note]").waitFor({ timeout: 20000 }).catch(() => {});
+  const followed = () => sql(`select string_agg(t.number || ':' || coalesce((select split_part(email, '@', 1) from public.profiles where id = t.assignee_id), '-') || '/' || coalesce((select split_part(email, '@', 1) from public.profiles where id = t.reporter_id), '-'), ',' order by t.number) from public.tasks t where t.project_id = (select id from public.task_projects where key = 'OLDER') and t.number in (1, 5)`);
+  check("tying the person to a member hands over the tasks they held and wrote", await until(() => followed() === "1:alice/colleague,5:colleague/-", 15000), followed());
+  const seatedRole = sql(`select public.task_project_role_of((select id from public.task_projects where key = 'OLDER'), '${colleagueSeat}')`);
+  check("…and the member has at least the mapped role in the project", ["editor", "owner"].includes(seatedRole), seatedRole);
+  await alice.keyboard.press("Escape");
   // A second run of the same import doubles nothing.
   sql(`update public.task_imports set state = 'running', progress = jsonb_set(jsonb_set(progress, '{phase}', '"tasks"'), '{cursor}', 'null')`);
   await alice.goto(`${APP}/w/${alphaShort}/tasks/import`);
