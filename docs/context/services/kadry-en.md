@@ -12,7 +12,7 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 ## 2. What is built
 
 ### Editor
-- Slides on the left (drag to reorder), canvas, right panel with "Style" and "Layers".
+- Slides on the left (drag to reorder), canvas, right panel with "Style" and "Layers" (closed by default; a toolbar button opens it).
 - Objects: shapes, text, images; groups; layers.
 - Style: position and size, angle, opacity; solid or gradient fill (incl. the services' brand gradients); stroke; corner radii; shadow and blur; text with several fonts.
 - Themes and templates.

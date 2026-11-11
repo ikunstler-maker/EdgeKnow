@@ -641,6 +641,7 @@ export const en: Dictionary = {
     theme: "Theme",
     themes: { light: "Light", dark: "Dark", paper: "Paper", ocean: "Ocean", forest: "Forest", code: "Code" } as Record<string, string>,
     sideTabs: { design: "Design", layers: "Layers" },
+    sidePanel: "Design and layers",
     arrange: "Arrange",
     group: "Group (Ctrl+G)",
     ungroup: "Ungroup (Ctrl+Shift+G)",

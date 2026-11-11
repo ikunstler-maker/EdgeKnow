@@ -650,6 +650,7 @@ export const uk = {
     theme: "Тема",
     themes: { light: "Світла", dark: "Темна", paper: "Папір", ocean: "Океан", forest: "Ліс", code: "Код" } as Record<string, string>,
     sideTabs: { design: "Оформлення", layers: "Шари" },
+    sidePanel: "Оформлення і шари",
     arrange: "Упорядкувати",
     group: "Згрупувати (Ctrl+G)",
     ungroup: "Розгрупувати (Ctrl+Shift+G)",

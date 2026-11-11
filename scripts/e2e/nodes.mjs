@@ -346,6 +346,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.mouse.click(...at(0.9, 0.9));
   // Step П-2: the rectangle gets a 135° brand gradient and a shadow; the dark theme for the deck.
   // Picked in the layers panel (independent of where the canvas sits on the page).
+  await alice.locator("[data-side-toggle]").click();
   await alice.locator('[data-side-tab="layers"]').click();
   await alice.locator('[data-layer="Прямокутник"] input').click();
   await alice.locator('[data-side-tab="design"]').click();
