@@ -156,6 +156,10 @@ jobs:
       - name: Outside calendar files
         if: matrix.part == 'nodes'
         run: node --experimental-strip-types --no-warnings scripts/test-calendar-external.mjs
+      # Rukh Р-3а: another tracker's tasks turned into ours (formatted text, people, numbers, links).
+      - name: Tracker import
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings scripts/test-tracker-import.mjs
       # The people and workspaces every part starts from (the API test leaves them).
       - name: Seed through the API isolation test
         run: |
@@ -196,6 +200,10 @@ jobs:
           export CALENDAR_FAKE_DIR="$RUNNER_TEMP/fake-calendars"
           mkdir -p "$CALENDAR_FAKE_DIR"
           echo "CALENDAR_FAKE_DIR=$CALENDAR_FAKE_DIR" >> "$GITHUB_ENV"
+          # Another tracker (Rukh Р-3а): a file the test writes, instead of the network.
+          export TRACKER_FAKE_DIR="$RUNNER_TEMP/fake-tracker"
+          mkdir -p "$TRACKER_FAKE_DIR"
+          echo "TRACKER_FAKE_DIR=$TRACKER_FAKE_DIR" >> "$GITHUB_ENV"
           export CRON_SECRET="ci-cron-secret"
           echo "DRIVE_FAKE_DIR=$DRIVE_FAKE_DIR" >> "$GITHUB_ENV"
           echo "CRON_SECRET=$CRON_SECRET" >> "$GITHUB_ENV"

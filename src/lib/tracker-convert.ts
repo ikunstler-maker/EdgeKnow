@@ -439,3 +439,20 @@ export function parseIssue(value: unknown, site: string): TrackerIssue | null {
     raw: fields,
   };
 }
+
+// ---- The tracker's address ---------------------------------------------------------------------
+
+// Any link copied from the cloud tracker (a board, a task, the site itself) gives the
+// site and, when it is in the link, the project's key. Only the vendor's own cloud
+// addresses are accepted, so the server never calls an address someone made up.
+export function parseTrackerLink(input: string): { site: string; project: string | null } | null {
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(input.trim()) ? input.trim() : `https://${input.trim()}`);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || !/^[a-z0-9][a-z0-9-]{0,61}\.atlassian\.net$/.test(url.hostname) || url.port) return null;
+  const key = url.pathname.match(/\/projects\/([A-Z][A-Z0-9_]{1,19})(\/|$)/)?.[1] ?? url.pathname.match(/\/browse\/([A-Z][A-Z0-9_]{1,19})-\d+/)?.[1] ?? null;
+  return { site: `https://${url.hostname}`, project: key };
+}

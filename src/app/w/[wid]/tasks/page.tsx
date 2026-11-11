@@ -10,6 +10,7 @@ import { NewProjectButton } from "@/components/tasks/new-project-button";
 import { ServiceIcon } from "@/components/services/service-icon";
 import { Icon } from "@/components/ui/icon";
 import { Hint } from "@/components/ui/hint";
+import { buttonClass } from "@/components/ui/button";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.tasks.title} · ${SERVICE_BRANDS.tasks.name}` };
@@ -43,6 +44,12 @@ export default async function TasksHome({ params }: PageProps<"/w/[wid]/tasks">)
           </h1>
           <p className="truncate text-xs text-muted">{workspace.name}</p>
         </div>
+        {isWorkspaceAdmin(workspace) && (
+          <Link href={workspacePath(workspace.shortId, "/tasks/import")} className={buttonClass("ghost")} data-open-import>
+            <Icon name="download" />
+            <span className="hidden sm:inline">{t.tasks.importer.open}</span>
+          </Link>
+        )}
         {admin && <NewProjectButton workspaceId={workspace.id} shortId={workspace.shortId} />}
       </header>
       {projects.length === 0 ? (

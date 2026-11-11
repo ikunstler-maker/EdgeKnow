@@ -777,4 +777,80 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await aliceClient.rpc("remove_member", { ws: alphaId, member: devicesId });
 }
 
+// --- Moving in from another tracker (Rukh Р-3а): same numbers, dates, people and links ---------
+{
+  const { writeFileSync } = await import("node:fs");
+  const dir = process.env.TRACKER_FAKE_DIR;
+  if (!dir) throw new Error("TRACKER_FAKE_DIR is not set");
+  const text = (value) => ({ type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: value, marks: [{ type: "strong" }] }] }] });
+  const status = (id, name, key) => ({ id, name, statusCategory: { key } });
+  const statuses = [status("1", "Backlog", "new"), status("2", "In Review", "indeterminate"), status("3", "Released", "done")];
+  const issue = (number, fields) => ({ key: `OLD-${number}`, fields: { labels: [], issuelinks: [], created: "2025-03-01T10:00:00.000+0000", updated: "2025-03-05T10:00:00.000+0000", priority: { name: "High" }, ...fields } });
+  writeFileSync(
+    `${dir}/tracker.json`,
+    JSON.stringify({
+      token: "fake-tracker-key",
+      me: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" },
+      project: { key: "OLD", name: "Old tracker", issueTypes: [{ id: "10", name: "Epic", hierarchyLevel: 1 }, { id: "11", name: "Task" }, { id: "12", name: "Sub-task", subtask: true }] },
+      statuses,
+      priorities: ["High", "Low"],
+      fields: [],
+      users: [{ accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }],
+      issues: [
+        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01" }),
+        issue(2, { summary: "Old child", status: statuses[1], issuetype: { id: "12" }, parent: { key: "OLD-1" }, issuelinks: [{ type: { name: "Blocks" }, outwardIssue: { key: "OLD-5" } }] }),
+        issue(5, { summary: "Old done", status: statuses[2], issuetype: { id: "11" }, resolutiondate: "2025-03-04T10:00:00.000+0000" }),
+      ],
+    }),
+  );
+  await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+  await alice.locator("[data-open-import]").click();
+  await alice.waitForURL(/\/tasks\/import$/);
+  await alice.locator("[data-import-link]").fill("https://old-team.atlassian.net/jira/core/projects/OLD/board");
+  check("the project's key is read from the pasted link", (await alice.locator("[data-import-project]").inputValue()) === "OLD");
+  await alice.locator("[data-import-account]").fill("alice@alpha.test");
+  await alice.locator("[data-import-token]").fill("a-wrong-key-123");
+  await alice.locator("[data-import-connect]").click();
+  await alice.locator("[data-import-error]").waitFor({ timeout: 20000 }).catch(() => {});
+  check("a wrong access key is refused, and nothing is kept", (await alice.locator("[data-import-error]").count()) === 1 && sql("select count(*) from public.task_imports") === "0");
+  await alice.locator("[data-import-token]").fill("fake-tracker-key");
+  await alice.locator("[data-import-connect]").click();
+  await alice.locator("[data-import-found]").waitFor({ timeout: 30000 });
+  const kept = sql("select secret_encrypted not like '%fake-tracker-key%' and secret_encrypted like 'v1.%' from public.task_imports");
+  check("the tracker's key is kept encrypted, and people are matched by email", kept === "t" && (await alice.locator("[data-import-people-found]").innerText()).includes("1 з 1"), kept);
+  await alice.locator("[data-import-to-preview]").click();
+  await alice.locator('[data-import-preview-task="OLD-1"]').waitFor({ timeout: 30000 });
+  check("the dry run shows the first tasks, and nothing is written yet", (await alice.locator("[data-import-preview-task]").count()) === 3 && sql("select count(*) from public.task_projects where key = 'OLD'") === "0");
+  await alice.locator("[data-import-start]").click();
+  await alice.locator('[data-import-run="done"]').waitFor({ timeout: 60000 });
+  const old = "(select id from public.task_projects where key = 'OLD')";
+  const moved = sql(`select string_agg(t.number || ':' || s.name || ':' || t.type, ',' order by t.number) || ' next ' || (select next_number from public.task_projects where key = 'OLD') from public.tasks t join public.task_statuses s on s.id = t.status_id where t.project_id = ${old}`);
+  check("tasks move in with their numbers, columns and types", moved === "1:Backlog:epic,2:In Review:task,5:Released:task next 6" && (await alice.locator("[data-import-all-moved]").count()) === 1, moved);
+  const people = sql(`select (select email from public.profiles where id = t.assignee_id) || ' ' || t.imported_reporter || ' ' || to_char(t.created_at at time zone 'utc', 'YYYY-MM-DD') || ' ' || t.external_key || ' ' || (t.description::text like '%Moved text%') from public.tasks t where t.project_id = ${old} and t.number = 1`);
+  check("…with people (a member by email, a stranger by name), dates and the description", people === "alice@alpha.test Gone Person 2025-03-01 OLD-1 true", people);
+  const tied = sql(`select (select p.number from public.tasks p where p.id = t.parent_id) || ' ' || (select count(*) from public.task_links l where l.source_id = t.id and l.kind = 'blocks') from public.tasks t where t.project_id = ${old} and t.number = 2`);
+  check("…and with subtasks and links", tied === "1 1", tied);
+  check("…telling nobody about it", sql(`select count(*) from public.notifications n join public.tasks t on t.id = n.task_id where t.project_id = ${old}`) === "0");
+  await alice.locator("[data-import-open-project]").click();
+  await alice.waitForURL(/\/tasks\/OLD$/);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/OLD/1`);
+  check("an imported task says where it came from and who wrote it", (await alice.locator("[data-task-origin]").innerText()).includes("OLD-1") && (await alice.locator("[data-task-reporter]").innerText()) === "Gone Person");
+  // The key changes in the project's settings; the tasks follow.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/OLD`);
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
+  await alice.locator("[data-project-key]").fill("OLDER");
+  await alice.locator("[data-project-key-save]").click();
+  await alice.waitForURL(/\/tasks\/OLDER$/, { timeout: 20000 }).catch(() => {});
+  check("a project's key changes, and its tasks keep their numbers", sql("select count(*) from public.task_projects where key = 'OLDER'") === "1" && alice.url().endsWith("/tasks/OLDER"), alice.url());
+  // A second run of the same import doubles nothing.
+  sql(`update public.task_imports set state = 'running', progress = jsonb_set(jsonb_set(progress, '{phase}', '"tasks"'), '{cursor}', 'null')`);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/import`);
+  await alice.locator("[data-import-resume]").click();
+  await alice.locator('[data-import-run="done"]').waitFor({ timeout: 60000 });
+  check("running an import again changes tasks, never doubles them", sql(`select count(*) from public.tasks where project_id = (select id from public.task_projects where key = 'OLDER')`) === "3");
+  await alice.locator("[data-import-forget]").click();
+  await alice.locator("[data-import-connect]").waitFor({ timeout: 20000 });
+  check("the connection and its key can be deleted", sql("select count(*) from public.task_imports") === "0");
+}
+
 await finish("tasks");

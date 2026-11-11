@@ -35,6 +35,8 @@ import { TypeIcon } from "./task-icons";
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 
 export type TaskComment = { id: string; author_id: string | null; body: string; mentions: string[]; created_at: string; edited_at: string | null };
+// An imported task: its key and address in the old tracker, and people who aren't members here.
+export type TaskOrigin = { external_key: string | null; external_url: string | null; imported_reporter: string | null; imported_assignee: string | null };
 export type TaskEvent = { id: string; actor_id: string | null; field: string; old_value: unknown; new_value: unknown; created_at: string };
 
 const k = t.tasks;
@@ -67,6 +69,7 @@ export function TaskDetail({
   canComment,
   isOwner,
   inPanel = false,
+  origin = null,
 }: {
   taskKey: string;
   shortId: string;
@@ -92,6 +95,7 @@ export function TaskDetail({
   isOwner: boolean;
   // Shown in the panel over the board: the project's other tasks open in the same panel.
   inPanel?: boolean;
+  origin?: TaskOrigin | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -274,6 +278,11 @@ export function TaskDetail({
           <Row label={k.fields.assignee} plain>
             <PeoplePicker name="assignee" label={k.fields.assignee} members={members} value={task.assignee_id ? [task.assignee_id] : []} disabled={!canEdit || pending} empty={k.unassigned} onChange={(ids) => change({ assignee_id: ids[0] ?? null })} />
           </Row>
+          {!task.assignee_id && origin?.imported_assignee && (
+            <p className="pb-1 pl-[7rem] text-xs text-muted" data-imported-assignee>
+              {k.importer.inTracker(origin.imported_assignee)}
+            </p>
+          )}
           {(["co_assignee", "responsible"] as const).map((role) => (
             <Row key={role} label={k.privacy.roles[role]} plain data-participants={role}>
               <PeoplePicker name={role} label={k.privacy.roles[role]} members={members} value={people(role)} multiple disabled={!canEdit || pending} empty={k.pickers.nobody} onChange={(ids) => setPeople(role, ids)} />
@@ -376,8 +385,22 @@ export function TaskDetail({
           <dl className="mt-3 space-y-1 border-t border-border px-2 pt-3 text-xs text-muted">
             <div>
               <dt className="inline">{k.fields.reporter}: </dt>
-              <dd className="inline">{who(task.reporter_id)}</dd>
+              <dd className="inline" data-task-reporter>{task.reporter_id || !origin?.imported_reporter ? who(task.reporter_id) : origin.imported_reporter}</dd>
             </div>
+            {origin?.external_key && (
+              <div data-task-origin>
+                <dt className="inline">{k.importer.movedFrom}: </dt>
+                <dd className="inline">
+                  {origin.external_url ? (
+                    <a href={origin.external_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                      {origin.external_key}
+                    </a>
+                  ) : (
+                    origin.external_key
+                  )}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="inline">{k.fields.created}: </dt>
               <dd className="inline">{when(task.created_at)}</dd>

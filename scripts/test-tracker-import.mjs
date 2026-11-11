@@ -2,7 +2,7 @@
 // statuses, numbers, links — without a network or a database.
 // Run: node --experimental-strip-types --no-warnings scripts/test-tracker-import.mjs
 import assert from "node:assert/strict";
-import { documentToBlocks, matchPeople, numberOfKey, parseField, parseIssue, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
+import { documentToBlocks, matchPeople, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
 
 const text = (t, marks) => ({ type: "text", text: t, ...(marks ? { marks } : {}) });
 const doc = {
@@ -125,5 +125,12 @@ assert.deepEqual(toImportItem({ ...issue, status: "404" }, mapping), { error: "n
 assert.deepEqual(toImportItem({ ...issue, key: "TMD" }, mapping), { error: "bad_key" });
 const long = toImportItem({ ...issue, title: "x".repeat(400), labels: Array.from({ length: 25 }, (_, i) => `l${i}`) }, mapping);
 assert.deepEqual([long.item.title.length, long.item.labels.length, long.problems.sort()], [300, 20, ["labels_cut", "title_cut"]]);
+
+assert.deepEqual(parseTrackerLink("https://team.atlassian.net/jira/core/projects/TMD/board"), { site: "https://team.atlassian.net", project: "TMD" });
+assert.deepEqual(parseTrackerLink("team.atlassian.net/browse/MKT-12"), { site: "https://team.atlassian.net", project: "MKT" });
+assert.deepEqual(parseTrackerLink("https://team.atlassian.net"), { site: "https://team.atlassian.net", project: null });
+for (const bad of ["http://team.atlassian.net", "https://atlassian.net.evil.example/projects/TMD", "https://localhost/projects/TMD", "https://team.atlassian.net:8443/", "https://10.0.0.1/", "not a link"]) {
+  assert.equal(parseTrackerLink(bad), null, `refused: ${bad}`);
+}
 
 console.log("tracker import: ok");

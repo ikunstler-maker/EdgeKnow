@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { personLabel, type Person } from "@/lib/tasks";
 import { setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject } from "@/app/task-actions";
+import { setTaskProjectKey } from "@/app/task-import-actions";
 import { Icon } from "@/components/ui/icon";
 
 export type ProjectAccess = {
@@ -28,7 +29,7 @@ export function ProjectAccessButton({
   access,
   members,
 }: {
-  project: { id: string; name: string };
+  project: { id: string; name: string; key: string };
   access: ProjectAccess;
   members: Person[];
 }) {
@@ -44,7 +45,7 @@ export function ProjectAccessButton({
   );
 }
 
-function AccessDialog({ project, access, members, onClose }: { project: { id: string; name: string }; access: ProjectAccess; members: Person[]; onClose: () => void }) {
+function AccessDialog({ project, access, members, onClose }: { project: { id: string; name: string; key: string }; access: ProjectAccess; members: Person[]; onClose: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -219,6 +220,8 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
             </section>
           )}
 
+          <ProjectKeyForm project={project} />
+
           <div className="border-t border-border pt-4">
             <button
               type="button"
@@ -235,5 +238,50 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
       </div>
     </div>,
     document.body,
+  );
+}
+
+// The project's key (the "MKT" of MKT-12) can change: tasks keep their numbers under the new one.
+function ProjectKeyForm({ project }: { project: { id: string; key: string } }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [key, setKey] = useState(project.key);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const c = t.tasks.keyChange;
+  return (
+    <form
+      className="border-t border-border pt-4"
+      aria-label={c.label}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const next = key.trim().toUpperCase();
+        if (next === project.key || !confirm(c.confirm(project.key, next))) return;
+        startTransition(async () => {
+          const result = await setTaskProjectKey(project.id, next);
+          if (!result.ok) return setError(t.tasks.importer.errors[result.error] ?? t.common.unknownError);
+          // The address carries the key: go to the project's new one.
+          router.replace(pathname.replace(`/tasks/${project.key}`, `/tasks/${result.key}`));
+          router.refresh();
+        });
+      }}
+      data-project-key-form
+    >
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">{c.label}</span>
+        <span className="flex flex-wrap gap-2">
+          <input value={key} onChange={(e) => setKey(e.target.value.toUpperCase())} maxLength={10} className={`${selectClass} w-32 font-mono`} data-project-key />
+          <button type="submit" disabled={pending || key.trim().toUpperCase() === project.key || !key.trim()} className={buttonClass} data-project-key-save>
+            {c.change}
+          </button>
+        </span>
+        <span className="text-xs text-muted">{c.hint}</span>
+      </label>
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }
