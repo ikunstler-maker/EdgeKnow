@@ -19,8 +19,8 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Rukh: task card, quick view, move from another tracker (owner, 2026-11-11; decision 2026-11-11)
 - Р-1 two-column task card, people/parent/link search, label marks, grouped history, board tidy-up; Р-2 task panel over the board (`?task=N`); left panel as a tree (projects → boards → tasks with column dot and priority) — DONE (#151).
-- Р-3 move from another tracker (DB changes → owner's separate OK before coding, with the exact list):
-  - 3а direct connection + wizard: same task numbers, dates, statuses → columns, types, priorities, labels, own fields, epics/subtasks, links, people by email or name (a missing person's name kept as text); dry run; report; busy key → change the existing project's key / join / another key; a project's key can change in its settings — in review. Not verified against the owner's real tracker from here: the first real run is the owner's dry run on TMD.
+- Р-3 move from another tracker — **on hold by the owner (2026-11-11)** after 3а; 3б and 3в wait for her word (their DB changes are already approved):
+  - 3а direct connection + wizard: same task numbers, dates, statuses → columns, types, priorities, labels, own fields, epics/subtasks, links, people by email or name (a missing person's name kept as text); dry run; report; busy key → change the existing project's key / join / another key; a project's key can change in its settings — DONE (#152). Not verified against the owner's real tracker: the first real run is the owner's dry run on TMD.
   - Import from an export file (CSV) — later, for other trackers.
   - 3б (DB approved 2026-11-11, items 3–4): comments with dates and authors, status history, files, formatted descriptions; the access key encrypted, server only. Files go to the team's Google Drive, up to 250 MB per file and 10 GB per ZIP; whatever did not come over is listed and can be pulled later.
   - 3в one-way catch-up while the team moves (old tracker → us), search by the old link.
