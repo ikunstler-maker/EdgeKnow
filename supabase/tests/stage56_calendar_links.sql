@@ -128,7 +128,7 @@ select 'units kept: ' || cardinality(invited_group_ids) from public.calendar_eve
 
 -- Search: only what the person sees; coming events first.
 select public.create_calendar_event(:'ws', (:'base'::jsonb || '{"title": "Launch party", "visibility": "open", "starts_at": "2030-03-12T18:00:00Z", "ends_at": "2030-03-12T20:00:00Z"}')::jsonb, '{}') ->> 'id' as party \gset
-select public.create_calendar_event(:'ws', (:'base'::jsonb || jsonb_build_object('title', 'Launch retro (weekly)', 'visibility', 'open', 'starts_at', date_trunc('day', now()) - interval '21 days' + interval '9 hours', 'ends_at', date_trunc('day', now()) - interval '21 days' + interval '10 hours', 'repeat', jsonb_build_object('freq', 'weekly')))::jsonb, '{}') ->> 'id' as retro \gset
+select public.create_calendar_event(:'ws', (:'base'::jsonb || jsonb_build_object('title', 'Launch retro (weekly)', 'visibility', 'open', 'starts_at', now() - interval '21 days' + interval '2 hours', 'ends_at', now() - interval '21 days' + interval '3 hours', 'repeat', jsonb_build_object('freq', 'weekly')))::jsonb, '{}') ->> 'id' as retro \gset
 \set found '(select coalesce(string_agg(x ->> ''title'', '', '' order by x ->> ''title''), ''nothing'') from jsonb_array_elements(public.search_calendar_events(:''ws'', ''launch'')) x)'
 select 'alice finds “launch”: ' || :found || '; the series with a day ahead: ' || (select ((x ->> 'starts_at')::timestamptz > now())::text from jsonb_array_elements(public.search_calendar_events(:'ws', 'launch')) x where x ->> 'id' = :'retro');
 select 'by the place: ' || (select string_agg(x ->> 'title', ', ' order by x ->> 'title') from jsonb_array_elements(public.search_calendar_events(:'ws', 'blue room')) x)

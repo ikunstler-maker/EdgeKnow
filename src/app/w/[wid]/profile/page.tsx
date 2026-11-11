@@ -9,6 +9,7 @@ import { getWorkspace } from "@/lib/workspace";
 import { ProfileView } from "./profile-view";
 import { VisibilitySwitch } from "./visibility-switch";
 import { MyData } from "./my-data";
+import { MyDevices } from "./my-devices";
 import { AppearanceSettings } from "@/components/angler/appearance-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -39,6 +40,7 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
       <VisibilitySwitch workspaceId={workspace.id} initial={stats.visibility} shareUrl={shareUrl} />
       <ProfileView stats={stats} />
       <AppearanceSettings />
+      <MyDevices />
       <MyData email={user.email} />
     </main>
   );
