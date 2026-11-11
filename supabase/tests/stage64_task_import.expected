@@ -1,0 +1,26 @@
+psql: ERROR:  permission denied for function import_tasks
+psql: ERROR:  permission denied for function make_room_for_import
+psql: ERROR:  permission denied for table task_imports
+number in the way: number_taken
+room made: 2
+own tasks now: 8 Own first, 9 Own second
+imported: {"ok": true, "created": 2, "updated": 0}
+kept: 1 Imported epic 2025-03-01 - -, 7 Imported done 2025-04-01 Former Colleague 2025-04-08
+next number: 10
+history: created 2025-03-01, created 2025-04-01
+nobody notified: 0
+placed on the board: 2
+again: {"ok": true, "created": 0, "updated": 1}
+after again: 1 Imported done, renamed not done
+relations: {"ok": true, "links": 1, "missing": 1, "parents": 1}
+parent set: TMD-1
+bad status: invalid_status
+member sees imported: 2
+member changes the key: forbidden
+outsider sees: 0
+outsider changes the key: forbidden
+taken key: key_taken
+bad key: invalid_key
+owner changes the key: TMD0
+old key is free: true
+logged: TMD -> TMD0

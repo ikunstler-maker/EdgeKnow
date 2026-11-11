@@ -1,0 +1,9 @@
+psql: ERROR:  permission denied for function import_tasks
+the server imports: {"ok": true, "created": 2, "updated": 0}
+relations: {"ok": true, "links": 0, "missing": 0, "parents": 1}
+alice sees: 5 Old five 2025, 9 Old nine 2026
+the next task: IMP-10
+bob changes the key: forbidden
+carol (a workspace admin) changes the key: CAR
+someone removed from the workspace sees: 0, changes the key: forbidden
+alice changes the key: IMP2
