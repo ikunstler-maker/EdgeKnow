@@ -170,6 +170,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the left panel lists the board's tasks with the column's colour and the priority", (await treeTask.locator("[data-status-dot]").count()) === 1 && (await treeTask.locator("[data-task-priority]").count()) === 1);
   await alice.locator("[data-task-panel-close]").click();
   await alice.locator("[data-task-panel]").waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+  await alice.waitForURL((url) => !url.searchParams.has("task"), { timeout: 15000 }).catch(() => {});
   check("…and closes back to the list", (await alice.locator("[data-task-panel]").count()) === 0 && !/task=/.test(alice.url()), alice.url());
   await alice.locator('[data-task="MAR-1"]').getByRole("link").click();
   await openCard.waitFor({ timeout: 20000 });

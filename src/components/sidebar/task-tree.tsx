@@ -24,7 +24,8 @@ function Toggle({ open, label, onClick }: { open: boolean; label: string; onClic
   );
 }
 
-// Tasks as a tree: projects → their boards → the tasks on each board. Every level folds.
+// Tasks as a tree: projects → their boards → the tasks on each board. Every level folds
+// (plain nested lists with fold buttons; the ARIA "tree" role is left to the wiki's page tree).
 // A task shows the colour of its column on the left and its priority on the right, and
 // opens over its board. The open project is unfolded by itself; its lists follow every
 // change made on the site.
@@ -67,7 +68,7 @@ export function TaskProjects({ projects, boards, pathname, onNavigate }: { proje
       <Link prefetch={false} href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
         {t.tasks.section}
       </Link>
-      <ul role="tree" aria-label={t.tasks.section}>
+      <ul>
         {projects.map((project) => {
           const href = `${base}/${project.key}`;
           const here = project.id === openProject?.id;
@@ -75,7 +76,7 @@ export function TaskProjects({ projects, boards, pathname, onNavigate }: { proje
           const loaded = lists[project.id];
           const own = [{ id: null as string | null, name: s.mainBoard }, ...boards.filter((b) => b.project_id === project.id)];
           return (
-            <li key={project.id} role="treeitem" aria-expanded={open} aria-selected={here} data-sidebar-project={project.key}>
+            <li key={project.id} data-sidebar-project={project.key}>
               <div className="flex items-center">
                 <Toggle open={open} label={open ? s.fold(project.name) : s.unfold(project.name)} onClick={() => flip(project.id, here)} />
                 <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={rowClass(here && !open)}>
@@ -85,7 +86,7 @@ export function TaskProjects({ projects, boards, pathname, onNavigate }: { proje
                 </Link>
               </div>
               {open && (
-                <ul role="group" className="ml-3 border-l border-border pl-1">
+                <ul className="ml-3 border-l border-border pl-1">
                   {own.map((board) => {
                     const id = `${project.id}:${board.id ?? "main"}`;
                     const boardHref = board.id ? `${href}?board=${board.id}` : href;
@@ -93,7 +94,7 @@ export function TaskProjects({ projects, boards, pathname, onNavigate }: { proje
                     const tasks = loaded?.find((x) => x.id === board.id);
                     const boardOpen = unfolded(id, true);
                     return (
-                      <li key={id} role="treeitem" aria-expanded={boardOpen} aria-selected={onBoard} data-sidebar-board={board.name}>
+                      <li key={id} data-sidebar-board={board.name}>
                         <div className="flex items-center">
                           <Toggle open={boardOpen} label={boardOpen ? s.fold(board.name) : s.unfold(board.name)} onClick={() => flip(id, true)} />
                           <Link prefetch={false} href={boardHref} onClick={onNavigate} className={rowClass(onBoard && !openNumber)}>
@@ -103,13 +104,13 @@ export function TaskProjects({ projects, boards, pathname, onNavigate }: { proje
                           </Link>
                         </div>
                         {boardOpen && (
-                          <ul role="group" className="ml-3 border-l border-border pl-1">
+                          <ul className="ml-3 border-l border-border pl-1">
                             {!loaded && <li className="px-2 py-1.5 text-xs text-muted">…</li>}
                             {loaded && !tasks?.tasks.length && <li className="px-2 py-1.5 text-xs text-muted">{s.noTasks}</li>}
                             {tasks?.tasks.map((task) => {
                               const join = boardHref.includes("?") ? "&" : "?";
                               return (
-                                <li key={task.number} role="treeitem" aria-selected={onBoard && openNumber === String(task.number)}>
+                                <li key={task.number}>
                                   <Link
                                     prefetch={false}
                                     scroll={false}
