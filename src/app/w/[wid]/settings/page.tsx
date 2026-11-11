@@ -12,6 +12,8 @@ import { taskFilesStatus } from "@/lib/drive/workspace-files";
 import { GroupsPanel, type GroupItem } from "./groups-panel";
 import { RolesPanel, type RoleItem } from "./roles-panel";
 import { TeamDatabasePanel, type TeamDatabaseStatus } from "./team-database-panel";
+import { SecurityCards } from "./security-cards";
+import { TeamViewSwitch, type TeamView } from "./members-table";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { oidcConfigured } from "@/lib/oidc";
 import { supabaseOAuthConfigured } from "@/lib/team-db/supabase-api";
@@ -32,8 +34,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.workspace.settings} · ${t.app.name}` };
 }
 
-const TABS = ["general", "members", "groups", "roles", "domains", "storage", "team", "log"] as const;
+const TABS = ["general", "people", "security", "data", "log"] as const;
 type Tab = (typeof TABS)[number];
+// Addresses from before the five tabs keep working (links, callbacks, bookmarks).
+const LEGACY: Record<string, { tab: Tab; view?: TeamView }> = {
+  members: { tab: "people", view: "members" },
+  groups: { tab: "people", view: "structure" },
+  roles: { tab: "security" },
+  domains: { tab: "security" },
+  storage: { tab: "data" },
+  team: { tab: "data" },
+};
 
 type MemberRow = {
   custom_role_id?: string | null;
@@ -54,6 +65,8 @@ type LogRow = {
   actor: { email: string } | null;
 };
 
+const cardClass = "rounded-2xl border border-border p-4 sm:p-5";
+
 const dateFormat = () => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "short", timeStyle: "short" });
 
 export default async function WorkspaceSettingsPage({
@@ -61,7 +74,9 @@ export default async function WorkspaceSettingsPage({
   searchParams,
 }: PageProps<"/w/[wid]/settings">) {
   const { wid } = await params;
-  const { tab: tabParam, drive: driveParam, supabase: supabaseParam } = await searchParams;
+  const { tab: rawTab, view: viewParam, drive: driveParam, supabase: supabaseParam } = await searchParams;
+  const legacy = typeof rawTab === "string" ? LEGACY[rawTab] : undefined;
+  const tabParam = legacy?.tab ?? rawTab;
   const [user, workspace] = await Promise.all([getCurrentUser(), getWorkspace(wid)]);
   if (!workspace) return null;
 
@@ -76,10 +91,12 @@ export default async function WorkspaceSettingsPage({
   const isLead = rightsClient && !canStructure
     ? ((await rightsClient.from("workspace_group_members").select("group_id", { count: "exact", head: true }).eq("workspace_id", workspace.id).eq("user_id", user.id).eq("is_lead", true)).count ?? 0) > 0
     : false;
-  const shownTabs = TABS.filter((key) =>
-    admin ? key !== "roles" || isOwner : (key === "members" && canInvite) || (key === "groups" && (canStructure || isLead)),
-  );
+  const canMembers = admin || canInvite;
+  const canUnits = admin || canStructure || isLead;
+  const shownTabs = TABS.filter((key) => admin || (key === "people" && (canMembers || canUnits)));
   const tab: Tab = shownTabs.includes(tabParam as Tab) ? (tabParam as Tab) : (shownTabs[0] ?? "general");
+  const wantedView = legacy?.view ?? (viewParam === "structure" ? "structure" : "members");
+  const view: TeamView = wantedView === "structure" ? (canUnits ? "structure" : "members") : canMembers ? "members" : "structure";
 
   if (!admin && shownTabs.length === 0) {
     return (
@@ -98,7 +115,7 @@ export default async function WorkspaceSettingsPage({
   const teamData = await dataClient(workspace.shortId);
   // Each query is limited by RLS to this workspace and to admins.
   const [members, domains, invitations, log, storage, departed] = await Promise.all([
-    tab === "general" || tab === "members" || tab === "groups"
+    tab === "general" || tab === "people"
       ? supabase
           .from("workspace_members")
           .select("user_id, role, joined_via, access_until, custom_role_id, profile:profiles!workspace_members_user_id_fkey(name, email)")
@@ -107,7 +124,7 @@ export default async function WorkspaceSettingsPage({
           .order("joined_at")
           .overrideTypes<MemberRow[], { merge: false }>()
       : null,
-    tab === "domains"
+    tab === "security"
       ? supabase
           .from("workspace_domains")
           .select("domain, is_active, method, dns_missing_since")
@@ -115,7 +132,7 @@ export default async function WorkspaceSettingsPage({
           .order("added_at")
           .overrideTypes<DomainRow[], { merge: false }>()
       : null,
-    tab === "members"
+    tab === "people"
       ? supabase
           .from("invitations")
           .select("id, email, role, expires_at, access_until")
@@ -135,12 +152,12 @@ export default async function WorkspaceSettingsPage({
           .limit(100)
           .overrideTypes<LogRow[], { merge: false }>()
       : null,
-    tab === "storage" ? supabase.rpc("workspace_storage_status", { ws: workspace.id }) : null,
+    tab === "data" ? supabase.rpc("workspace_storage_status", { ws: workspace.id }) : null,
     // Only counts per former member: admins don't see other people's pages.
-    tab === "members" && admin ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
+    tab === "people" && admin ? teamData.rpc("departed_page_owners", { ws: workspace.id }) : null,
   ]);
   const roleRows =
-    tab === "members" || tab === "roles"
+    tab === "people" || tab === "security"
       ? await supabase
           .from("workspace_roles")
           .select("id, builtin, name, permissions, content_level")
@@ -150,7 +167,7 @@ export default async function WorkspaceSettingsPage({
       : null;
   const roleItems: RoleItem[] = (roleRows?.data ?? []).map((row) => ({ id: row.id, builtin: row.builtin, name: row.name, permissions: row.permissions ?? {}, contentLevel: row.content_level }));
   // The team's own database (path C): read with the secret key, keys never leave the server.
-  const service = tab === "team" || tab === "storage" ? createAdminClient() : null;
+  const service = tab === "data" ? createAdminClient() : null;
   const [teamRow, centralPages] = service
     ? await Promise.all([
         service
@@ -161,7 +178,7 @@ export default async function WorkspaceSettingsPage({
         service.from("pages").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id),
       ])
     : [null, null];
-  const taskFiles = tab === "storage" && service ? await taskFilesStatus(service, workspace.id).catch(() => null) : null;
+  const taskFiles = tab === "data" && service ? await taskFilesStatus(service, workspace.id).catch(() => null) : null;
   const teamStatus: TeamDatabaseStatus = teamRow?.data
     ? {
         projectUrl: teamRow.data.project_url,
@@ -206,7 +223,7 @@ export default async function WorkspaceSettingsPage({
   }));
   // Groups of people, with who is in each.
   const groupRows =
-    tab === "groups"
+    tab === "people"
       ? await supabase
           .from("workspace_groups")
           .select("id, name, parent_id, position, members:workspace_group_members(user_id, is_lead)")
@@ -224,7 +241,7 @@ export default async function WorkspaceSettingsPage({
   }));
   // Domains asked for and waiting for their DNS record (step: domains through DNS).
   const [claimRows, platformSettings] =
-    tab === "domains"
+    tab === "security"
       ? await Promise.all([
           supabase
             .from("workspace_domain_claims")
@@ -289,62 +306,90 @@ export default async function WorkspaceSettingsPage({
             )}
           </>
         )}
-        {tab === "members" && (
-          <MembersPanel
-            workspace={workspace}
-            currentUserId={user.id}
-            members={memberItems}
-            invitations={invitationItems}
-            departed={departedItems}
-            roles={roleItems}
-            canSetRoles={isOwner}
-            inviteOnly={!admin}
-          />
+        {tab === "people" && (
+          <div className="flex flex-col gap-6">
+            {canMembers && canUnits && (
+              <TeamViewSwitch
+                view={view}
+                hrefs={{
+                  members: workspacePath(workspace.shortId, "/settings?tab=people&view=members"),
+                  structure: workspacePath(workspace.shortId, "/settings?tab=people&view=structure"),
+                }}
+                counts={{ members: memberItems.length, units: groupItems.length }}
+              />
+            )}
+            {view === "members" ? (
+              <MembersPanel
+                workspace={workspace}
+                currentUserId={user.id}
+                members={memberItems}
+                invitations={invitationItems}
+                departed={departedItems}
+                roles={roleItems}
+                groups={groupItems}
+                canSetRoles={isOwner}
+                inviteOnly={!admin}
+              />
+            ) : (
+              <GroupsPanel
+                workspaceId={workspace.id}
+                groups={groupItems}
+                people={memberItems.filter((m) => m.role !== "guest").map((m) => ({ userId: m.userId, name: m.name, email: m.email }))}
+              />
+            )}
+          </div>
         )}
-        {tab === "roles" && isOwner && <RolesPanel workspaceId={workspace.id} roles={roleItems} />}
-        {tab === "groups" && (
-          <GroupsPanel
-            workspaceId={workspace.id}
-            groups={groupItems}
-            people={memberItems.filter((m) => m.role !== "guest").map((m) => ({ userId: m.userId, name: m.name, email: m.email }))}
-          />
+        {tab === "security" && (
+          <div className="flex flex-col gap-6">
+            {isOwner ? (
+              <section className={cardClass}>
+                <RolesPanel workspaceId={workspace.id} roles={roleItems} />
+              </section>
+            ) : (
+              <p className={`${cardClass} text-sm text-muted`}>{t.settings.security.rolesOwnerOnly}</p>
+            )}
+            <section className={cardClass}>
+              <DomainsPanel
+                workspaceId={workspace.id}
+                domains={domainItems}
+                claims={claimItems}
+                emailWay={Boolean(platformSettings?.data?.email_domain_proof)}
+                ownDomain={user.email.split("@")[1] ?? ""}
+              />
+            </section>
+            <SecurityCards />
+          </div>
         )}
-        {tab === "domains" && (
-          <DomainsPanel
-            workspaceId={workspace.id}
-            domains={domainItems}
-            claims={claimItems}
-            emailWay={Boolean(platformSettings?.data?.email_domain_proof)}
-            ownDomain={user.email.split("@")[1] ?? ""}
-          />
+        {tab === "data" && (
+          <div className="flex flex-col gap-6">
+            {teamRow?.data && <p className={`${cardClass} text-sm`}>{t.teamDatabase.filesInTeam}</p>}
+            {storage?.data && (
+              <StoragePanel
+                workspaceId={workspace.id}
+                status={storage.data as StorageStatus}
+                taskFiles={taskFiles}
+                team={Boolean(taskFiles?.team)}
+                isOwner={isOwner}
+                configured={driveConfigured()}
+                notice={driveParam === "connected" ? "connected" : driveParam === "error" ? "error" : null}
+              />
+            )}
+            <section className={cardClass}>
+              {isOwner ? (
+                <TeamDatabasePanel
+                  workspaceId={workspace.id}
+                  status={teamStatus}
+                  hasPages={Boolean(centralPages?.count)}
+                  configured={supabaseOAuthConfigured() && oidcConfigured()}
+                  choose={supabaseParam === "choose"}
+                  failed={supabaseParam === "error"}
+                />
+              ) : (
+                <p className="text-sm text-muted">{t.settings.data.teamDatabaseOwnerOnly}</p>
+              )}
+            </section>
+          </div>
         )}
-        {tab === "storage" && teamRow?.data && (
-          <p className="mb-4 rounded-lg border border-border p-4 text-sm">{t.teamDatabase.filesInTeam}</p>
-        )}
-        {tab === "storage" && storage?.data && (
-          <StoragePanel
-            workspaceId={workspace.id}
-            status={storage.data as StorageStatus}
-            taskFiles={taskFiles}
-            team={Boolean(taskFiles?.team)}
-            isOwner={workspace.role === "owner"}
-            configured={driveConfigured()}
-            notice={driveParam === "connected" ? "connected" : driveParam === "error" ? "error" : null}
-          />
-        )}
-        {tab === "team" &&
-          (workspace.role === "owner" ? (
-            <TeamDatabasePanel
-              workspaceId={workspace.id}
-              status={teamStatus}
-              hasPages={Boolean(centralPages?.count)}
-              configured={supabaseOAuthConfigured() && oidcConfigured()}
-              choose={supabaseParam === "choose"}
-              failed={supabaseParam === "error"}
-            />
-          ) : (
-            <p className="text-muted">{t.settings.general.ownerOnly}</p>
-          ))}
         {tab === "log" && (
           <>
             <h2 className="text-lg font-semibold">{t.settings.log.heading}</h2>

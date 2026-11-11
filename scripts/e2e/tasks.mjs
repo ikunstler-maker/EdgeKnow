@@ -15,7 +15,7 @@ sql("update public.profiles set is_platform_admin = true where email = 'alice@al
 if (sql(`select count(*) from public.drive_connections where workspace_id = '${alphaId}' and active`) === "0") {
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=storage`);
   await alice.getByRole("link", { name: "Підключити Google Drive" }).click();
-  await alice.waitForURL(/tab=storage&drive=connected/);
+  await alice.waitForURL(/tab=data&drive=connected/);
 }
 
 // --- Freezing a workspace, "own database first", the central database size -------------------------
@@ -510,7 +510,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…as a ZIP archive with a folder per project", archive === "200 PK true true", archive);
 
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=members`);
-  await alice.locator("li", { hasText: "mover@alpha.test" }).getByRole("button", { name: "Видалити" }).click();
+  await alice.locator('[data-member-row="mover@alpha.test"] button').click();
+  await alice.locator('[data-member-drawer="mover@alpha.test"]').getByRole("button", { name: "Видалити", exact: true }).click();
   const removeDialog = alice.getByRole("dialog", { name: /mover@alpha\.test/ });
   await removeDialog.locator("[data-member-files-found]").waitFor({ timeout: 15000 });
   check("removing someone shows their files on their own Drive, with the space now and after", (await removeDialog.locator("[data-member-files-found]").innerText()).includes("1 файл") && (await removeDialog.locator("[data-member-space]").count()) >= 1);

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   const { data: workspace } = await admin.from("workspaces").select("name, short_id").eq("id", state.ws).maybeSingle();
   if (!workspace) return fail("/");
-  const settings = (result: string) => fail(`${workspacePath(workspace.short_id, "/settings")}?tab=storage&drive=${result}`);
+  const settings = (result: string) => fail(`${workspacePath(workspace.short_id, "/settings")}?tab=data&drive=${result}`);
 
   try {
     const api = driveApi();

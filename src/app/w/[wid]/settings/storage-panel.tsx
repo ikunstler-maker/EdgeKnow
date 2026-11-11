@@ -25,6 +25,7 @@ export type StorageStatus = {
 
 const buttonClass = "min-h-11 rounded-lg border border-border px-3 text-sm hover:bg-surface disabled:opacity-60";
 const primaryClass = "min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60";
+const cardClass = "rounded-2xl border border-border p-4 sm:p-5";
 const when = (iso: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso));
 
 // Settings → Storage: the workspace's one place for all its files (step U1),
@@ -114,14 +115,14 @@ export function StoragePanel({
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       {notice && (
         <p role="status" className={`rounded-lg px-3 py-2 text-sm ${notice === "connected" ? "bg-accent/10" : "bg-danger/10 text-danger"}`}>
           {notice === "connected" ? st.connectedNotice : st.connectErrorNotice}
         </p>
       )}
 
-      <section className="space-y-3">
+      <section className={`${cardClass} space-y-3`}>
         <h2 className="text-lg font-semibold">{st.heading}</h2>
         {drive ? (
           <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
@@ -163,7 +164,7 @@ export function StoragePanel({
         )}
       </section>
 
-      <section className="space-y-2 text-sm" data-one-storage>
+      <section className={`${cardClass} space-y-2 text-sm`} data-one-storage>
         <p className="text-muted">{st.oneStorage}</p>
         <p>{st.pageFiles(status.total_files)}</p>
         {taskFiles && <p>{st.taskFiles(taskFiles.count, formatBytes(taskFiles.bytes))}</p>}
@@ -186,23 +187,25 @@ export function StoragePanel({
         )}
       </section>
 
-      {drive && (
-        <section className="space-y-2">
-          <h2 className="text-lg font-semibold">{st.backupHeading}</h2>
-          <p className="text-sm text-muted">{st.backupIntro}</p>
+      <section className={`${cardClass} space-y-2`} data-backups>
+        <h2 className="text-lg font-semibold">{st.backupHeading}</h2>
+        <p className="text-sm text-muted">{st.backupIntro}</p>
+        {drive ? (
           <p className="text-sm">{drive.last_backup_at ? st.lastBackup(when(drive.last_backup_at)) : st.noBackupYet}</p>
-          {isOwner && drive.status === "ok" && (
-            <button type="button" onClick={backupNow} disabled={busy} className={buttonClass}>
-              {st.backupNow}
-            </button>
-          )}
-          {backup && (
-            <p role="status" className="text-sm">
-              {backup}
-            </p>
-          )}
-        </section>
-      )}
+        ) : (
+          <p className="text-sm text-muted">{st.backupNeedsDrive}</p>
+        )}
+        {isOwner && drive?.status === "ok" && (
+          <button type="button" onClick={backupNow} disabled={busy} className={buttonClass}>
+            {st.backupNow}
+          </button>
+        )}
+        {backup && (
+          <p role="status" className="text-sm">
+            {backup}
+          </p>
+        )}
+      </section>
     </div>
   );
 }

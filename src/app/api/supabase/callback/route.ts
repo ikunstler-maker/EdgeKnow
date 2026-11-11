@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   if (!owner || owner.userId !== state.u || !admin) return fail("/");
   const { data: workspace } = await admin.from("workspaces").select("short_id").eq("id", state.ws).maybeSingle();
   if (!workspace) return fail("/");
-  const settings = (result: string) => fail(`${workspacePath(workspace.short_id, "/settings")}?tab=team&supabase=${result}`);
+  const settings = (result: string) => fail(`${workspacePath(workspace.short_id, "/settings")}?tab=data&supabase=${result}`);
 
   try {
     const tokens = await exchangeCode(code, supabaseCallbackUrl(request.nextUrl.origin), pkce.v);

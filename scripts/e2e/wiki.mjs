@@ -48,9 +48,13 @@ check("the other page kept its title", original === "Alpha secret", original);
 // Settings tabs.
 for (const [tab, text] of [
   ["general", "Передати власність"],
+  ["people", "Запросити"],
+  ["security", "alpha.test"],
+  ["data", "Резервні копії"],
+  ["log", "Журнал змін"],
+  // Addresses from before the five tabs still open the right place.
   ["members", "Запросити"],
   ["domains", "alpha.test"],
-  ["log", "Журнал змін"],
 ]) {
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=${tab}`);
   check(`settings tab ${tab}`, (await alice.getByText(text).count()) > 0);
@@ -878,7 +882,7 @@ check("a forged callback connects nothing", driveRows() === "0", driveRows());
 
 await wide.goto(settingsUrl);
 await wide.getByRole("link", { name: "Підключити Google Drive" }).click();
-await wide.waitForURL(/tab=storage&drive=connected/);
+await wide.waitForURL(/tab=data&drive=connected/);
 check("owner connects Google Drive", (await wide.getByText("Google Drive підключено.").count()) > 0 && driveRows() === "1");
 const storedToken = sql(`select token_encrypted from public.drive_connections where workspace_id = '${alphaId}' and active`);
 check("Drive access stored encrypted", storedToken.startsWith("v1.") && !storedToken.includes("fake-refresh-token"));
