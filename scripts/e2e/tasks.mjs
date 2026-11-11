@@ -164,6 +164,10 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await openCard.waitFor({ timeout: 20000 });
   await alice.waitForFunction(() => document.title.startsWith("MAR-1"), null, { timeout: 10000 }).catch(() => {});
   check("a task opens over the list, with the list still there", (await alice.locator('[data-task="MAR-2"]').count()) === 1 && (await alice.title()).startsWith("MAR-1 · Rukh"), await alice.title());
+  // The left panel is a tree: the project, its boards, the tasks on each with marks.
+  const treeTask = alice.locator('[data-sidebar-project="MAR"] [data-sidebar-board="Основна дошка"] [data-sidebar-task="MAR-1"]');
+  await treeTask.waitFor({ timeout: 15000 }).catch(() => {});
+  check("the left panel lists the board's tasks with the column's colour and the priority", (await treeTask.locator("[data-status-dot]").count()) === 1 && (await treeTask.locator("[data-task-priority]").count()) === 1);
   await alice.locator("[data-task-panel-close]").click();
   await alice.locator("[data-task-panel]").waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
   check("…and closes back to the list", (await alice.locator("[data-task-panel]").count()) === 0 && !/task=/.test(alice.url()), alice.url());

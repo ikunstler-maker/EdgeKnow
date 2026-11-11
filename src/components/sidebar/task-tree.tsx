@@ -78,7 +78,7 @@ export function TaskProjects({ projects, boards, pathname, onNavigate }: { proje
             <li key={project.id} role="treeitem" aria-expanded={open} aria-selected={here} data-sidebar-project={project.key}>
               <div className="flex items-center">
                 <Toggle open={open} label={open ? s.fold(project.name) : s.unfold(project.name)} onClick={() => flip(project.id, here)} />
-                <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={rowClass(here && pathname === href && !boardParam && !openNumber)}>
+                <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={rowClass(here && !open)}>
                   {project.icon ? <span className="shrink-0">{project.icon}</span> : <Icon name="folder" className="shrink-0 text-muted" />}
                   <span className="truncate">{project.name}</span>
                   <span className="ml-auto shrink-0 font-mono text-xs text-muted">{project.key}</span>
