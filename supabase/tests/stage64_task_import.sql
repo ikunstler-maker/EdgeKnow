@@ -37,16 +37,13 @@ select 'member makes room: ' || coalesce(public.make_room_for_import(:'project',
 select 'member reads imports: ' || count(*) from public.task_imports;
 reset role;
 
--- The server (its own role): a number of our own task is in the way until room is made.
-set role service_role;
+-- The server (no test role for it in this database: the owner of the tables stands in): a number of our own task is in the way until room is made.
 select 'number in the way: ' || (public.import_tasks(:'project', jsonb_build_array(jsonb_build_object(
   'external_key', 'TMD-1', 'number', 1, 'title', 'Imported one', 'status_id', :'todo'))) ->> 'error');
 reset role;
-set role service_role;
 select 'room made: ' || (public.make_room_for_import(:'project', 7) ->> 'moved');
 reset role;
 select 'own tasks now: ' || string_agg(number || ' ' || title, ', ' order by number) from public.tasks where project_id = :'project';
-set role service_role;
 select 'imported: ' || public.import_tasks(:'project', jsonb_build_array(
   jsonb_build_object('external_key', 'TMD-1', 'external_url', 'https://old.example/browse/TMD-1', 'number', 1, 'title', 'Imported epic', 'status_id', :'todo', 'type', 'epic',
     'priority', 'high', 'reporter_id', '00000000-0000-0000-0000-0000000064a1', 'assignee_id', '00000000-0000-0000-0000-0000000064b1',
@@ -62,18 +59,15 @@ select 'history: ' || string_agg(e.field || ' ' || to_char(e.created_at at time 
 select 'nobody notified: ' || count(*) from public.notifications n join public.tasks t on t.id = n.task_id where t.external_key is not null;
 select 'placed on the board: ' || count(*) from public.task_placements p join public.tasks t on t.id = p.task_id where t.external_key is not null;
 -- A second run changes, never doubles.
-set role service_role;
 select 'again: ' || public.import_tasks(:'project', jsonb_build_array(jsonb_build_object(
   'external_key', 'TMD-7', 'number', 7, 'title', 'Imported done, renamed', 'status_id', :'todo')))::text;
 reset role;
 select 'after again: ' || count(*) || ' ' || max(title) || ' ' || coalesce(max(done_at)::text, 'not done') from public.tasks where project_id = :'project' and external_key = 'TMD-7';
-set role service_role;
 select 'relations: ' || public.import_task_relations(:'project', jsonb_build_array(
   jsonb_build_object('external_key', 'TMD-7', 'parent_key', 'TMD-1', 'links', jsonb_build_array(
     jsonb_build_object('kind', 'blocks', 'other_key', 'TMD-1'), jsonb_build_object('kind', 'relates', 'other_key', 'TMD-99')))))::text;
 reset role;
 select 'parent set: ' || (select p.external_key from public.tasks p where p.id = t.parent_id) from public.tasks t where t.external_key = 'TMD-7' and t.project_id = :'project';
-set role service_role;
 select 'bad status: ' || (public.import_tasks(:'project', jsonb_build_array(jsonb_build_object('external_key', 'TMD-8', 'number', 8, 'title', 'X', 'status_id', gen_random_uuid()))) ->> 'error');
 reset role;
 
