@@ -180,7 +180,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await openCard.locator('[data-people="assignee"]').click();
   await alice.locator(`[data-person-option="${colleagueId2}"]`).click();
   await alice.waitForTimeout(800);
-  await openCard.getByLabel("Пріоритет", { exact: true }).selectOption("high");
+  await openCard.locator("[data-task-priority-field]").selectOption("high");
   await alice.waitForTimeout(800);
   const taskRow = () => sql("select s.category || ' ' || coalesce(t.assignee_id::text, '-') || ' ' || t.priority from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("the task's fields change in place", taskRow() === `doing ${colleagueId2} high`, taskRow());

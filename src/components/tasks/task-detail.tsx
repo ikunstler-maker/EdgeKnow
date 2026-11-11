@@ -280,7 +280,7 @@ export function TaskDetail({
             </Row>
           ))}
           <Row label={k.fields.priority}>
-            <select value={task.priority} disabled={!canEdit || pending} onChange={(e) => change({ priority: e.target.value })} className={quietClass}>
+            <select value={task.priority} disabled={!canEdit || pending} onChange={(e) => change({ priority: e.target.value })} className={quietClass} data-task-priority-field>
               {TASK_PRIORITIES.map((value) => (
                 <option key={value} value={value}>
                   {k.priorities[value]}
