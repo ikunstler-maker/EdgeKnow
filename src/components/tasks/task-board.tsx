@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -21,7 +21,6 @@ import {
 } from "@dnd-kit/core";
 import { dateLocale, t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
-import { workspacePath } from "@/lib/paths";
 import {
   CARD_FIELDS,
   TASK_PRIORITIES,
@@ -44,7 +43,9 @@ import { TaskRulesDialog } from "./task-rules";
 import { TemplatePicker, useTemplates } from "./task-templates";
 import { NewTaskDialog } from "./new-task-dialog";
 import { DraftCard, useTaskDrafts } from "./task-drafts";
-import { Avatar, PriorityIcon, TypeIcon } from "./task-icons";
+import { Avatar, PriorityIcon, StatusDot, TypeIcon } from "./task-icons";
+import { labelTint } from "./task-pickers";
+import { openingTask, useTaskPanelHref } from "./task-panel";
 import { Icon } from "@/components/ui/icon";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { buttonClass as uiButton, iconButtonClass } from "@/components/ui/button";
@@ -60,7 +61,6 @@ type Group = "none" | "assignee" | "priority" | "type";
 // (the change shows at once and is saved behind it), quick add in a column,
 // filters like Jira's, swimlanes, and which fields a card shows.
 export function TaskBoard({
-  shortId,
   project,
   statuses: allStatuses,
   boards = [],
@@ -228,6 +228,7 @@ export function TaskBoard({
   };
 
   const cardFields = new Set(project.card_fields);
+  const taskHref = useTaskPanelHref();
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
   const dragged = dragging ? tasks.find((x) => x.id === dragging) : null;
 
@@ -266,7 +267,7 @@ export function TaskBoard({
             )}
             {isOwner && (
               <button type="button" className={iconButtonClass("ghost")} onClick={(e) => setSettingsAnchor(settingsAnchor ? null : e.currentTarget)} aria-label={b.settings} title={b.settings} aria-expanded={settingsAnchor !== null} data-board-settings>
-                <Icon name="sliders" size={18} />
+                <Icon name="columns" size={18} />
               </button>
             )}
             {canEdit && statuses.length > 0 && (
@@ -332,7 +333,7 @@ export function TaskBoard({
           {lanes.map((lane) => (
             <section key={lane.id} aria-label={lane.label || b.title}>
               {lane.label && <h3 className="mb-1 text-sm font-medium text-muted">{lane.label}</h3>}
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <ScrollRow>
                 {statuses.map((status, index) => (
                   <BoardColumn
                     key={status.id}
@@ -357,7 +358,7 @@ export function TaskBoard({
                       <BoardCard
                         key={task.id}
                         task={task}
-                        href={workspacePath(shortId, `/tasks/${project.key}/${task.number}`)}
+                        href={taskHref(task.number)}
                         taskKey={taskKey(project.key, task.number)}
                         status={status}
                         fields={cardFields}
@@ -382,7 +383,7 @@ export function TaskBoard({
                   />
                 ))}
                 {isOwner && lane.id === lanes[0].id && <AddColumn projectId={project.id} boardId={boards.some((x) => x.id === boardId) ? boardId : null} run={run} pending={pending} />}
-              </div>
+              </ScrollRow>
             </section>
           ))}
         </div>
@@ -411,6 +412,48 @@ export function TaskBoard({
           }}
         />
       )}
+    </div>
+  );
+}
+
+// The row of columns scrolls sideways; an arrow on an edge says there are more columns
+// that way (and scrolls to them), so the first columns can't hide unnoticed.
+function ScrollRow({ children }: { children: React.ReactNode }) {
+  const [more, setMore] = useState({ left: false, right: false });
+  const row = useRef<HTMLDivElement | null>(null);
+  const measure = () => {
+    const el = row.current;
+    if (!el) return;
+    const next = { left: el.scrollLeft > 8, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 8 };
+    setMore((before) => (before.left === next.left && before.right === next.right ? before : next));
+  };
+  const attach = (el: HTMLDivElement | null) => {
+    row.current = el;
+    if (!el) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    for (const child of el.children) observer.observe(child);
+    return () => observer.disconnect();
+  };
+  const arrow = (side: "left" | "right") => (
+    <button
+      type="button"
+      onClick={() => row.current?.scrollBy({ left: (side === "left" ? -1 : 1) * Math.max(288, row.current.clientWidth * 0.7), behavior: "smooth" })}
+      aria-label={side === "left" ? b.scrollLeft : b.scrollRight}
+      title={side === "left" ? b.scrollLeft : b.scrollRight}
+      className={`absolute top-1 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-border-strong bg-overlay text-foreground shadow-lg hover:bg-hover md:h-8 md:w-8 ${side === "left" ? "left-1" : "right-1"}`}
+      data-board-scroll={side}
+    >
+      <Icon name={side === "left" ? "chevron-left" : "chevron-right"} size={18} />
+    </button>
+  );
+  return (
+    <div className="relative">
+      <div ref={attach} onScroll={measure} className="flex gap-3 overflow-x-auto pb-2">
+        {children}
+      </div>
+      {more.left && arrow("left")}
+      {more.right && arrow("right")}
     </div>
   );
 }
@@ -478,7 +521,7 @@ function BoardColumn({
             <Icon name="drag" size={14} />
           </button>
         )}
-        <span className={`h-2 w-2 shrink-0 rounded-full ${status.category === "done" ? "bg-emerald-500" : status.category === "doing" ? "bg-sky-500" : status.category === "review" ? "bg-violet-500" : "bg-slate-400"}`} />
+        <StatusDot category={status.category} />
         <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">{status.name}</h4>
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
           {status.wip_limit !== null ? `${total}/${status.wip_limit}` : total}
@@ -609,7 +652,18 @@ function BoardCard({
             </span>
           ))}
       </div>
-      <Link prefetch={false} href={href} className={`mt-1 block text-sm font-medium leading-snug hover:underline ${status.category === "done" ? "text-muted line-through" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
+      {/* Opens over the board; the address changes, so the link can be shared and "Back" closes it. */}
+      <Link
+        prefetch={false}
+        scroll={false}
+        href={href}
+        className={`mt-1 block text-sm font-medium leading-snug hover:underline ${status.category === "done" ? "text-muted" : ""}`}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          if (!(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)) openingTask(task.number);
+        }}
+        data-card-open
+      >
         {task.title}
       </Link>
       {/* What "What to show on the card" chose, as compact marks; a field with nothing in it takes no room. */}
@@ -648,8 +702,8 @@ function BoardCard({
         )}
         {fields.has("labels") &&
           task.labels.map((label) => (
-            <CardChip key={label} label={b.cardFields.labels}>
-              #{label}
+            <CardChip key={label} label={b.cardFields.labels} className={`font-medium ${labelTint(label)}`}>
+              {label}
             </CardChip>
           ))}
         {customFields.map((field) => {
@@ -688,7 +742,7 @@ function BoardCard({
         )}
         {fields.has("created") && (
           <CardChip label={b.cardFields.created}>
-            <Icon name="plus" size={12} />
+            <Icon name="history" size={12} />
             {shortDate(task.created_at)}
           </CardChip>
         )}
@@ -865,19 +919,37 @@ function ColumnMenu({
   );
 }
 
+// A new column: a small "+" at the end of the row; the name is asked only when it is pressed.
 function AddColumn({ projectId, boardId, run, pending }: { projectId: string; boardId: string | null; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState<string | null>(null);
+  if (name === null) {
+    return (
+      <button type="button" onClick={() => setName("")} aria-label={b.addColumn} title={b.addColumn} className={`${iconButtonClass("subtle")} mt-1`} data-add-column>
+        <Icon name="plus" size={18} />
+      </button>
+    );
+  }
   return (
     <form
       className="w-56 shrink-0"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!name.trim()) return;
-        run(() => addColumnOnBoard(projectId, boardId, name));
-        setName("");
+        if (name.trim()) run(() => addColumnOnBoard(projectId, boardId, name));
+        setName(null);
       }}
     >
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder={b.addColumn} aria-label={b.addColumn} maxLength={40} className={`${inputClass} w-full`} disabled={pending} />
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => !name.trim() && setName(null)}
+        onKeyDown={(e) => e.key === "Escape" && setName(null)}
+        placeholder={b.addColumn}
+        aria-label={b.addColumn}
+        maxLength={40}
+        className={`${inputClass} w-full`}
+        disabled={pending}
+      />
     </form>
   );
 }

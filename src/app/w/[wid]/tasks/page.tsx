@@ -1,3 +1,4 @@
+import { SERVICE_BRANDS } from "@/lib/services";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { t } from "@/i18n";
@@ -11,7 +12,7 @@ import { Icon } from "@/components/ui/icon";
 import { Hint } from "@/components/ui/hint";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: `${t.tasks.title} · ${t.app.name}` };
+  return { title: `${t.tasks.title} · ${SERVICE_BRANDS.tasks.name}` };
 }
 
 // All task projects open to the person; the workspace's owner and admins make new ones.

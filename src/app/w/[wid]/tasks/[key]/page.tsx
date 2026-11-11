@@ -11,12 +11,18 @@ import { TaskList } from "@/components/tasks/task-list";
 import { TemplatesButton } from "@/components/tasks/task-templates";
 import { TaskBoard } from "@/components/tasks/task-board";
 import { ProjectAccessButton, type ProjectAccess } from "@/components/tasks/project-access";
+import { Suspense } from "react";
 import { Icon } from "@/components/ui/icon";
 import { buttonClass } from "@/components/ui/button";
+import { SERVICE_BRANDS } from "@/lib/services";
+import { TaskPanel } from "@/components/tasks/task-panel";
+import { TaskView } from "@/components/tasks/task-view";
 
-export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[key]">): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps<"/w/[wid]/tasks/[key]">): Promise<Metadata> {
   const { key } = await params;
-  return { title: `${key.toUpperCase()} · ${t.app.name}` };
+  const open = (await searchParams).task;
+  const name = typeof open === "string" && /^\d{1,7}$/.test(open) ? `${key.toUpperCase()}-${open}` : key.toUpperCase();
+  return { title: `${name} · ${SERVICE_BRANDS.tasks.name}` };
 }
 
 // One project: its tasks as a list with filters, and a quick way to add one.
@@ -25,6 +31,8 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   const query = await searchParams;
   const mode = query.view === "list" ? "list" : "board";
   const board = typeof query.board === "string" ? query.board : null;
+  // A task opened over the board or the list (?task=N); its own page is /tasks/KEY/N.
+  const openTask = typeof query.task === "string" && /^\d{1,7}$/.test(query.task) ? query.task : null;
   const [view, user] = await Promise.all([loadProject(wid, key), getCurrentUser()]);
   if (!view) {
     return (
@@ -141,6 +149,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           isOwner={view.role === "owner"}
         />
       )}
+      <TaskPanel number={openTask} pageBase={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)}>
+        {openTask && (
+          <Suspense key={openTask} fallback={<p className="py-12 text-center text-sm text-muted">{t.tasks.card.loading}</p>}>
+            <TaskView wid={wid} view={view} number={openTask} userId={user.id} inPanel />
+          </Suspense>
+        )}
+      </TaskPanel>
     </main>
   );
 }

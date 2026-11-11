@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { t } from "@/i18n";
 import { dataClient, writeClient } from "@/lib/team-db/data";
-import { openChecklistItems, parseTaskKey } from "@/lib/tasks";
+import { openChecklistItems, parseTaskKey, type SidebarBoard, type SidebarTask, type StatusCategory, type TaskPriority } from "@/lib/tasks";
 import type { TaskTemplate, TemplateData } from "@/lib/task-templates";
 
 // Tasks: every check (roles, fields, the workspace) is in the database
@@ -213,15 +213,39 @@ export async function deleteTaskTemplate(templateId: string) {
   return call("delete_task_template", { target: templateId });
 }
 
-// The sidebar's list of a project's tasks (RLS: only those this person sees), newest change first.
-export async function sidebarTasks(projectId: string): Promise<{ id: string; number: number; title: string }[]> {
-  const { data } = await (await dataClient())
-    .from("tasks")
-    .select("id, number, title")
-    .eq("project_id", projectId)
-    .is("deleted_at", null)
-    .is("parent_id", null)
-    .order("updated_at", { ascending: false })
-    .limit(30);
-  return (data ?? []) as { id: string; number: number; title: string }[];
+// The side panel's tree: a project's boards and the tasks standing on each, in the order
+// of the board (column by column). Read with the reader's own access; a task frozen for
+// this person on a board is not listed there.
+const TREE_LIMIT = 50;
+export async function sidebarProjectTasks(projectId: string): Promise<SidebarBoard[]> {
+  const db = await dataClient();
+  type Row = { id: string; number: number; title: string; priority: TaskPriority; status_id: string; position: number };
+  const columns = "id, number, title, priority, status_id, position";
+  const [fast, { data: statusRows }] = await Promise.all([
+    db.rpc("project_tasks", { target_project: projectId }).select(columns).is("deleted_at", null),
+    db.from("task_statuses").select("id, name, category, position, board_id").eq("project_id", projectId),
+  ]);
+  // Where the function isn't there yet, the same rows come from the table.
+  const tasks = ((fast.error?.code === "PGRST202" ? (await db.from("tasks").select(columns).eq("project_id", projectId).is("deleted_at", null)).data : fast.data) ?? []) as Row[];
+  const statuses = (statusRows ?? []) as { id: string; name: string; category: StatusCategory; position: number; board_id: string | null }[];
+  if (!tasks.length || !statuses.length) return [];
+  const { data: placementRows } = await db.from("task_placements").select("task_id, board_id, status_id").in("status_id", statuses.map((x) => x.id));
+  const placements = (placementRows ?? []) as { task_id: string; board_id: string | null; status_id: string }[];
+  const statusOf = new Map(statuses.map((x) => [x.id, x]));
+  const taskOf = new Map(tasks.map((x) => [x.id, x]));
+  // Without placements (an older database) every task stands on the main board in its own column.
+  const places = placements.length ? placements : tasks.map((x) => ({ task_id: x.id, board_id: statusOf.get(x.status_id)?.board_id ?? null, status_id: x.status_id }));
+  const boards = new Map<string | null, SidebarTask[]>();
+  for (const place of places) {
+    const task = taskOf.get(place.task_id);
+    const status = statusOf.get(place.status_id);
+    if (!task || !status) continue;
+    const list = boards.get(place.board_id ?? null) ?? [];
+    list.push({ number: task.number, title: task.title, priority: task.priority, category: status.category, status: status.name, order: status.position * 1e9 + task.position });
+    boards.set(place.board_id ?? null, list);
+  }
+  return [...boards].map(([id, list]) => {
+    const sorted = list.sort((a, b) => a.order - b.order || a.number - b.number);
+    return { id, tasks: sorted.slice(0, TREE_LIMIT), more: Math.max(0, sorted.length - TREE_LIMIT) };
+  });
 }

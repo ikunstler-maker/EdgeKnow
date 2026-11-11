@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { workspacePath } from "@/lib/paths";
 import { taskKey, type LinkKind, type LinkedTask, type TaskRow, type TaskStatus } from "@/lib/tasks";
 import { addTaskLink, checklistToSubtasks, createTask, deleteTaskLink, updateTask } from "@/app/task-actions";
+import { searchTasksForChip, type ChipTask } from "@/app/task-wiki-actions";
+import { TaskPicker } from "./task-pickers";
 import { Icon } from "@/components/ui/icon";
 import { TypeIcon } from "./task-icons";
 
@@ -63,7 +65,7 @@ function Message({ message }: { message: { error: boolean; text: string } | null
   );
 }
 
-// The parent (an epic or any other task of the project) — on the side of the task.
+// The parent (an epic or any other task of the project), found by its key or title.
 export function ParentPicker({ task, tasks, canEdit, projectKey }: { task: ProjectTask; tasks: ProjectTask[]; canEdit: boolean; projectKey: string }) {
   const { pending, run, message } = useRun();
   const options = useMemo(() => {
@@ -73,25 +75,18 @@ export function ParentPicker({ task, tasks, canEdit, projectKey }: { task: Proje
       .sort((a, b) => Number(b.type === "epic") - Number(a.type === "epic") || b.number - a.number);
   }, [task.id, tasks]);
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs text-muted">{h.parent}</span>
-      <select
-        value={task.parent_id ?? ""}
-        data-parent-picker
+    <>
+      <TaskPicker
+        label={h.parent}
+        projectKey={projectKey}
+        options={options}
+        value={task.parent_id}
+        empty={h.noParent}
         disabled={!canEdit || pending}
-        onChange={(e) => run(() => updateTask(task.id, { parent_id: e.target.value || null }))}
-        className={`${inputClass} w-full`}
-      >
-        <option value="">{h.noParent}</option>
-        {options.map((other) => (
-          <option key={other.id} value={other.id}>
-            <TypeIcon type={other.type} className="mr-1 inline" />
-            {taskKey(projectKey, other.number)} {other.title}
-          </option>
-        ))}
-      </select>
+        onChange={(id) => run(() => updateTask(task.id, { parent_id: id }))}
+      />
       <Message message={message} />
-    </label>
+    </>
   );
 }
 
@@ -116,6 +111,7 @@ export function Subtasks({
   tasks,
   statuses,
   canEdit,
+  hrefFor,
 }: {
   shortId: string;
   projectId: string;
@@ -124,6 +120,8 @@ export function Subtasks({
   tasks: ProjectTask[];
   statuses: TaskStatus[];
   canEdit: boolean;
+  // Where a subtask opens (the panel over the board keeps it in the panel).
+  hrefFor?: (number: number) => string;
 }) {
   const { pending, run, message } = useRun();
   const [title, setTitle] = useState("");
@@ -166,7 +164,7 @@ export function Subtasks({
                   className="h-5 w-5 shrink-0 md:h-4 md:w-4"
                 />
                 <span className="font-mono text-xs text-muted">{taskKey(projectKey, child.number)}</span>
-                <Link prefetch={false} href={workspacePath(shortId, `/tasks/${projectKey}/${child.number}`)} className={`min-w-0 flex-1 truncate hover:underline ${isDone ? "text-muted line-through" : ""}`}>
+                <Link prefetch={false} scroll={!hrefFor} href={hrefFor?.(child.number) ?? workspacePath(shortId, `/tasks/${projectKey}/${child.number}`)} className={`min-w-0 flex-1 truncate hover:underline ${isDone ? "text-muted line-through" : ""}`}>
                   <TypeIcon type={child.type} className="mr-1 inline" />
                   {child.title}
                 </Link>
@@ -210,6 +208,22 @@ export function TaskLinks({ shortId, taskId, links, canEdit }: { shortId: string
   const { pending, run, message } = useRun();
   const [kind, setKind] = useState<(typeof ADD_KINDS)[number]>("relates");
   const [key, setKey] = useState("");
+  // Tasks offered while typing: by key or by words of the title, across the workspace.
+  const [found, setFound] = useState<{ query: string; tasks: ChipTask[] } | null>(null);
+  const query = key.trim();
+  useEffect(() => {
+    if (query.length < 2) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      void searchTasksForChip(shortId, query).then((r) => live && setFound({ query, tasks: r.tasks.filter((x) => x.id !== taskId) }));
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [query, shortId, taskId]);
+  const offers = found && found.query === query && query.length >= 2 ? found.tasks : [];
+  const link = (other: string) => run(() => addTaskLink(taskId, other, kind), () => setKey(""));
   const labelOf = (link: TaskLinkView) =>
     link.outgoing || link.kind === "relates" ? h.kinds[link.kind] : h.kinds[link.kind === "blocks" ? "blocked_by" : "duplicated_by"];
   return (
@@ -244,7 +258,7 @@ export function TaskLinks({ shortId, taskId, links, canEdit }: { shortId: string
           className="mt-2 flex flex-wrap gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (key.trim()) run(() => addTaskLink(taskId, key, kind), () => setKey(""));
+            if (query) link(query);
           }}
         >
           <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} aria-label={h.linkKind} className={inputClass}>
@@ -254,7 +268,21 @@ export function TaskLinks({ shortId, taskId, links, canEdit }: { shortId: string
               </option>
             ))}
           </select>
-          <input value={key} onChange={(e) => setKey(e.target.value)} placeholder={h.linkKey} aria-label={h.linkKey} className={`${inputClass} w-44 font-mono`} />
+          <div className="relative min-w-44 flex-1">
+            <input value={key} onChange={(e) => setKey(e.target.value)} placeholder={h.linkKey} aria-label={h.linkKey} autoComplete="off" className={`${inputClass} w-full`} data-link-search />
+            {offers.length > 0 && (
+              <ul className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border border-border-strong bg-overlay p-1 shadow-xl" data-link-offers>
+                {offers.map((o) => (
+                  <li key={o.id}>
+                    <button type="button" disabled={pending} onClick={() => link(o.key)} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-sm hover:bg-hover md:min-h-9" data-link-offer={o.key}>
+                      <span className="shrink-0 font-mono text-xs text-muted">{o.key}</span>
+                      <span className="min-w-0 flex-1 truncate">{o.title}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button type="submit" disabled={pending || !key.trim()} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
             {h.addLink}
           </button>

@@ -22,7 +22,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - Drag between and inside columns; on a phone — long press. Columns themselves can be dragged.
 - Column limits, choice of fields shown on the card.
 - **Task card** (updated 2026-11-11): the key and a priority mark on top, then the title, and at the bottom compact marks of the chosen fields (type, dates, estimate, labels, own fields) with the assignee's avatar. A field with no value takes no room. Priority and assignee change right on the card: a click on the mark or the avatar opens a short list.
-- **Project screen:** one header row (the project, "Board / List", and on the right "Task fields", "Templates", "Access and settings") and one filter row (search, people, quick filters, grouping, card fields, notification rules, board settings, "New task"). A new project is created in a dialog from the "New project" button. The left panel lists projects and boards, no tasks.
+- **Project screen:** one header row (the project, "Board / List", and on the right "Task fields", "Templates", "Access and settings") and one filter row (search, people, quick filters, grouping, card fields, notification rules, board settings, "New task"). A new project is created in a dialog from the "New project" button. The left panel is a tree: projects → their boards → the tasks on each board (every level folds; the open project is unfolded). A task there shows a dot in its column's colour on the left and its priority on the right, and opens over its board. Boards are also switched by the tabs above the columns. A new column is added with a small "+" at the end of the row; arrows on the edges of the row say there are more columns that way.
 - "List" view, filters.
 - **Time in columns:** how long a task spent in each column (computed from history).
 
@@ -35,6 +35,14 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 ### Fields, templates
 - **Custom project fields:** text, number, select, multi-select, checkbox, toggle, date, colour, link, person. Field hint; drag order; a field can be added right from a task.
 - **Task templates:** project (made by owners) and personal.
+
+### Task screen (updated 2026-11-11, steps Р-1 and Р-2)
+- **Two columns:** on the left the title, status, description, subtasks, links, pages that mention it, files, and "Comments / History" tabs; on the right the properties panel (assignee, co-assignees, responsible, priority, type, dates, estimate, labels, parent task, the project's own fields, privacy, time in columns, author and dates). On a narrow screen the properties come right after the description.
+- **People** are picked from a list with search and shown as marks with avatars. The **parent task** and the other task of a **link** are found by key or words of the title. **Labels** are coloured marks; the project's existing labels are offered while typing.
+- More than three empty own fields fold under "More fields (N)".
+- **History:** a run of description autosaves by one person is one line ("N edits"); status, people, priority, dates and title lines say what changed to what. Description autosaves are read apart, so they can't push other changes out of the list.
+- **Panel over the board:** a task opened from the board or the list shows in a sheet on the right (the whole screen on a phone); the address carries `?task=N`, so it can be shared and "Back" closes it. Closes with ✕, a tap outside or Escape. The task's own page `/tasks/<KEY>/<N>` stays (it is what "Copy link" copies) — both addresses open the task.
+- Browser tab titles of the service end with "Rukh".
 
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.

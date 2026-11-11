@@ -17,6 +17,16 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 6 The rest: profile, settings, every dialog, trash, analytics, sign-in, `/about` (its emoji), `/changelog`, `/help`; final emoji sweep with an automatic check (`scripts/check-ui-emoji.mjs`, runs before every build) — DONE (#149). Follow-up: Kadry side panel closed by default — in review.
 - Rules for all six: no database, access or server-action changes; phone controls stay 44 px; test hooks stay, a scenario step is updated only where the control itself changes kind; pinned services and the collapsed panel are remembered per browser. Emoji a person picked (Wika page icons, Rukh project icons) stay.
 
+## Rukh: task card, quick view, move from another tracker (owner, 2026-11-11; decision 2026-11-11)
+- Р-1 two-column task card, people/parent/link search, label marks, grouped history, board tidy-up; Р-2 task panel over the board (`?task=N`); left panel as a tree (projects → boards → tasks with column dot and priority) — in review.
+- Р-3 move from another tracker (DB changes → owner's separate OK before coding, with the exact list):
+  - 3а import wizard from an export file: same task numbers, statuses → columns, types, priorities, labels, own fields, epics/subtasks, links, people by email (a missing person's name kept as text); dry-run preview and a "moved N of N" report.
+  - 3б direct connection (the owner's tracker is the cloud one): comments with dates and authors, status history, files, formatted descriptions; the access key encrypted, server only. Files go to the team's Google Drive, up to 250 MB per file and 10 GB per ZIP; whatever did not come over is listed and can be pulled later.
+  - 3в one-way catch-up while the team moves (old tracker → us), search by the old link.
+  - The tracker's name may show only in the wizard's source list; everywhere else "Import from another tracker".
+- Then: "My tasks" (today, overdue, next, waiting for my review), time spent, sprints and backlog, recurring tasks, bulk actions on the board.
+- Small, later: vacation mark next to a person in the task (from Doba); "Done" strike-through is gone by design.
+
 ## Workspace settings (owner, 2026-11-11; decision 2026-11-11)
 - PR 1: 8 tabs → 5 (Team & structure, Roles & security, Data & storage), members table + member card — DONE (#142).
 - PR 2: active sessions — admin sees a member's devices (type, last activity, no IP) and ends all their sessions (signed out everywhere, logged); the person sees and ends own devices in the profile; proxy checks the session still exists. Reads Supabase's own sessions, no new table. DB/sign-in → approved 2026-11-11 — in review.
@@ -42,7 +52,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
 
 ## Wiki: confirmations of reading (owner, 2026-11-09; decision 2027-01-14)
-- Confirm button, frozen page, statistics, new revisions — in review.
+- Confirm button, frozen page, statistics, new revisions — DONE (#120).
 
 ## Wiki: order agreed (owner, 2026-11-10)
 - 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).

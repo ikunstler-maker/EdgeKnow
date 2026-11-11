@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
-import { workspacePath } from "@/lib/paths";
 import { TASK_PRIORITIES, TASK_TYPES, personLabel, progressOf, taskKey, type Person, type TaskField, type TaskRow, type TaskStatus } from "@/lib/tasks";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { bulkUpdateTasks } from "@/app/task-actions";
+import { openingTask, useTaskPanelHref } from "./task-panel";
 import { NewTaskDialog } from "./new-task-dialog";
 import { DraftCard, useTaskDrafts } from "./task-drafts";
 import { TemplatePicker, useTemplates } from "./task-templates";
@@ -21,7 +21,6 @@ const shortDate = (value: string) => new Intl.DateTimeFormat(dateLocale(), { day
 
 // The project's tasks with quick filters and a one-line way to add a task.
 export function TaskList({
-  shortId,
   project,
   statuses,
   tasks,
@@ -59,6 +58,7 @@ export function TaskList({
   const progress = useMemo(() => progressOf(tasks, statuses), [tasks, statuses]);
   const blocked = useMemo(() => new Set(blockedList), [blockedList]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const taskHref = useTaskPanelHref();
   const [notice, setNotice] = useState<string | null>(null);
   // Only tasks still shown stay selected.
   const chosen = shown.filter((task) => selected.has(task.id)).map((task) => task.id);
@@ -183,7 +183,7 @@ export function TaskList({
                     )}
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-muted">{key}</td>
                     <td className="px-3 py-2">
-                      <Link prefetch={false} href={workspacePath(shortId, `/tasks/${project.key}/${task.number}`)} className={`hover:underline ${s?.category === "done" ? "text-muted line-through" : ""}`}>
+                      <Link prefetch={false} scroll={false} href={taskHref(task.number)} onClick={(e) => !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) && openingTask(task.number)} className={`hover:underline ${s?.category === "done" ? "text-muted" : ""}`}>
                         <span title={k.types[task.type]}>
                           <TypeIcon type={task.type} className="mr-1.5 inline" />
                         </span>

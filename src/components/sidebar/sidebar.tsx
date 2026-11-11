@@ -3,7 +3,7 @@
 import { ServiceSwitcher } from "@/components/services/service-switcher";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import { ancestorsOf } from "@/lib/pages";
@@ -16,6 +16,7 @@ import { HeadingList, useActiveHeading, type Heading } from "@/components/editor
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
 import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
+import { TaskProjects } from "./task-tree";
 import { ServiceCollections, type Collections } from "./collections";
 import { WorkspaceMenu } from "./workspace-menu";
 import { Icon } from "@/components/ui/icon";
@@ -183,63 +184,6 @@ function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: (
   );
 }
 
-const linkClass = (here: boolean) => `flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-hover md:min-h-8 ${here ? "bg-hover font-medium" : ""}`;
-
-// Tasks: projects; the open project shows its boards. The tasks themselves are on
-// the board, not repeated here.
-function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: ProjectSummary[]; boards: BoardSummary[]; pathname: string; onNavigate?: () => void }) {
-  const { workspace } = usePages();
-  const base = workspacePath(workspace.shortId, "/tasks");
-  const openKey = pathname.startsWith(`${base}/`) ? pathname.slice(base.length + 1).split("/")[0] : null;
-  const open = projects.find((p) => p.key === openKey) ?? null;
-  const board = useSearchParams().get("board");
-  return (
-    <section aria-label={t.tasks.section} className="mb-2" data-sidebar-section="tasks">
-      <Link prefetch={false}
-        href={base}
-        onClick={onNavigate}
-        data-angler-here={pathname === base ? "" : undefined}
-        className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground"
-      >
-        {t.tasks.section}
-      </Link>
-      <ul>
-        {projects.map((project) => {
-          const href = `${base}/${project.key}`;
-          const here = project.id === open?.id;
-          const own = boards.filter((b) => b.project_id === project.id);
-          return (
-            <li key={project.id}>
-              <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
-                {project.icon ? <span className="shrink-0">{project.icon}</span> : <Icon name="folder" className="text-muted" />}
-                <span className="truncate">{project.name}</span>
-                <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
-              </Link>
-              {here && own.length > 0 && (
-                <div className="ml-4 border-l border-border pl-1">
-                  <ul aria-label={t.sidebar.mainBoard}>
-                      <li>
-                        <Link prefetch={false} href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
-                          <Icon name="columns" className="text-muted" /> <span className="truncate">{t.sidebar.mainBoard}</span>
-                        </Link>
-                      </li>
-                      {own.map((b) => (
-                        <li key={b.id}>
-                          <Link prefetch={false} href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
-                            <Icon name="columns" className="text-muted" /> <span className="truncate">{b.name}</span>
-                          </Link>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
 
 // Tables, whiteboards, maps, surveys: the list of the service's objects.
 function ServiceObjects({ service, objects, collections, pathname, onNavigate }: { service: string; objects: ObjectSummary[]; collections: Collections; pathname: string; onNavigate?: () => void }) {

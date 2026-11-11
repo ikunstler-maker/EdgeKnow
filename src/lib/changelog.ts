@@ -33,6 +33,27 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-b",
+    version: "0.27.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Rukh: зручна картка задачі", en: "Rukh: a handier task card" },
+    summaryDescription: {
+      uk: "Опис — на першому екрані, властивості — збоку, а задача відкривається поверх дошки.",
+      en: "The description comes first, the properties sit on the side, and a task opens over the board.",
+    },
+    items: [
+      { id: "task-two-columns", type: "improved", scope: "tasks", title: { uk: "Картка задачі у дві колонки: ліворуч опис, підзадачі, зв'язки, файли й коментарі; праворуч властивості.", en: "The task card has two columns: description, subtasks, links, files and comments on the left; properties on the right." } },
+      { id: "task-panel", type: "added", scope: "tasks", title: { uk: "Задача відкривається в панелі поверх дошки чи списку; посиланням можна поділитися, Esc закриває.", en: "A task opens in a panel over the board or the list; the link can be shared, Esc closes it." } },
+      { id: "task-people", type: "improved", scope: "tasks", title: { uk: "Виконавець, співвиконавці й відповідальні — зі списку з пошуком.", en: "The assignee, co-assignees and responsible people are picked from a list with search." } },
+      { id: "task-search", type: "improved", scope: "tasks", title: { uk: "Батьківська задача й зв'язки шукаються за назвою чи ключем.", en: "The parent task and links are found by title or key." } },
+      { id: "task-labels", type: "improved", scope: "tasks", title: { uk: "Мітки — кольорові позначки з підказками наявних у проєкті.", en: "Labels are coloured marks, with the project's existing ones offered." } },
+      { id: "task-history", type: "improved", scope: "tasks", title: { uk: "Історія без сміття: серія правок опису — один рядок; видно, що на що змінилося.", en: "A tidy history: a run of description edits is one line; it says what changed to what." } },
+      { id: "board-tidy", type: "improved", scope: "tasks", title: { uk: "Дошка: «+» для нової колонки й стрілки до схованих колонок.", en: "The board: a “+” for a new column and arrows to hidden columns." } },
+      { id: "tasks-tree", type: "added", scope: "tasks", title: { uk: "Ліва панель — дерево: проєкти, дошки й задачі на кожній дошці з кольором колонки та пріоритетом.", en: "The left panel is a tree: projects, boards and the tasks on each board with the column colour and priority." } },
+      { id: "task-add-field-fix", type: "fixed", scope: "tasks", title: { uk: "Кнопка «Поле» в задачі більше не має подвійного плюса.", en: "The “Field” button in a task no longer shows a double plus." } },
+    ],
+  },
+  {
     id: "2026-11-11-a",
     version: "0.26.0",
     date: "2026-11-11",
