@@ -43,7 +43,7 @@ import { TaskRulesDialog } from "./task-rules";
 import { TemplatePicker, useTemplates } from "./task-templates";
 import { NewTaskDialog } from "./new-task-dialog";
 import { DraftCard, useTaskDrafts } from "./task-drafts";
-import { Avatar, PriorityIcon, TypeIcon } from "./task-icons";
+import { Avatar, PriorityIcon, StatusDot, TypeIcon } from "./task-icons";
 import { labelTint } from "./task-pickers";
 import { openingTask, useTaskPanelHref } from "./task-panel";
 import { Icon } from "@/components/ui/icon";
@@ -521,7 +521,7 @@ function BoardColumn({
             <Icon name="drag" size={14} />
           </button>
         )}
-        <span className={`h-2 w-2 shrink-0 rounded-full ${status.category === "done" ? "bg-emerald-500" : status.category === "doing" ? "bg-sky-500" : status.category === "review" ? "bg-violet-500" : "bg-slate-400"}`} />
+        <StatusDot category={status.category} />
         <h4 className="min-w-0 flex-1 truncate text-sm font-semibold">{status.name}</h4>
         <span className={`text-xs ${over ? "font-semibold text-danger" : "text-muted"}`} title={over ? b.overLimit : undefined} data-wip>
           {status.wip_limit !== null ? `${total}/${status.wip_limit}` : total}

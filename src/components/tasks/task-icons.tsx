@@ -1,5 +1,5 @@
 import { Icon, type IconName } from "@/components/ui/icon";
-import type { Person, TaskPriority, TaskType } from "@/lib/tasks";
+import type { Person, StatusCategory, TaskPriority, TaskType } from "@/lib/tasks";
 
 // Drawn marks for a task's type and priority, the same on the board, in lists
 // and in the task itself. Colour carries the meaning; the name is in the hint.
@@ -48,4 +48,10 @@ export function Avatar({ person, size = 22 }: { person: Person | undefined; size
       {person ? initialsOf(person) : ""}
     </span>
   );
+}
+
+// The colour of a column's kind: the dot in a column's header and next to a task in the side panel.
+const STATUS_DOT: Record<StatusCategory, string> = { todo: "bg-slate-400", doing: "bg-sky-500", review: "bg-violet-500", done: "bg-emerald-500" };
+export function StatusDot({ category, title }: { category: StatusCategory; title?: string }) {
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[category] ?? STATUS_DOT.todo}`} title={title} data-status-dot={category} />;
 }

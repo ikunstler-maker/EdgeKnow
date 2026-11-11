@@ -16,6 +16,7 @@ import { HeadingList, useActiveHeading, type Heading } from "@/components/editor
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
 import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
+import { TaskProjects } from "./task-tree";
 import { ServiceCollections, type Collections } from "./collections";
 import { WorkspaceMenu } from "./workspace-menu";
 import { Icon } from "@/components/ui/icon";
@@ -44,6 +45,7 @@ export function Sidebar({
   user,
   workspaces,
   projects,
+  boards,
   objects,
   collections,
   canCreatePages = true,
@@ -123,7 +125,7 @@ export function Sidebar({
       )}
 
       <div className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-border pt-1" data-angler-scroll>
-        {section === "tasks" && <TaskProjects projects={projects} pathname={pathname} onNavigate={onNavigate} />}
+        {section === "tasks" && <TaskProjects projects={projects} boards={boards} pathname={pathname} onNavigate={onNavigate} />}
         {section !== "wiki" && section !== "tasks" && section !== "calendar" && (
           <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} collections={collections} pathname={pathname} onNavigate={onNavigate} />
         )}
@@ -182,43 +184,6 @@ function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: (
   );
 }
 
-const linkClass = (here: boolean) => `flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-hover md:min-h-8 ${here ? "bg-hover font-medium" : ""}`;
-
-// Tasks: projects only. A project's boards are switched by the tabs above its columns
-// (one switcher, also there when this panel is folded), and its tasks are on the board.
-function TaskProjects({ projects, pathname, onNavigate }: { projects: ProjectSummary[]; pathname: string; onNavigate?: () => void }) {
-  const { workspace } = usePages();
-  const base = workspacePath(workspace.shortId, "/tasks");
-  const openKey = pathname.startsWith(`${base}/`) ? pathname.slice(base.length + 1).split("/")[0] : null;
-  const open = projects.find((p) => p.key === openKey) ?? null;
-  return (
-    <section aria-label={t.tasks.section} className="mb-2" data-sidebar-section="tasks">
-      <Link prefetch={false}
-        href={base}
-        onClick={onNavigate}
-        data-angler-here={pathname === base ? "" : undefined}
-        className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground"
-      >
-        {t.tasks.section}
-      </Link>
-      <ul>
-        {projects.map((project) => {
-          const href = `${base}/${project.key}`;
-          const here = project.id === open?.id;
-          return (
-            <li key={project.id}>
-              <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(here)}>
-                {project.icon ? <span className="shrink-0">{project.icon}</span> : <Icon name="folder" className="text-muted" />}
-                <span className="truncate">{project.name}</span>
-                <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
 
 // Tables, whiteboards, maps, surveys: the list of the service's objects.
 function ServiceObjects({ service, objects, collections, pathname, onNavigate }: { service: string; objects: ObjectSummary[]; collections: Collections; pathname: string; onNavigate?: () => void }) {

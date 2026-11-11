@@ -13,6 +13,10 @@ export const TASK_PRIORITIES: TaskPriority[] = ["highest", "high", "medium", "lo
 export type ProjectSummary = { id: string; key: string; name: string; icon: string | null };
 // For the sidebar: a project's extra boards, and the objects of the other services.
 export type BoardSummary = { id: string; project_id: string; name: string };
+// The side panel's tree: the tasks standing on one board (null: the main one), with the
+// mark of their column and their priority.
+export type SidebarTask = { number: number; title: string; priority: TaskPriority; category: StatusCategory; status: string; order: number };
+export type SidebarBoard = { id: string | null; tasks: SidebarTask[]; more: number };
 export type ObjectSummary = { id: string; title: string; service: string };
 export type CollectionSummary = { id: string; service: string; name: string; position: number };
 export type CollectionItem = { collection_id: string; object_id: string; position: number };
