@@ -3344,6 +3344,23 @@ export const uk = {
     confirmDelete: (title: string) =>
       `Видалити «${title}» назавжди разом із підсторінками? Це не можна скасувати.`,
   },
+  sessions: {
+    kinds: { phone: "Телефон", tablet: "Планшет", computer: "Комп'ютер", unknown: "Невідомий пристрій" },
+    signedIn: (date: string) => `вхід ${date}`,
+    active: (when: string) => `активність ${when}`,
+    current: "цей пристрій",
+    none: "Активних пристроїв немає.",
+    loading: "Завантаження…",
+    endAll: "Завершити всі сесії",
+    confirmEndAll: (who: string) => `Завершити всі сесії: ${who}? Людину буде розлогінено на всіх пристроях і в усіх workspace.`,
+    ended: (count: number) => `Завершено сесій: ${count}`,
+    ownerNoEnd: "Сесії власника завершує лише він сам — у профілі, «Мої пристрої».",
+    myHeading: "Мої пристрої",
+    myIntro: "Де ви зараз увійшли в EdgeKnow. Завершіть сесію на пристрої, яким більше не користуєтеся.",
+    endOne: "Завершити",
+    endOthers: "Завершити всі інші",
+    confirmEndOthers: "Вийти з усіх інших пристроїв? Цей пристрій лишиться в системі.",
+  },
   settings: {
     title: "Налаштування",
     tabs: {
@@ -3377,7 +3394,6 @@ export const uk = {
       guestsNoUnits: "Гостей не додають у підрозділи.",
       noUnitsYet: "Підрозділів ще немає — створіть їх у «Структурі компанії».",
       sessionsHeading: "Активні пристрої",
-      sessionsSoon: "Тут буде видно, з яких пристроїв людина увійшла, і можна буде завершити її сесії.",
     },
     security: {
       rolesOwnerOnly: "Ролі налаштовує лише власник workspace.",
@@ -3630,6 +3646,7 @@ export const uk = {
         invitation_revoked: "скасував(-ла) запрошення",
         member_role_changed: "змінив(-ла) роль",
         member_removed: "видалив(-ла) учасника",
+        sessions_ended: "завершив(-ла) всі сесії учасника",
         member_left: "покинув(-ла) workspace",
         pages_reassigned: "передав(-ла) сторінки колишнього учасника",
         drive_connected: "підключив(-ла) Google Drive",

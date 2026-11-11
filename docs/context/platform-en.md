@@ -20,6 +20,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Storage:** the workspace's Google Drive or the database's storage; moving files between them.
 - **Team-owned database:** connection wizard, health state, automatic schema updates, moving a workspace there and back.
 - **Backups** to Google Drive.
+- **Active sessions:** an admin sees a member's devices (phone / tablet / computer, sign-in and last activity, no IP) and ends all their sessions (signed out everywhere, logged); Profile → My devices ends one's own. An ended session loses access on its next request: `current_email()` requires the token's session to exist; the proxy then sends the browser to sign in.
 - **Settings** in five tabs: General; Team & structure (members table with search, quick filters, unit filter and a member card; company structure); Roles & security (roles, domains, device limit and SSO marked Soon); Data & storage (Drive, backups, team database); Log. Old `?tab=` addresses still open the right tab.
 
 ### People and access

@@ -15,6 +15,8 @@ import {
   setMemberRole,
 } from "@/app/workspace-actions";
 import type { GroupItem } from "./groups-panel";
+import { endMemberSessions, memberSessions, type SessionItem } from "@/app/session-actions";
+import { SessionRows } from "@/components/sessions/session-rows";
 import { RemoveMemberDialog } from "./remove-member-dialog";
 import { roleName, type RoleItem } from "./roles-panel";
 import type { InvitationItem, MemberItem } from "./settings-panels";
@@ -526,13 +528,7 @@ function MemberDrawer({
             )}
           </section>
 
-          <section className="flex flex-col gap-1 rounded-2xl border border-dashed border-border p-3">
-            <h3 className="flex items-center gap-2 text-sm font-medium">
-              {tm.sessionsHeading}
-              <span className="rounded border border-border px-1.5 text-[11px] uppercase text-muted">{t.settings.security.soon}</span>
-            </h3>
-            <p className="text-xs text-muted">{tm.sessionsSoon}</p>
-          </section>
+          <MemberSessions workspaceId={workspace.id} member={m} canEnd={!isSelf && m.role !== "owner"} />
 
           {error && (
             <p role="alert" className="text-sm text-danger">
@@ -557,5 +553,53 @@ function MemberDrawer({
         )}
       </div>
     </div>
+  );
+}
+
+// The member's devices; ending them signs the person out everywhere.
+function MemberSessions({ workspaceId, member, canEnd }: { workspaceId: string; member: MemberItem; canEnd: boolean }) {
+  const ss = t.sessions;
+  const [sessions, setSessions] = useState<SessionItem[] | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    const result = await memberSessions(workspaceId, member.userId);
+    if (result.ok) setSessions(result.sessions);
+    else setNote(t.common.unknownError);
+  }, [workspaceId, member.userId]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loaded when the card opens
+    void load();
+  }, [load]);
+
+  const endAll = () => {
+    if (!window.confirm(ss.confirmEndAll(member.name ?? member.email))) return;
+    startTransition(async () => {
+      const result = await endMemberSessions(workspaceId, member.userId);
+      setNote(result.ok ? ss.ended(result.ended) : (s.errors[result.error] ?? t.common.unknownError));
+      await load();
+    });
+  };
+
+  return (
+    <section className="flex flex-col gap-2" data-member-sessions>
+      <h3 className="text-sm font-medium">
+        {tm.sessionsHeading}
+        {sessions && <span className="font-normal text-muted"> · {sessions.length}</span>}
+      </h3>
+      {sessions === null ? !note && <p className="text-sm text-muted">{ss.loading}</p> : <SessionRows sessions={sessions} />}
+      {canEnd && sessions && sessions.length > 0 && (
+        <button type="button" disabled={pending} onClick={endAll} className={`${buttonClass} text-danger`} data-end-sessions>
+          {ss.endAll}
+        </button>
+      )}
+      {member.role === "owner" && <p className="text-xs text-muted">{ss.ownerNoEnd}</p>}
+      {note && (
+        <p role="status" className="text-sm">
+          {note}
+        </p>
+      )}
+    </section>
   );
 }
