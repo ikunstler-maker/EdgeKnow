@@ -38,15 +38,18 @@ export function Popover({
   const margin = 8;
   const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
   const openUp = rect.bottom > window.innerHeight * 0.6;
+  // As tall as the room on its side of the anchor allows, never past the screen edge.
+  const room = (openUp ? rect.top : window.innerHeight - rect.bottom) - 4 - margin;
+  const maxHeight = Math.max(160, room);
   const style = openUp
-    ? { left, width, bottom: window.innerHeight - rect.top + 4 }
-    : { left, width, top: rect.bottom + 4 };
+    ? { left, width, maxHeight, bottom: window.innerHeight - rect.top + 4 }
+    : { left, width, maxHeight, top: rect.bottom + 4 };
 
   return createPortal(
     <div
       ref={panelRef}
       style={style}
-      className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-xl border border-border-strong bg-overlay p-1 shadow-xl"
+      className="fixed z-50 overflow-y-auto rounded-xl border border-border-strong bg-overlay p-1 shadow-xl"
     >
       {children}
     </div>,

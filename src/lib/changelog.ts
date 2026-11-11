@@ -33,6 +33,24 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-a",
+    version: "0.26.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Новий вигляд і навігація", en: "A new look and navigation" },
+    summaryDescription: {
+      uk: "Спокійніші поверхні з тонкими рамками, власні значки замість емодзі та ліва панель, у якій лишилося тільки потрібне.",
+      en: "Calmer surfaces with thin hairlines, our own icons instead of emoji, and a left panel that keeps only what you need.",
+    },
+    items: [
+      { id: "look-surfaces", type: "visual", scope: "global", title: { uk: "Нові кольори поверхонь, тонкі рамки й скролбари в обох темах.", en: "New surface colours, thin hairlines and scrollbars in both themes." } },
+      { id: "look-icons", type: "visual", scope: "global", title: { uk: "Власні значки інтерфейсу й знак кожного сервісу з його градієнтом.", en: "Our own interface icons and a mark for every service in its gradient." } },
+      { id: "nav-menu", type: "improved", scope: "global", title: { uk: "Профіль, налаштування, тема, мова, «Що нового», довідка й вихід — в одному меню під назвою workspace.", en: "Profile, settings, theme, language, “What's new”, help and sign-out — in one menu under the workspace name." } },
+      { id: "nav-services", type: "improved", scope: "global", title: { uk: "Сервіси за чотирма категоріями: закріплені — в панелі, усі — у списку (Ctrl+E).", en: "Services in four categories: pinned ones in the panel, all of them in the list (Ctrl+E)." } },
+      { id: "nav-collapse", type: "added", scope: "global", title: { uk: "Ліву панель можна згорнути (Ctrl+\\).", en: "The left panel can be collapsed (Ctrl+\\)." } },
+      { id: "nav-tasks", type: "improved", scope: "tasks", title: { uk: "У лівій панелі Rukh — проєкти й дошки; самі задачі лишаються на дошці.", en: "The left panel in Rukh lists projects and boards; the tasks themselves stay on the board." } },
+    ],
+  },
+  {
     id: "2026-11-10-i",
     version: "0.25.0",
     date: "2026-11-10",

@@ -4,8 +4,9 @@ import { useSyncExternalStore, useTransition } from "react";
 import { currentLocale, t } from "@/i18n";
 import type { Locale, Theme } from "@/lib/preferences";
 import { savePreferences } from "@/app/preferences-actions";
+import { Icon, type IconName } from "@/components/ui/icon";
 
-const THEME_ICONS: Record<Theme, string> = { system: "🖥", light: "☀️", dark: "🌙" };
+const THEME_ICONS: Record<Theme, IconName> = { system: "monitor", light: "sun", dark: "moon" };
 
 function readTheme(): Theme {
   const picked = document.documentElement.dataset.theme;
@@ -42,12 +43,12 @@ export function PreferencesSwitch({ compact = false, languageOnly = false }: { c
     });
 
   const segment = (active: boolean) =>
-    `flex h-8 min-w-8 items-center justify-center rounded px-1.5 text-xs ${active ? "bg-background font-semibold shadow-sm" : "text-muted hover:text-foreground"}`;
+    `flex h-9 min-w-9 items-center justify-center rounded-md px-1.5 text-xs md:h-7 md:min-w-8 ${active ? "bg-background font-semibold shadow-sm" : "text-muted hover:text-foreground"}`;
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "px-3"}`}>
       {!languageOnly && (
-        <div role="radiogroup" aria-label={t.prefs.theme} className="flex gap-0.5 rounded-md bg-surface p-0.5">
+        <div role="radiogroup" aria-label={t.prefs.theme} className="flex gap-0.5 rounded-lg border border-border bg-hover p-0.5">
           {(["system", "light", "dark"] as const).map((value) => (
             <button
               key={value}
@@ -60,12 +61,12 @@ export function PreferencesSwitch({ compact = false, languageOnly = false }: { c
               onClick={() => pickTheme(value)}
               className={segment(theme === value)}
             >
-              {THEME_ICONS[value]}
+              <Icon name={THEME_ICONS[value]} />
             </button>
           ))}
         </div>
       )}
-      <div role="radiogroup" aria-label={t.prefs.language} className="flex items-center gap-0.5 rounded-md bg-surface p-0.5">
+      <div role="radiogroup" aria-label={t.prefs.language} className="flex items-center gap-0.5 rounded-lg border border-border bg-hover p-0.5">
         <button type="button" role="radio" aria-checked={locale === "uk"} lang="uk" title="Українська" disabled={pending} onClick={() => pickLocale("uk")} className={segment(locale === "uk")}>
           UA
         </button>

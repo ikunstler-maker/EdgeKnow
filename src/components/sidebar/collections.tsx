@@ -8,6 +8,7 @@ import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import type { CollectionItem, CollectionSummary, ObjectSummary } from "@/lib/tasks";
 import { deleteCollection, saveCollection, setCollectionItem } from "@/app/collection-actions";
+import { Icon } from "@/components/ui/icon";
 
 export type Collections = { list: CollectionSummary[]; items: CollectionItem[] };
 
@@ -131,7 +132,7 @@ export function ServiceCollections({
           <span className="flex-1 text-xs font-medium uppercase tracking-wide text-muted">{c.title}</span>
           {canManage && (
             <button type="button" onClick={() => setAdding(true)} aria-label={c.add} title={c.add} className={iconButton} data-collection-add>
-              ＋
+              <Icon name="plus" />
             </button>
           )}
         </div>
@@ -174,7 +175,7 @@ export function ServiceCollections({
                         entry.object_id,
                         canManage && (
                           <button type="button" onClick={() => put(item.id, entry.object_id, false)} aria-label={c.removeFrom(item.name)} title={c.removeFrom(item.name)} className={iconButton}>
-                            ✕
+                            <Icon name="close" size={14} />
                           </button>
                         ),
                       ),
@@ -258,22 +259,22 @@ function CollectionRow({
       <div className="flex items-center">
         {canManage && (
           <button type="button" {...drag.listeners} {...drag.attributes} aria-label={c.drag(item.name)} className={`${iconButton} cursor-grab touch-none`}>
-            ⠿
+            <Icon name="drag" size={14} />
           </button>
         )}
         <button type="button" onClick={onToggle} aria-expanded={isOpen} className={rowClass(false)}>
-          <span className="w-3 shrink-0 text-xs text-muted">{isOpen ? "▾" : "▸"}</span>
-          <span aria-hidden>📁</span>
+          <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={12} className="text-muted" />
+          <Icon name="folder" className="text-muted" />
           <span className="truncate">{item.name}</span>
           <span className="ml-auto text-xs text-muted">{count}</span>
         </button>
         {canManage && (
           <>
             <button type="button" onClick={onRename} aria-label={c.rename(item.name)} title={c.rename(item.name)} className={iconButton}>
-              ✎
+              <Icon name="edit" size={14} />
             </button>
             <button type="button" onClick={onDelete} aria-label={c.remove(item.name)} title={c.remove(item.name)} className={iconButton}>
-              🗑
+              <Icon name="trash" size={14} />
             </button>
           </>
         )}

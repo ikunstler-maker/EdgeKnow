@@ -14,6 +14,9 @@ import type { EventHit } from "@/lib/calendar";
 import { searchSheets, type SheetHit } from "@/app/sheet-actions";
 import { searchSurveys, type SurveyHit } from "@/app/survey-actions";
 import { usePages } from "@/components/pages/pages-provider";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { ServiceIcon } from "@/components/services/service-icon";
+import { SERVICE_BRANDS } from "@/lib/services";
 
 const s = t.search;
 // Labels are read when shown, in the current language.
@@ -62,11 +65,12 @@ export function SearchButton({ currentPageId, onNavigate }: { currentPageId: str
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground md:min-h-9"
+        className="flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8"
+        data-search-button
       >
-        <span className="w-5 text-center">🔍</span>
+        <Icon name="search" />
         <span className="flex-1 text-left">{s.button}</span>
-        <kbd className="hidden rounded border border-border px-1 text-[10px] md:inline">Ctrl K</kbd>
+        <kbd className="hidden rounded border border-border px-1 font-sans text-[10px] md:inline">Ctrl K</kbd>
       </button>
       {open && (
         <SearchDialog
@@ -207,7 +211,7 @@ function SearchDialog({
       {list.map((hit) => (
         <li key={hit.id}>
           <Link href={workspacePath(workspace.shortId, `/sheets/${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
-            <span className="shrink-0 text-lg">📊</span>
+            <ServiceIcon serviceId="sheets" size={22} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title || t.sheets.untitled}</span>
               {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
@@ -222,7 +226,7 @@ function SearchDialog({
       {list.map((hit) => (
         <li key={hit.id}>
           <Link href={workspacePath(workspace.shortId, `/surveys/${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
-            <span className="shrink-0 text-lg">📝</span>
+            <ServiceIcon serviceId="surveys" size={22} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title || t.surveys.untitled}</span>
               {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
@@ -239,10 +243,13 @@ function SearchDialog({
       {list.map((hit) => (
         <li key={hit.id}>
           <Link href={workspacePath(workspace.shortId, `/calendar?event=${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
-            <span className="shrink-0 text-lg">📅</span>
+            <ServiceIcon serviceId="calendar" size={22} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title}</span>
-              <span className="block truncate text-xs text-muted">{[`${hit.recurring ? "↻ " : ""}${eventWhen(hit)}`, hit.location].filter(Boolean).join(" · ")}</span>
+              <span className="block truncate text-xs text-muted">
+                          {hit.recurring && <Icon name="refresh" size={12} className="mr-1 inline" />}
+                          {[eventWhen(hit), hit.location].filter(Boolean).join(" · ")}
+                        </span>
             </span>
           </Link>
         </li>
@@ -254,7 +261,7 @@ function SearchDialog({
       {list.map((hit) => (
         <li key={hit.id}>
           <Link href={workspacePath(workspace.shortId, `/boards/${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
-            <span className="shrink-0 text-lg">🎨</span>
+            <ServiceIcon serviceId="boards" size={22} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title || t.boards.untitled}</span>
               {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
@@ -269,7 +276,7 @@ function SearchDialog({
       {list.map((hit) => (
         <li key={hit.id}>
           <Link href={workspacePath(workspace.shortId, `/nodes/${hit.id}`)} onClick={onNavigate} className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface">
-            <span className="shrink-0 text-lg">{hit.kind === "flow" ? "🔀" : "🧠"}</span>
+            <ServiceIcon serviceId="nodes" size={22} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{hit.title || t.nodes.untitled}</span>
               {hit.snippet && <span className="block truncate text-xs text-muted">{hit.snippet}</span>}
@@ -337,9 +344,11 @@ function SearchDialog({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setKind(value)}
+                  data-search-kind={value}
                   className={`min-h-9 rounded-full border px-3 text-xs ${on ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
                 >
-                  {value === "text" ? s.kindText : `${KIND_ICONS[value]} ${s.kinds[value]}`}
+                  {value !== "text" && <Icon name={KIND_ICONS[value]} size={14} className="mr-1 inline" />}
+                  {value === "text" ? s.kindText : s.kinds[value]}
                 </button>
               );
             })}
@@ -347,42 +356,47 @@ function SearchDialog({
               type="button"
               aria-pressed={mapsMode}
               onClick={() => setKind("maps")}
+              data-search-mode="maps"
               className={`min-h-9 rounded-full border px-3 text-xs ${mapsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              🧠 {s.maps}
+              <span title={s.maps}>{SERVICE_BRANDS.nodes.name}</span>
             </button>
             <button
               type="button"
               aria-pressed={boardsMode}
               onClick={() => setKind("boards")}
+              data-search-mode="boards"
               className={`min-h-9 rounded-full border px-3 text-xs ${boardsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              🎨 {s.boards}
+              <span title={s.boards}>{SERVICE_BRANDS.boards.name}</span>
             </button>
             <button
               type="button"
               aria-pressed={eventsMode}
               onClick={() => setKind("events")}
+              data-search-mode="events"
               className={`min-h-9 rounded-full border px-3 text-xs ${eventsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
               data-search-events
             >
-              📅 {s.events}
+              <span title={s.events}>{SERVICE_BRANDS.calendar.name}</span>
             </button>
             <button
               type="button"
               aria-pressed={sheetsMode}
               onClick={() => setKind("sheets")}
+              data-search-mode="sheets"
               className={`min-h-9 rounded-full border px-3 text-xs ${sheetsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              📊 {s.sheets}
+              <span title={s.sheets}>{SERVICE_BRANDS.sheets.name}</span>
             </button>
             <button
               type="button"
               aria-pressed={surveysMode}
               onClick={() => setKind("surveys")}
+              data-search-mode="surveys"
               className={`min-h-9 rounded-full border px-3 text-xs ${surveysMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              📝 {s.surveys}
+              <span title={s.surveys}>{SERVICE_BRANDS.surveys.name}</span>
             </button>
           </div>
           {said && <p className="mt-1 text-xs text-muted">{s.kindSaid(s.kinds[said.kind])}</p>}
@@ -442,11 +456,11 @@ function SearchDialog({
                       onClick={onNavigate}
                       className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface"
                     >
-                      <span className="shrink-0 text-lg">{KIND_ICONS[activeKind]}</span>
+                      <Icon name={KIND_ICONS[activeKind]} size={20} className="text-muted" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{hit.block_text || s.kinds[activeKind]}</span>
                         <span className="block truncate text-xs text-muted">
-                          {hit.icon ?? "📄"} {hit.title || t.pages.untitled}
+                          {hit.icon ? `${hit.icon} ` : ""}{hit.title || t.pages.untitled}
                         </span>
                       </span>
                     </Link>
@@ -469,7 +483,7 @@ function SearchDialog({
                       onClick={onNavigate}
                       className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface"
                     >
-                      <span className="shrink-0 text-lg">{hit.icon ?? "📄"}</span>
+                      {hit.icon ? <span className="shrink-0 text-lg">{hit.icon}</span> : <Icon name="file-text" size={20} className="text-muted" />}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{hit.title || t.pages.untitled}</span>
                         {path.length > 0 && (
@@ -523,17 +537,17 @@ function SearchDialog({
 }
 
 const KINDS: BlockKind[] = ["heading", "image", "video", "table", "code", "quote", "checklist", "callout", "diagram", "link"];
-const KIND_ICONS: Record<BlockKind, string> = {
-  heading: "🔠",
-  image: "🖼️",
-  video: "🎬",
-  table: "▦",
-  code: "⌨️",
-  quote: "❝",
-  checklist: "☑️",
-  callout: "💬",
-  diagram: "🧭",
-  link: "🔗",
+const KIND_ICONS: Record<BlockKind, IconName> = {
+  heading: "list",
+  image: "image",
+  video: "play",
+  table: "table",
+  code: "keyboard",
+  quote: "comment",
+  checklist: "task",
+  callout: "info",
+  diagram: "layers",
+  link: "link",
 };
 
 // Words that ask for a kind instead of text: "картинки", "заголовок бюджет" (a heading containing "бюджет").

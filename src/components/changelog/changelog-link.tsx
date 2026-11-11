@@ -1,12 +1,9 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import Link from "next/link";
-import { t } from "@/i18n";
 import { RELEASES } from "@/lib/changelog";
 
-// The sidebar's «What's new» button. It glows (slow gradient pulse) until the
-// reader opens the changelog after the latest release; remembered per browser.
+// «What's new» is marked in the workspace menu until the reader opens the
+// changelog after the latest release; remembered per browser.
 const SEEN_KEY = "changelog_seen";
 const listeners = new Set<() => void>();
 
@@ -32,23 +29,9 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 
-export function ChangelogLink({ onNavigate, current }: { onNavigate?: () => void; current: boolean }) {
+export const subscribeChangelog = subscribe;
+// True until the reader opens the changelog after the latest release.
+export function changelogIsFresh() {
   const latest = RELEASES[0]?.id ?? "";
-  // On the server and before hydration: no glow (avoids a flash).
-  const fresh = useSyncExternalStore(subscribe, () => Boolean(latest) && readSeen() !== latest, () => false);
-  const label = fresh ? `${t.changelog.title} · ${t.changelog.newBadge}` : t.changelog.title;
-  return (
-    <Link
-      href="/changelog"
-      onClick={onNavigate}
-      title={label}
-      aria-label={label}
-      aria-current={current ? "page" : undefined}
-      className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-lg hover:bg-surface md:h-9 md:w-9 ${
-        current ? "bg-surface" : ""
-      } ${fresh ? "ek-news-glow" : ""}`}
-    >
-      ✨
-    </Link>
-  );
+  return Boolean(latest) && readSeen() !== latest;
 }
