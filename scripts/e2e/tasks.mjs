@@ -157,14 +157,26 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the search filters the list", (await alice.locator("[data-task]").count()) === 1);
   await alice.getByLabel("Пошук за назвою чи ключем").fill("");
 
+  // A task opens in a panel over the list; the address carries it (?task=1), so it can be shared.
   await alice.locator('[data-task="MAR-1"]').getByRole("link").click();
-  await alice.waitForURL(new RegExp(`/tasks/MAR/1$`));
+  await alice.waitForURL(/[?&]task=1$/);
+  const openCard = alice.locator("[data-task-panel] [data-task-detail]");
+  await openCard.waitFor({ timeout: 20000 });
+  await alice.waitForFunction(() => document.title.startsWith("MAR-1"), null, { timeout: 10000 }).catch(() => {});
+  check("a task opens over the list, with the list still there", (await alice.locator('[data-task="MAR-2"]').count()) === 1 && (await alice.title()).startsWith("MAR-1 · Rukh"), await alice.title());
+  await alice.locator("[data-task-panel-close]").click();
+  await alice.locator("[data-task-panel]").waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+  check("…and closes back to the list", (await alice.locator("[data-task-panel]").count()) === 0 && !/task=/.test(alice.url()), alice.url());
+  await alice.locator('[data-task="MAR-1"]').getByRole("link").click();
+  await openCard.waitFor({ timeout: 20000 });
   const colleagueId2 = sql("select id from public.profiles where email = 'colleague@alpha.test'");
-  await alice.getByLabel("Статус").selectOption({ label: "В роботі" });
+  await openCard.locator("[data-task-status]").selectOption({ label: "В роботі" });
   await alice.waitForTimeout(800);
-  await alice.getByLabel("Виконавець").selectOption(colleagueId2);
+  // People are picked from a list with search, not a system list.
+  await openCard.locator('[data-people="assignee"]').click();
+  await alice.locator(`[data-person-option="${colleagueId2}"]`).click();
   await alice.waitForTimeout(800);
-  await alice.getByLabel("Пріоритет").selectOption("high");
+  await openCard.getByLabel("Пріоритет", { exact: true }).selectOption("high");
   await alice.waitForTimeout(800);
   const taskRow = () => sql("select s.category || ' ' || coalesce(t.assignee_id::text, '-') || ' ' || t.priority from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("the task's fields change in place", taskRow() === `doing ${colleagueId2} high`, taskRow());
@@ -177,6 +189,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.getByRole("button", { name: "Надіслати" }).click();
   await alice.locator("[data-task-comment]").first().waitFor({ timeout: 15000 });
   await alice.reload();
+  // The address with ?task=1 opens the same panel again (a shared link works).
+  await alice.locator("[data-task-panel] [data-task-comment]").first().waitFor({ timeout: 20000 }).catch(() => {});
   check("…comments show, and the history tells who changed what", (await alice.getByText("Please use the new palette").count()) === 1 && (await alice.getByText(/змінив\(-ла\) статус/).count()) === 1 && (await alice.getByText(/змінив\(-ла\) виконавця/).count()) === 1);
 
   // Everyone in the workspace edits by default; the project can make them viewers.
@@ -366,14 +380,18 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.getByLabel("Позначити «Sub one» готовою").click();
   await alice.getByText("Готово 1 з 2").waitFor({ timeout: 15000 }).catch(() => {});
   check("…ticking one makes it done and moves the progress", (await alice.locator("[data-progress]").innerText()) === "Готово 1 з 2" && sql(`select s.category from public.tasks t join public.task_statuses s on s.id = t.status_id where t.id = ${marTask(5)}`) === "done");
-  check("…a task can't move under its own subtask", (await alice.locator("[data-parent-picker] option", { hasText: "MAR-5" }).count()) === 0 && (await alice.locator("[data-parent-picker] option", { hasText: "MAR-3" }).count()) === 1);
+  await alice.locator("[data-parent-picker]").click();
+  await alice.locator("[data-parent-options]").waitFor({ timeout: 15000 });
+  check("…a task can't move under its own subtask", (await alice.locator('[data-parent-option="MAR-5"]').count()) === 0 && (await alice.locator('[data-parent-option="MAR-3"]').count()) === 1);
+  await alice.keyboard.press("Escape");
   const links = alice.locator("[data-links]");
   await links.getByLabel("Вид зв'язку").selectOption("blocked_by");
-  await links.getByLabel("Ключ задачі, наприклад MKT-12").fill("mar-1");
-  await links.getByRole("button", { name: "Зв'язати" }).click();
+  // The other task is found while typing (by key or by words of its title) and picked from the offers.
+  await links.getByLabel("Назва або ключ задачі (MKT-12)").fill("mar-1");
+  await links.locator('[data-link-offer="MAR-1"]').click();
   await alice.locator('[data-link="MAR-1"]').waitFor({ timeout: 15000 });
   check("a link by key: MAR-2 is blocked by MAR-1", sql(`select kind from public.task_links where source_id = ${marTask(1)} and target_id = ${marTask(2)}`) === "blocks" && (await alice.locator("[data-blocked-notice]").count()) === 1);
-  await links.getByLabel("Ключ задачі, наприклад MKT-12").fill("NOPE-1");
+  await links.getByLabel("Назва або ключ задачі (MKT-12)").fill("NOPE-1");
   await links.getByRole("button", { name: "Зв'язати" }).click();
   await alice.getByText("Задачу не знайдено або у вас немає до неї доступу.").last().waitFor({ timeout: 15000 }).catch(() => {});
   check("…a key no one can see is refused", sql(`select count(*) from public.task_links where target_id = ${marTask(2)} or source_id = ${marTask(2)}`) === "1");

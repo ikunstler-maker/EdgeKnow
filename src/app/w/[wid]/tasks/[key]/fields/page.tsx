@@ -1,3 +1,4 @@
+import { SERVICE_BRANDS } from "@/lib/services";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { t } from "@/i18n";
@@ -7,7 +8,7 @@ import { FieldsEditor } from "@/components/tasks/fields-editor";
 import { Icon } from "@/components/ui/icon";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: `${t.tasks.customFields.title} · ${t.app.name}` };
+  return { title: `${t.tasks.customFields.title} · ${SERVICE_BRANDS.tasks.name}` };
 }
 
 // The project's own fields and which task types have them (the types' templates).

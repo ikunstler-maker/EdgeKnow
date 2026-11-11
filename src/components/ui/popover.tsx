@@ -50,6 +50,7 @@ export function Popover({
       ref={panelRef}
       style={style}
       className="fixed z-50 overflow-y-auto rounded-xl border border-border-strong bg-overlay p-1 shadow-xl"
+      data-popover
     >
       {children}
     </div>,

@@ -189,7 +189,6 @@ export function QuickAddField({ projectId, nested = false }: { projectId: string
         data-quick-add-field
       >
         <Icon name="plus" className="mr-1 inline" />
-        <Icon name="plus" className="mr-1 inline" />
         {f.quickAdd}
       </button>
     );

@@ -3,7 +3,7 @@
 import { ServiceSwitcher } from "@/components/services/service-switcher";
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
 import type { CurrentUser } from "@/lib/auth";
 import { ancestorsOf } from "@/lib/pages";
@@ -44,7 +44,6 @@ export function Sidebar({
   user,
   workspaces,
   projects,
-  boards,
   objects,
   collections,
   canCreatePages = true,
@@ -124,7 +123,7 @@ export function Sidebar({
       )}
 
       <div className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-border pt-1" data-angler-scroll>
-        {section === "tasks" && <TaskProjects projects={projects} boards={boards} pathname={pathname} onNavigate={onNavigate} />}
+        {section === "tasks" && <TaskProjects projects={projects} pathname={pathname} onNavigate={onNavigate} />}
         {section !== "wiki" && section !== "tasks" && section !== "calendar" && (
           <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} collections={collections} pathname={pathname} onNavigate={onNavigate} />
         )}
@@ -185,14 +184,13 @@ function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: (
 
 const linkClass = (here: boolean) => `flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-hover md:min-h-8 ${here ? "bg-hover font-medium" : ""}`;
 
-// Tasks: projects; the open project shows its boards. The tasks themselves are on
-// the board, not repeated here.
-function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: ProjectSummary[]; boards: BoardSummary[]; pathname: string; onNavigate?: () => void }) {
+// Tasks: projects only. A project's boards are switched by the tabs above its columns
+// (one switcher, also there when this panel is folded), and its tasks are on the board.
+function TaskProjects({ projects, pathname, onNavigate }: { projects: ProjectSummary[]; pathname: string; onNavigate?: () => void }) {
   const { workspace } = usePages();
   const base = workspacePath(workspace.shortId, "/tasks");
   const openKey = pathname.startsWith(`${base}/`) ? pathname.slice(base.length + 1).split("/")[0] : null;
   const open = projects.find((p) => p.key === openKey) ?? null;
-  const board = useSearchParams().get("board");
   return (
     <section aria-label={t.tasks.section} className="mb-2" data-sidebar-section="tasks">
       <Link prefetch={false}
@@ -207,32 +205,13 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
         {projects.map((project) => {
           const href = `${base}/${project.key}`;
           const here = project.id === open?.id;
-          const own = boards.filter((b) => b.project_id === project.id);
           return (
             <li key={project.id}>
-              <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
+              <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(here)}>
                 {project.icon ? <span className="shrink-0">{project.icon}</span> : <Icon name="folder" className="text-muted" />}
                 <span className="truncate">{project.name}</span>
                 <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
               </Link>
-              {here && own.length > 0 && (
-                <div className="ml-4 border-l border-border pl-1">
-                  <ul aria-label={t.sidebar.mainBoard}>
-                      <li>
-                        <Link prefetch={false} href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
-                          <Icon name="columns" className="text-muted" /> <span className="truncate">{t.sidebar.mainBoard}</span>
-                        </Link>
-                      </li>
-                      {own.map((b) => (
-                        <li key={b.id}>
-                          <Link prefetch={false} href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
-                            <Icon name="columns" className="text-muted" /> <span className="truncate">{b.name}</span>
-                          </Link>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
             </li>
           );
         })}
