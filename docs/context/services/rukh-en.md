@@ -44,6 +44,16 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - **Panel over the board:** a task opened from the board or the list shows in a sheet on the right (the whole screen on a phone); the address carries `?task=N`, so it can be shared and "Back" closes it. Closes with ✕, a tap outside or Escape. The task's own page `/tasks/<KEY>/<N>` stays (it is what "Copy link" copies) — both addresses open the task.
 - Browser tab titles of the service end with "Rukh".
 
+### Move from another tracker (step Р-3а, 2026-11-11)
+- A wizard for the workspace's owner and admins (`/w/<id>/tasks/import`, the button on the projects page): connect (any link from the cloud tracker, account email, access key) → what goes where → dry run on the first three tasks → move → report.
+- **Tasks keep their numbers** (`TMD-7` stays `TMD-7`; the next new task gets the number after the tracker's last), creation and update dates, the description with formatting (headings, lists, checklists, code, tables, links), type, priority, labels, due and start dates, estimate, epics and subtasks, links (blocks, relates, duplicates) and chosen custom fields (text, number, date, one or several options, person, link — made in the project automatically).
+- **Statuses → columns:** a new project gets columns with the tracker's names in its order; when joining an existing project each status goes to a chosen column or a new one.
+- **People** are matched by email (when the tracker shows it) or by a name only one member has, and can be chosen by hand; someone who is not a member stays as a name in text (`imported_reporter`, `imported_assignee`).
+- **The key is busy?** Three ways: change the key of the existing project (tasks keep their numbers under the new key), join with it (its own tasks move to numbers after the imported ones), or a new project under another key. A project's key can also be changed any time in "Access and settings" (owner of the project or a workspace admin; written to the log).
+- Nobody is notified about imported tasks and no "changed" lines are written; each task gets its original "created" line. Running an import again updates tasks by their old key and never doubles them. The move runs page by page while the wizard is open and continues from where it stopped.
+- **The access key** is kept encrypted in `task_imports` (central database, server only, never sent to the browser) and can be deleted with the connection. The tracker is only read. Only the vendor's cloud addresses are accepted. The tracker's name shows only in the wizard's source list.
+- An imported task shows "Moved from <old key>" with a link to the old tracker.
+
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.
 - Links between workspace tasks: blocks, relates, duplicates.
@@ -68,7 +78,9 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | Sprints and backlog | planned | turned on per project |
 | Recurring tasks | planned | |
 | Advanced query search | planned | |
-| Import from other trackers | planned | |
+| Move from another tracker, step 3б | planned (owner approved) | comments with dates and authors, status history, files to the team's Google Drive (up to 250 MB a file, 10 GB a ZIP; what did not come over is listed and can be pulled later) |
+| Move from another tracker, step 3в | planned (owner approved) | one-way catch-up while the team moves; search by the old key and link |
+| Import from an export file (CSV) | later | for other trackers |
 | Notifications when the site is closed (push) | planned | needs a key in hosting settings |
 | Link with chat (Toker) | after chat | task from a message, notifications to a channel |
 | Smart chips in fields and description | owner's request | |
@@ -90,6 +102,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_comments`, `task_events` | comments and history |
 | `task_files` | files |
 | `task_rules` | notification rules and rules between boards |
+| `task_imports` (central database only, server only) | a move from another tracker: its address, the encrypted access key, the mapping, progress and report |
 
 A project's tasks for the board and the list are read by `project_tasks` (access worked out once per call; test `stage52_fast_tasks` compares it with reading the table). A change to task visibility rules must update this function too.
 
@@ -128,6 +141,6 @@ The tables exist in both the central and the team database.
 
 ## 8. Known gaps and open questions
 
-- From the original plan (steps З5–З7): notifications and templates are done; "My tasks", sprints, recurring tasks, query search and import are not.
+- From the original plan (steps З5–З7): notifications and templates are done; the move from another tracker is under way (Р-3а done); "My tasks", sprints, recurring tasks and query search are not.
 - Free limit "number of projects" — open pricing question.
 - Which task links with other services are paid — open question.

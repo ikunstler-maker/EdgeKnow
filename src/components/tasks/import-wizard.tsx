@@ -205,6 +205,13 @@ export function ImportWizard({ shortId, initial, configured }: { shortId: string
           moving={moving}
           pending={pending}
           onResume={() => (setError(null), setMoving(true))}
+          onAnother={() => {
+            setOutline(null);
+            setPlan(null);
+            setPreview(null);
+            setError(null);
+            setStep("connect");
+          }}
           onForget={() => {
             if (!confirm(m.forgetConfirm)) return;
             startTransition(async () => {
@@ -453,7 +460,7 @@ function PlanForm({ outline, plan, setPlan, pending, onBack, onNext }: { outline
   );
 }
 
-function RunView({ shortId, state, moving, pending, onResume, onForget }: { shortId: string; state: ImportState; moving: boolean; pending: boolean; onResume: () => void; onForget: () => void }) {
+function RunView({ shortId, state, moving, pending, onResume, onForget, onAnother }: { shortId: string; state: ImportState; moving: boolean; pending: boolean; onResume: () => void; onForget: () => void; onAnother: () => void }) {
   const progress: ImportProgress | null = state.progress;
   const done = state.state === "done";
   const share = progress ? (progress.phase === "tasks" ? Math.min(1, progress.seen / Math.max(1, progress.total)) : 1) : 0;
@@ -514,6 +521,11 @@ function RunView({ shortId, state, moving, pending, onResume, onForget }: { shor
           <Link href={workspacePath(shortId, `/tasks/${state.projectKey}`)} className={buttonClass(done ? "primary" : "subtle")} data-import-open-project>
             {m.openProject}
           </Link>
+        )}
+        {done && (
+          <Button onClick={onAnother} disabled={pending} data-import-another>
+            {m.another}
+          </Button>
         )}
         {!moving && (
           <Button variant="danger" onClick={onForget} disabled={pending} data-import-forget>

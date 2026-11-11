@@ -33,6 +33,22 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-c",
+    version: "0.28.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Rukh: переїзд з іншого трекера", en: "Rukh: moving in from another tracker" },
+    summaryDescription: {
+      uk: "Задачі переносяться зі своїми номерами, датами, людьми й описами; перед запуском — пробний перегляд.",
+      en: "Tasks come over with their numbers, dates, people and descriptions; a dry run comes first.",
+    },
+    items: [
+      { id: "import-wizard", type: "added", scope: "tasks", title: { uk: "Майстер переїзду для власника й адміністраторів: підключення, відповідності, пробний перегляд, перенесення, звіт.", en: "A move wizard for the owner and admins: connection, mapping, dry run, move, report." } },
+      { id: "import-numbers", type: "added", scope: "tasks", title: { uk: "Номери задач, дати, епіки, підзадачі, зв'язки й форматування описів зберігаються; повторний запуск не створює дублікатів.", en: "Task numbers, dates, epics, subtasks, links and description formatting are kept; running again makes no duplicates." } },
+      { id: "import-people", type: "added", scope: "tasks", title: { uk: "Люди зіставляються за поштою чи іменем; хто не є учасником — лишається іменем у задачі.", en: "People are matched by email or name; someone who isn't a member stays as a name on the task." } },
+      { id: "project-key", type: "added", scope: "tasks", title: { uk: "Ключ проєкту можна змінити в «Доступ і налаштування»; задачі зберігають номери.", en: "A project's key can be changed in “Access and settings”; tasks keep their numbers." } },
+    ],
+  },
+  {
     id: "2026-11-11-b",
     version: "0.27.0",
     date: "2026-11-11",
