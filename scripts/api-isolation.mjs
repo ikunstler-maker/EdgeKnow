@@ -140,6 +140,7 @@ check("alice makes a group and gives it a role on her page", Boolean(alphaGroup)
 const alphaProject = (await rpc(alice, "create_task_project", { ws: alpha.id, new_name: "Secret tasks", new_key: "SEC", new_icon: null, status_names: null })).json;
 const alphaTask = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha secret task" } })).json;
 check("alice makes a task project and a task", alphaProject?.ok === true && alphaTask?.key === "SEC-1", JSON.stringify([alphaProject, alphaTask]));
+const alphaColumn = (await rest(alice, `task_statuses?select=id&project_id=eq.${alphaProject?.id}&limit=1`)).json?.[0];
 const alphaTask2 = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha second task" } })).json;
 const alphaLink = (await rpc(alice, "add_task_link", { source_task: alphaTask?.id, target_task: alphaTask2?.id, link_kind: "blocks" })).json;
 check("alice links two tasks", alphaLink?.ok === true, JSON.stringify(alphaLink));
@@ -202,6 +203,7 @@ const bobActions = {
   "open alpha's map to everyone": ["set_service_object_workspace_role", { target_object: alphaMap?.id, new_role: "editor" }],
   "give himself alpha's map": ["set_service_object_member_role", { target_object: alphaMap?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
+  "set who may move tasks in alpha's column": ["set_column_options", { target_status: alphaColumn?.id, options: { short_name: "x", take_groups: [] } }],
   "change the key of alpha's project": ["set_task_project_key", { target_project: alphaProject?.id, new_key: "MINE" }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],

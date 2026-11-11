@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "@/i18n";
-import { RULE_EVENTS, RULE_ROLES, type RuleEvent, type RuleRole, type TaskRule } from "@/lib/notifications";
+import { COLUMN_EVENTS, RULE_EVENTS, RULE_ROLES, type RuleEvent, type RuleRole, type TaskRule } from "@/lib/notifications";
 import { personLabel, type Person, type StatusCategory, type TaskBoardInfo, type TaskStatus } from "@/lib/tasks";
 import { deleteTaskRule, loadTaskRules, saveTaskRule } from "@/app/notification-actions";
 import { usePages } from "@/components/pages/pages-provider";
@@ -21,20 +21,23 @@ export function TaskRulesDialog({
   boards = [],
   members,
   onClose,
+  column,
 }: {
   projectId: string;
   statuses: TaskStatus[];
   boards?: TaskBoardInfo[];
   members: Person[];
   onClose: () => void;
+  // Opened from a column's menu: only that column's rules, new ones are about it.
+  column?: string;
 }) {
   const { workspace } = usePages();
   const [rules, setRules] = useState<TaskRule[] | null>(null);
   const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [event, setEvent] = useState<RuleEvent>("enter_category");
+  const [event, setEvent] = useState<RuleEvent>(column ? "enter_status" : "enter_category");
   const [category, setCategory] = useState<StatusCategory>("review");
-  const [statusId, setStatusId] = useState(statuses[0]?.id ?? "");
+  const [statusId, setStatusId] = useState(column ?? statuses[0]?.id ?? "");
   const [roles, setRoles] = useState<RuleRole[]>([]);
   const [users, setUsers] = useState<string[]>([]);
   const [groupIds, setGroupIds] = useState<string[]>([]);
@@ -79,8 +82,8 @@ export function TaskRulesDialog({
     const when =
       rule.event === "enter_category"
         ? `${r.events.enter_category} «${(k.categories as Record<string, string>)[rule.category ?? ""] ?? rule.category}»`
-        : rule.event === "enter_status"
-          ? `${r.events.enter_status} «${statuses.find((s) => s.id === rule.status_id)?.name ?? "—"}»`
+        : COLUMN_EVENTS.includes(rule.event)
+          ? `${r.events[rule.event]} «${statuses.find((s) => s.id === rule.status_id)?.name ?? "—"}»`
           : r.events[rule.event];
     const who = [
       ...rule.notify_roles.map((role) => r.roles[role]),
@@ -96,7 +99,7 @@ export function TaskRulesDialog({
     const result = await saveTaskRule(workspace.shortId, projectId, {
       event,
       ...(event === "enter_category" ? { category } : {}),
-      ...(event === "enter_status" ? { status_id: statusId } : {}),
+      ...(COLUMN_EVENTS.includes(event) ? { status_id: statusId } : {}),
       roles,
       users,
       groups: groupIds,
@@ -134,7 +137,7 @@ export function TaskRulesDialog({
           )}
           {rules && !rules.length && <p className="text-muted">{r.empty}</p>}
           <ul className="space-y-2">
-            {rules?.map((rule) => {
+            {rules?.filter((rule) => !column || rule.status_id === column).map((rule) => {
               const { when, who } = describe(rule);
               return (
                 <li key={rule.id} className="flex items-start gap-2 rounded-lg border border-border p-2" data-task-rule>
@@ -154,7 +157,7 @@ export function TaskRulesDialog({
             <label className="flex flex-col gap-1">
               {r.when}
               <select value={event} onChange={(e) => setEvent(e.target.value as RuleEvent)} className={inputClass} data-rule-event>
-                {RULE_EVENTS.map((ev) => (
+                {RULE_EVENTS.filter((ev) => !column || COLUMN_EVENTS.includes(ev)).map((ev) => (
                   <option key={ev} value={ev}>
                     {r.events[ev]}
                   </option>
@@ -170,8 +173,8 @@ export function TaskRulesDialog({
                 ))}
               </select>
             )}
-            {event === "enter_status" && (
-              <select value={statusId} onChange={(e) => setStatusId(e.target.value)} aria-label={r.events.enter_status} className={inputClass}>
+            {COLUMN_EVENTS.includes(event) && (
+              <select value={statusId} onChange={(e) => setStatusId(e.target.value)} disabled={Boolean(column)} aria-label={r.events.enter_status} className={inputClass} data-rule-column>
                 {statuses.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}

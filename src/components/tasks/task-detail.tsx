@@ -6,6 +6,7 @@ import { pagePath, workspacePath } from "@/lib/paths";
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
+import { StatusButtons, moveAllowed } from "./status-buttons";
 import type { ActionResult } from "@/lib/action-result";
 import {
   TASK_PRIORITIES,
@@ -18,6 +19,7 @@ import {
   type TaskField,
   type TaskRow,
   type TaskStatus,
+  type ColumnMoves,
 } from "@/lib/tasks";
 import { FieldValue } from "./field-value";
 import { QuickAddField } from "./fields-editor";
@@ -68,6 +70,7 @@ export function TaskDetail({
   canEdit,
   canComment,
   isOwner,
+  moves = {},
   inPanel = false,
   origin = null,
 }: {
@@ -93,6 +96,7 @@ export function TaskDetail({
   canEdit: boolean;
   canComment: boolean;
   isOwner: boolean;
+  moves?: ColumnMoves;
   // Shown in the panel over the board: the project's other tasks open in the same panel.
   inPanel?: boolean;
   origin?: TaskOrigin | null;
@@ -244,15 +248,25 @@ export function TaskDetail({
             </p>
           )}
           <BlockedNotice links={links} />
-          <label className="mt-3 inline-flex max-w-full items-center gap-2 text-sm">
-            <span className="text-xs text-muted">{k.fields.status}</span>
+          <div className="mt-3 flex max-w-full items-center gap-2 text-sm">
+          {/* Desktop: the columns of the task's board as buttons. Phones (and columns of
+              other boards) keep the list. */}
+          <StatusButtons
+            statuses={statuses.filter((s) => (s.board_id ?? null) === (statuses.find((x) => x.id === task.status_id)?.board_id ?? null))}
+            current={task.status_id}
+            moves={moves}
+            disabled={!canEdit || pending}
+            onPick={(id) => run(() => moveTaskOnBoard(task.id, id))}
+          />
+          <label className={`inline-flex min-w-0 items-center gap-2 ${boards.length ? "" : "md:hidden"}`}>
+            <span className={`text-xs text-muted ${boards.length ? "md:hidden" : ""}`}>{k.fields.status}</span>
             <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => run(() => moveTaskOnBoard(task.id, e.target.value))} className="min-h-11 min-w-0 rounded-lg border border-border bg-hover px-2 text-sm font-medium hover:border-border-strong md:h-8 md:min-h-0" data-task-status>
               {/* Columns of every board: picking another team's column moves the task to its board. */}
               {[null, ...boards.map((x) => x.id)].map((board) => {
                 const columns = statuses.filter((s) => (s.board_id ?? null) === board);
                 if (!columns.length) return null;
                 const options = columns.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.id} value={s.id} disabled={!moveAllowed(moves, task.status_id, s.id)}>
                     {s.name}
                   </option>
                 ));
@@ -266,6 +280,7 @@ export function TaskDetail({
               })}
             </select>
           </label>
+          </div>
 
           <h2 className="mt-5 text-sm font-medium text-muted">{k.description}</h2>
           <div className="-mx-3 mt-2">

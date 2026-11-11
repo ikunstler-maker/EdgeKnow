@@ -20,7 +20,23 @@ export type SidebarBoard = { id: string | null; tasks: SidebarTask[]; more: numb
 export type ObjectSummary = { id: string; title: string; service: string };
 export type CollectionSummary = { id: string; service: string; name: string; position: number };
 export type CollectionItem = { collection_id: string; object_id: string; position: number };
-export type TaskStatus = { id: string; name: string; category: StatusCategory; position: number; wip_limit: number | null; board_id?: string | null; freezes?: boolean };
+export type TaskStatus = {
+  id: string;
+  name: string;
+  category: StatusCategory;
+  position: number;
+  wip_limit: number | null;
+  board_id?: string | null;
+  freezes?: boolean;
+  // The status button's short name and colour; units that may take tasks out / put them in (empty: everyone).
+  short_name?: string | null;
+  color?: string | null;
+  take_groups?: string[];
+  put_groups?: string[];
+};
+// Which columns this person may take tasks from and put them into.
+export type ColumnMoves = Record<string, { take: boolean; put: boolean }>;
+export const STATUS_COLORS = ["#94a3b8", "#38bdf8", "#a78bfa", "#22c55e", "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#14b8a6"];
 // Extra boards of a project, each for a team (package 11); columns without a board are on the main one.
 export type TaskBoardInfo = { id: string; name: string; group_id: string | null; position: number; access?: string[] };
 // Where a task stands on one board (package 11).

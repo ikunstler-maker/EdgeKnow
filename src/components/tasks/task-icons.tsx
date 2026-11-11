@@ -52,6 +52,7 @@ export function Avatar({ person, size = 22 }: { person: Person | undefined; size
 
 // The colour of a column's kind: the dot in a column's header and next to a task in the side panel.
 const STATUS_DOT: Record<StatusCategory, string> = { todo: "bg-slate-400", doing: "bg-sky-500", review: "bg-violet-500", done: "bg-emerald-500" };
-export function StatusDot({ category, title }: { category: StatusCategory; title?: string }) {
-  return <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[category] ?? STATUS_DOT.todo}`} title={title} data-status-dot={category} />;
+// A column's own colour, when it has one, wins over the colour of its kind.
+export function StatusDot({ category, title, color }: { category: StatusCategory; title?: string; color?: string | null }) {
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${color ? "" : (STATUS_DOT[category] ?? STATUS_DOT.todo)}`} style={color ? { background: color } : undefined} title={title} data-status-dot={category} />;
 }

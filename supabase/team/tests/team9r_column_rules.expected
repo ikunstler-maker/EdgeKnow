@@ -1,0 +1,6 @@
+alice limits the column: true
+bob sets a column: forbidden
+bob puts it in: true
+psql: ERROR:  column_take_forbidden
+bob may take from it: false
+the owner takes it out: true

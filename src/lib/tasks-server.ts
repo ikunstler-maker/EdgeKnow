@@ -3,7 +3,7 @@ import { withPaths } from "@/lib/groups";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, type Workspace } from "@/lib/workspace";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { blockedTasks, type LinkedTask, type Person, type ProjectRole, type TaskBoardInfo, type TaskField, type TaskLink, type TaskStatus } from "@/lib/tasks";
+import { blockedTasks, type ColumnMoves, type LinkedTask, type Person, type ProjectRole, type TaskBoardInfo, type TaskField, type TaskLink, type TaskStatus } from "@/lib/tasks";
 
 // A project by its key, with what every task screen needs: columns, the
 // person's role and the workspace's members (for assignees). Reads go to
@@ -15,6 +15,8 @@ export type ProjectView = {
   boards: TaskBoardInfo[];
   groups: { id: string; name: string }[];
   fields: TaskField[];
+  // Columns this person may take tasks from / put them into (missing: no limits known).
+  moves: ColumnMoves;
   role: ProjectRole;
   members: Person[];
 };
@@ -31,7 +33,8 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     .maybeSingle();
   if (!project) return null;
   const [{ data: statuses }, { data: role }, { data: members }, { data: fields }, { data: boards }, { data: groups }] = await Promise.all([
-    db.from("task_statuses").select("id, name, category, position, wip_limit, board_id, freezes").eq("project_id", project.id).order("position"),
+    // Every column of the row: a database a step behind the site lacks the newest ones, and the board must still open.
+    db.from("task_statuses").select("*").eq("project_id", project.id).order("position"),
     db.rpc("task_project_role", { target_project: project.id }),
     db
       .from("workspace_members")
@@ -44,7 +47,9 @@ export async function loadProject(shortId: string, key: string): Promise<Project
     db.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", workspace.id).order("name"),
   ]);
   if (!role) return null;
+  const { data: moves } = await db.rpc("column_moves", { target_project: project.id });
   return {
+    moves: (moves as ColumnMoves | null) ?? {},
     workspace,
     // card_fields may be missing while the board migration rolls out.
     project: { ...project, card_fields: project.card_fields ?? ["key", "type", "priority", "assignee", "due", "labels"] },
