@@ -707,4 +707,41 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await gwen.close();
 }
 
+// --- Active sessions: the person sees own devices; an admin ends them all -----------------------
+{
+  await fetch(`${API}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: ANON, "content-type": "application/json" },
+    body: JSON.stringify({ email: "devices@alpha.test", password: "Test-password-1!" }),
+  });
+  const first = await sessionCookies("devices@alpha.test");
+  await first.client.rpc("join_workspaces");
+  const second = await sessionCookies("devices@alpha.test");
+  const phone = await newPage(first.cookies);
+  await phone.goto(`${APP}/w/${alphaShort}/profile`);
+  await phone.locator("[data-my-devices] [data-session]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("the person sees their devices in the profile", (await phone.locator("[data-my-devices] [data-session]").count()) === 2);
+  check("…with no IP address shown", !/\d+\.\d+\.\d+\.\d+/.test(await phone.locator("[data-my-devices]").innerText()));
+
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=people`);
+  await alice.locator('[data-member-row="devices@alpha.test"] button').click();
+  const card = alice.locator('[data-member-drawer="devices@alpha.test"]');
+  await card.locator("[data-member-sessions] [data-session]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("the owner sees the member's devices in the member card", (await card.locator("[data-member-sessions] [data-session]").count()) === 2);
+  alice.once("dialog", (dialog) => dialog.accept());
+  await card.locator("[data-end-sessions]").click();
+  await card.getByText("Завершено сесій: 2").waitFor({ timeout: 15000 }).catch(() => {});
+  const devicesId = sql("select id from public.profiles where email = 'devices@alpha.test'");
+  check("…and ends them all, logged", sql(`select count(*) from auth.sessions where user_id = '${devicesId}'`) === "0" && sql(`select count(*) from public.audit_log where action = 'sessions_ended' and details ->> 'email' = 'devices@alpha.test'`) === "1");
+  await alice.keyboard.press("Escape");
+
+  await phone.goto(`${APP}/w/${alphaShort}`);
+  await phone.waitForURL(/\/login/, { timeout: 15000 }).catch(() => {});
+  check("the ended device has to sign in again at once", phone.url().includes("/login"), phone.url());
+  const direct = ((await second.client.from("pages").select("id")).data ?? []).length;
+  check("…and its token reads nothing from the database", direct === 0, String(direct));
+  await phone.close();
+  await aliceClient.rpc("remove_member", { ws: alphaId, member: devicesId });
+}
+
 await finish("tasks");

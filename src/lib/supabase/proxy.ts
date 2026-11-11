@@ -101,6 +101,13 @@ export async function updateSession(request: NextRequest) {
   const { data: allowed } = await supabase.rpc("has_platform_access");
 
   if (!allowed) {
+    // The session was ended (by an admin or from another device): sign in again.
+    const { data: alive } = await supabase.rpc("session_alive");
+    if (alive === false) {
+      await supabase.auth.signOut({ scope: "local" });
+      if (isPublicPath(pathname)) return response;
+      return redirectTo("/login", workspaceId ? { w: workspaceId } : undefined);
+    }
     return isPublicPath(pathname) && pathname !== "/login" ? response : redirectTo("/no-access");
   }
 
