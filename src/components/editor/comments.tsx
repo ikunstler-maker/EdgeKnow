@@ -705,7 +705,7 @@ export function CommentsSheet({
 
   return createPortal(
     <div className="fixed inset-0 z-50" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
       <div
         role="dialog"
         aria-label={title}

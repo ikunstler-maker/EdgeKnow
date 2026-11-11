@@ -1,8 +1,9 @@
 "use client";
 
 import { DEFAULT_SIZE, type Embed, type Gradient, type Paint, type PathPoint, type Size, type Slide, type SlideNode } from "@/lib/slides";
-import { t } from "@/i18n";
 import { SlideEmbed } from "./slide-embed";
+import { Icon } from "@/components/ui/icon";
+import { EMBED_ICON } from "@/components/slides/tool-icons";
 
 // How embeds are drawn: a light stand-in (thumbnails), live (show, print), or live and
 // set up by the editor.
@@ -210,7 +211,7 @@ export function NodeShape({ node, shortId, editingText, prefix = "", embeds = "p
         <foreignObject x={node.x} y={node.y} width={node.width} height={node.height} {...common}>
           {embeds === "placeholder" || !node.embed ? (
             <div style={{ width: "100%", height: "100%", borderRadius: r, background: node.fill ?? "#ffffff", border: "2px dashed #94a3b8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.min(node.width, node.height) / 5 }}>
-              {t.slides.embeds.icons[node.embed?.kind ?? "page"]}
+              <Icon name={EMBED_ICON[node.embed?.kind ?? "page"] ?? "embed"} size={Math.max(24, Math.min(node.width, node.height) / 5)} />
             </div>
           ) : (
             <div

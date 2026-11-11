@@ -27,7 +27,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/admin`);
   // Alice is not in Beta: its row shows only the short ID, no name.
   const betaRow = alice.locator("tr", { has: alice.getByText(betaShort, { exact: true }) });
-  check("…the platform panel shows it frozen", (await betaRow.getByText("❄️ E2E freeze check").count()) === 1);
+  check("…the platform panel shows it frozen", (await betaRow.getByText("E2E freeze check").count()) === 1);
   check("…and the size of the central database", (await alice.locator("[data-central-usage]").getByText(/Центральна база зараз: [0-9.]+ МБ з 500 МБ/).count()) === 1);
   await betaRow.getByRole("button", { name: "Розморозити" }).click();
   await alice.waitForTimeout(1500);
@@ -581,7 +581,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const lastLine = await alice.locator('[data-id="z3"] .bn-inline-content').first().boundingBox();
   await alice.mouse.click(lastLine.x + 5, lastLine.y + lastLine.height / 2);
   await alice.keyboard.type("@Brand new idea");
-  await alice.locator(".bn-suggestion-menu-item", { hasText: "＋ MAR: «Brand new idea»" }).click({ timeout: 15000 });
+  await alice.locator(".bn-suggestion-menu-item", { hasText: "+ MAR: «Brand new idea»" }).click({ timeout: 15000 });
   check("“@” makes a new task from what was typed and puts its chip in", await until(() => sql("select count(*) from public.tasks where title = 'Brand new idea'") === "1", 10000) && sql("select description::text like '%pageChip%' from public.tasks where title = 'Brand new idea'") === "t");
   await alice.keyboard.press("Enter");
   await alice.keyboard.type("Fix the footer");

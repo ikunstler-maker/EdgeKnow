@@ -1,3 +1,4 @@
+import { Icon } from "@/components/ui/icon";
 // Schematic, minimal screens of each service for the presentation page: drawn,
 // not screenshots — lines instead of text, so they read in any language.
 
@@ -167,7 +168,7 @@ function Surveys() {
         <span className="mt-2.5 flex gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => (
             <span key={n} className={`text-lg leading-none ${n <= 4 ? "text-amber-300" : "text-white/20"}`}>
-              ★
+              <Icon name="star" />
             </span>
           ))}
         </span>
@@ -226,7 +227,7 @@ function Chat() {
             <span className={`h-6 w-6 shrink-0 rounded-full ${mine ? "bg-indigo-300/60" : "bg-cyan-300/50"}`} />
             <span className={`rounded-2xl px-3 py-2.5 ${mine ? "bg-gradient-to-r from-cyan-500/50 to-indigo-500/50" : "bg-white/[0.08]"}`} style={{ width: w }}>
               {line("90%", 0.35)}
-              {i === 2 && <span className="mt-1.5 inline-block rounded-full bg-white/10 px-1.5 text-[10px]">👍 3</span>}
+              {i === 2 && <span className="mt-1.5 inline-block rounded-full bg-white/10 px-1.5 text-[10px]">+3</span>}
             </span>
           </div>
         ))}
@@ -352,7 +353,9 @@ function Apps() {
           <span className="h-1.5 w-2/3 rounded-full bg-white/40" />
         </div>
       ))}
-      <div className="flex items-center justify-center rounded-2xl border border-dashed border-white/25 text-xl text-white/50">＋</div>
+      <div className="flex items-center justify-center rounded-2xl border border-dashed border-white/25 text-xl text-white/50">
+            <Icon name="plus" size={20} />
+          </div>
     </div>
   );
 }

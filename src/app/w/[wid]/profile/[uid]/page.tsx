@@ -6,6 +6,8 @@ import { workspacePath } from "@/lib/paths";
 import { loadProfileStats } from "@/lib/profile-stats";
 import { getWorkspace } from "@/lib/workspace";
 import { ProfileView } from "../profile-view";
+import { Icon } from "@/components/ui/icon";
+import { Hint } from "@/components/ui/hint";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -26,15 +28,17 @@ export default async function PersonProfilePage({ params }: PageProps<"/w/[wid]/
   if (!stats) {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">{t.profile.hiddenTitle}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.profile.hiddenTitle}</h1>
         <p className="mt-3 text-muted">{t.profile.hidden}</p>
       </main>
     );
   }
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold">👤 {stats.name}</h1>
-      <p className="mt-2 text-muted">{t.profile.othersIntro(workspace.name)}</p>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 md:py-8">
+      <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+        <Icon name="user" size={20} className="text-muted" />{stats.name}
+        <Hint label={t.common.about} text={t.profile.othersIntro(workspace.name)} />
+      </h1>
       <ProfileView stats={stats} />
     </main>
   );

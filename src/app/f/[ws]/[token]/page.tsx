@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { filesHome } from "@/lib/drive/task-files";
 import { readSurvey } from "@/lib/surveys";
 import { PublicSurvey } from "@/components/surveys/public-survey";
+import { Icon } from "@/components/ui/icon";
 
 export const metadata: Metadata = { title: `${t.surveys.publicPage.title} · ${t.app.name}`, robots: { index: false, follow: false } };
 
@@ -20,7 +21,7 @@ export default async function PublicSurveyPage({ params }: PageProps<"/f/[ws]/[t
   const missing = (
     <main className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center">
       <p className="text-4xl" aria-hidden="true">
-        📝
+        <Icon name="file-text" />
       </p>
       <p className="mt-3 text-muted" data-public-survey-missing>
         {p.notFound}

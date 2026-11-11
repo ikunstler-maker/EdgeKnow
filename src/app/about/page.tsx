@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { AnglerFish } from "@/components/angler/angler-fish";
 import { CountUp, HeroZoom, Reveal, ServiceTour, SoonBadge } from "@/components/landing/motion";
+import { Icon } from "@/components/ui/icon";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t.landing.title, description: t.landing.description };
@@ -179,11 +180,11 @@ export default async function AboutPage() {
               <h3 className="ek-grad-c text-3xl font-semibold tracking-tight md:text-5xl">{l.searchTitle}</h3>
               <p className="mt-5 text-lg text-white/60">{l.searchText}</p>
               <div className="ek-glass mx-auto mt-10 flex max-w-xl items-center gap-3 rounded-full px-6 py-4 text-left text-white/50">
-                <span aria-hidden="true">🔎</span>
+                <Icon name="search" />
                 <span className="flex-1">
                   <span className="block h-2 w-2/3 rounded-full bg-white/25" />
                 </span>
-                <span className="rounded-md border border-white/15 px-1.5 text-xs">⌘K</span>
+                <span className="rounded-md border border-white/15 px-1.5 text-xs">Ctrl K</span>
               </div>
             </Reveal>
           </div>
@@ -315,7 +316,9 @@ export default async function AboutPage() {
                           {row.soon ? (
                             <SoonBadge label={l.soon} />
                           ) : (
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-violet-500 text-sm">✓</span>
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-violet-500 text-sm">
+                              <Icon name="check" size={14} />
+                            </span>
                           )}
                         </td>
                       </tr>

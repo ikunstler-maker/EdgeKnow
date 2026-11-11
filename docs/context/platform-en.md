@@ -51,6 +51,8 @@ The core gives every service people, access, storage, search, notifications and 
 - **Design system** (updated 2026-11-11, PR 1 of 6): three surface levels — the shell (left panel), the canvas, raised cards — and thin translucent hairlines instead of grey outlines; colours in `src/app/globals.css` (`--shell`, `--background`, `--surface`, `--overlay`, `--border`, `--border-strong`, `--hover`). Corners: buttons, inputs and pills 8 px, cards 12 px, dialogs 16 px. Thin scrollbars everywhere.
 - **Icons:** our own line icon set `Icon` (`src/components/ui/icon.tsx`, 1.75 stroke) and each service's mark `ServiceIcon` (`src/components/services/service-icon.tsx`: a tile in the service's gradient with a drawn glyph). No emoji in the interface; the exception is icons a person picked themselves (Wika pages, Rukh projects).
 - **Document studio** (updated 2026-11-11): a table, a deck, a board, a "Design" file, a map and a diagram open on the whole screen under one 48 px bar (`StudioShell`, `src/components/ui/studio-shell.tsx`). Left: the panel toggle, "back", the name and the save state; centre: the document's own switch; right: "Export / Import", "Access", one main action and "More" (with "To the bin"). In a studio Apus stands higher, clear of the editor's corners.
+- **Profile** (`/w/<id>/profile`): a card with the avatar, role and workspace; who sees the statistics as two choice cards; numbers as tiles; "Appearance" with a switch and Apus choice cards; "My data" with a separate danger zone for deleting the account.
+- **Dialogs:** a dark blurred backdrop, a raised panel with 16 px corners. Permanent explanatory paragraphs under screen titles became "i" hints.
 - **Shared controls** (`src/components/ui/`): `Button`/`IconButton` (32 px on a desktop, 44 px on a phone), `inputClass` (36/44 px), `Segmented`, `Dialog`, `Hint`, `Popover`. A screen header has at most one primary button.
 
 ### Public pages
@@ -71,7 +73,7 @@ The core gives every service people, access, storage, search, notifications and 
 | What | State | Note |
 |---|---|---|
 | Rename to Synkvela | approved, not done | texts, logo, emails, domain, redirects from old URLs |
-| Own icons instead of emoji | in progress (6 PRs, decision 2026-11-11) | the set and the service marks are ready; screens move over one by one |
+| Own icons instead of emoji | done (6 PRs, decision 2026-11-11) | no emoji in the interface; `scripts/check-ui-emoji.mjs` checks it before every build |
 | Service logos on the start page | done | `ServiceIcon` |
 | Smart chips everywhere | owner's request | the wiki already has page, person and task chips |
 | Notifications when the site is closed | planned | needs a key in hosting settings |

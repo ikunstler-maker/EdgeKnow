@@ -7,6 +7,7 @@ import type { ActionResult } from "@/lib/action-result";
 import { pagePath } from "@/lib/paths";
 import { errorMessage } from "@/components/pages/pages-provider";
 import { deletePageForever, restorePage } from "@/app/page-actions";
+import { Icon } from "@/components/ui/icon";
 
 export type TrashItem = {
   id: string;
@@ -33,7 +34,7 @@ export function TrashList({ items, workspaceShortId }: { items: TrashItem[]; wor
         {items.map((item) => (
           <li key={item.id} className="flex flex-wrap items-center gap-3 px-3 py-2">
             <Link href={pagePath(workspaceShortId, item.id)} className="flex min-w-0 flex-1 items-center gap-2">
-              <span>{item.icon ?? "📄"}</span>
+              {item.icon ? <span>{item.icon}</span> : <Icon name="file-text" className="text-muted" />}
               <span className="min-w-0">
                 <span className="block truncate">{item.title}</span>
                 <span className="block text-xs text-muted">

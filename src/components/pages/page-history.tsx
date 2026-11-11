@@ -80,7 +80,7 @@ function HistoryDialog({ pageId, canRestore, onClose }: { pageId: string; canRes
   const diff = shown ? compareVersions(shown.content, shown.current) : null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -137,7 +137,7 @@ function HistoryDialog({ pageId, canRestore, onClose }: { pageId: string; canRes
                     </>
                   )}
                 </div>
-                <h3 className="mb-2 text-2xl font-bold">{shown.title || t.pages.untitled}</h3>
+                <h3 className="mb-2 text-xl font-semibold tracking-tight">{shown.title || t.pages.untitled}</h3>
                 <PagePreview content={shown.content} history={{ marks: diff.marks, boxLabel: h.box }} />
               </>
             )}

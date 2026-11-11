@@ -20,6 +20,7 @@ import { SessionRows } from "@/components/sessions/session-rows";
 import { RemoveMemberDialog } from "./remove-member-dialog";
 import { roleName, type RoleItem } from "./roles-panel";
 import type { InvitationItem, MemberItem } from "./settings-panels";
+import { Icon } from "@/components/ui/icon";
 
 const s = t.settings;
 const tm = t.settings.team;
@@ -227,7 +228,7 @@ export function MembersTable({
             }`}
             data-member-chip={key}
           >
-            {key === "unassigned" && "⚠️ "}
+            {key === "unassigned" && <Icon name="alert" size={14} className="mr-1 inline" />}
             {label} ({counts[key]})
           </button>
         ))}
@@ -310,11 +311,14 @@ export function MembersTable({
                       {units.map((x) => (
                         <span key={x.id} className="rounded border border-border px-1.5 py-0.5">
                           {x.name}
-                          {x.leadIds?.includes(m.userId) && <span className="text-amber-700 dark:text-amber-300"> ★ {tm.lead}</span>}
+                          {x.leadIds?.includes(m.userId) && <span className="text-amber-700 dark:text-amber-300">
+                          {" "}
+                          <Icon name="star" size={12} className="inline" /> {tm.lead}
+                        </span>}
                         </span>
                       ))}
                       {unassigned(m) && (
-                        <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-700 dark:text-amber-300">⚠️ {tm.addToUnit}</span>
+                        <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-amber-700 dark:text-amber-300"><Icon name="alert" className="mr-1 inline" />{tm.addToUnit}</span>
                       )}
                     </span>
                   </button>
@@ -403,7 +407,7 @@ function MemberDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={() => !pending && onClose()}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-md" onClick={() => !pending && onClose()}>
       <div
         role="dialog"
         aria-modal="true"
@@ -415,7 +419,7 @@ function MemberDrawer({
         <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
           <span className="text-sm font-medium text-muted">{tm.drawerHeading}</span>
           <button type="button" autoFocus onClick={onClose} aria-label={tm.close} className="flex size-11 items-center justify-center rounded-lg hover:bg-surface">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
@@ -517,7 +521,8 @@ function MemberDrawer({
                               onChange={(e) => run(() => setGroupLead(workspace.id, group.id, m.userId, e.target.checked))}
                               data-unit-lead={group.name}
                             />
-                            ★ {tm.lead}
+                            <Icon name="star" className="mr-1 inline" />
+                            {tm.lead}
                           </label>
                         )}
                       </li>

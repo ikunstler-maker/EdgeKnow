@@ -100,9 +100,9 @@ export default async function WorkspaceSettingsPage({
 
   if (!admin && shownTabs.length === 0) {
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 md:py-8">
         <p className="text-sm text-muted">{workspace.name}</p>
-        <h1 className="text-2xl font-semibold">{t.workspace.settings}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.workspace.settings}</h1>
         <p className="mt-3 text-muted">{t.settings.memberOnly}</p>
         <div className="mt-6">
           <LeaveButton workspaceId={workspace.id} workspaceName={workspace.name} userId={user.id} />
@@ -269,9 +269,9 @@ export default async function WorkspaceSettingsPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 md:py-8">
       <p className="text-sm text-muted">{workspace.name}</p>
-      <h1 className="text-2xl font-semibold">{t.workspace.settings}</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{t.workspace.settings}</h1>
 
       <nav className="mt-6 flex gap-1 overflow-x-auto border-b border-border" aria-label={t.workspace.settings}>
         {shownTabs.map((key) => (

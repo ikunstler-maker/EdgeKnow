@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { t } from "@/i18n";
 import { FEEDBACK_MAX, FEEDBACK_TYPES, type FeedbackType } from "@/lib/feedback";
+import { Icon } from "@/components/ui/icon";
 
 const f = t.feedback;
 
@@ -78,7 +79,7 @@ function FeedbackDialog({ onClose }: { onClose: () => void }) {
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -89,7 +90,7 @@ function FeedbackDialog({ onClose }: { onClose: () => void }) {
         <div className="mb-3 flex items-center">
           <h2 className="flex-1 font-semibold">{f.title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         {state === "sent" ? (

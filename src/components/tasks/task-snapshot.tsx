@@ -78,7 +78,7 @@ export function TaskSnapshot({
         {s.badge(when(frozenAt))}
       </p>
       <p className="mt-2 text-sm text-muted">{s.intro}</p>
-      <h1 className="mt-4 text-2xl font-semibold">
+      <h1 className="mt-4 text-xl font-semibold tracking-tight">
         <span className="font-mono text-base text-muted">{taskKey}</span> {snapshot.title}
       </h1>
       <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3" aria-label={k.fields.heading}>

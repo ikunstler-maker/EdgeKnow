@@ -88,6 +88,7 @@ export default async function AppPage({ params }: PageProps<"/w/[wid]/apps/[id]"
         data-app-open
       >
         {s.open}
+        <Icon name="arrow-up-right" size={14} />
       </a>
       {role === "owner" && access ? (
         <AppSettings shortId={workspace.shortId} id={row.id} version={row.version} title={row.title} app={app} categories={categories} access={access} members={members} />

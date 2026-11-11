@@ -98,7 +98,7 @@ export function RemoveMemberDialog({
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => !pending && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={() => !pending && onClose()}>
       <div role="dialog" aria-modal="true" aria-label={m.title(member.email)} onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-xl bg-background shadow-xl sm:rounded-xl">
         <div className="border-b border-border px-4 py-3">
           <h2 className="font-semibold">{m.title(member.name ?? member.email)}</h2>

@@ -53,6 +53,8 @@ export const RELEASES: ReleaseLog[] = [
       { id: "boards-dock", type: "improved", scope: "board", title: { uk: "Bordy: шаблони, голосування, таймер і задача зі стікера — в одній плаваючій панелі.", en: "Bordy: templates, voting, the timer and a task from a sticky note in one floating dock." } },
       { id: "wiki-bar", type: "improved", scope: "wiki", title: { uk: "Wika: дії сторінки зібрано в одну шапку; на сторінках із зовнішнього джерела назва більше не повторюється двічі.", en: "Wika: a page's actions sit in one bar; on pages fed from outside the name is no longer shown twice." } },
       { id: "forms-builder", type: "visual", scope: "forms", title: { uk: "Questa: вкладки зі значками, питання — окремі картки без зайвих рамок.", en: "Questa: tabs with icons, each question its own card without extra frames." } },
+      { id: "profile-cards", type: "visual", scope: "profile", title: { uk: "Профіль: картка людини, показники плитками, перемикачі-картки й окрема зона для видалення акаунта.", en: "Profile: a person card, numbers as tiles, choice cards and a separate zone for deleting the account." } },
+      { id: "dialogs", type: "visual", scope: "global", title: { uk: "Усі діалоги — в єдиному вигляді; пояснення під заголовками екранів сховано в підказки «i».", en: "Every dialog shares one look; explanations under screen titles moved into “i” hints." } },
       { id: "tasks-card", type: "visual", scope: "tasks", title: { uk: "Rukh: компактна картка задачі — пріоритет і виконавець змінюються прямо на ній; один рядок заголовка й один рядок фільтрів.", en: "Rukh: a compact task card — priority and assignee change right on it; one header row and one filter row." } },
       { id: "tasks-new-project", type: "improved", scope: "tasks", title: { uk: "Rukh: новий проєкт створюється в діалозі з кнопки «Новий проєкт».", en: "Rukh: a new project is created in a dialog from the “New project” button." } },
       { id: "calendar-header", type: "improved", scope: "calendar", title: { uk: "Doba: у шапці один перемикач «Календар / Відсутності» й одна кнопка «Створити».", en: "Doba: the header has one “Calendar / Time off” switch and one “Create” button." } },
@@ -98,7 +100,7 @@ export const RELEASES: ReleaseLog[] = [
       en: "A personal subscription address: Doba events and your time off show in your own calendar on the phone or in the mail.",
     },
     items: [
-      { id: "feed", type: "added", scope: "calendar", title: { uk: "«🔗 У моєму календарі»: секретна адреса для підписки у будь-якому календарі.", en: "“🔗 In my calendar”: a secret address to subscribe from any calendar app." } },
+      { id: "feed", type: "added", scope: "calendar", title: { uk: "«У моєму календарі»: секретна адреса для підписки у будь-якому календарі.", en: "“In my calendar”: a secret address to subscribe from any calendar app." } },
       { id: "feed-renew", type: "added", scope: "calendar", title: { uk: "Адресу можна замінити новою або вимкнути будь-коли.", en: "The address can be replaced or turned off at any time." } },
     ],
   },

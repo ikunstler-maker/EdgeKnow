@@ -196,7 +196,7 @@ export function ServiceCollections({
                 o.id,
                 <span className="relative">
                   <button type="button" onClick={() => setMenuFor(menuFor === o.id ? null : o.id)} aria-label={c.addTo(o.title || t.pages.untitled)} aria-expanded={menuFor === o.id} className={iconButton} data-collection-menu>
-                    ⋯
+                    <Icon name="more" />
                   </button>
                   {menuFor === o.id && (
                     <div className="absolute right-0 z-30 mt-1 w-56 rounded-lg border border-border bg-background p-2 shadow-xl" role="group" aria-label={c.inCollections}>
@@ -290,7 +290,7 @@ function DraggableObject({ id, title, children }: { id: string; title: string; c
   return (
     <div ref={setNodeRef} style={style} className={`flex items-center ${isDragging ? "relative z-20 rounded-md bg-background shadow-lg" : ""}`}>
       <button type="button" {...listeners} {...attributes} aria-label={c.dragObject(title)} className={`${iconButton} cursor-grab touch-none`}>
-        ⠿
+        <Icon name="drag" />
       </button>
       <ul className="min-w-0 flex-1">{children}</ul>
     </div>

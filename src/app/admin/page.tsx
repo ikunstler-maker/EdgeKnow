@@ -13,6 +13,7 @@ import { OwnDatabaseFirst, TeamKeyPanel, WorkspaceControls } from "./platform-co
 import { createAdminClient } from "@/lib/supabase/admin";
 import { teamKeyStatus } from "@/lib/team-db/rekey";
 import { TeamLoginPanel } from "./team-login/team-login-panel";
+import { Icon } from "@/components/ui/icon";
 
 // Read per request, so the title follows the interface language.
 export async function generateMetadata(): Promise<Metadata> {
@@ -44,7 +45,8 @@ export default async function PlatformAdminPage() {
   const user = await getCurrentUser();
   const back = (
     <Link href="/" className="text-sm text-muted hover:underline">
-      ← {t.workspace.toMyWorkspaces}
+      <Icon name="arrow-left" className="mr-1 inline" />
+      {t.workspace.toMyWorkspaces}
     </Link>
   );
 
@@ -139,7 +141,7 @@ export default async function PlatformAdminPage() {
                 <td className="whitespace-nowrap px-3 py-2">{dateFormat().format(new Date(w.created_at))}</td>
                 <td className="px-3 py-2">
                   {w.data_location === "team" ? c.inTeam : w.data_location === "setup" ? c.connecting : w.central_allowed ? c.central : c.noDatabase}
-                  {w.frozen_at && <span className="block text-xs text-danger">❄️ {w.frozen_reason || c.frozen}</span>}
+                  {w.frozen_at && <span className="block text-xs text-danger"><Icon name="snow" className="mr-1.5 inline" />{w.frozen_reason || c.frozen}</span>}
                 </td>
                 <td className="px-3 py-2">
                   <WorkspaceControls id={w.id} name={memberOf.has(w.id) ? w.name : w.short_id} centralAllowed={w.central_allowed} frozen={Boolean(w.frozen_at)} />

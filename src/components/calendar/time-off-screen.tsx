@@ -93,7 +93,7 @@ export function DobaNav({ shortId, current }: { shortId: string; current: "event
 
 function Shell({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

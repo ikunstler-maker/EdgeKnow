@@ -32,8 +32,8 @@ export function MyDevices() {
 
   const others = (sessions ?? []).filter((x) => !x.current).length;
   return (
-    <section className="mt-10 rounded-2xl border border-border p-4" aria-label={ss.myHeading} data-my-devices>
-      <h2 className="font-semibold">{ss.myHeading}</h2>
+    <section className="rounded-xl border border-border bg-surface p-4" aria-label={ss.myHeading} data-my-devices>
+      <h2 className="text-sm font-semibold">{ss.myHeading}</h2>
       <p className="mt-1 text-sm text-muted">{ss.myIntro}</p>
       <div className="mt-3">
         {sessions === null ? (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { t } from "@/i18n";
+import { Icon } from "@/components/ui/icon";
 
 // Everything about me in one file, and deleting my account (GDPR).
 export function MyData({ email }: { email: string }) {
@@ -12,16 +13,17 @@ export function MyData({ email }: { email: string }) {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <section className="mt-10 rounded-lg border border-border p-4" aria-label={d.heading}>
-      <h2 className="font-semibold">{d.heading}</h2>
-      <p className="mt-1 text-sm text-muted">{d.exportIntro}</p>
-      <a href="/api/me/export" className="mt-2 inline-flex min-h-11 items-center rounded-lg border border-border px-4 text-sm hover:bg-surface" download>
+    <section className="rounded-xl border border-border bg-surface p-4" aria-label={d.heading}>
+      <h2 className="text-sm font-semibold">{d.heading}</h2>
+      <p className="mt-1 text-xs text-muted">{d.exportIntro}</p>
+      <a href="/api/me/export" className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong md:h-8 md:min-h-0" download>
+        <Icon name="download" />
         {d.export}
       </a>
 
-      <div className="mt-6 border-t border-border pt-4">
+      <div className="mt-5 rounded-lg border border-danger/30 bg-danger/5 p-3" data-danger-zone>
         {!open ? (
-          <button type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-lg px-4 text-sm text-danger underline">
+          <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center rounded-lg border border-danger/30 px-3 text-[13px] font-medium text-danger hover:bg-danger/10 md:h-8 md:min-h-0">
             {d.delete}
           </button>
         ) : (
