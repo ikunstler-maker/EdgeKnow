@@ -137,7 +137,9 @@ jobs:
       - name: Start local Supabase and install packages
         run: |
           sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
-          (npm ci && npx playwright install --with-deps chromium) > prepare.log 2>&1 &
+          # The browser's system packages come from the runner's package mirror, whose name
+          # sometimes fails to resolve for a minute: try again before giving up.
+          (npm ci && for attempt in 1 2 3 4; do npx playwright install --with-deps chromium && break; [ "$attempt" = 4 ] && exit 1; sleep $((attempt * 20)); done) > prepare.log 2>&1 &
           prepare=$!
           supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
           if ! wait $prepare; then tail -n 40 prepare.log; exit 1; fi
