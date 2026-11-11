@@ -11,6 +11,8 @@ import { TaskList } from "@/components/tasks/task-list";
 import { TemplatesButton } from "@/components/tasks/task-templates";
 import { TaskBoard } from "@/components/tasks/task-board";
 import { ProjectAccessButton, type ProjectAccess } from "@/components/tasks/project-access";
+import { Icon } from "@/components/ui/icon";
+import { buttonClass } from "@/components/ui/button";
 
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/tasks/[key]">): Promise<Metadata> {
   const { key } = await params;
@@ -32,13 +34,26 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     );
   }
   const db = await dataClient(wid);
-  const { data: tasks } = await db
-    .from("tasks")
+  // The project's tasks in one pass (project_tasks works the access out once). Where the
+  // function isn't there yet — the site is a moment ahead of the database — the same rows
+  // come from the table, each checked by its rule.
+  const fast = await db
+    .rpc("project_tasks", { target_project: view.project.id })
     .select(TASK_COLUMNS)
-    .eq("project_id", view.project.id)
     .is("deleted_at", null)
-    .order("number", { ascending: false })
-    .overrideTypes<TaskRow[], { merge: false }>();
+    .order("number", { ascending: false });
+  const tasks = (
+    fast.error?.code === "PGRST202"
+      ? (
+          await db
+            .from("tasks")
+            .select(TASK_COLUMNS)
+            .eq("project_id", view.project.id)
+            .is("deleted_at", null)
+            .order("number", { ascending: false })
+        ).data
+      : fast.data
+  ) as TaskRow[] | null;
   // Which tasks are blocked by an unfinished one (step Z3).
   const doneStatuses = new Set(view.statuses.filter((s) => s.category === "done").map((s) => s.id));
   const blocked = [...(await blockedIn(db, view.workspace.id, new Map((tasks ?? []).map((task) => [task.id, doneStatuses.has(task.status_id)]))))];
@@ -60,35 +75,39 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
   }
 
   return (
-    <main className={`mx-auto w-full flex-1 px-4 py-8 ${mode === "board" ? "max-w-none" : "max-w-7xl"}`} data-project-main>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex-1 text-2xl font-semibold">
-          {view.project.icon ?? "📋"} {view.project.name} <span className="font-mono text-base text-muted">{view.project.key}</span>
+    <main className={`mx-auto w-full flex-1 px-4 py-4 md:py-5 ${mode === "board" ? "max-w-none" : "max-w-7xl"}`} data-project-main>
+      {/* One header row: the project and its views on the left, its tools on the right. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="flex min-w-0 items-center gap-2 text-xl font-semibold tracking-tight">
+          {view.project.icon ? <span>{view.project.icon}</span> : <Icon name="folder" size={20} className="text-muted" />}
+          <span className="truncate">{view.project.name}</span>
+          <span className="font-mono text-xs font-normal text-muted">{view.project.key}</span>
         </h1>
-        {access && (
-          <Link
-            href={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}/fields`)}
-            className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9"
-          >
-            {t.tasks.customFields.link}
-          </Link>
-        )}
-        {canEdit(view.role) && <TemplatesButton projectId={view.project.id} isOwner={view.role === "owner"} />}
-        {access && <ProjectAccessButton project={view.project} access={access} members={view.members} />}
+        <nav className="inline-flex rounded-lg border border-border bg-hover p-0.5" aria-label={t.tasks.views.label}>
+          {(["board", "list"] as const).map((value) => (
+            <Link
+              key={value}
+              href={`${workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)}${value === "list" ? "?view=list" : ""}`}
+              aria-current={mode === value ? "page" : undefined}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium md:h-7 md:min-h-0 ${mode === value ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+            >
+              <Icon name={value === "board" ? "columns" : "list"} />
+              {t.tasks.views[value]}
+            </Link>
+          ))}
+        </nav>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {access && (
+            <Link href={workspacePath(view.workspace.shortId, `/tasks/${view.project.key}/fields`)} className={buttonClass("subtle")}>
+              <Icon name="sliders" />
+              {t.tasks.customFields.link}
+            </Link>
+          )}
+          {canEdit(view.role) && <TemplatesButton projectId={view.project.id} isOwner={view.role === "owner"} />}
+          {access && <ProjectAccessButton project={view.project} access={access} members={view.members} />}
+        </div>
       </div>
       {!canEdit(view.role) && <p className="mt-2 text-sm text-muted">{t.tasks.readOnly}</p>}
-      <nav className="mt-4 flex gap-1 border-b border-border" aria-label={t.tasks.views.label}>
-        {(["board", "list"] as const).map((value) => (
-          <Link
-            key={value}
-            href={`${workspacePath(view.workspace.shortId, `/tasks/${view.project.key}`)}${value === "list" ? "?view=list" : ""}`}
-            aria-current={mode === value ? "page" : undefined}
-            className={`min-h-11 border-b-2 px-3 py-2 text-sm ${mode === value ? "border-accent font-medium" : "border-transparent text-muted hover:text-foreground"}`}
-          >
-            {t.tasks.views[value]}
-          </Link>
-        ))}
-      </nav>
       <PrivateOthers items={((await db.rpc("private_task_people", { target_project: view.project.id })).data ?? []) as { id: string; key: string; people: string[] | null }[]} members={view.members} />
       {mode === "board" ? (
         <TaskBoard
@@ -134,7 +153,7 @@ function PrivateOthers({ items, members }: { items: { id: string; key: string; p
     return m ? personLabel(m) : "—";
   };
   return (
-    <details className="mt-3 rounded-lg border border-border px-3 py-2 text-sm" data-private-others>
+    <details className="mt-3 rounded-xl border border-border bg-surface px-3 py-2 text-sm" data-private-others>
       <summary className="min-h-9 cursor-pointer py-1 text-muted">{t.tasks.privacy.othersPrivate(items.length)}</summary>
       <ul className="mt-1 space-y-1">
         {items.map((item) => (

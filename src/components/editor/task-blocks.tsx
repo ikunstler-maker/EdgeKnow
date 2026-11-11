@@ -5,11 +5,13 @@ import Link from "next/link";
 import { createReactBlockSpec, createReactInlineContentSpec } from "@blocknote/react";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
-import { TYPE_ICONS, type StatusCategory, type TaskStatus } from "@/lib/tasks";
+import { type StatusCategory, type TaskStatus } from "@/lib/tasks";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
 import { projectStatuses, projectsForEmbed, setTaskStatusFromPage, taskEmbed, type ChipProject, type TaskEmbed } from "@/app/task-wiki-actions";
 import { refreshTaskChips, useTaskChip } from "./task-chip-store";
+import { TypeIcon } from "@/components/tasks/task-icons";
+import { Icon } from "@/components/ui/icon";
 
 const w = t.tasks.wiki;
 const pillClass =
@@ -50,14 +52,15 @@ export function TaskChipView({ taskId }: { taskId: string }) {
   if (task === undefined) {
     return (
       <span contentEditable={false} className={`${pillClass} ek-chip bg-surface text-muted`} data-task-chip="loading">
-        ✅ …
+        <Icon name="task" size={12} className="inline" /> …
       </span>
     );
   }
   if (task === null || !shortId) {
     return (
       <span contentEditable={false} className={`${pillClass} ek-chip bg-surface text-muted`} title={w.chipNoAccess} data-task-chip="hidden">
-        🔒 {w.chipNoAccess}
+        <Icon name="lock" className="mr-1 inline" />
+        {w.chipNoAccess}
       </span>
     );
   }
@@ -73,7 +76,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
         aria-haspopup="menu"
         title={`${task.key} ${task.title}`}
       >
-        <span aria-hidden="true">{TYPE_ICONS[task.type]}</span>
+        <TypeIcon type={task.type} />
         <span className="font-mono text-[0.9em] text-muted">{task.key}</span>
         <span className={`truncate ${task.category === "done" ? "line-through" : ""}`}>{task.title}</span>
         <span className={`rounded-full px-1.5 text-[0.85em] ${CATEGORY_CLASS[task.category]}`} data-task-chip-status>
@@ -83,8 +86,9 @@ export function TaskChipView({ taskId }: { taskId: string }) {
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={240}>
           <div role="menu" aria-label={task.key} className="p-1">
-            <Link href={taskHref(shortId, task.key)} className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface md:min-h-9">
-              ↗ {w.open}
+            <Link prefetch={false} href={taskHref(shortId, task.key)} className="flex min-h-11 items-center rounded-md px-3 text-sm hover:bg-surface md:min-h-9">
+              <Icon name="arrow-up-right" className="mr-1 inline" />
+              {w.open}
             </Link>
             {task.canEdit && (
               <>
@@ -106,7 +110,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm hover:bg-surface md:min-h-9"
                   >
                     <span className={`rounded-full px-2 text-xs ${CATEGORY_CLASS[status.category]}`}>{status.name}</span>
-                    {status.name === task.status && <span className="ml-auto text-accent">✓</span>}
+                    {status.name === task.status && <Icon name="check" size={14} className="ml-auto text-accent" />}
                   </button>
                 ))}
               </>
@@ -202,7 +206,7 @@ export function TasksEmbedView({
         <option value="">{w.chooseProject}</option>
         {(projects ?? []).map((p) => (
           <option key={p.id} value={p.id}>
-            {p.icon ?? "📋"} {p.name} ({p.key})
+            {p.icon ? `${p.icon} ` : ""}{p.name} ({p.key})
           </option>
         ))}
       </select>
@@ -231,7 +235,7 @@ export function TasksEmbedView({
 
   let body: React.ReactNode;
   if (!projectId) body = editable ? null : <p className="text-sm text-muted">{w.empty}</p>;
-  else if (data === undefined) body = <p className="text-sm text-muted">{w.loading}</p>;
+  else if (data === undefined) body = <p className="text-sm text-muted" data-export-loading>{w.loading}</p>;
   else if (data === null) body = <p className="text-sm text-muted">{w.noAccess}</p>;
   else {
     const statusOf = new Map(data.statuses.map((s) => [s.id, s]));
@@ -260,12 +264,13 @@ export function TasksEmbedView({
       <>
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">
-            {data.project.icon ?? "📋"} {data.project.name}
+            {data.project.icon ? `${data.project.icon} ` : ""}{data.project.name}
           </span>
           <span className="text-xs text-muted">{w.shown(data.tasks.length, data.total)}</span>
           <span className="flex-1" />
-          <Link href={workspacePath(shortId, `/tasks/${data.project.key}${view === "list" ? "?view=list" : ""}`)} className="text-sm text-accent hover:underline">
-            {w.openInTasks} ↗
+          <Link prefetch={false} href={workspacePath(shortId, `/tasks/${data.project.key}${view === "list" ? "?view=list" : ""}`)} className="text-sm text-accent hover:underline">
+            {w.openInTasks}
+            <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
           </Link>
         </div>
         {data.tasks.length === 0 ? (
@@ -282,7 +287,7 @@ export function TasksEmbedView({
                     .filter((task) => task.status_id === status.id)
                     .map((task) => (
                       <div key={task.id} className="rounded-md border border-border bg-background p-2 text-sm" data-embed-task={key(task.number)}>
-                        <Link href={taskHref(shortId, key(task.number))} className="block hover:underline">
+                        <Link prefetch={false} href={taskHref(shortId, key(task.number))} className="block hover:underline">
                           <span className="font-mono text-xs text-muted">{key(task.number)}</span> {task.title}
                         </Link>
                         {data.canEdit && <div className="mt-1">{statusSelect(task)}</div>}
@@ -309,8 +314,9 @@ export function TasksEmbedView({
                     />
                   )}
                   <span className="font-mono text-xs text-muted">{key(task.number)}</span>
-                  <Link href={taskHref(shortId, key(task.number))} className={`min-w-0 flex-1 truncate hover:underline ${done ? "text-muted line-through" : ""}`}>
-                    {TYPE_ICONS[task.type]} {task.title}
+                  <Link prefetch={false} href={taskHref(shortId, key(task.number))} className={`min-w-0 flex-1 truncate hover:underline ${done ? "text-muted line-through" : ""}`}>
+                    <TypeIcon type={task.type} className="mr-1 inline" />
+                    {task.title}
                   </Link>
                   {statusSelect(task)}
                 </li>

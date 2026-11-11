@@ -3,6 +3,7 @@
 import { SERVICE_BRANDS, brandGradients, type ServiceKey } from "@/lib/services";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ServiceMockup } from "./mockups";
+import { ServiceIcon } from "@/components/services/service-icon";
 
 // Movement on the presentation page, all driven by scrolling and all off for
 // people who asked their system for less motion (then everything just shows).
@@ -104,7 +105,7 @@ export function CountUp({ value, suffix = "" }: { value: number; suffix?: string
   );
 }
 
-type Service = { key: string; icon: string; name: string; like: string; soon: boolean; headline: string; points: string[] };
+type Service = { key: string; name: string; soon: boolean; headline: string; points: string[] };
 
 
 // The service's own colours (lib/services), as CSS variables for .ek-brand-*.
@@ -147,10 +148,11 @@ export function ServiceTour({ services, soon }: { services: Service[]; soon: str
             className={`flex flex-col justify-center py-10 transition-opacity duration-500 md:min-h-[72vh] ${active === i ? "opacity-100" : "md:opacity-30"}`}
           >
             <p className="text-sm font-medium text-white/50" style={brandStyle(service.key)}>
+              {service.key in SERVICE_BRANDS && <ServiceIcon serviceId={service.key as ServiceKey} size={22} className="mr-2 align-middle" />}
               <span className="ek-brand-text text-base font-extrabold" data-landing-brand>
                 {SERVICE_BRANDS[service.key as ServiceKey]?.name ?? service.name}
               </span>{" "}
-              · {service.name} · {service.like}
+              · {service.name}
               {service.soon && <SoonBadge label={soon} />}
             </p>
             <h3 className="ek-brand-text mt-3 pb-1 text-3xl font-bold tracking-tight md:text-5xl" style={brandStyle(service.key)}>

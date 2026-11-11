@@ -9,8 +9,9 @@ import { workspacePath } from "@/lib/paths";
 import { readBoard, type BoardData } from "@/lib/boards";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { boardView, boardsForEmbed, createBoard, saveBoard, type BoardSummary, type BoardView } from "@/app/board-actions";
+import { Icon } from "@/components/ui/icon";
 
-const BoardCanvas = dynamic(() => import("@/components/boards/board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.boards.embed.loading}</p> });
+const BoardCanvas = dynamic(() => import("@/components/boards/board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted" data-export-loading>{t.boards.embed.loading}</p> });
 
 const e = t.boards.embed;
 // The page editor must not see the canvas's keys, clipboard or drops.
@@ -122,7 +123,7 @@ export function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string;
           <option value="">{e.choose}</option>
           {(list ?? []).map((item) => (
             <option key={item.id} value={item.id}>
-              🎨 {item.title || t.boards.untitled}
+              {item.title || t.boards.untitled}
             </option>
           ))}
         </select>
@@ -145,17 +146,18 @@ export function BoardEmbed({ boardId, pageEditable, onPick }: { boardId: string;
       <p className="text-sm text-muted">{e.empty}</p>
     );
   } else if (view === undefined) {
-    body = <p className="text-sm text-muted">{e.loading}</p>;
+    body = <p className="text-sm text-muted" data-export-loading>{e.loading}</p>;
   } else if (view === null) {
-    body = <p className="text-sm text-muted">🔒 {e.noAccess}</p>;
+    body = <p className="text-sm text-muted"><Icon name="lock" className="mr-1.5 inline" />{e.noAccess}</p>;
   } else {
     body = (
       <>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">🎨 {view.title || t.boards.untitled}</span>
+          <span className="font-medium"><Icon name="layers" className="mr-1.5 inline" />{view.title || t.boards.untitled}</span>
           <span className="flex-1" />
           <Link href={workspacePath(shortId, `/boards/${view.id}`)} className="text-sm text-accent hover:underline">
-            {e.openEditor} ↗
+            {e.openEditor}
+            <Icon name="arrow-up-right" size={14} className="ml-1 inline" />
           </Link>
         </div>
         <div ref={box} className="h-[420px] overflow-hidden rounded-md border border-border" data-board-embed-canvas>

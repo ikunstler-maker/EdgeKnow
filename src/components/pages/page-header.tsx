@@ -7,6 +7,7 @@ import { ancestorsOf } from "@/lib/pages";
 import { pagePath } from "@/lib/paths";
 import { EmojiPicker } from "./emoji-picker";
 import { usePages } from "./pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const SAVE_DELAY_MS = 600;
 
@@ -81,7 +82,12 @@ export function PageHeader({
           aria-label={icon ? t.pages.changeIcon : t.pages.addIcon}
           title={icon ? t.pages.changeIcon : t.pages.addIcon}
         >
-          {icon ?? `☺ ${t.pages.addIcon}`}
+          {icon ?? (
+            <>
+              <Icon name="plus" className="mr-1 inline" />
+              {t.pages.addIcon}
+            </>
+          )}
         </button>
       )}
 

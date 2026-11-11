@@ -4,8 +4,9 @@ import { useState, useTransition } from "react";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { deleteRole, saveRole } from "@/app/workspace-actions";
+import { Icon } from "@/components/ui/icon";
 
-export const ROLE_PERMISSIONS = ["create_pages", "create_projects", "create_objects", "manage_collections", "manage_fields", "invite", "manage_structure"] as const;
+export const ROLE_PERMISSIONS = ["create_pages", "create_projects", "create_objects", "manage_collections", "manage_fields", "invite", "manage_structure", "manage_leave"] as const;
 export type RolePermission = (typeof ROLE_PERMISSIONS)[number];
 export type RoleItem = {
   id: string;
@@ -98,7 +99,8 @@ export function RolesPanel({ workspaceId, roles }: { workspaceId: string; roles:
       ) : (
         !editing && (
           <button type="button" className={`${buttonClass} mt-3`} onClick={() => setEditing(fresh())} data-role-add>
-            ＋ {r.add}
+            <Icon name="plus" className="mr-1 inline" />
+            {r.add}
           </button>
         )
       )}

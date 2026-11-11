@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { dateLocale, t } from "@/i18n";
 import { personLabel, type Person, type TaskField } from "@/lib/tasks";
 import type { TaskComment, TaskEvent } from "./task-detail";
+import { Icon } from "@/components/ui/icon";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 const k = t.tasks;
@@ -57,7 +58,7 @@ export function TaskSnapshot({
     if (field.kind === "select") return optionLabel(field, value);
     if (field.kind === "multiselect" && Array.isArray(value)) return value.map((v) => optionLabel(field, v)).join(", ");
     if (field.kind === "person") return who(String(value));
-    if (typeof value === "boolean") return value ? "✓" : "✗";
+    if (typeof value === "boolean") return value ? "✓" : "—";
     return String(value);
   };
   const rows: [string, string][] = [
@@ -77,7 +78,7 @@ export function TaskSnapshot({
         {s.badge(when(frozenAt))}
       </p>
       <p className="mt-2 text-sm text-muted">{s.intro}</p>
-      <h1 className="mt-4 text-2xl font-semibold">
+      <h1 className="mt-4 text-xl font-semibold tracking-tight">
         <span className="font-mono text-base text-muted">{taskKey}</span> {snapshot.title}
       </h1>
       <dl className="mt-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3" aria-label={k.fields.heading}>
@@ -101,7 +102,7 @@ export function TaskSnapshot({
           <h2 className="text-sm font-medium text-muted">{s.files}</h2>
           <ul className="mt-2 space-y-1 text-sm">
             {files.map((f) => (
-              <li key={f.id}>📎 {f.name}</li>
+              <li key={f.id}><Icon name="paperclip" className="mr-1.5 inline" />{f.name}</li>
             ))}
           </ul>
         </section>

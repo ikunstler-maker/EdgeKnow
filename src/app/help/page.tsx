@@ -3,6 +3,7 @@ import Link from "next/link";
 import { t } from "@/i18n";
 import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { FeedbackLink } from "@/components/feedback/feedback-button";
+import { Icon } from "@/components/ui/icon";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.help.link} · ${t.app.name}` };
@@ -17,12 +18,16 @@ export default function HelpPage() {
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 md:px-8">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Link href="/" className="text-sm text-muted hover:text-foreground hover:underline">
-          ← {h.back}
+          <Icon name="arrow-left" className="mr-1 inline" />
+          {h.back}
         </Link>
         <span className="flex-1" />
         <PreferencesSwitch compact />
       </div>
-      <h1 className="text-3xl font-bold">❓ {h.title}</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+        <Icon name="help" size={22} className="text-accent" />
+        {h.title}
+      </h1>
       <p className="mt-3 text-muted">{h.intro}</p>
       <div className="mt-4">
         <FeedbackLink />

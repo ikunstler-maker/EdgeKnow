@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { EXTERNAL_LANG_COOKIE } from "@/lib/external-lang";
 import { dateLocale, t } from "@/i18n";
+import { Icon } from "@/components/ui/icon";
 import {
   connectExternalSource,
   disconnectExternalSource,
@@ -24,7 +25,7 @@ function rememberLanguage(lang: string) {
   document.cookie = `${EXTERNAL_LANG_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
 }
 
-const button = "min-h-11 rounded-md border border-border bg-background px-3 hover:bg-surface disabled:opacity-60";
+const button = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 const input = "min-h-11 w-full rounded-md border border-border bg-background px-3";
 
 function errorText(code: string) {
@@ -69,14 +70,15 @@ export function ExternalSourceBar({
   if (!source) {
     if (form !== "connect") {
       return (
-        <button type="button" className={`${button} text-sm text-muted`} onClick={() => setForm("connect")}>
+        <button type="button" className={`${button} mr-auto`} onClick={() => setForm("connect")}>
+          <Icon name="link" />
           {s.connect}
         </button>
       );
     }
     return (
       <form
-        className="order-first mb-4 basis-full space-y-3 rounded-lg border border-border bg-surface px-4 py-3 text-sm"
+        className="order-last mt-1 basis-full space-y-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm"
         onSubmit={(e) => {
           e.preventDefault();
           run(() => connectExternalSource(shortId, pageId, url, key, languages));
@@ -117,24 +119,25 @@ export function ExternalSourceBar({
     router.refresh();
   };
   return (
-    <div className="order-first mb-4 basis-full space-y-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm">
+    <div className="mr-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted" data-external-source>
       {source.languages.length > 1 && (
-        <div role="group" aria-label={s.languageSwitch} className="flex flex-wrap gap-1">
+        <div role="group" aria-label={s.languageSwitch} className="inline-flex rounded-lg border border-border bg-hover p-0.5">
           {source.languages.map((lang) => (
             <button
               key={lang}
               type="button"
               aria-pressed={lang === source.lang}
               onClick={() => chooseLanguage(lang)}
-              className={`min-h-11 min-w-11 rounded-md border px-3 uppercase ${lang === source.lang ? "border-foreground font-semibold" : "border-border bg-background hover:bg-surface"}`}
+              className={`min-h-10 min-w-10 rounded-md px-2 text-[13px] font-medium uppercase md:h-7 md:min-h-0 md:min-w-8 ${lang === source.lang ? "bg-background text-foreground shadow-sm" : "hover:text-foreground"}`}
             >
               {lang}
             </button>
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="flex-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <Icon name="globe" size={14} />
+        <span className="min-w-0">
           {s.banner.replace("{host}", source.host)} · {s.synced.replace("{time}", synced)}
           {source.lastError && <span className="text-danger"> · {s.lastCopy}: {errorText(source.lastError)}</span>}
         </span>
@@ -159,7 +162,7 @@ export function ExternalSourceBar({
       </div>
       {form === "key" && (
         <form
-          className="flex flex-wrap gap-2"
+          className="flex basis-full flex-wrap gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             run(() => replaceExternalKey(shortId, pageId, key));
@@ -171,7 +174,7 @@ export function ExternalSourceBar({
           </button>
         </form>
       )}
-      {error && <p className="text-danger">{error}</p>}
+      {error && <p className="basis-full text-danger">{error}</p>}
     </div>
   );
 }

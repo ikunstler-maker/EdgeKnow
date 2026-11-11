@@ -14,6 +14,7 @@ import {
   setPageIcon,
   trashPage,
 } from "@/app/page-actions";
+import { Icon } from "@/components/ui/icon";
 
 type OptimisticOp =
   | { type: "rename"; id: string; title: string }
@@ -131,6 +132,8 @@ export function PagesProvider({
         ownerId: "",
         role: "owner",
         workspaceRole: parent?.workspaceRole ?? null,
+        // A new page starts as a draft.
+        draft: true,
       };
       setAdded((list) => [...list, node]);
       setCreating((set) => new Set(set).add(id));
@@ -189,7 +192,7 @@ export function PagesProvider({
             aria-label={t.common.close}
             className="min-h-11 min-w-11"
           >
-            ✕
+            <Icon name="close" />
           </button>
         </div>
       )}

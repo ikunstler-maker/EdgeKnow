@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { t } from "@/i18n";
 import { getCurrentUser } from "@/lib/auth";
 import { PAGE_TREE_COLUMNS, toPageNode, type PageRow } from "@/lib/pages";
@@ -11,6 +12,22 @@ import { getWorkspace, listMyWorkspaces } from "@/lib/workspace";
 import { AppShell } from "@/components/app-shell";
 import { PagesProvider } from "@/components/pages/pages-provider";
 import { TeamHealthBanner } from "@/components/team-health-banner";
+
+// The page tree in one pass (my_page_tree works every role out at once). Where the
+// function isn't there yet — the site is a moment ahead of the database — the same
+// rows come from the table, each checked by its rule.
+async function loadPageTree(supabase: SupabaseClient, workspaceId: string) {
+  const fast = await supabase.rpc("my_page_tree", { ws: workspaceId });
+  if (!fast.error || fast.error.code !== "PGRST202") return { data: fast.data as PageRow[] | null, error: fast.error };
+  const { data, error } = await supabase
+    .from("pages")
+    .select(PAGE_TREE_COLUMNS)
+    .eq("workspace_id", workspaceId)
+    .is("deleted_at", null)
+    .order("position")
+    .overrideTypes<PageRow[], { merge: false }>();
+  return { data: data as PageRow[] | null, error };
+}
 
 export default async function WorkspaceLayout({ children, params }: LayoutProps<"/w/[wid]">) {
   const { wid } = await params;
@@ -28,7 +45,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
       const notice = frozen as { name: string; reason: string | null };
       return (
         <main className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center">
-          <h1 className="text-2xl font-semibold">{t.workspace.frozenTitle(notice.name)}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t.workspace.frozenTitle(notice.name)}</h1>
           <p className="mt-3 text-muted">{t.workspace.frozen}</p>
           {notice.reason && <p className="mt-3 rounded-lg border border-border p-3 text-sm">{notice.reason}</p>}
           <Link href="/" className="mt-6 inline-flex min-h-11 items-center rounded-lg border border-border px-4 hover:bg-surface">
@@ -39,7 +56,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     }
     return (
       <main className="mx-auto w-full max-w-md flex-1 px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">{t.workspace.noAccessTitle}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.workspace.noAccessTitle}</h1>
         <p className="mt-3 text-muted">{t.workspace.noAccess}</p>
         <Link
           href="/"
@@ -53,16 +70,10 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
 
   const data = await workspaceData(wid);
   const supabase = data!.client;
-  // RLS returns only this workspace's pages that the user has a role on.
-  const { data: pages, error } = await supabase
-    .from("pages")
-    .select(PAGE_TREE_COLUMNS)
-    .eq("workspace_id", workspace.id)
-    .is("deleted_at", null)
-    .order("position")
-    .overrideTypes<PageRow[], { merge: false }>();
-  // For the sidebar (RLS): task projects with their boards, and the other services' objects.
-  const [{ data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }, { data: mayCreatePages }] = await Promise.all([
+  // Everything the shell needs, in one wave: each line is one trip to the database.
+  // RLS returns only this workspace's pages, projects and objects the user has a role on.
+  const [{ data: pages, error }, { data: projects }, { data: boards }, { data: objects }, { data: collections }, { data: collectionItems }, { data: mayCreatePages }, { data: guestRows }, centralAllowed] = await Promise.all([
+    loadPageTree(supabase, workspace.id),
     supabase
       .from("task_projects")
       .select("id, key, name, icon")
@@ -88,15 +99,11 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
       .overrideTypes<CollectionItem[], { merge: false }>(),
     // A role may take "create pages" away (guests keep their own rule).
     workspace.role === "guest" ? Promise.resolve({ data: true }) : supabase.rpc("role_allows", { ws: workspace.id, perm: "create_pages" }),
+    // Guests this person sees (RLS), to mark them wherever people appear.
+    supabase.from("workspace_members").select("user_id").eq("workspace_id", workspace.id).eq("role", "guest").eq("status", "active"),
+    // "Own database first" (stage 2): a new workspace connects its team's Supabase before it has pages.
+    data!.location === "central" ? supabase.rpc("central_pages_allowed", { ws: workspace.id }).then((r) => Boolean(r.data)) : Promise.resolve(true),
   ]);
-
-  // Guests this person sees (RLS), to mark them wherever people appear.
-  const { data: guestRows } = await supabase
-    .from("workspace_members")
-    .select("user_id")
-    .eq("workspace_id", workspace.id)
-    .eq("role", "guest")
-    .eq("status", "active");
 
   // The team's own database (path C): if it couldn't be read, or wasn't well at
   // the last check, look again now (this also wakes a sleeping one up).
@@ -106,9 +113,7 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
     // The project itself answers, but not to people's sign-ins: EdgeKnow's sign-in was removed there.
     if (error && (!health || health === "ok" || health === "almost_full")) health = error.code?.startsWith("PGRST3") ? "revoked" : "unreachable";
   }
-  // "Own database first" (stage 2): a new workspace connects its team's Supabase before it has pages.
-  const needsTeamDatabase =
-    data!.location === "central" && !(await supabase.rpc("central_pages_allowed", { ws: workspace.id })).data;
+  const needsTeamDatabase = data!.location === "central" && !centralAllowed;
   const showHealth =
     health && health !== "ok" && (health !== "almost_full" || workspace.role === "owner" || workspace.role === "admin") ? health : null;
 
@@ -125,14 +130,14 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">
             {workspace.role === "owner" ? t.workspace.needsDatabaseOwner : t.workspace.needsDatabase}{" "}
             {workspace.role === "owner" && (
-              <Link href={workspacePath(workspace.shortId, "/settings?tab=team")} className="underline">
+              <Link href={workspacePath(workspace.shortId, "/settings?tab=data")} className="underline">
                 {t.workspace.connectDatabase}
               </Link>
             )}
           </p>
         )}
         {showHealth && (
-          <TeamHealthBanner health={showHealth} isOwner={workspace.role === "owner"} settingsHref={`/w/${wid}/settings?tab=team`} />
+          <TeamHealthBanner health={showHealth} isOwner={workspace.role === "owner"} settingsHref={`/w/${wid}/settings?tab=data`} />
         )}
         {children}
       </AppShell>

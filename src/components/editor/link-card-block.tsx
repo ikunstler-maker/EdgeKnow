@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createReactBlockSpec } from "@blocknote/react";
 import { t } from "@/i18n";
 import type { LinkPreview } from "@/app/api/link-preview/route";
+import { Icon } from "@/components/ui/icon";
 
 const l = t.editor.linkCard;
 
@@ -139,7 +140,7 @@ function LinkCardView({
             // eslint-disable-next-line @next/next/no-img-element -- the site's own icon
             <img src={card.icon} alt="" className="ek-link-card-icon-large" loading="lazy" referrerPolicy="no-referrer" onError={() => setIconFailed(true)} />
           ) : (
-            <span className="text-2xl">🔗</span>
+            <Icon name="link" size={24} className="text-muted" />
           )}
         </span>
         <span className="ek-link-card-text">
@@ -157,7 +158,7 @@ function LinkCardView({
       {editable && (
         <div className="ek-link-card-actions">
           <button type="button" onClick={() => void load(href)} title={l.refresh} aria-label={l.refresh} disabled={state === "loading"}>
-            ↻
+            <Icon name="refresh" />
           </button>
           <button
             type="button"
@@ -168,7 +169,7 @@ function LinkCardView({
             title={l.change}
             aria-label={l.change}
           >
-            ✎
+            <Icon name="edit" />
           </button>
         </div>
       )}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { currentLocale, t } from "@/i18n";
 import { RELEASES } from "@/lib/changelog";
 import { ChangelogView, type ShownRelease } from "@/components/changelog/changelog-view";
+import { Icon } from "@/components/ui/icon";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: `${t.changelog.title} · ${t.app.name}`, description: t.changelog.intro };
@@ -21,7 +22,10 @@ export default function ChangelogPage() {
   }));
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10" data-changelog>
-      <h1 className="text-3xl font-semibold">✦ {t.changelog.title}</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          <Icon name="sparkle" size={22} className="text-accent" />
+          {t.changelog.title}
+        </h1>
       <p className="mt-2 text-muted">{t.changelog.intro}</p>
       <ChangelogView releases={releases} />
     </main>

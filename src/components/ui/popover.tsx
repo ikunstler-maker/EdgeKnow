@@ -38,15 +38,18 @@ export function Popover({
   const margin = 8;
   const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
   const openUp = rect.bottom > window.innerHeight * 0.6;
+  // As tall as the room on its side of the anchor allows, never past the screen edge.
+  const room = (openUp ? rect.top : window.innerHeight - rect.bottom) - 4 - margin;
+  const maxHeight = Math.max(160, room);
   const style = openUp
-    ? { left, width, bottom: window.innerHeight - rect.top + 4 }
-    : { left, width, top: rect.bottom + 4 };
+    ? { left, width, maxHeight, bottom: window.innerHeight - rect.top + 4 }
+    : { left, width, maxHeight, top: rect.bottom + 4 };
 
   return createPortal(
     <div
       ref={panelRef}
       style={style}
-      className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-lg"
+      className="fixed z-50 overflow-y-auto rounded-xl border border-border-strong bg-overlay p-1 shadow-xl"
     >
       {children}
     </div>,
@@ -67,7 +70,7 @@ export function MenuItem({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex min-h-11 w-full items-center rounded-md px-3 text-left text-sm hover:bg-surface ${
+      className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-hover md:min-h-8 ${
         danger ? "text-danger" : ""
       }`}
     >

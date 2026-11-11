@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { createClient as createSupabaseClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentUser } from "@/lib/auth";
 import { mintTeamToken, oidcConfigured, oidcIssuer } from "@/lib/oidc";
@@ -52,8 +53,17 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
   const workspace = await getWorkspace(id);
   if (!workspace) return null;
 
+  // Known from the workspace lookup itself: no team database, nothing more to ask.
+  if (workspace.hasTeamDatabase === false) return { client: central, workspaceId: workspace.id, location: "central" };
+
   const admin = createAdminClient();
-  const db = admin ? await teamDatabase(admin, workspace.id) : null;
+  const user = await getCurrentUser();
+  // One trip: where the workspace lives, when its members were last copied, and when this person joined.
+  const [db, { data: synced }, { data: me }] = await Promise.all([
+    admin ? teamDatabase(admin, workspace.id) : Promise.resolve(null),
+    admin ? admin.from("team_databases").select("last_synced_at").eq("workspace_id", workspace.id).maybeSingle() : Promise.resolve({ data: null }),
+    central.from("workspace_members").select("joined_at").eq("workspace_id", workspace.id).eq("user_id", user.id).maybeSingle(),
+  ]);
   if (db && !oidcConfigured()) throw new Error("team database registered but EDGEKNOW_OIDC_SIGNING_KEYS is not set");
   // Once a workspace has a team database, its data is never read or written centrally.
   if (!db) return { client: central, workspaceId: workspace.id, location: "central" };
@@ -62,16 +72,13 @@ export const workspaceData = cache(async (shortId?: string): Promise<WorkspaceDa
   // A newer wiki may need a newer team schema; failures leave the old one working.
   if (db.schema_version !== latestTeamMigration()) await upgradeTeam(admin!, workspace.id).catch(() => {});
 
-  const user = await getCurrentUser();
   const issuer = oidcIssuer(await requestOrigin());
-  // Keep the team's copy of the members fresh (and at once for someone new).
-  const [{ data: synced }, { data: me }] = await Promise.all([
-    admin!.from("team_databases").select("last_synced_at").eq("workspace_id", workspace.id).maybeSingle(),
-    central.from("workspace_members").select("joined_at").eq("workspace_id", workspace.id).eq("user_id", user.id).maybeSingle(),
-  ]);
+  // Keep the team's copy of the members fresh: at once for someone new (the team
+  // database doesn't know them yet), otherwise after the response, so nobody waits for it.
   const lastSync = synced?.last_synced_at ? Date.parse(synced.last_synced_at) : 0;
   const joinedSince = me?.joined_at ? Date.parse(me.joined_at) >= lastSync : true;
-  if (joinedSince || Date.now() - lastSync > SYNC_EVERY_MS) await syncTeam(admin!, db, issuer).catch(() => {});
+  if (joinedSince) await syncTeam(admin!, db, issuer).catch(() => {});
+  else if (Date.now() - lastSync > SYNC_EVERY_MS) after(() => syncTeam(admin!, db, issuer).catch(() => {}));
 
   const { token } = await mintTeamToken(issuer, user, workspace.id);
   const client = createSupabaseClient(db.project_url!, db.publishable_key!, {

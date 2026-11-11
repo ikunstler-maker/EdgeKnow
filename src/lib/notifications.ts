@@ -1,7 +1,7 @@
 // Notifications (package 8) and project rules (package 7): shapes shared by the
 // server actions and the screens.
 
-export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due"] as const;
+export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due", "event_invite", "event_request", "event_answer", "event_change", "event_reminder", "leave_request", "leave_decision", "leave_deputy", "leave_info"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export type NotificationItem = {
@@ -13,6 +13,9 @@ export type NotificationItem = {
   // Present only while the person may still see it.
   task: { id: string; key: string; project: string; number: number; title: string; status: string | null } | null;
   page: { id: string; title: string } | null;
+  event?: { id: string; title: string; starts_at: string; all_day: boolean; cancelled: boolean } | null;
+  // Time off: who and when (never the kind); whether it is mine or I am the deputy.
+  leave?: { id: string; person: string; start_date: string; end_date: string; status: string; mine: boolean; deputy: boolean } | null;
 };
 export type NotificationList = { unread: number; items: NotificationItem[] };
 

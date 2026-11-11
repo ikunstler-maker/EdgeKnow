@@ -3,6 +3,8 @@ import { dateLocale, t } from "@/i18n";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { TrashList, type TrashItem } from "./trash-list";
+import { Icon } from "@/components/ui/icon";
+import { Hint } from "@/components/ui/hint";
 
 // Read per request, so the title follows the interface language.
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,9 +51,11 @@ export default async function TrashPage({ params }: PageProps<"/w/[wid]/trash">)
   const items = toTrashItems(data ?? []);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold">🗑️ {t.trash.title}</h1>
-      <p className="mt-2 text-muted">{t.trash.intro}</p>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 md:py-8">
+      <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+        <Icon name="trash" size={20} className="text-muted" />{t.trash.title}
+        <Hint label={t.common.about} text={t.trash.intro} />
+      </h1>
       <TrashList items={items} workspaceShortId={workspace.shortId} />
     </main>
   );

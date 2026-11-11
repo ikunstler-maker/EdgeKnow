@@ -6,6 +6,7 @@ import { dateLocale, t } from "@/i18n";
 import { useResolvedTheme } from "@/lib/use-theme";
 import { deleteSurveyResponse, surveyAnswers } from "@/app/survey-actions";
 import { allQuestions, answerText, summarize, type QuestionSummary, type SurveyData, type SurveyFiles, type SurveyResponse } from "@/lib/surveys";
+import { Icon } from "@/components/ui/icon";
 
 Chart.register(...registerables);
 
@@ -116,7 +117,8 @@ export function SurveyResults({
                               <span className="flex flex-col gap-0.5">
                                 {(response.answers[q.id] as string[]).map((fileId) => (
                                   <a key={fileId} href={`/api/surveys/files/${fileId}?ws=${shortId}`} className="truncate text-accent hover:underline" data-survey-file>
-                                    📎 {files[fileId]?.name ?? "…"}
+                                    <Icon name="paperclip" className="mr-1 inline" />
+                                    {files[fileId]?.name ?? "…"}
                                   </a>
                                 ))}
                               </span>

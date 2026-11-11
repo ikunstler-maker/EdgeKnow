@@ -15,7 +15,7 @@ sql("update public.profiles set is_platform_admin = true where email = 'alice@al
 if (sql(`select count(*) from public.drive_connections where workspace_id = '${alphaId}' and active`) === "0") {
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=storage`);
   await alice.getByRole("link", { name: "Підключити Google Drive" }).click();
-  await alice.waitForURL(/tab=storage&drive=connected/);
+  await alice.waitForURL(/tab=data&drive=connected/);
 }
 
 // --- Freezing a workspace, "own database first", the central database size -------------------------
@@ -27,7 +27,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/admin`);
   // Alice is not in Beta: its row shows only the short ID, no name.
   const betaRow = alice.locator("tr", { has: alice.getByText(betaShort, { exact: true }) });
-  check("…the platform panel shows it frozen", (await betaRow.getByText("❄️ E2E freeze check").count()) === 1);
+  check("…the platform panel shows it frozen", (await betaRow.getByText("E2E freeze check").count()) === 1);
   check("…and the size of the central database", (await alice.locator("[data-central-usage]").getByText(/Центральна база зараз: [0-9.]+ МБ з 500 МБ/).count()) === 1);
   await betaRow.getByRole("button", { name: "Розморозити" }).click();
   await alice.waitForTimeout(1500);
@@ -126,7 +126,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   // The start page: a tile per service; those still being built say "Soon".
   await alice.goto(`${APP}/w/${alphaShort}`);
   await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
-  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 15 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 8);
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 15 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 6);
   check("…as a launcher: no page buttons at the top", (await alice.locator("main").getByRole("button", { name: /Нова сторінка/ }).count()) === 0);
   await alice.locator('[data-service="tasks"]').getByRole("link", { name: "Rukh" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
@@ -136,6 +136,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
   check("…and the switcher in the sidebar opens Tasks", true);
   await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+  // The form opens in a dialog from the page's one primary button.
+  await alice.locator("[data-new-project]").click();
   const form = alice.getByRole("form", { name: "Новий проєкт" });
   await form.getByLabel("Назва проєкту").fill("Маркетинг");
   check("the project key is suggested from its name", (await form.getByLabel(/Ключ/).inputValue()) === "MAR");
@@ -181,7 +183,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const made = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "From a colleague" } });
   check("a member makes tasks in the project", made.data?.key === "MAR-3", JSON.stringify(made.data));
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR?view=list`);
-  await alice.getByRole("button", { name: "⚙️ Доступ і налаштування" }).click();
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
   const dialog = alice.getByRole("dialog", { name: /Доступ до проєкту/ });
   await dialog.getByRole("combobox").first().selectOption("viewer");
   await alice.waitForTimeout(1500);
@@ -191,22 +193,22 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const refused = await colleagueTasks.rpc("create_task", { target_project: sql("select id from public.task_projects where key = 'MAR'"), fields: { title: "Not now" } });
   check("…and the database refuses their new tasks", refused.data?.error === "forbidden", JSON.stringify(refused.data));
   await colleagueTab.close();
-  await colleagueTasks.auth.signOut();
+  await colleagueTasks.auth.signOut({ scope: "local" });
 
   // The project's own fields: a dropdown with its items and a toggle, then values on a task.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
-  await alice.getByRole("link", { name: "🧩 Поля задач" }).click();
+  await alice.getByRole("link", { name: "Поля задач" }).click();
   await alice.waitForURL(/\/tasks\/MAR\/fields$/);
-  await alice.getByRole("button", { name: "＋ Додати поле" }).click();
+  await alice.getByRole("button", { name: "Додати поле" }).click();
   const fieldForm = alice.getByRole("form", { name: "Додати поле" });
   await fieldForm.getByLabel("Назва поля").fill("Формат");
   await fieldForm.getByLabel("Формат", { exact: true }).selectOption("select");
   await fieldForm.getByLabel("Пункт 1").fill("Відео");
-  await fieldForm.getByRole("button", { name: "＋ Додати пункт" }).click();
+  await fieldForm.getByRole("button", { name: "Додати пункт" }).click();
   await fieldForm.getByLabel("Пункт 2").fill("Статика");
   await fieldForm.getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-custom-field="Формат"]').waitFor({ timeout: 15000 });
-  await alice.getByRole("button", { name: "＋ Додати поле" }).click();
+  await alice.getByRole("button", { name: "Додати поле" }).click();
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Назва поля").fill("Погоджено");
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Формат", { exact: true }).selectOption("toggle");
   await alice.getByRole("form", { name: "Додати поле" }).getByRole("button", { name: "Зберегти" }).click();
@@ -257,24 +259,29 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await columnForm.getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-column="В роботі"] [data-wip]', { hasText: "1/1" }).waitFor({ timeout: 15000 }).catch(() => {});
   check("a column limit shows as count/limit", (await alice.locator('[data-column="В роботі"] [data-wip]').innerText()) === "1/1");
-  await alice.getByRole("button", { name: "🗂 Що показувати на картці" }).click();
+  await alice.getByRole("button", { name: "Що показувати на картці" }).click();
   const cardDialog = alice.getByRole("dialog", { name: "Що показувати на картці" });
   await cardDialog.getByLabel("Автор").check();
-  await cardDialog.getByLabel("🧩 Формат").check();
+  await cardDialog.getByLabel("Формат", { exact: true }).check();
   await cardDialog.getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').waitFor({ timeout: 15000 }).catch(() => {});
   check("the card shows the chosen fields, own ones too", (await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').getByText("Відео").count()) === 1);
   await cardDialog.waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
-  await alice.getByRole("button", { name: "🗂 Що показувати на картці" }).click();
+  await alice.getByRole("button", { name: "Що показувати на картці" }).click();
   await cardDialog.getByLabel("Початок").check();
   await cardDialog.getByRole("button", { name: "Зберегти" }).click();
-  await alice.locator('[data-card="MAR-1"] dt', { hasText: "Початок" }).waitFor({ timeout: 15000 }).catch(() => {});
-  check("…every chosen field shows, an empty one as “—”", (await alice.locator('[data-card="MAR-1"] dt', { hasText: "Початок" }).count()) === 1);
+  await cardDialog.waitFor({ state: "detached", timeout: 15000 }).catch(() => {});
+  check("…a chosen field with nothing in it takes no room on the card", (await alice.locator('[data-card="MAR-1"] [data-card-field="Початок"]').count()) === 0 && (await alice.locator('[data-card="MAR-1"] [data-card-field="Формат"]').count()) === 1);
   const marOnePriority = () => sql("select priority from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   const priorityBefore = marOnePriority();
-  await alice.locator('[data-card="MAR-1"] [data-card-priority]').selectOption("highest");
+  // The priority mark on the card opens a small list.
+  const pickPriority = async (value) => {
+    await alice.locator('[data-card="MAR-1"] [data-card-priority]').click();
+    await alice.locator(`[data-card-menu="priority"] [data-priority-option="${value}"]`).click();
+  };
+  await pickPriority("highest");
   check("the priority changes right on the card", await until(() => marOnePriority() === "highest", 15000), marOnePriority());
-  await alice.locator('[data-card="MAR-1"] [data-card-priority]').selectOption(priorityBefore);
+  await pickPriority(priorityBefore);
   await until(() => marOnePriority() === priorityBefore, 15000);
 
   // Notification rules (the project owner) and the bell.
@@ -372,7 +379,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…a key no one can see is refused", sql(`select count(*) from public.task_links where target_id = ${marTask(2)} or source_id = ${marTask(2)}`) === "1");
   sql(`update public.tasks set description = '[{"id":"c1","type":"checkListItem","props":{"checked":false},"content":[{"type":"text","text":"Check fonts","styles":{}}],"children":[]},{"id":"c2","type":"checkListItem","props":{"checked":true},"content":[{"type":"text","text":"Done already","styles":{}}],"children":[]}]' where id = ${marTask(2)}`);
   await alice.reload();
-  await alice.getByRole("button", { name: "☑ Зробити підзадачі з чек-листа опису" }).click();
+  await alice.getByRole("button", { name: "Зробити підзадачі з чек-листа опису" }).click();
   await alice.getByText("Створено підзадач: 1").waitFor({ timeout: 15000 }).catch(() => {});
   check("the open checklist items become subtasks", sql(`select string_agg(title, ',' order by number) from public.tasks where parent_id = ${marTask(2)}`) === "Sub one,Sub two,Check fonts");
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
@@ -510,7 +517,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…as a ZIP archive with a folder per project", archive === "200 PK true true", archive);
 
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=members`);
-  await alice.locator("li", { hasText: "mover@alpha.test" }).getByRole("button", { name: "Видалити" }).click();
+  await alice.locator('[data-member-row="mover@alpha.test"] button').click();
+  await alice.locator('[data-member-drawer="mover@alpha.test"]').getByRole("button", { name: "Видалити", exact: true }).click();
   const removeDialog = alice.getByRole("dialog", { name: /mover@alpha\.test/ });
   await removeDialog.locator("[data-member-files-found]").waitFor({ timeout: 15000 });
   check("removing someone shows their files on their own Drive, with the space now and after", (await removeDialog.locator("[data-member-files-found]").innerText()).includes("1 файл") && (await removeDialog.locator("[data-member-space]").count()) >= 1);
@@ -573,7 +581,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const lastLine = await alice.locator('[data-id="z3"] .bn-inline-content').first().boundingBox();
   await alice.mouse.click(lastLine.x + 5, lastLine.y + lastLine.height / 2);
   await alice.keyboard.type("@Brand new idea");
-  await alice.locator(".bn-suggestion-menu-item", { hasText: "＋ MAR: «Brand new idea»" }).click({ timeout: 15000 });
+  await alice.locator(".bn-suggestion-menu-item", { hasText: "+ MAR: «Brand new idea»" }).click({ timeout: 15000 });
   check("“@” makes a new task from what was typed and puts its chip in", await until(() => sql("select count(*) from public.tasks where title = 'Brand new idea'") === "1", 10000) && sql("select description::text like '%pageChip%' from public.tasks where title = 'Brand new idea'") === "t");
   await alice.keyboard.press("Enter");
   await alice.keyboard.type("Fix the footer");
@@ -630,15 +638,15 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await dialog.getByLabel("Група", { exact: true }).selectOption({ label: "Reviewers · 1 особа" });
   await dialog.getByLabel("Роль групи").selectOption("commenter");
   await dialog.getByRole("button", { name: "Додати" }).nth(1).click();
-  await dialog.getByText("👥 Reviewers · 1 особа").waitFor({ timeout: 15000 }).catch(() => {});
-  check("the page owner gives the group a role in the share dialog", (await dialog.getByText("👥 Reviewers · 1 особа").count()) === 1);
+  await dialog.locator("span", { hasText: "Reviewers · 1 особа" }).first().waitFor({ timeout: 15000 }).catch(() => {});
+  check("the page owner gives the group a role in the share dialog", (await dialog.locator("span", { hasText: "Reviewers · 1 особа" }).count()) >= 1);
   check("…and the colleague in the group gets it", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === "commenter");
   await alice.keyboard.press("Escape");
   await alice.goto(`${APP}/w/${alphaShort}/settings?tab=groups`);
   await alice.locator('[data-group="Reviewers"]').getByRole("button", { name: /з групи «Reviewers»/ }).click();
   await alice.locator('[data-group="Reviewers"]').getByText("учасників: 0").waitFor({ timeout: 15000 }).catch(() => {});
   check("out of the group, the access is gone", (await colleagueClient.rpc("effective_role", { target_page: groupPage })).data === null);
-  await colleagueClient.auth.signOut();
+  await colleagueClient.auth.signOut({ scope: "local" });
 }
 
 // --- Guests (step Г): invited until a date, see only what is shared with them ---------------------
@@ -672,7 +680,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
 
   const gwen = await newPage(gwenCookies);
   await gwen.goto(`${APP}/w/${alphaShort}`);
-  await gwen.getByRole("link", { name: "Мій профіль" }).waitFor({ timeout: 15000 });
+  await gwen.locator("[data-workspace-menu-button]").first().waitFor({ timeout: 15000 });
   check("a guest's menu has “New page” but no bin", (await gwen.getByRole("button", { name: "Нова сторінка" }).count()) === 1 && (await gwen.getByRole("link", { name: "Кошик" }).count()) === 0);
   await gwen.getByRole("button", { name: "Нова сторінка" }).click();
   await gwen.waitForURL(/\/p\/[0-9a-f-]{36}(\?new=1)?$/, { timeout: 20000 });
@@ -702,8 +710,48 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const after = ((await gwenClient.from("pages").select("id")).data ?? []).length;
   check("past her date the guest sees nothing", gwen.url().includes("no-access") && after === 0, `${gwen.url()} ${after}`);
   await aliceClient.rpc("remove_member", { ws: alphaId, member: gwenId });
-  await gwenClient.auth.signOut();
+  await gwenClient.auth.signOut({ scope: "local" });
   await gwen.close();
+}
+
+// --- Active sessions: the person sees own devices; an admin ends them all -----------------------
+{
+  await fetch(`${API}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: ANON, "content-type": "application/json" },
+    body: JSON.stringify({ email: "devices@alpha.test", password: "Test-password-1!" }),
+  });
+  const first = await sessionCookies("devices@alpha.test");
+  await first.client.rpc("join_workspaces");
+  const second = await sessionCookies("devices@alpha.test");
+  const devicesId = sql("select id from public.profiles where email = 'devices@alpha.test'");
+  // Sign-up itself also opens a session: count what the database holds.
+  const live = Number(sql(`select count(*) from auth.sessions where user_id = '${devicesId}'`));
+  const phone = await newPage(first.cookies);
+  await phone.goto(`${APP}/w/${alphaShort}/profile`);
+  await phone.locator("[data-my-devices] [data-session]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  const shown = await phone.locator("[data-my-devices] [data-session]").count();
+  check("the person sees their devices in the profile", live >= 2 && shown === live, `${shown} of ${live}`);
+  check("…with no IP address shown", !/\d+\.\d+\.\d+\.\d+/.test(await phone.locator("[data-my-devices]").innerText()));
+
+  await alice.goto(`${APP}/w/${alphaShort}/settings?tab=people`);
+  await alice.locator('[data-member-row="devices@alpha.test"] button').click();
+  const card = alice.locator('[data-member-drawer="devices@alpha.test"]');
+  await card.locator("[data-member-sessions] [data-session]").first().waitFor({ timeout: 15000 }).catch(() => {});
+  const listed = await card.locator("[data-member-sessions] [data-session]").count();
+  check("the owner sees the member's devices in the member card", listed === live, `${listed} of ${live}`);
+  await card.locator("[data-end-sessions]").click();
+  await card.getByText(`Завершено сесій: ${live}`).waitFor({ timeout: 15000 }).catch(() => {});
+  check("…and ends them all, logged", sql(`select count(*) from auth.sessions where user_id = '${devicesId}'`) === "0" && sql(`select count(*) from public.audit_log where action = 'sessions_ended' and details ->> 'email' = 'devices@alpha.test'`) === "1");
+  await alice.keyboard.press("Escape");
+
+  await phone.goto(`${APP}/w/${alphaShort}`);
+  await phone.waitForURL(/\/login/, { timeout: 15000 }).catch(() => {});
+  check("the ended device has to sign in again at once", phone.url().includes("/login"), phone.url());
+  const direct = ((await second.client.from("pages").select("id")).data ?? []).length;
+  check("…and its token reads nothing from the database", direct === 0, String(direct));
+  await phone.close();
+  await aliceClient.rpc("remove_member", { ws: alphaId, member: devicesId });
 }
 
 await finish("tasks");

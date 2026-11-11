@@ -33,11 +33,11 @@ export function VisibilitySwitch({
   };
 
   return (
-    <section aria-labelledby="profile-visibility" className="mt-6 rounded-lg border border-border p-4">
-      <h2 id="profile-visibility" className="font-semibold">{t.profile.visibilityHeading}</h2>
-      <div role="radiogroup" aria-label={t.profile.visibilityHeading} className="mt-3 flex flex-col gap-2">
+    <section aria-labelledby="profile-visibility" className="rounded-xl border border-border bg-surface p-4">
+      <h2 id="profile-visibility" className="text-sm font-semibold">{t.profile.visibilityHeading}</h2>
+      <div role="radiogroup" aria-label={t.profile.visibilityHeading} className="mt-3 grid gap-2 sm:grid-cols-2">
         {(["private", "workspace"] as const).map((option) => (
-          <label key={option} className="flex min-h-9 cursor-pointer items-start gap-2">
+          <label key={option} className="flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg border border-border p-3 text-sm hover:border-border-strong has-[:checked]:border-accent has-[:checked]:bg-accent/5">
             <input
               type="radio"
               name="profile-visibility"
@@ -48,7 +48,7 @@ export function VisibilitySwitch({
             />
             <span>
               {t.profile.visibility[option]}
-              <span className="block text-sm text-muted">{t.profile.visibilityHint[option]}</span>
+              <span className="mt-0.5 block text-xs text-muted">{t.profile.visibilityHint[option]}</span>
             </span>
           </label>
         ))}
@@ -59,7 +59,7 @@ export function VisibilitySwitch({
           <code className="break-all rounded bg-surface px-2 py-1">{shareUrl}</code>
           <button
             type="button"
-            className="rounded-md border border-border px-2 py-1 hover:bg-surface"
+            className="inline-flex min-h-11 items-center rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong md:h-8 md:min-h-0"
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(shareUrl);

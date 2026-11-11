@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { t } from "@/i18n";
+import { Icon } from "@/components/ui/icon";
 import {
-  PRIORITY_ICONS,
   TASK_PRIORITIES,
   TASK_TYPES,
-  TYPE_ICONS,
   personLabel,
   taskKey,
   type Person,
@@ -15,7 +14,7 @@ import {
   type TaskStatus,
 } from "@/lib/tasks";
 
-// Filters like Jira's, for the list and the board: quick ones (people as
+// Filters for the list and the board: quick ones (people as
 // avatars, "Only mine", "Recently updated") and by status, type, priority,
 // label, reporter, due date, the project's own list fields and text. They
 // combine, and each project remembers its last filters in this browser.
@@ -113,6 +112,7 @@ export function FilterBar({
   fields,
   labels,
   showStatus = true,
+  trailing,
 }: {
   filters: Filters;
   setFilters: (f: Filters) => void;
@@ -121,6 +121,8 @@ export function FilterBar({
   fields: TaskField[];
   labels: string[];
   showStatus?: boolean;
+  // The screen's own controls, at the end of the same row.
+  trailing?: React.ReactNode;
 }) {
   const [more, setMore] = useState(false);
   const set = (changes: Partial<Filters>) => setFilters({ ...filters, ...changes });
@@ -128,7 +130,7 @@ export function FilterBar({
   const chip = (on: boolean) => `min-h-9 rounded-full border px-3 text-xs ${on ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`;
 
   return (
-    <div className="mt-4 space-y-2" role="search" aria-label={f.label}>
+    <div className="mt-3 space-y-2" role="search" aria-label={f.label}>
       <div className="flex flex-wrap items-center gap-2">
         <input
           value={filters.q}
@@ -161,7 +163,7 @@ export function FilterBar({
             onClick={() => set({ people: toggle(filters.people, "none") })}
             className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-surface text-xs ${filters.people.includes("none") ? "z-10 border-accent" : "border-background"}`}
           >
-            ∅
+            <Icon name="user" size={14} className="text-muted" />
           </button>
         </div>
         <button type="button" aria-pressed={filters.mine} onClick={() => set({ mine: !filters.mine })} className={chip(filters.mine)}>
@@ -178,6 +180,7 @@ export function FilterBar({
             {f.clear}
           </button>
         )}
+        {trailing && <div className="ml-auto flex flex-wrap items-center gap-1.5">{trailing}</div>}
       </div>
       {more && (
         <div className="flex flex-wrap gap-2 rounded-lg border border-border p-2" data-filters-more>
@@ -197,7 +200,7 @@ export function FilterBar({
             {TASK_TYPES.map((value) => (
               <option key={value} value={value}>
                 {filters.types.includes(value) ? "✓ " : ""}
-                {TYPE_ICONS[value]} {k.types[value]}
+                {k.types[value]}
               </option>
             ))}
           </select>
@@ -206,7 +209,7 @@ export function FilterBar({
             {TASK_PRIORITIES.map((value) => (
               <option key={value} value={value}>
                 {filters.priorities.includes(value) ? "✓ " : ""}
-                {PRIORITY_ICONS[value]} {k.priorities[value]}
+                {k.priorities[value]}
               </option>
             ))}
           </select>
@@ -264,7 +267,7 @@ export function FilterBar({
             ...filters.labels.map((v) => ({ key: `l${v}`, label: `#${v}`, off: () => set({ labels: toggle(filters.labels, v) }) })),
           ].map((c) => (
             <button key={c.key} type="button" onClick={c.off} className="rounded-full bg-surface px-2 py-1 hover:bg-border" aria-label={f.removeFilter(c.label)}>
-              {c.label} ✕
+              {c.label} <Icon name="close" size={12} className="inline" />
             </button>
           ))}
         </div>

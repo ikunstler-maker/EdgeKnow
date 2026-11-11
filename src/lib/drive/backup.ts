@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pageToMarkdown } from "@/lib/markdown";
+import { draftPageIds } from "@/lib/pages";
 import { driveApi } from "./google-drive";
 import { noteDriveError, refreshTokenOf, type DriveConnection } from "./storage";
 
@@ -11,16 +12,20 @@ import { noteDriveError, refreshTokenOf, type DriveConnection } from "./storage"
 export async function backupWorkspace(admin: SupabaseClient, connection: DriveConnection, limit = 40, source: SupabaseClient = admin) {
   const { data: pages } = await source
     .from("pages")
-    .select("id, title, icon, parent_id, content, cover, created_at, updated_at")
+    .select("id, title, icon, parent_id, content, cover, created_at, updated_at, published_at")
     .eq("workspace_id", connection.workspace_id)
     .is("deleted_at", null)
     .order("updated_at", { ascending: true });
+  // Drafts are for their people only (admins don't see them), so they stay out of the copy.
+  const { data: tree } = await source.from("pages").select("id, parent_id, published_at").eq("workspace_id", connection.workspace_id);
+  const drafts = draftPageIds((tree ?? []) as { id: string; parent_id: string | null; published_at: string | null }[]);
   const { data: done } = await source
     .from("page_backups")
     .select("page_id, json_file_id, markdown_file_id, backed_up_at")
     .eq("drive_connection_id", connection.id);
   const previous = new Map((done ?? []).map((b) => [b.page_id as string, b]));
   const due = (pages ?? []).filter((p) => {
+    if (drafts.has(p.id as string)) return false;
     const last = previous.get(p.id as string);
     return !last || new Date(last.backed_up_at as string) < new Date(p.updated_at as string);
   });
@@ -79,20 +84,33 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
   const rows = async (query: PromiseLike<{ data: unknown[] | null }>) => (await query).data ?? [];
   // Members and domains are always central; pages and discussions where the workspace keeps them.
   const of = (name: string, columns: string, from: SupabaseClient = source) => from.from(name).select(columns).eq("workspace_id", ws);
+  // Private events are for their people only (admins don't see them either), so they stay out of the copy.
+  const events = (await rows(
+    of("calendar_events", "id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, repeat_freq, repeat_interval, repeat_days, repeat_until, repeat_count, reminder_minutes, organizer_id, created_at, updated_at, deleted_at").neq("visibility", "private"),
+  )) as { id: string }[];
+  const eventIds = new Set(events.map((e) => e.id));
+  // Drafts (and what hangs on them) stay out too, as in the page backups.
+  const tree = (await rows(of("pages", "id, parent_id, published_at"))) as { id: string; parent_id: string | null; published_at: string | null }[];
+  const drafts = draftPageIds(tree);
+  const published = <T,>(list: unknown[]) => (list as (T & { page_id?: string; id?: string })[]).filter((row) => !drafts.has(String(row.page_id ?? "")));
+  const threads = published<{ id: string }>(await rows(of("comment_threads", "id, page_id, quoted_text, status, created_by, created_at, resolved_by, resolved_at")));
+  const threadIds = new Set(threads.map((thread) => thread.id));
+  const eventDays = ((await rows(of("calendar_event_exceptions", "event_id, occurrence_date, cancelled, starts_at, ends_at, title, description, location, meeting_url, updated_at"))) as { event_id: string }[]).filter((x) => eventIds.has(x.event_id));
+  const eventPeople = ((await rows(of("calendar_event_attendees", "event_id, user_id, status, created_at, responded_at"))) as { event_id: string }[]).filter((a) => eventIds.has(a.event_id));
   const snapshot = {
     format: "edgeknow-workspace-snapshot/1",
     created_at: new Date().toISOString(),
     workspace: (await admin.from("workspaces").select("id, short_id, name, owner_id, storage_limit_mb, created_at").eq("id", ws).maybeSingle()).data,
     members: await rows(of("workspace_members", "user_id, role, custom_role_id, joined_via, status, joined_at, profile:profiles!workspace_members_user_id_fkey(email, name)", admin)),
     domains: await rows(of("workspace_domains", "domain, is_active, added_at", admin)),
-    pages: await rows(of("pages", "id, parent_id, title, icon, position, owner_id, created_by, inherit, workspace_role, cover, created_at, updated_at, deleted_at")),
-    page_access: await rows(of("page_access", "page_id, user_id, role, granted_by, created_at")),
+    pages: ((await rows(of("pages", "id, parent_id, title, icon, position, owner_id, created_by, inherit, workspace_role, cover, created_at, updated_at, deleted_at, published_at"))) as { id: string }[]).filter((page) => !drafts.has(page.id)),
+    page_access: published(await rows(of("page_access", "page_id, user_id, role, granted_by, created_at"))),
     groups: await rows(of("workspace_groups", "id, name, parent_id, position, created_at", admin)),
     group_members: await rows(of("workspace_group_members", "group_id, user_id, is_lead, added_at", admin)),
     roles: await rows(of("workspace_roles", "id, builtin, name, permissions, content_level, position, created_at", admin)),
     collections: await rows(of("object_collections", "id, service, name, position, created_by, created_at")),
     collection_items: await rows(of("object_collection_items", "collection_id, object_id, position")),
-    page_group_access: await rows(of("page_group_access", "page_id, group_id, role, granted_by, created_at")),
+    page_group_access: published(await rows(of("page_group_access", "page_id, group_id, role, granted_by, created_at"))),
     service_objects: await rows(of("service_objects", "id, service, kind, title, data, owner_id, workspace_role, created_at, updated_at, deleted_at")),
     survey_settings: await rows(of("survey_settings", "object_id, anonymous, once, editable, accepting, closes_at, max_responses, sheet_id, sheet_name, updated_at")),
     survey_responses: await rows(of("survey_responses", "id, object_id, user_id, answers, created_at, updated_at")),
@@ -103,9 +121,19 @@ export async function snapshotWorkspace(admin: SupabaseClient, connection: Drive
     task_files: await rows(of("task_files", "id, task_id, name, mime_type, bytes, storage_backend, drive_source, uploaded_by, created_at")),
     task_links: await rows(of("task_links", "id, source_id, target_id, kind, created_by, created_at")),
     task_comments: await rows(of("task_comments", "id, task_id, author_id, body, created_at, edited_at")),
-    comment_threads: await rows(of("comment_threads", "id, page_id, quoted_text, status, created_by, created_at, resolved_by, resolved_at")),
-    comments: await rows(of("comments", "id, thread_id, author_id, body, mentions, created_at, edited_at")),
-    attachments: await rows(of("attachments", "id, page_id, storage_path, mime_type, bytes, width, height, storage_backend, drive_file_id, uploaded_by, created_at")),
+    comment_threads: threads,
+    comments: ((await rows(of("comments", "id, thread_id, author_id, body, mentions, created_at, edited_at"))) as { thread_id: string }[]).filter((comment) => threadIds.has(comment.thread_id)),
+    attachments: published(await rows(of("attachments", "id, page_id, storage_path, mime_type, bytes, width, height, storage_backend, drive_file_id, uploaded_by, created_at"))),
+    calendar_events: events,
+    calendar_event_attendees: eventPeople,
+    calendar_event_exceptions: eventDays,
+    calendar_settings: await rows(of("calendar_settings", "work_days, time_zone, updated_at")),
+    // Time off: everything the balances are made of; the personal comments stay out.
+    leave_policies: await rows(of("leave_policies", "id, name, kind, days_per_year, carry_over_max, count_days, requires_approval, requires_deputy, show_kind, allow_negative, unlimited, active, accrual, position, created_at")),
+    leave_holidays: await rows(of("leave_holidays", "day, name, created_at")),
+    leave_member_settings: await rows(of("leave_member_settings", "user_id, started_on, updated_at")),
+    leave_balances: await rows(of("leave_balances", "id, policy_id, user_id, year, kind, month, days, note, created_by, created_at")),
+    leave_requests: await rows(of("leave_requests", "id, user_id, policy_id, start_date, end_date, half, days, deputy_id, status, decided_by, decided_at, cancelled_by, cancelled_at, created_at")),
     audit_log: await rows(of("audit_log", "action, details, actor_id, created_at").order("created_at", { ascending: false }).limit(1000)),
   };
 

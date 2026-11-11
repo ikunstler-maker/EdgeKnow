@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { personLabel, type Person } from "@/lib/tasks";
+import { Icon } from "@/components/ui/icon";
 
 // Who may do what with one object of a service (a map, later boards, sheets…):
 // the whole workspace, people and groups — like sharing a page.
@@ -26,26 +27,29 @@ const roles = t.tasks.roles;
 const ROLES = ["owner", "editor", "commenter", "viewer"] as const;
 const WORKSPACE_ROLES = ["editor", "commenter", "viewer"] as const;
 const selectClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
-export function ObjectAccessButton({ label, title, intro, access, members, actions }: { label: string; title: string; intro: string; access: ObjectAccess; members: Person[]; actions: AccessActions }) {
+// viewOnly: objects others may only open (company apps), so only "viewer" is offered.
+export function ObjectAccessButton({ label, title, intro, access, members, actions, viewOnly = false }: { label: string; title: string; intro: string; access: ObjectAccess; members: Person[]; actions: AccessActions; viewOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonClass}>
-        {label}
+      <button type="button" onClick={() => setOpen(true)} className={buttonClass} data-access-open>
+        <Icon name="users" />
+        <span className="hidden md:inline">{label}</span>
+        <span className="sr-only md:hidden">{label}</span>
       </button>
-      {open && <AccessDialog title={title} intro={intro} access={access} members={members} actions={actions} onClose={() => setOpen(false)} />}
+      {open && <AccessDialog title={title} intro={intro} access={access} members={members} actions={actions} viewOnly={viewOnly} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function AccessDialog({ title, intro, access, members, actions, onClose }: { title: string; intro: string; access: ObjectAccess; members: Person[]; actions: AccessActions; onClose: () => void }) {
+function AccessDialog({ title, intro, access, members, actions, viewOnly, onClose }: { title: string; intro: string; access: ObjectAccess; members: Person[]; actions: AccessActions; viewOnly: boolean; onClose: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [person, setPerson] = useState("");
-  const [personRole, setPersonRole] = useState("editor");
+  const [personRole, setPersonRole] = useState(viewOnly ? "viewer" : "editor");
   const [group, setGroup] = useState("");
   const [groupRole, setGroupRole] = useState("viewer");
   useEffect(() => {
@@ -66,7 +70,7 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
   // A guest is never an owner.
   const roleOptions = (extra?: boolean, guest?: boolean) => (
     <>
-      {ROLES.filter((r) => !(guest && r === "owner")).map((r) => (
+      {(viewOnly ? (["viewer"] as const) : ROLES).filter((r) => !(guest && r === "owner")).map((r) => (
         <option key={r} value={r}>
           {roles[r]}
         </option>
@@ -76,12 +80,12 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-xl bg-background shadow-xl sm:rounded-xl">
         <div className="flex items-center border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold">{title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto p-4 text-sm">
@@ -95,7 +99,7 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
             <span className="flex-1">{a.workspace}</span>
             <select value={access.workspaceRole ?? ""} disabled={pending} onChange={(e) => run(() => actions.setWorkspaceRole(e.target.value || null))} className={selectClass}>
               <option value="">{a.noAccess}</option>
-              {WORKSPACE_ROLES.map((r) => (
+              {(viewOnly ? (["viewer"] as const) : WORKSPACE_ROLES).map((r) => (
                 <option key={r} value={r}>
                   {roles[r]}
                 </option>
@@ -153,7 +157,7 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
                     .filter((g) => !listedGroups.has(g.id))
                     .map((g) => (
                       <option key={g.id} value={g.id}>
-                        👥 {g.name}
+                        {g.name}
                       </option>
                     ))}
                 </select>
@@ -176,7 +180,7 @@ function AccessDialog({ title, intro, access, members, actions, onClose }: { tit
               <ul className="space-y-1">
                 {access.groupGrants.map((g) => (
                   <li key={g.group_id} className="flex min-h-11 items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate">👥 {groupName.get(g.group_id)}</span>
+                    <span className="min-w-0 flex-1 truncate"><Icon name="users" className="mr-1.5 inline" />{groupName.get(g.group_id)}</span>
                     <select value={g.role} disabled={pending} aria-label={groupName.get(g.group_id)} onChange={(e) => run(() => actions.setGroupRole(g.group_id, e.target.value || null))} className={selectClass}>
                       {roleOptions(true)}
                     </select>

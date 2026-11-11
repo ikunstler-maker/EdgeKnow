@@ -166,6 +166,7 @@ const bobReads = {
   "Drive accesses for task files": "drive_accounts?select=token_encrypted",
   "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
   "alpha group grants": `page_group_access?workspace_id=eq.${alpha.id}&select=role`,
+  "alpha page versions": `page_versions?workspace_id=eq.${alpha.id}&select=id,content`,
 };
 for (const [name, path] of Object.entries(bobReads)) {
   const res = await rest(bob, path);
@@ -174,6 +175,8 @@ for (const [name, path] of Object.entries(bobReads)) {
 
 const bobActions = {
   "rename alpha page": ["rename_page", { target_page: page.id, new_title: "hacked" }],
+  "publish alpha's draft": ["publish_page", { target_page: page.id, with_children: true }],
+  "restore a version of alpha's page": ["restore_page_version", { target_version: "00000000-0000-0000-0000-000000000000" }],
   "create page in alpha": ["create_page", { ws: alpha.id, parent: null, new_title: "x" }],
   "invite himself to alpha": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "admin" }],
   "invite himself to alpha as a guest": ["invite_member", { ws: alpha.id, invitee_email: "bob@beta.test", invitee_role: "guest", guest_until: null }],
@@ -205,6 +208,10 @@ const bobActions = {
   "trash alpha page": ["trash_page", { target_page: page.id }],
   "delete alpha": ["delete_workspace", { ws: alpha.id, confirm_name: "Alpha" }],
   "rename alpha": ["rename_workspace", { ws: alpha.id, new_name: "Mine" }],
+  "make an event in alpha": ["create_calendar_event", { ws: alpha.id, fields: { title: "Mine", visibility: "open", starts_at: "2030-01-10T10:00:00Z", ends_at: "2030-01-10T11:00:00Z", time_zone: "UTC", all_day: false }, people: [] }],
+  "set alpha's working days": ["set_calendar_settings", { ws: alpha.id, new_work_days: [1], new_time_zone: "UTC" }],
+  "make time-off policies in alpha": ["seed_leave_policies", { ws: alpha.id, names: { vacation: "V", sick: "S", day_off: "D", remote: "R" } }],
+  "ask for time off in alpha": ["request_leave", { ws: alpha.id, target_policy: "00000000-0000-0000-0000-000000000000", first_day: "2030-01-10", last_day: "2030-01-10", part: null, deputy: null, note: "" }],
 };
 for (const [name, [fn, body]] of Object.entries(bobActions)) {
   const res = await rpc(bob, fn, body);

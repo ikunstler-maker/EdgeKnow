@@ -27,6 +27,8 @@ import { DesignLayers } from "./design-layers";
 import { ChildPanel, FramePanel, PaintsPanel, PrototypePanel, Section } from "./design-inspector";
 import { exportFrame } from "./design-export";
 import { TaskFromText } from "./task-from-text";
+import { Icon } from "@/components/ui/icon";
+import { ALIGN_ICON, EMBED_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
 
 const g = t.design;
 const s = t.slides;
@@ -727,19 +729,19 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   const textForTask = one?.type === "TEXT" ? one.text?.trim() : undefined;
 
   return (
-    <div className="mt-3 flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#090B0E] text-gray-100 [color-scheme:dark]" style={DARK} data-design-editor>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#090B0E] text-gray-100 [color-scheme:dark]" style={DARK} data-design-editor>
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-[#151922] px-2 py-1" role="toolbar" aria-label={g.tools.select}>
         {editable &&
           (["select", "hand", "FRAME", "RECTANGLE", "ELLIPSE", "LINE", "ARROW", "TEXT", "pen"] as Tool[]).map((x) => (
             <button key={x} type="button" aria-pressed={tool === x} title={g.tools[x]} aria-label={g.tools[x]} onClick={() => (setTool(x), setPen(null))} className={`${btn} ${tool === x ? "bg-sky-500/30" : ""}`} data-tool={x}>
-              {{ select: "↖", hand: "✋", FRAME: "#", RECTANGLE: "▭", ELLIPSE: "◯", LINE: "╱", ARROW: "➚", TEXT: "T", pen: "✒" }[x as string]}
+              <Icon name={TOOL_ICON[x as string]} />
             </button>
           ))}
         {editable && (
           <>
             <button type="button" title={g.tools.image} aria-label={g.tools.image} onClick={() => fileRef.current?.click()} className={btn} data-tool="IMAGE">
-              🖼
+              <Icon name="image" />
             </button>
             <button type="button" title={g.tools.svg} aria-label={g.tools.svg} onClick={() => svgFileRef.current?.click()} className={btn} data-tool="SVG">
               SVG
@@ -766,7 +768,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                       className="flex min-h-9 w-full items-center gap-2 rounded px-2 text-left text-sm hover:bg-white/10"
                       data-embed-kind={k}
                     >
-                      {s.embeds.icons[k]} {s.embeds.kinds[k]}
+                      <Icon name={EMBED_ICON[k] ?? "embed"} /> {s.embeds.kinds[k]}
                     </button>
                   ))}
                 </div>
@@ -778,10 +780,10 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
         )}
         <span className="mx-1 h-5 w-px bg-white/10" />
         <button type="button" onClick={undo} disabled={!past.length} className={btn} title={s.undo} aria-label={s.undo}>
-          ↶
+          <Icon name="undo" />
         </button>
         <button type="button" onClick={redo} disabled={!future.length} className={btn} title={s.redo} aria-label={s.redo}>
-          ↷
+          <Icon name="redo" />
         </button>
         <span className="mx-1 h-5 w-px bg-white/10" />
         <button type="button" onClick={() => setCam((c) => zoomAt(c, 0.8))} className={btn} aria-label={s.zoomOut}>
@@ -849,7 +851,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                         setPageIndex(0);
                       }}
                     >
-                      ✕
+                      <Icon name="close" />
                     </button>
                   )}
                 </li>
@@ -1016,19 +1018,20 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                 <div className="grid grid-cols-3 gap-1">
                   {(["left", "centerX", "right", "top", "middle", "bottom"] as AlignMode[]).map((m) => (
                     <button key={m} type="button" onClick={() => placeSpots(align(picked, m))} className={btn} aria-label={s.aligns[m]} title={s.aligns[m]}>
-                      {{ left: "⇤", centerX: "↔", right: "⇥", top: "⤒", middle: "↕", bottom: "⤓" }[m]}
+                      <Icon name={ALIGN_ICON[m]} />
                     </button>
                   ))}
                   <button type="button" disabled={picked.length < 3} onClick={() => placeSpots(distribute(picked, "x"))} className={btn} aria-label={s.distributeX}>
-                    ⋯
+                    <Icon name="more" />
                   </button>
                   <button type="button" disabled={picked.length < 3} onClick={() => placeSpots(distribute(picked, "y"))} className={btn} aria-label={s.distributeY}>
-                    ⋮
+                    <Icon name="more" className="rotate-90" />
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-1">
                   <button type="button" onClick={() => wrap("GROUP")} className={btn} data-group>
-                    ▣ {s.group.split(" (")[0]}
+                    <Icon name="group" className="mr-1 inline" />
+                    {s.group.split(" (")[0]}
                   </button>
                   <button type="button" onClick={() => wrap("FRAME")} className={btn} data-wrap-frame>
                     # {g.wrapFrame.split(" (")[0]}
@@ -1066,16 +1069,16 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                 <Section title={t.slides.arrange}>
                   <div className="grid grid-cols-2 gap-1">
                     <button type="button" onClick={() => reorder("front")} className={btn} aria-label={s.toFront} title={s.toFront}>
-                      ⬆
+                      <Icon name="upload" />
                     </button>
                     <button type="button" onClick={() => reorder("back")} className={btn} aria-label={s.toBack} title={s.toBack}>
-                      ⬇
+                      <Icon name="download" />
                     </button>
                     <button type="button" onClick={copyStyle} className={btn} title={g.copyStyle}>
-                      🎨→
+                      <Icon name="copy" />
                     </button>
                     <button type="button" onClick={pasteStyle} className={btn} title={g.pasteStyle}>
-                      →🎨
+                      <Icon name="edit" />
                     </button>
                     {one.type === "GROUP" && (
                       <button type="button" onClick={ungroup} className={`${btn} col-span-2`} data-ungroup>
@@ -1086,7 +1089,8 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                       # {g.wrapFrame.split(" (")[0]}
                     </button>
                     <button type="button" onClick={removeSelected} className={`${btn} col-span-2 text-red-400`} data-delete-node>
-                      🗑 {s.deleteNode}
+                      <Icon name="trash" className="mr-1 inline" />
+                      {s.deleteNode}
                     </button>
                   </div>
                 </Section>

@@ -3,6 +3,9 @@
 -- group crosses into another workspace.
 \pset format unaligned
 \pset tuples_only on
+
+-- Pages in this file are published when created; drafts have their own test (page drafts).
+alter table public.pages alter column published_at set default now();
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
@@ -103,3 +106,6 @@ insert into public.page_group_access (workspace_id, page_id, group_id, role) val
 \set ON_ERROR_STOP 1
 
 delete from public.pages where workspace_id = :'ws';
+
+reset role;
+alter table public.pages alter column published_at drop default;

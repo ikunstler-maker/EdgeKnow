@@ -4,6 +4,7 @@
 
 Source of truth: `docs/SPEC.md` (Ukrainian) + owner-approved `docs/decisions.md`. Conflict → ask first.
 Open work: `docs/backlog.md`. DB rules: `.claude/rules/supabase.md`. UI/i18n rules: `.claude/rules/ui-i18n.md`.
+Context pack: `docs/context/` (overview, platform core, one card per service; `README.md` there). Working on a service → read its `-en` card first. A PR that changes a service updates its card (`-uk` and `-en`) in the same PR.
 Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries per `docs/MASTER_GUIDE.md` A2). Terms: `docs/GLOSSARY.md`.
 
 ## Session start (automatic, the owner doesn't need to ask)
@@ -37,7 +38,7 @@ Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries p
 - Multi-tenant: every team table has `workspace_id`; policies start with `is_workspace_member(workspace_id)`;
   `effective_role()` checks membership first. Platform admin sees statistics only, never contents.
 - Workspace URLs: `/w/<short_id>/...` (short_id permanent, name not).
-- `src/proxy.ts` refreshes the session and re-checks access on every request; `/about`, `/f/*`, `/api/f/*` are open.
+- `src/proxy.ts` refreshes the session and re-checks access on every request; `/about`, `/f/*`, `/api/f/*`, `/api/calendar-feed/*` (a secret in the address) are open.
 - `cacheComponents` is off: every page is per-user.
 - Code, identifiers, commits in English.
 

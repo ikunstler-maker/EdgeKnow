@@ -9,9 +9,9 @@ import type { Person } from "@/lib/tasks";
 import { ObjectAccessButton, type ObjectAccess } from "@/components/access/object-access";
 import { saveDeck, setDeckGroupRole, setDeckMemberRole, setDeckWorkspaceRole, trashDeck } from "@/app/slide-actions";
 import { DeckEditor } from "./deck-editor";
+import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
 
 const s = t.slides;
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9";
 
 // One presentation: its name, the save status, access and the editor. Changes are
 // saved about a second after the last one; a save that finds a newer version stops
@@ -102,40 +102,33 @@ export function DeckScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
+  const editable = canEdit && status !== "conflict";
   return (
-    <div className="mt-2 flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              schedule({ title: e.target.value });
-            }}
-            placeholder={s.titlePlaceholder}
-            aria-label={s.titlePlaceholder}
-            maxLength={200}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none"
-          />
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">{title || s.untitled}</h1>
-        )}
-        <span className="text-xs text-muted" role="status" data-save-status={status}>
-          {status === "saving" ? s.saving : status === "saved" ? s.saved : ""}
-        </span>
-        <button type="button" onClick={() => void open("/play")} className={buttonClass} data-play>
-          {s.player.show}
-        </button>
-        <button type="button" onClick={() => void open("/play?presenter=1")} className={buttonClass} data-presenter-open>
-          {s.player.presenter}
-        </button>
-        <button type="button" onClick={() => void open("/print")} className={buttonClass} data-print>
-          {s.print.button}
-        </button>
-        <button type="button" onClick={() => void open("/print?notes=1")} className={buttonClass}>
-          {s.print.withNotes}
-        </button>
-        {access && (
+    <StudioShell
+      service="slides"
+      backHref={workspacePath(shortId, "/slides")}
+      backLabel={s.back}
+      title={title}
+      onTitle={
+        canEdit
+          ? (value) => {
+              setTitle(value);
+              schedule({ title: value });
+            }
+          : undefined
+      }
+      titleLabel={s.titlePlaceholder}
+      untitled={s.untitled}
+      status={status}
+      savingLabel={s.saving}
+      savedLabel={s.saved}
+      center={undefined}
+      files={[
+        { label: s.print.button, icon: "download" as const, onSelect: () => void open("/print"), attrs: { "data-print": "" } },
+        { label: s.print.withNotes, icon: "file-text" as const, onSelect: () => void open("/print?notes=1"), attrs: { "data-print-notes": "" } },
+      ]}
+      access={
+        access && (
           <ObjectAccessButton
             label={s.access}
             title={s.accessTitle}
@@ -148,35 +141,29 @@ export function DeckScreen({
               setGroupRole: (group, r) => setDeckGroupRole(shortId, id, group, r),
             }}
           />
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={async () => {
-              await trashDeck(shortId, id);
-              router.push(workspacePath(shortId, "/slides"));
-            }}
-            className={buttonClass}
-          >
-            🗑️ {s.toBin}
-          </button>
-        )}
-      </div>
-      {!canEdit && <p className="mt-1 text-sm text-muted">{s.readOnly}</p>}
-      {status === "conflict" && (
-        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          {s.conflict}
-          <button type="button" onClick={() => window.location.reload()} className="min-h-9 rounded-md border border-border bg-background px-3">
-            {s.reload}
-          </button>
-        </p>
-      )}
-      {error && status === "error" && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
-      <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={canEdit && status !== "conflict"} onChange={(deck) => schedule({ data: deck })} onPlay={(n) => void open(`/play?at=${n}`)} />
-    </div>
+        )
+      }
+      primary={{ label: s.player.show, icon: "play", onSelect: () => void open("/play"), attrs: { "data-play": "" } }}
+      more={[
+        { label: s.player.presenter, icon: "monitor" as const, onSelect: () => void open("/play?presenter=1"), attrs: { "data-presenter-open": "" } },
+        ...(canEdit
+          ? [
+              {
+                label: s.toBin,
+                icon: "trash" as const,
+                danger: true,
+                onSelect: async () => {
+                  await trashDeck(shortId, id);
+                  router.push(workspacePath(shortId, "/slides"));
+                },
+                attrs: { "data-to-bin": "" },
+              },
+            ]
+          : []),
+      ]}
+      notices={<StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
+    >
+      <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={editable} onChange={(deck) => schedule({ data: deck })} onPlay={(n) => void open(`/play?at=${n}`)} />
+    </StudioShell>
   );
 }

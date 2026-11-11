@@ -1,0 +1,13 @@
+alice (owner): 4 tasks, 0 only the old way, 0 only the new way — Travels, Stays with team 1, On the main board, Trashed
+bob (team 1, frozen for him): 5 tasks, 0 only the old way, 0 only the new way — Stays with team 1, Bob private, Private for Carol, On the main board, Trashed
+carol (team 2): 4 tasks, 0 only the old way, 0 only the new way — Travels, Private for Carol, On the main board, Trashed
+dan (both teams): 4 tasks, 0 only the old way, 0 only the new way — Travels, Stays with team 1, On the main board, Trashed
+eve (no team): 2 tasks, 0 only the old way, 0 only the new way — On the main board, Trashed
+zed (not in the workspace): 0 tasks, 0 only the old way, 0 only the new way — none
+alice, admins see private: 6 tasks, 0 only the old way, 0 only the new way — Travels, Stays with team 1, Bob private, Private for Carol, On the main board, Trashed
+eve, admins see private (she is not one): 2 tasks, 0 only the old way, 0 only the new way
+project closed, bob (team 1): 0 tasks, 0 only the old way, 0 only the new way
+project closed, carol (team 2): 4 tasks, 0 only the old way, 0 only the new way
+project closed, alice: 6 tasks, 0 only the old way, 0 only the new way
+a project that doesn't exist: 0
+anon may call it: false

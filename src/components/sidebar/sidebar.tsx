@@ -1,7 +1,7 @@
 "use client";
 
 import { ServiceSwitcher } from "@/components/services/service-switcher";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { t } from "@/i18n";
@@ -10,18 +10,16 @@ import { ancestorsOf } from "@/lib/pages";
 import { workspacePath } from "@/lib/paths";
 import type { WorkspaceSummary } from "@/lib/workspace";
 import type { BoardSummary, ObjectSummary, ProjectSummary } from "@/lib/tasks";
-import { sidebarTasks } from "@/app/task-actions";
 import { usePages } from "@/components/pages/pages-provider";
-import { SignOutButton } from "@/components/sign-out-button";
-import { ChangelogLink } from "@/components/changelog/changelog-link";
 import { expandAll } from "./expanded-store";
 import { HeadingList, useActiveHeading, type Heading } from "@/components/editor/table-of-contents";
 import { setSidebarShowsTree, useSidebarToc } from "@/components/editor/toc-store";
-import { PreferencesSwitch } from "@/components/prefs/preferences-switch";
 import { SearchButton } from "@/components/search/search-dialog";
 import { PageTree } from "./page-tree";
 import { ServiceCollections, type Collections } from "./collections";
-import { WorkspaceSwitcher } from "./workspace-switcher";
+import { WorkspaceMenu } from "./workspace-menu";
+import { Icon } from "@/components/ui/icon";
+import { OPEN_APUS_EVENT } from "@/components/apus/apus-events";
 import { AnglerGuide } from "@/components/angler/angler-guide";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useAppearance } from "@/components/angler/appearance";
@@ -31,12 +29,14 @@ export function currentPageId(pathname: string): string | null {
 }
 
 // Which service the sidebar shows: the one the person is in (the wiki elsewhere).
-const OBJECT_SERVICES = ["boards", "nodes", "sheets", "slides", "surveys"] as const;
-type Section = "wiki" | "tasks" | (typeof OBJECT_SERVICES)[number];
+const OBJECT_SERVICES = ["boards", "nodes", "sheets", "slides", "surveys", "apps"] as const;
+type Section = "wiki" | "tasks" | "calendar" | (typeof OBJECT_SERVICES)[number];
 export function sectionOf(pathname: string, shortId: string): Section {
   const rest = pathname.slice(workspacePath(shortId).length);
   const first = rest.split("/")[1] ?? "";
   if (first === "tasks") return "tasks";
+  // The calendar keeps everything on its own screen: the panel shows no list there.
+  if (first === "calendar") return "calendar";
   return (OBJECT_SERVICES as readonly string[]).includes(first) ? (first as Section) : "wiki";
 }
 
@@ -49,6 +49,7 @@ export function Sidebar({
   collections,
   canCreatePages = true,
   onNavigate,
+  onCollapse,
 }: {
   user: CurrentUser;
   workspaces: WorkspaceSummary[];
@@ -58,6 +59,8 @@ export function Sidebar({
   collections: Collections;
   canCreatePages?: boolean;
   onNavigate?: () => void;
+  // Desktop only: hides the panel (the shell shows a slim rail instead).
+  onCollapse?: () => void;
 }) {
   const pathname = usePathname();
   const { workspace, pages, create, pending } = usePages();
@@ -76,32 +79,30 @@ export function Sidebar({
     expandAll(ancestorsOf(pages, currentId).slice(0, -1).map((p) => p.id));
   }, [currentId, pages]);
 
-  // The bottom links are one row of icons (the name shows on hover and is read aloud).
-  const iconLink = (href: string, label: string, icon: string, hint?: string) => (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      title={hint ?? label}
-      aria-label={label}
-      aria-current={pathname === href ? "page" : undefined}
-      data-angler-here={pathname === href ? "" : undefined}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-lg hover:bg-surface md:h-9 md:w-9 ${
-        pathname === href ? "bg-surface" : ""
-      }`}
-    >
-      {icon}
-    </Link>
-  );
+  const trashHref = workspacePath(workspace.shortId, "/trash");
+  const row = "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8";
 
   return (
     <nav
       ref={navRef}
       data-angler-on={appearance.showMascot ? "" : undefined}
-      className="relative flex h-full flex-col gap-2 p-2"
+      className="relative flex h-full flex-col gap-1 p-2"
       aria-label={t.sidebar.pagesHeading}
     >
       <AnglerGuide containerRef={navRef} />
-      <WorkspaceSwitcher workspaces={workspaces} onNavigate={onNavigate} />
+      <WorkspaceMenu
+        user={user}
+        workspaces={workspaces}
+        pathname={pathname}
+        onNavigate={onNavigate}
+        trailing={
+          onCollapse && (
+            <button type="button" onClick={onCollapse} aria-label={t.sidebar.hidePanel} title={`${t.sidebar.hidePanel} (Ctrl+\\)`} className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-foreground md:flex" data-sidebar-collapse>
+              <Icon name="sidebar" size={18} />
+            </button>
+          )
+        }
+      />
       <ServiceSwitcher shortId={workspace.shortId} pathname={pathname} onNavigate={onNavigate} />
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
@@ -115,25 +116,26 @@ export function Sidebar({
           onNavigate?.();
         }}
         disabled={pending}
-        className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground disabled:opacity-60 md:min-h-9"
+        className={`${row} disabled:opacity-60`}
       >
-        <span className="w-5 text-center">＋</span>
+        <Icon name="plus" />
         {t.sidebar.newPage}
       </button>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto" data-angler-scroll>
+      <div className="mt-1 min-h-0 flex-1 overflow-y-auto border-t border-border pt-1" data-angler-scroll>
         {section === "tasks" && <TaskProjects projects={projects} boards={boards} pathname={pathname} onNavigate={onNavigate} />}
-        {section !== "wiki" && section !== "tasks" && (
+        {section !== "wiki" && section !== "tasks" && section !== "calendar" && (
           <ServiceObjects service={section} objects={objects.filter((o) => o.service === section)} collections={collections} pathname={pathname} onNavigate={onNavigate} />
         )}
         {section === "wiki" && sidebarToc && (
           <button
             type="button"
             onClick={() => setSidebarShowsTree(!sidebarToc.showTree)}
-            className="mb-1 flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm text-muted hover:bg-surface hover:text-foreground md:min-h-9"
+            className={`${row} mb-1 w-full text-left`}
           >
-            {sidebarToc.showTree ? `☰ ${t.toc.showToc}` : `🗂 ${t.toc.showTree}`}
+            <Icon name={sidebarToc.showTree ? "list" : "file-text"} />
+            {sidebarToc.showTree ? t.toc.showToc : t.toc.showTree}
           </button>
         )}
         {section === "wiki" &&
@@ -144,23 +146,28 @@ export function Sidebar({
           ))}
       </div>
 
-      <div className="flex flex-col gap-1 border-t border-border pt-2" data-sidebar-bottom>
-        <div className="flex flex-wrap items-center gap-0.5 px-1">
-          {iconLink(workspacePath(workspace.shortId, "/profile"), t.profile.link, "👤", `${t.profile.link} · ${user.email}`)}
-          {!guest && iconLink(workspacePath(workspace.shortId, "/trash"), t.sidebar.trash, "🗑️")}
-          {iconLink(workspacePath(workspace.shortId, "/settings"), t.workspace.settings, "⚙️")}
-          {user.isPlatformAdmin && iconLink("/admin", t.platform.link, "🛰️")}
-          {iconLink("/help", t.help.link, "❓")}
-          <span className="ml-auto">
-            <SignOutButton icon />
-          </span>
-        </div>
-        <div className="flex items-center gap-1 px-1">
-          <div className="min-w-0 flex-1">
-            <PreferencesSwitch compact />
-          </div>
-          <ChangelogLink onNavigate={onNavigate} current={pathname === "/changelog"} />
-        </div>
+      {/* A slim bottom bar: the bin and Apus. Everything else lives in the workspace menu. */}
+      <div className="flex items-center gap-1 border-t border-border pt-1.5" data-sidebar-bottom>
+        {!guest && (
+          <Link
+            prefetch={false}
+            href={trashHref}
+            onClick={onNavigate}
+            aria-label={t.sidebar.trash}
+            aria-current={pathname === trashHref ? "page" : undefined}
+            data-angler-here={pathname === trashHref ? "" : undefined}
+            className={`${row} min-w-0 flex-1 ${pathname === trashHref ? "bg-hover text-foreground" : ""}`}
+          >
+            <Icon name="trash" />
+            <span className="truncate">{t.sidebar.trash}</span>
+          </Link>
+        )}
+        {appearance.lure !== "hidden" && (
+          <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_APUS_EVENT))} className={`${row} ${guest ? "flex-1" : ""}`} data-sidebar-apus>
+            <Icon name="sparkle" />
+            <span className="truncate">{t.apus.name}</span>
+          </button>
+        )}
       </div>
     </nav>
   );
@@ -176,30 +183,19 @@ function SidebarContents({ headings, onPick }: { headings: Heading[]; onPick?: (
   );
 }
 
-const linkClass = (here: boolean) => `flex min-h-11 items-center gap-2 rounded-md px-3 text-sm hover:bg-surface md:min-h-9 ${here ? "bg-surface font-medium" : ""}`;
+const linkClass = (here: boolean) => `flex min-h-11 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-hover md:min-h-8 ${here ? "bg-hover font-medium" : ""}`;
 
-// Tasks: projects; the open project shows its boards and its tasks.
+// Tasks: projects; the open project shows its boards. The tasks themselves are on
+// the board, not repeated here.
 function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: ProjectSummary[]; boards: BoardSummary[]; pathname: string; onNavigate?: () => void }) {
   const { workspace } = usePages();
   const base = workspacePath(workspace.shortId, "/tasks");
   const openKey = pathname.startsWith(`${base}/`) ? pathname.slice(base.length + 1).split("/")[0] : null;
   const open = projects.find((p) => p.key === openKey) ?? null;
-  const [tasks, setTasks] = useState<{ project: string; list: { id: string; number: number; title: string }[] } | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    let live = true;
-    sidebarTasks(open.id).then(
-      (list) => live && setTasks({ project: open.id, list }),
-      () => {},
-    );
-    return () => {
-      live = false;
-    };
-  }, [open, pathname]);
   const board = useSearchParams().get("board");
   return (
     <section aria-label={t.tasks.section} className="mb-2" data-sidebar-section="tasks">
-      <Link
+      <Link prefetch={false}
         href={base}
         onClick={onNavigate}
         data-angler-here={pathname === base ? "" : undefined}
@@ -212,46 +208,28 @@ function TaskProjects({ projects, boards, pathname, onNavigate }: { projects: Pr
           const href = `${base}/${project.key}`;
           const here = project.id === open?.id;
           const own = boards.filter((b) => b.project_id === project.id);
-          const list = tasks?.project === project.id ? tasks.list : null;
           return (
             <li key={project.id}>
-              <Link href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
-                <span className="shrink-0">{project.icon ?? "📋"}</span>
+              <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={pathname === href ? "" : undefined} className={linkClass(pathname === href && !board)}>
+                {project.icon ? <span className="shrink-0">{project.icon}</span> : <Icon name="folder" className="text-muted" />}
                 <span className="truncate">{project.name}</span>
                 <span className="ml-auto font-mono text-xs text-muted">{project.key}</span>
               </Link>
-              {here && (
+              {here && own.length > 0 && (
                 <div className="ml-4 border-l border-border pl-1">
-                  {own.length > 0 && (
-                    <ul aria-label={t.sidebar.mainBoard}>
+                  <ul aria-label={t.sidebar.mainBoard}>
                       <li>
-                        <Link href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
-                          🗂 <span className="truncate">{t.sidebar.mainBoard}</span>
+                        <Link prefetch={false} href={href} onClick={onNavigate} className={linkClass(pathname === href && !board)}>
+                          <Icon name="columns" className="text-muted" /> <span className="truncate">{t.sidebar.mainBoard}</span>
                         </Link>
                       </li>
                       {own.map((b) => (
                         <li key={b.id}>
-                          <Link href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
-                            🗂 <span className="truncate">{b.name}</span>
+                          <Link prefetch={false} href={`${href}?board=${b.id}`} onClick={onNavigate} className={linkClass(board === b.id)} data-sidebar-board={b.name}>
+                            <Icon name="columns" className="text-muted" /> <span className="truncate">{b.name}</span>
                           </Link>
                         </li>
                       ))}
-                    </ul>
-                  )}
-                  <p className="px-3 pb-1 pt-2 text-xs text-muted">{t.sidebar.projectTasks}</p>
-                  {list && list.length === 0 && <p className="px-3 text-xs text-muted">{t.sidebar.noTasks}</p>}
-                  <ul>
-                    {list?.map((task) => {
-                      const taskHref = `${href}/${task.number}`;
-                      return (
-                        <li key={task.id}>
-                          <Link href={taskHref} onClick={onNavigate} data-angler-here={pathname === taskHref ? "" : undefined} className={linkClass(pathname === taskHref)} data-sidebar-task>
-                            <span className="shrink-0 font-mono text-xs text-muted">{project.key}-{task.number}</span>
-                            <span className="truncate">{task.title}</span>
-                          </Link>
-                        </li>
-                      );
-                    })}
                   </ul>
                 </div>
               )}
@@ -270,7 +248,7 @@ function ServiceObjects({ service, objects, collections, pathname, onNavigate }:
   const name = t.services.items[service as keyof typeof t.services.items]?.name ?? service;
   return (
     <section aria-label={name} className="mb-2" data-sidebar-section={service}>
-      <Link href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
+      <Link prefetch={false} href={base} onClick={onNavigate} data-angler-here={pathname === base ? "" : undefined} className="block px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted hover:text-foreground">
         {t.sidebar.allOf(name)}
       </Link>
       <ServiceCollections

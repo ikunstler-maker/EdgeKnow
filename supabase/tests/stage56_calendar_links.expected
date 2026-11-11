@@ -1,0 +1,31 @@
+bob, mine: Bob's task
+bob, all: Bob private, Bob's task, Done yesterday, Carol's task, Private for Carol, Nobody's task — same as Rukh
+carol, mine: Carol's task, Private for Carol
+carol, all: Bob's task, Done yesterday, Carol's task, Private for Carol, Nobody's task — same as Rukh
+alice (owner), all: Bob's task, Done yesterday, In a closed project, Carol's task, Nobody's task — same as Rukh
+dana (admin), all: Bob's task, Done yesterday, In a closed project, Carol's task, Nobody's task — same as Rukh
+dana sees of a private one: false
+gwen (guest), all: nothing — same as Rukh
+eve (outsider), all: nothing — same as Rukh
+dana, admins may see private: Bob private, Bob's task, Done yesterday, In a closed project, Carol's task, Private for Carol, Nobody's task — same as Rukh
+bob still: Bob private, Bob's task, Done yesterday, Carol's task, Private for Carol, Nobody's task — same as Rukh
+too wide a period: 0, keys: done,due_date,id,key,mine,number,priority,project,title
+bob (not the organizer) invites a unit: forbidden, refreshes: forbidden
+alice invites Marketing: 2 people
+in the event: alice accepted, bob invited, carol invited
+again: 0, a unit of another workspace: not_found
+carol says no: declined
+refresh: 1 more
+in the event: alice accepted, bob invited, carol declined, dana invited
+units kept: 1
+alice finds “launch”: Launch party, Launch retro (weekly), Marketing sync; the series with a day ahead: true
+by the place: Launch party, Launch retro (weekly), Marketing sync; a wildcard is just a character: 0
+bob (invited to the private one) finds: Launch party, Launch retro (weekly), Marketing sync
+bob, no longer invited, finds: Launch party, Launch retro (weekly)
+gwen (guest) finds: nothing
+eve (outsider) finds: nothing
+alice's chips: Launch party, Marketing sync
+bob's chips: Launch party
+gwen's chips: nothing
+eve's chips: nothing
+anon calls: false false false

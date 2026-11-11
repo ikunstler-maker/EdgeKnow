@@ -1,0 +1,11 @@
+sync: true
+bob sees: Invite, Open, Private, Request / rows: 4
+alice (owner) sees: Invite, Open, Request / rows: 3
+alice opens the private one: forbidden, busy slots of bob: 4
+alice asks to join: requested, cancels the private one: forbidden
+bob lets her in: true
+alice hears: event_answer Request
+gwen (guest) sees: Private / rows: 1
+gwen creates: forbidden, busy: 0
+carol (not a member) sees: nothing / rows: 0, joins: forbidden, busy: 0
+psql: ERROR:  permission denied for table calendar_events

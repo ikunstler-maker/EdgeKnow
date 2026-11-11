@@ -36,7 +36,7 @@ const TASK_COLUMNS =
   "id, workspace_id, project_id, number, title, description, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, updated_by, done_at, deleted_at, deleted_by, custom, private";
 
 const PAGE_COLUMNS =
-  "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover, ack_label, ack_revision, ack_editing, ack_groups";
+  "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover, ack_label, ack_revision, ack_editing, ack_groups, published_at";
 
 const STAGES: Stage[] = [
   { name: "pages", table: "pages", columns: PAGE_COLUMNS, order: "id", onConflict: "id", flatten: true },
@@ -55,6 +55,14 @@ const STAGES: Stage[] = [
     columns: "page_id, workspace_id, revision, user_id, label, content_hash, signed_at",
     order: "page_id,revision,user_id",
     onConflict: "page_id,revision,user_id",
+  },
+  // Page history (versions of the last days).
+  {
+    name: "page history",
+    table: "page_versions",
+    columns: "id, workspace_id, page_id, reason, title, icon, content, created_by, created_at, last_at, restored_from",
+    order: "id",
+    onConflict: "id",
   },
   { name: "access", table: "page_access", columns: "id, workspace_id, page_id, user_id, role, granted_by, created_at", order: "id", onConflict: "id" },
   {
@@ -258,18 +266,56 @@ const STAGES: Stage[] = [
     onConflict: "id",
     replace: true,
   },
+  {
+    name: "calendar events",
+    table: "calendar_events",
+    columns: "id, workspace_id, title, description, location, meeting_url, starts_at, ends_at, all_day, time_zone, visibility, recurrence, repeat_freq, repeat_interval, repeat_days, repeat_until, repeat_count, reminder_minutes, invited_group_ids, organizer_id, created_by, created_at, updated_at, deleted_at, deleted_by",
+    order: "id",
+    onConflict: "id",
+  },
+  // People of events have no id of their own: the other side's rows are cleared and taken again.
+  {
+    name: "people of events",
+    table: "calendar_event_attendees",
+    columns: "event_id, workspace_id, user_id, status, invited_by, created_at, responded_at",
+    order: "event_id,user_id",
+    onConflict: "event_id,user_id",
+    replace: true,
+  },
+  {
+    name: "changed days of series",
+    table: "calendar_event_exceptions",
+    columns: "event_id, workspace_id, occurrence_date, cancelled, starts_at, ends_at, title, description, location, meeting_url, updated_by, updated_at",
+    order: "event_id,occurrence_date",
+    onConflict: "event_id,occurrence_date",
+    replace: true,
+  },
+  { name: "calendar settings", table: "calendar_settings", columns: "workspace_id, work_days, time_zone, updated_by, updated_at", order: "workspace_id", onConflict: "workspace_id" },
+  { name: "time-off policies", table: "leave_policies", columns: "id, workspace_id, name, kind, days_per_year, carry_over_max, count_days, requires_approval, requires_deputy, show_kind, allow_negative, unlimited, active, accrual, position, created_by, created_at, updated_at", order: "id", onConflict: "id" },
+  { name: "holidays", table: "leave_holidays", columns: "id, workspace_id, day, name, created_by, created_at", order: "id", onConflict: "id" },
+  { name: "outside busy time", table: "calendar_external_busy", columns: "id, workspace_id, user_id, starts_at, ends_at, all_day", order: "id", onConflict: "id" },
+  { name: "calendar feeds", table: "calendar_feeds", columns: "workspace_id, user_id, token_hash, created_at", order: "user_id", onConflict: "workspace_id,user_id" },
+  { name: "start dates", table: "leave_member_settings", columns: "workspace_id, user_id, started_on, updated_by, updated_at", order: "user_id", onConflict: "workspace_id,user_id" },
+  { name: "time-off ledger", table: "leave_balances", columns: "id, workspace_id, policy_id, user_id, year, kind, month, days, note, created_by, created_at", order: "id", onConflict: "id" },
+  {
+    name: "time-off requests",
+    table: "leave_requests",
+    columns: "id, workspace_id, user_id, policy_id, start_date, end_date, half, days, comment, deputy_id, status, group_ids, decided_by, decided_at, decision_note, cancelled_by, cancelled_at, created_at, updated_at",
+    order: "id",
+    onConflict: "id",
+  },
   { name: "notification settings", table: "notification_prefs", columns: "workspace_id, user_id, muted, updated_at", order: "user_id", onConflict: "workspace_id,user_id" },
   {
     name: "notifications",
     table: "notifications",
-    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, created_at, read_at",
+    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, event_at, leave_request_id, created_at, read_at",
     order: "id",
     onConflict: "id",
   },
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -370,7 +416,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["notifications", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
+const BY_ID = ["notifications", "calendar_external_busy", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();

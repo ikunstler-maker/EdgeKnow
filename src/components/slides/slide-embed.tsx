@@ -13,6 +13,7 @@ import { SurveyEmbed } from "@/components/editor/survey-block";
 import { BoardEmbed } from "@/components/editor/board-block";
 import { NodeMapEmbed } from "@/components/editor/node-map-block";
 import { TaskChipView, TasksEmbedView } from "@/components/editor/task-blocks";
+import { Icon } from "@/components/ui/icon";
 
 const e = t.slides.embeds;
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
@@ -50,7 +51,8 @@ export function SlideEmbed({ embed, setup, onEmbed }: { embed: Embed; setup: boo
 
 const NoAccess = () => (
   <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border p-4 text-sm text-muted" data-embed-no-access>
-    🔒 {e.noAccess}
+    <Icon name="lock" className="mr-1 inline" />
+    {e.noAccess}
   </div>
 );
 
@@ -105,11 +107,12 @@ function PageCard({ shortId, pageId }: { shortId: string; pageId: string }) {
   return (
     <div className="flex h-full flex-col gap-2 overflow-hidden rounded-lg border border-border bg-background p-4" data-embed-page>
       <p className="text-lg font-semibold">
-        {card.icon ?? "📄"} {card.title || t.pages.untitled}
+        {card.icon ? `${card.icon} ` : ""}{card.title || t.pages.untitled}
       </p>
       <p className="line-clamp-4 text-sm text-muted">{card.snippet}</p>
       <Link href={workspacePath(shortId, `/p/${card.id}`)} className="mt-auto text-sm text-accent hover:underline">
-        {e.open} →
+        {e.open}
+        <Icon name="arrow-right" size={14} className="ml-1 inline" />
       </Link>
     </div>
   );
@@ -124,7 +127,7 @@ function PagePicker({ onPick }: { onPick: (id: string) => void }) {
         {pages.slice(0, 200).map((page) => (
           <li key={page.id}>
             <button type="button" onClick={() => onPick(page.id)} className="flex min-h-11 w-full items-center gap-2 rounded px-2 text-left hover:bg-surface md:min-h-9">
-              <span>{page.icon ?? "📄"}</span>
+              {page.icon ? <span>{page.icon}</span> : <Icon name="file-text" className="text-muted" />}
               <span className="truncate">{page.title || t.pages.untitled}</span>
             </button>
           </li>

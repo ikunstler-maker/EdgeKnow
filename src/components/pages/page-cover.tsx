@@ -7,6 +7,7 @@ import { directImageUrl, isExternalImageUrl, resolveAttachmentUrl, uploadImage, 
 import { COVER_COLORS, GRADIENT_PRESETS, gradientCss, parseCover, type Cover, type GradientStop } from "@/lib/cover";
 import { ImageError } from "@/lib/image-compression";
 import { setPageCover } from "@/app/page-actions";
+import { Icon } from "@/components/ui/icon";
 
 const cv = t.cover;
 type Gradient = Extract<Cover, { type: "gradient" }>;
@@ -101,7 +102,8 @@ export function PageCover({ pageId, initialCover, editable }: { pageId: string; 
               onClick={() => setPicker(true)}
               className="min-h-9 rounded-md px-2 text-sm text-muted hover:bg-surface hover:text-foreground"
             >
-              🖼 {cv.add}
+              <Icon name="image" className="mr-1 inline" />
+              {cv.add}
             </button>
           </div>
         )
@@ -149,7 +151,7 @@ function CoverPicker({
     `min-h-9 flex-1 rounded px-2 text-sm ${active ? "bg-background font-medium shadow-sm" : "text-muted hover:text-foreground"}`;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -160,7 +162,7 @@ function CoverPicker({
         <div className="flex items-center border-b border-border px-4 py-2">
           <h2 className="flex-1 font-semibold">{cv.title}</h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="p-3">
@@ -292,7 +294,7 @@ function GradientTab({ initial, onPick }: { initial: Gradient; onPick: (cover: C
               onClick={() => setGradient({ ...gradient, stops: gradient.stops.filter((_, j) => j !== i) })}
               className="h-9 w-9 rounded-md text-muted hover:bg-surface disabled:opacity-30"
             >
-              ✕
+              <Icon name="close" />
             </button>
           </li>
         ))}
@@ -304,7 +306,8 @@ function GradientTab({ initial, onPick }: { initial: Gradient; onPick: (cover: C
           onClick={() => setGradient({ ...gradient, stops: [...gradient.stops, { color: "#ffffff", at: 50 }] })}
           className="min-h-10 rounded-md border border-dashed border-border px-3 text-sm text-muted hover:bg-surface disabled:opacity-50"
         >
-          ＋ {cv.addStop}
+          <Icon name="plus" className="mr-1 inline" />
+          {cv.addStop}
         </button>
         <button type="button" onClick={() => onPick(gradient)} className="ml-auto min-h-10 rounded-md bg-accent px-3 text-sm font-medium text-white">
           {cv.apply}
@@ -335,7 +338,7 @@ function ImageTab({ pageId, onPick }: { pageId: string; onPick: (cover: Cover) =
   return (
     <div className="space-y-5">
       <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border p-4 text-center text-sm hover:bg-surface">
-        <span>{busy ? cv.uploading : `⬆️ ${cv.upload}`}</span>
+        <span>{busy ? cv.uploading : cv.upload}</span>
         <span className="text-xs text-muted">{cv.uploadHint}</span>
         <input
           type="file"

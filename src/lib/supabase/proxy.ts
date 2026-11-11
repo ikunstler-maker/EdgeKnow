@@ -20,8 +20,9 @@ const ALWAYS_PUBLIC_PATHS = [
 ];
 
 // Open to everyone, signed in or not and with or without a workspace: the
-// presentation page, the changelog, a survey's link for anyone and its file uploads (step О3).
-const OPEN_PREFIXES = ["/f/", "/api/f/"];
+// presentation page, the changelog, a survey's link for anyone and its file uploads (step О3),
+// and a person's calendar feed (Doba 3a: the secret in the address is the key).
+const OPEN_PREFIXES = ["/f/", "/api/f/", "/api/calendar-feed/"];
 const OPEN_PATHS = ["/about", "/changelog"];
 
 function isOpenPath(pathname: string) {
@@ -100,6 +101,13 @@ export async function updateSession(request: NextRequest) {
   const { data: allowed } = await supabase.rpc("has_platform_access");
 
   if (!allowed) {
+    // The session was ended (by an admin or from another device): sign in again.
+    const { data: alive } = await supabase.rpc("session_alive");
+    if (alive === false) {
+      await supabase.auth.signOut({ scope: "local" });
+      if (isPublicPath(pathname)) return response;
+      return redirectTo("/login", workspaceId ? { w: workspaceId } : undefined);
+    }
     return isPublicPath(pathname) && pathname !== "/login" ? response : redirectTo("/no-access");
   }
 

@@ -6,6 +6,7 @@ import { useBlockNoteEditor, useComponentsContext } from "@blocknote/react";
 import { t } from "@/i18n";
 import { createTaskFromPage, projectsForEmbed, type ChipProject } from "@/app/task-wiki-actions";
 import type { schema } from "./schema";
+import { Icon } from "@/components/ui/icon";
 
 const w = t.tasks.wiki;
 type Editor = typeof schema.BlockNoteEditor;
@@ -19,7 +20,7 @@ export function TaskFromSelectionButton({ onOpen }: { onOpen: (title: string) =>
     <Components.FormattingToolbar.Button
       mainTooltip={w.fromSelection}
       label={w.fromSelection}
-      icon={<span aria-hidden="true">✅</span>}
+      icon={<Icon name="task" />}
       onClick={() => onOpen(editor.getSelectedText().replace(/\s+/g, " ").trim().slice(0, 300))}
     />
   );
@@ -59,7 +60,7 @@ export function TaskFromSelectionDialog({
   }, [shortId, onClose]);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <form
         role="dialog"
         aria-modal="true"
@@ -90,7 +91,7 @@ export function TaskFromSelectionDialog({
               <select value={project} onChange={(e) => setProject(e.target.value)} className="mt-1 min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm">
                 {(projects ?? []).map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.icon ?? "📋"} {p.name} ({p.key})
+                    {p.icon ? `${p.icon} ` : ""}{p.name} ({p.key})
                   </option>
                 ))}
               </select>

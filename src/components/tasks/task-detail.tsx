@@ -8,10 +8,8 @@ import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import {
-  PRIORITY_ICONS,
   TASK_PRIORITIES,
   TASK_TYPES,
-  TYPE_ICONS,
   personLabel,
   fieldApplies,
   type Person,
@@ -27,6 +25,8 @@ import { SaveTemplateDialog } from "./task-templates";
 import { templateOf } from "@/lib/task-templates";
 import { BlockedNotice, ParentPicker, Subtasks, TaskLinks, type ProjectTask, type TaskLinkView } from "./task-relations";
 import { addTaskComment, deleteTask, editTaskComment, moveTaskOnBoard, setTaskParticipants, setTaskPrivate, updateTask } from "@/app/task-actions";
+import { Icon } from "@/components/ui/icon";
+import { TypeIcon } from "./task-icons";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 
@@ -127,12 +127,14 @@ export function TaskDetail({
           {parent && (
             <>
               <Link href={workspacePath(shortId, `/tasks/${project.key}/${parent.number}`)} className="hover:text-foreground hover:underline" data-parent-link>
-                {TYPE_ICONS[parent.type]} {project.key}-{parent.number}
+                <TypeIcon type={parent.type} className="mr-1 inline" />
+                {project.key}-{parent.number}
               </Link>
               {" / "}
             </>
           )}
-          {TYPE_ICONS[task.type]} {taskKey}
+          <TypeIcon type={task.type} className="mr-1 inline" />
+          {taskKey}
         </p>
         {canEdit ? (
           <textarea
@@ -150,10 +152,10 @@ export function TaskDetail({
               const value = e.currentTarget.value.trim();
               if (value && value !== task.title) change({ title: value });
             }}
-            className="mt-1 w-full resize-none bg-transparent text-2xl font-semibold outline-none [field-sizing:content]"
+            className="mt-1 w-full resize-none bg-transparent text-xl font-semibold tracking-tight outline-none [field-sizing:content]"
           />
         ) : (
-          <h1 className="mt-1 text-2xl font-semibold">{task.title}</h1>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight">{task.title}</h1>
         )}
         {error && (
           <p role="alert" className="mt-2 text-sm text-danger">
@@ -199,7 +201,7 @@ export function TaskDetail({
             <select value={task.priority} disabled={!canEdit || pending} onChange={(e) => change({ priority: e.target.value })} className={inputClass}>
               {TASK_PRIORITIES.map((p) => (
                 <option key={p} value={p}>
-                  {PRIORITY_ICONS[p]} {k.priorities[p]}
+                  {k.priorities[p]}
                 </option>
               ))}
             </select>
@@ -208,7 +210,7 @@ export function TaskDetail({
             <select value={task.type} disabled={!canEdit || pending} onChange={(e) => change({ type: e.target.value })} className={inputClass}>
               {TASK_TYPES.map((value) => (
                 <option key={value} value={value}>
-                  {TYPE_ICONS[value]} {k.types[value]}
+                  {k.types[value]}
                 </option>
               ))}
             </select>
@@ -255,7 +257,8 @@ export function TaskDetail({
           <div className="col-span-full flex flex-wrap items-center gap-2 text-sm" data-task-privacy>
             {task.private ? (
               <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300" data-task-private>
-                🔒 {k.privacy.private}
+                <Icon name="lock" className="mr-1 inline" />
+                {k.privacy.private}
               </span>
             ) : null}
             {task.reporter_id === me && (
@@ -338,7 +341,7 @@ export function TaskDetail({
               {mentionedOn.map((page) => (
                 <li key={page.id}>
                   <Link href={pagePath(shortId, page.id)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 hover:bg-surface">
-                    <span aria-hidden="true">{page.icon ?? "📄"}</span> {page.title || t.pages.untitled}
+                    {page.icon ? <span aria-hidden="true">{page.icon}</span> : <Icon name="file-text" className="inline text-muted" />} {page.title || t.pages.untitled}
                   </Link>
                 </li>
               ))}
@@ -420,7 +423,8 @@ export function TaskDetail({
         <div className="mt-8 flex flex-wrap items-center gap-4">
           {canEdit && (
             <button type="button" onClick={() => setSavingTemplate(true)} className="min-h-11 text-sm hover:underline md:min-h-9" data-save-template>
-              📋 {k.templates.saveAs}
+              <Icon name="template" className="mr-1 inline" />
+              {k.templates.saveAs}
             </button>
           )}
           {savingTemplate && <SaveTemplateDialog projectId={project.id} isOwner={isOwner} data={templateOf(task)} onClose={() => setSavingTemplate(false)} />}

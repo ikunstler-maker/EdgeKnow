@@ -9,10 +9,10 @@ import type { Person } from "@/lib/tasks";
 import { ObjectAccessButton, type ObjectAccess } from "@/components/access/object-access";
 import { saveBoard, setBoardGroupRole, setBoardMemberRole, setBoardWorkspaceRole, trashBoard } from "@/app/board-actions";
 import { DesignEditor } from "./design-editor";
+import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
 
 const s = t.slides;
 const g = t.design;
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9";
 
 // One design file: its name, the save status, access and the editor. Changes are
 // saved about a second after the last one; a save that finds a newer version stops
@@ -103,31 +103,30 @@ export function DesignScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
+  const editable = canEdit && status !== "conflict";
   return (
-    <div className="mt-2 flex flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2">
-        {canEdit ? (
-          <input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              schedule({ title: e.target.value });
-            }}
-            placeholder={g.titlePlaceholder}
-            aria-label={g.titlePlaceholder}
-            maxLength={200}
-            className="min-h-11 min-w-0 flex-1 bg-transparent text-2xl font-semibold outline-none"
-          />
-        ) : (
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold">{title || s.untitled}</h1>
-        )}
-        <span className="text-xs text-muted" role="status" data-save-status={status}>
-          {status === "saving" ? s.saving : status === "saved" ? s.saved : ""}
-        </span>
-        <button type="button" onClick={() => void open("/prototype")} className={buttonClass} data-prototype-open>
-          {g.prototype.play}
-        </button>
-        {access && (
+    <StudioShell
+      service="boards"
+      backHref={workspacePath(shortId, "/boards")}
+      backLabel={s.back}
+      title={title}
+      onTitle={
+        canEdit
+          ? (value) => {
+              setTitle(value);
+              schedule({ title: value });
+            }
+          : undefined
+      }
+      titleLabel={g.titlePlaceholder}
+      untitled={s.untitled}
+      status={status}
+      savingLabel={s.saving}
+      savedLabel={s.saved}
+      center={undefined}
+      files={[]}
+      access={
+        access && (
           <ObjectAccessButton
             label={s.access}
             title={s.accessTitle}
@@ -140,35 +139,28 @@ export function DesignScreen({
               setGroupRole: (group, r) => setBoardGroupRole(shortId, id, group, r),
             }}
           />
-        )}
-        {canEdit && (
-          <button
-            type="button"
-            onClick={async () => {
-              await trashBoard(shortId, id);
-              router.push(workspacePath(shortId, "/boards"));
-            }}
-            className={buttonClass}
-          >
-            🗑️ {s.toBin}
-          </button>
-        )}
-      </div>
-      {!canEdit && <p className="mt-1 text-sm text-muted">{s.readOnly}</p>}
-      {status === "conflict" && (
-        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm">
-          {s.conflict}
-          <button type="button" onClick={() => window.location.reload()} className="min-h-9 rounded-md border border-border bg-background px-3">
-            {s.reload}
-          </button>
-        </p>
-      )}
-      {error && status === "error" && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {error}
-        </p>
-      )}
-      <DesignEditor shortId={shortId} fileId={id} initial={initial} editable={canEdit && status !== "conflict"} onChange={(doc) => schedule({ data: doc })} onPlay={(path) => void open(path)} />
-    </div>
+        )
+      }
+      primary={{ label: g.prototype.play, icon: "play", onSelect: () => void open("/prototype"), attrs: { "data-prototype-open": "" } }}
+      more={[
+        ...(canEdit
+          ? [
+              {
+                label: s.toBin,
+                icon: "trash" as const,
+                danger: true,
+                onSelect: async () => {
+                  await trashBoard(shortId, id);
+                  router.push(workspacePath(shortId, "/boards"));
+                },
+                attrs: { "data-to-bin": "" },
+              },
+            ]
+          : []),
+      ]}
+      notices={<StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
+    >
+      <DesignEditor shortId={shortId} fileId={id} initial={initial} editable={editable} onChange={(doc) => schedule({ data: doc })} onPlay={(path) => void open(path)} />
+    </StudioShell>
   );
 }

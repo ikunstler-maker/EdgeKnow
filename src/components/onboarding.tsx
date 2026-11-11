@@ -5,6 +5,7 @@ import { useState, useSyncExternalStore, useTransition } from "react";
 import { t } from "@/i18n";
 import { addExamplePages } from "@/app/onboarding-actions";
 import { errorMessage } from "@/components/pages/pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 export type OnboardingStep = { key: "database" | "page" | "people" | "drive" | "help"; done: boolean; href: string };
 
@@ -54,7 +55,7 @@ export function Onboarding({ workspaceId, shortId, steps, canAddExamples }: { wo
       <ol className="mt-3 space-y-2 text-sm">
         {steps.map((step) => (
           <li key={step.key} className="flex items-start gap-2">
-            <span aria-hidden>{step.done ? "✅" : "▫️"}</span>
+            <Icon name={step.done ? "check-circle" : "chevron-right"} className={`mt-1 ${step.done ? "text-accent" : "text-muted"}`} />
             <span className="min-w-0 flex-1">
               {step.done ? (
                 <span className="text-muted line-through">{o.steps[step.key].title}</span>

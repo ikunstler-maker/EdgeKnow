@@ -21,6 +21,7 @@ function inline(items: unknown): string {
       if (item.type === "personChip") return `@${String(item.props?.label ?? "")}`;
       if (item.type === "pageChip") return "[→ page]";
       if (item.type === "taskChip") return "[task]";
+      if (item.type === "eventChip") return "[event]";
       let text = item.text ?? "";
       if (!text) return "";
       const s = item.styles ?? {};

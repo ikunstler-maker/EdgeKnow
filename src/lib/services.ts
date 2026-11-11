@@ -2,23 +2,33 @@
 // "ready: false" ones show as "Soon" until they are built (docs/suite-plan-uk.md).
 export type ServiceKey = "wiki" | "tasks" | "boards" | "nodes" | "sheets" | "slides" | "surveys" | "chat" | "files" | "calendar" | "meet" | "ai" | "sites" | "apps" | "crm";
 
-export const SERVICES: { key: ServiceKey; icon: string; ready: boolean; path: string | null }[] = [
-  { key: "wiki", icon: "📚", ready: true, path: "" },
-  { key: "tasks", icon: "✅", ready: true, path: "/tasks" },
-  { key: "boards", icon: "🎨", ready: true, path: "/boards" },
-  { key: "nodes", icon: "🧠", ready: true, path: "/nodes" },
-  { key: "sheets", icon: "📊", ready: true, path: "/sheets" },
-  { key: "slides", icon: "🖼️", ready: true, path: "/slides" },
-  { key: "surveys", icon: "📝", ready: true, path: "/surveys" },
-  { key: "chat", icon: "💬", ready: false, path: null },
-  { key: "files", icon: "📁", ready: false, path: null },
-  { key: "calendar", icon: "📅", ready: false, path: null },
-  { key: "meet", icon: "🎥", ready: false, path: null },
-  { key: "ai", icon: "🤖", ready: false, path: null },
-  { key: "sites", icon: "🌐", ready: false, path: null },
-  { key: "apps", icon: "🧩", ready: false, path: null },
-  { key: "crm", icon: "🤝", ready: false, path: null },
+export const SERVICES: { key: ServiceKey; ready: boolean; path: string | null }[] = [
+  { key: "wiki", ready: true, path: "" },
+  { key: "tasks", ready: true, path: "/tasks" },
+  { key: "boards", ready: true, path: "/boards" },
+  { key: "nodes", ready: true, path: "/nodes" },
+  { key: "sheets", ready: true, path: "/sheets" },
+  { key: "slides", ready: true, path: "/slides" },
+  { key: "surveys", ready: true, path: "/surveys" },
+  { key: "chat", ready: false, path: null },
+  { key: "files", ready: false, path: null },
+  { key: "calendar", ready: true, path: "/calendar" },
+  { key: "meet", ready: false, path: null },
+  { key: "ai", ready: false, path: null },
+  { key: "sites", ready: false, path: null },
+  { key: "apps", ready: true, path: "/apps" },
+  { key: "crm", ready: false, path: null },
 ];
+
+// Wherever services are listed they come in these four groups, in this order.
+export type ServiceCategory = "work" | "visual" | "data" | "comms";
+export const SERVICE_CATEGORIES: { key: ServiceCategory; services: ServiceKey[] }[] = [
+  { key: "work", services: ["wiki", "tasks", "calendar"] },
+  { key: "visual", services: ["boards", "nodes", "slides", "sites"] },
+  { key: "data", services: ["sheets", "surveys", "files"] },
+  { key: "comms", services: ["chat", "meet", "crm", "apps", "ai"] },
+];
+export const serviceByKey = (key: ServiceKey) => SERVICES.find((s) => s.key === key)!;
 
 // Each service's own name (the platform's prefix left out) and colours.
 // A near-white first stop would vanish on a light page, so light themes start from

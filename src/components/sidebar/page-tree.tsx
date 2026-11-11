@@ -32,6 +32,7 @@ import { usePages } from "@/components/pages/pages-provider";
 import { MoveDialog } from "@/components/pages/move-dialog";
 import { MenuItem, Popover } from "@/components/ui/popover";
 import { setExpanded, useExpanded } from "./expanded-store";
+import { Icon } from "@/components/ui/icon";
 
 type Zone = "before" | "inside" | "after";
 type DropTarget = { id: string; zone: Zone };
@@ -198,7 +199,7 @@ export function PageTree({
       <DragOverlay dropAnimation={null}>
         {activePage && (
           <div className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm shadow-lg">
-            <span>{activePage.icon ?? "📄"}</span>
+            {activePage.icon ? <span>{activePage.icon}</span> : <Icon name="file-text" className="text-muted" />}
             <span className="truncate">{activePage.title || t.pages.untitled}</span>
           </div>
         )}
@@ -277,9 +278,7 @@ function TreeRow({
             hasChildren ? "" : "invisible"
           }`}
         >
-          <span className={`inline-block text-xs transition-transform ${expanded ? "rotate-90" : ""}`}>
-            ▶
-          </span>
+          <Icon name="chevron-right" size={12} className={`transition-transform ${expanded ? "rotate-90" : ""}`} />
         </button>
 
         {renaming ? (
@@ -301,18 +300,23 @@ function TreeRow({
             className="min-h-9 min-w-0 flex-1 rounded border border-accent bg-background px-2 text-base md:text-sm"
           />
         ) : (
-          <Link
+          <Link prefetch={false}
             href={pagePath(workspace.shortId, page.id)}
             onClick={onNavigate}
             draggable={false}
             data-angler-here={current ? "" : undefined}
             className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-sm"
           >
-            <span className="shrink-0">{page.icon ?? "📄"}</span>
-            <span className="truncate">{title}</span>
+            {page.icon ? <span className={`shrink-0${page.draft ? " opacity-60" : ""}`}>{page.icon}</span> : <Icon name="file-text" className={`text-muted${page.draft ? " opacity-60" : ""}`} />}
+            <span className={`truncate${page.draft ? " text-muted" : ""}`}>{title}</span>
+            {page.draft && (
+              <span className="shrink-0 rounded border border-border px-1 text-[10px] leading-4 text-muted" title={t.drafts.treeHint} data-tree-draft>
+                {t.drafts.badge}
+              </span>
+            )}
             {page.needsAck && (
               <span className="shrink-0 text-xs text-accent" title={t.acks.badge} aria-label={t.acks.badge} data-tree-ack>
-                ✍
+                <Icon name="check-circle" size={14} />
               </span>
             )}
             {creating.has(page.id) && (
@@ -346,7 +350,7 @@ function TreeRow({
               title={t.sidebar.moreActions}
               className={`${rowAction} ${menuAnchor ? "flex" : "flex [@media(hover:hover)]:hidden [@media(hover:hover)]:group-hover:flex [@media(hover:hover)]:group-focus-within:flex"}`}
             >
-              ⋯
+              <Icon name="more" />
             </button>
           </>
         )}

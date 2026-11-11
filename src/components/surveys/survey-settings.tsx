@@ -6,6 +6,7 @@ import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { linkSurveySheet, setSurveyPublic, setSurveySettings, sheetsToConnect, type SurveySettingsPatch } from "@/app/survey-actions";
 import type { SurveyState } from "@/lib/surveys";
+import { Icon } from "@/components/ui/icon";
 
 const st = t.surveys.settings;
 const box = "rounded-xl border border-border p-3 md:p-4";
@@ -139,7 +140,8 @@ export function SurveySettings({
           {state.sheet ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-sm" data-survey-sheet-linked>
-                📊 {state.sheet.title !== null ? st.sheetLinked(state.sheet.title || t.sheets.untitled) : st.sheetHidden}
+                <Icon name="chart" className="mr-1 inline" />
+                {state.sheet.title !== null ? st.sheetLinked(state.sheet.title || t.sheets.untitled) : st.sheetHidden}
               </span>
               {state.sheet.title !== null && (
                 <Link href={workspacePath(shortId, `/sheets/${state.sheet.id}`)} className="min-h-11 rounded-md border border-border px-3 py-2 text-sm hover:bg-surface md:min-h-9 md:py-1.5">
@@ -220,7 +222,7 @@ function PublicLink({
   };
   return (
     <section className={box} data-survey-public>
-      <h3 className="font-semibold">🌐 {p.heading}</h3>
+      <h3 className="font-semibold"><Icon name="globe" className="mr-1.5 inline" />{p.heading}</h3>
       <p className="mt-1 text-sm text-muted">{p.intro}</p>
       <label className="mt-3 flex min-h-11 cursor-pointer items-center gap-3 md:min-h-9">
         <input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => change(e.target.checked)} className="h-4 w-4" />
@@ -245,7 +247,7 @@ function PublicLink({
           </button>
         </div>
       )}
-      <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs">⚠️ {p.warning}</p>
+      <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs"><Icon name="alert" className="mr-1 inline" />{p.warning}</p>
       <p className="mt-2 text-xs text-muted">{p.limits}</p>
       <p className="mt-1 text-xs text-muted">{p.robot}</p>
     </section>

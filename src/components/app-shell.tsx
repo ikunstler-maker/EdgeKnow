@@ -10,8 +10,12 @@ import type { Collections } from "@/components/sidebar/collections";
 import { usePages } from "@/components/pages/pages-provider";
 import { FeedbackButton } from "@/components/feedback/feedback-button";
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { NavProgress } from "@/components/nav-progress";
 import { AppearanceProvider } from "@/components/angler/appearance";
 import { AnglerGame } from "@/components/angler/angler-game";
+import { ServiceSwitcher } from "@/components/services/service-switcher";
+import { Icon } from "@/components/ui/icon";
+import { usePathname } from "next/navigation";
 
 // The desktop sidebar's width is set by dragging its right edge; each person's
 // browser remembers it (a convenience, so it simply falls back to the default).
@@ -52,8 +56,35 @@ function useSidebarWidth() {
   return [dragging ?? saved, setDragging, save] as const;
 }
 
-// Desktop: the sidebar is always on the left. Phone: it lives in a drawer opened
-// with ☰ or a swipe from the left edge of the screen.
+// Whether the desktop panel is collapsed to a slim rail; each browser remembers it.
+const COLLAPSED_KEY = "ek-sidebar-collapsed";
+const collapsedListeners = new Set<() => void>();
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+export function setSidebarCollapsed(value: boolean) {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, value ? "1" : "0");
+  } catch {}
+  collapsedListeners.forEach((notify) => notify());
+}
+export function useSidebarCollapsed() {
+  return useSyncExternalStore(
+    (onChange) => {
+      collapsedListeners.add(onChange);
+      return () => collapsedListeners.delete(onChange);
+    },
+    readCollapsed,
+    () => false,
+  );
+}
+
+// Desktop: the sidebar is on the left and can be collapsed to a rail (Ctrl/Cmd+\). Phone: it lives in a drawer opened
+// with the menu button or a swipe from the left edge of the screen.
 export function AppShell({
   user,
   workspaces,
@@ -79,6 +110,19 @@ export function AppShell({
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const [width, setWidth, saveWidth] = useSidebarWidth();
   const [resizing, setResizing] = useState(false);
+  const collapsed = useSidebarCollapsed();
+  const pathname = usePathname();
+
+  // Ctrl/Cmd+\ collapses and expands the panel.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.code !== "Backslash") return;
+      event.preventDefault();
+      setSidebarCollapsed(!readCollapsed());
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   // Phone top bar: hides while scrolling down through a page, returns on scroll up.
   useEffect(() => {
@@ -127,13 +171,29 @@ export function AppShell({
 
   return (
     <AppearanceProvider initial={{ showMascot: user.showMascot, lure: user.lure }}>
+      <NavProgress />
     <div className="flex min-h-dvh flex-1">
+      {collapsed && (
+        <aside className="sticky top-0 hidden h-dvh w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-shell py-2 md:flex" data-sidebar-rail>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label={t.sidebar.showPanel}
+            title={`${t.sidebar.showPanel} (Ctrl+\\)`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-foreground"
+            data-sidebar-expand
+          >
+            <Icon name="sidebar" size={18} />
+          </button>
+          <ServiceSwitcher shortId={workspace.shortId} pathname={pathname} vertical />
+        </aside>
+      )}
       <aside
-        className="sticky top-0 hidden h-dvh shrink-0 border-r border-border bg-surface/60 md:block"
+        className={`sticky top-0 hidden h-dvh shrink-0 border-r border-border bg-shell ${collapsed ? "" : "md:block"}`}
         style={{ width }}
         data-sidebar-width={width}
       >
-        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} canCreatePages={canCreatePages} />
+        <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} canCreatePages={canCreatePages} onCollapse={() => setSidebarCollapsed(true)} />
         <div
           role="separator"
           aria-orientation="vertical"
@@ -184,10 +244,10 @@ export function AppShell({
 
       {drawerOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={close} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={close} aria-hidden="true" />
           <aside
             aria-label={t.sidebar.pagesHeading}
-            className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-background shadow-xl"
+            className="absolute inset-y-0 left-0 w-[85%] max-w-xs border-r border-border bg-shell shadow-2xl"
           >
             <Sidebar user={user} workspaces={workspaces} projects={projects} boards={boards} objects={objects} collections={collections} canCreatePages={canCreatePages} onNavigate={close} />
           </aside>
@@ -204,9 +264,9 @@ export function AppShell({
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label={t.sidebar.openMenu}
-            className="flex h-11 w-11 items-center justify-center rounded-md text-xl hover:bg-surface"
+            className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-hover"
           >
-            ☰
+            <Icon name="menu" size={20} />
           </button>
           <span className="truncate font-semibold">{workspace.name}</span>
         </header>

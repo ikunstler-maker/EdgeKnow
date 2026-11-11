@@ -17,6 +17,7 @@ import {
 import { loadNotificationPrefs, loadNotifications, markNotificationsRead, setNotificationPrefs } from "@/app/notification-actions";
 import { usePages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
+import { Icon } from "@/components/ui/icon";
 
 const n = t.notifications;
 export const NOTIFICATIONS_EVENT = "ek-notifications";
@@ -27,6 +28,8 @@ const POLL_MS = 30_000;
 function hrefOf(shortId: string, item: NotificationItem) {
   if (item.task) return workspacePath(shortId, `/tasks/${item.task.project}/${item.task.number}`);
   if (item.page) return pagePath(shortId, item.page.id);
+  if (item.event) return workspacePath(shortId, `/calendar?event=${item.event.id}`);
+  if (item.leave) return workspacePath(shortId, `/calendar/time-off?tab=${item.leave.mine ? "mine" : item.leave.deputy ? "team" : "inbox"}`);
   return null;
 }
 
@@ -35,9 +38,17 @@ function lineOf(item: NotificationItem) {
   return (n.line[item.kind] ?? n.line.rule)(who);
 }
 
+const leaveDay = (key: string) => new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "short" }).format(new Date(`${key}T00:00:00`));
+const leaveDates = (leave: { start_date: string; end_date: string }) =>
+  leave.start_date === leave.end_date ? leaveDay(leave.start_date) : `${leaveDay(leave.start_date)} – ${leaveDay(leave.end_date)}`;
+
 function subjectOf(item: NotificationItem) {
   if (item.task) return `${item.task.key} ${item.task.title}${item.kind === "rule" && item.task.status ? ` → ${item.task.status}` : ""}`;
   if (item.page) return item.page.title || t.pages.untitled;
+  if (item.leave) return `${item.leave.person} · ${leaveDates(item.leave)} · ${t.timeOff.status[item.leave.status] ?? ""}`;
+  if (item.event && item.kind === "event_reminder")
+    return `${item.event.title} · ${new Date(item.event.starts_at).toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })}`;
+  if (item.event) return item.event.cancelled ? `${item.event.title} · ${t.calendar.details.cancelled}` : item.event.title;
   return n.hidden;
 }
 
@@ -107,13 +118,13 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
         aria-label={n.bell(unread)}
         aria-expanded={open}
-        className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground md:min-h-9"
+        className="flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8"
         data-notification-bell
       >
-        <span className="w-5 text-center">🔔</span>
+        <Icon name="bell" />
         <span className="flex-1 text-left">{n.title}</span>
         {unread > 0 && (
-          <span className="rounded-full bg-accent px-2 text-xs font-medium text-white" data-unread>
+          <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-[18px] text-white" data-unread>
             {unread}
           </span>
         )}
@@ -170,7 +181,7 @@ function NotificationList({ items, shortId, onOpen }: { items: NotificationItem[
         return (
           <li key={item.id} data-notification={item.kind}>
             {href ? (
-              <Link href={href} onClick={() => onOpen(item)} className="block rounded px-2 py-2 hover:bg-surface">
+              <Link prefetch={false} href={href} onClick={() => onOpen(item)} className="block rounded px-2 py-2 hover:bg-surface">
                 {body}
               </Link>
             ) : (

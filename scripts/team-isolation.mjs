@@ -114,8 +114,13 @@ check("a member creates a page in their team database", created.json?.ok === tru
 const pageId = created.json?.id;
 const shared = await rpc(A, "set_page_workspace_role", { target_page: pageId, new_role: "viewer" }, aliceA);
 const bobA = await token(A, bob.id, bob.email);
+const bobReadsDraft = await select(A, "pages?select=title", bobA);
+check("a new page is a draft: a colleague doesn't see it yet", shared.json?.ok === true && bobReadsDraft.json?.length === 0, JSON.stringify(bobReadsDraft.json));
+const bobPublishes = await rpc(A, "publish_page", { target_page: pageId, with_children: true }, bobA);
+check("…nor can publish it", bobPublishes.json?.error === "forbidden", JSON.stringify(bobPublishes.json));
+const published = await rpc(A, "publish_page", { target_page: pageId, with_children: true }, aliceA);
 const bobReads = await select(A, "pages?select=title", bobA);
-check("a colleague reads the shared page", shared.json?.ok === true && bobReads.json?.length === 1, JSON.stringify(bobReads.json));
+check("a colleague reads the shared page once it is published", published.json?.ok === true && bobReads.json?.length === 1, JSON.stringify(bobReads.json));
 
 // Eve's token is genuine (same EdgeKnow key) but she isn't in team A.
 const eveWithOurKey = await token(A, eve.id, eve.email);

@@ -19,6 +19,8 @@ const pngBuffer = await makeTestPng(alice);
 const gammaShort = sql("select short_id from public.workspaces where name = 'Team Delta'");
 const teamStatus = JSON.parse(readFileSync(".team-stacks/team-b/status.json", "utf8"));
 const teamSql = (query) => execFileSync("psql", [teamStatus.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
+// As in common.mjs: pages made here are published at once (drafts are checked in wiki.mjs and team9k_page_drafts).
+teamSql("alter table public.pages alter column published_at set default now()");
 const gammaTab = await newPage(aliceCookies);
 await gammaTab.goto(`${APP}/w/${gammaShort}`);
 await gammaTab.getByRole("button", { name: "Нова сторінка" }).first().click();
@@ -74,7 +76,7 @@ check("the team database was brought to the current schema", teamSchema === late
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=storage`);
 check("the storage tab explains where a team workspace keeps its files", (await gammaTab.getByText(/сховищі вашого власного Supabase/).count()) === 1);
 await gammaTab.getByRole("link", { name: "Підключити Google Drive" }).click();
-await gammaTab.waitForURL(/tab=storage&drive=connected/);
+await gammaTab.waitForURL(/tab=data&drive=connected/);
 await gammaTab.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 await gammaTab.waitForSelector(".bn-editor");
 await gammaTab.locator(".bn-editor").click();
@@ -116,6 +118,7 @@ check("only the owner may drive the setup", setupAsGuest.status === 403, String(
 
 // Tasks of a team workspace live in its own database.
 await gammaTab.goto(`${APP}/w/${gammaShort}/tasks`);
+await gammaTab.locator("[data-new-project]").click();
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByLabel("Назва проєкту").fill("Delta tasks");
 await gammaTab.getByRole("form", { name: "Новий проєкт" }).getByRole("button", { name: "Створити" }).click();
 await gammaTab.waitForURL(/\/tasks\/DT$/, { timeout: 15000 });
@@ -198,7 +201,7 @@ const checkDelta = () =>
 const healthy = await checkDelta();
 check("the health check finds the team database well and measures it", healthy.health === "ok" && healthy.databaseBytes > 0, JSON.stringify(healthy));
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=team`);
-check("…and the database tab shows it", (await gammaTab.getByText("✅ База працює.").count()) === 1 && (await gammaTab.getByText(/Зайнято: база — [0-9.]+ МБ з 500 МБ/).count()) === 1);
+check("…and the database tab shows it", (await gammaTab.getByText("База працює.").count()) === 1 && (await gammaTab.getByText(/Зайнято: база — [0-9.]+ МБ з 500 МБ/).count()) === 1);
 const realKey = sql(`select secret_key_encrypted from public.team_databases where workspace_id = '${deltaId}'`);
 sql(`update public.team_databases set secret_key_encrypted = '${readFileSync(".team-stacks/team-b/bogus-key.txt", "utf8").trim()}' where workspace_id = '${deltaId}'`);
 const revoked = await checkDelta();

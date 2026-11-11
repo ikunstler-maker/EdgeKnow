@@ -7,6 +7,7 @@ import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { personLabel, type Person } from "@/lib/tasks";
 import { setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject } from "@/app/task-actions";
+import { Icon } from "@/components/ui/icon";
 
 export type ProjectAccess = {
   workspaceRole: string | null;
@@ -19,7 +20,7 @@ const a = t.tasks.access;
 const ROLES = ["owner", "editor", "commenter", "viewer"] as const;
 const WORKSPACE_ROLES = ["editor", "commenter", "viewer"] as const;
 const selectClass = "min-h-11 rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
-const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 // Who may do what in a project: the whole workspace, people and groups — like sharing a page.
 export function ProjectAccessButton({
@@ -35,7 +36,8 @@ export function ProjectAccessButton({
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={buttonClass}>
-        ⚙️ {t.tasks.settings}
+        <Icon name="settings" className="mr-1 inline" />
+        {t.tasks.settings}
       </button>
       {open && <AccessDialog project={project} access={access} members={members} onClose={() => setOpen(false)} />}
     </>
@@ -67,14 +69,14 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
   const listedGroups = new Set(access.groupGrants.map((g) => g.group_id));
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={a.title} onClick={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-xl bg-background shadow-xl sm:rounded-xl">
         <div className="flex items-center border-b border-border px-4 py-3">
           <h2 className="flex-1 font-semibold">
             {a.title}: {project.name}
           </h2>
           <button type="button" onClick={onClose} aria-label={t.common.close} className="min-h-11 min-w-11">
-            ✕
+            <Icon name="close" />
           </button>
         </div>
         <div className="flex-1 space-y-5 overflow-y-auto p-4 text-sm">
@@ -169,7 +171,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
                     .filter((g) => !listedGroups.has(g.id))
                     .map((g) => (
                       <option key={g.id} value={g.id}>
-                        👥 {g.name}
+                        {g.name}
                       </option>
                     ))}
                 </select>
@@ -196,7 +198,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
               <ul className="space-y-1">
                 {access.groupGrants.map((g) => (
                   <li key={g.group_id} className="flex min-h-11 items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate">👥 {groupName.get(g.group_id)}</span>
+                    <span className="min-w-0 flex-1 truncate"><Icon name="users" className="mr-1.5 inline" />{groupName.get(g.group_id)}</span>
                     <select
                       value={g.role}
                       disabled={pending}

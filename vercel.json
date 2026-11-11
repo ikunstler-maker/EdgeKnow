@@ -1,7 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": [
+    "dub1"
+  ],
   "crons": [
-    { "path": "/api/cron/cleanup-files", "schedule": "7 4 * * *" },
-    { "path": "/api/cron/backup-pages", "schedule": "37 2 * * *" }
+    {
+      "path": "/api/cron/cleanup-files",
+      "schedule": "7 4 * * *"
+    },
+    {
+      "path": "/api/cron/backup-pages",
+      "schedule": "37 2 * * *"
+    }
   ]
 }

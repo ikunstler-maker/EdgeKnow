@@ -4,6 +4,8 @@ import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
+import { Icon } from "@/components/ui/icon";
+import { Hint } from "@/components/ui/hint";
 
 const a = t.analytics;
 const PERIODS = [7, 30, 90, 365] as const;
@@ -63,9 +65,11 @@ export default async function AnalyticsPage({ params, searchParams }: PageProps<
   const result = (data ?? { ok: false, error: "unknown" }) as Result;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10" data-analytics>
-      <h1 className="text-2xl font-semibold">📈 {a.title}</h1>
-      <p className="mt-2 text-muted">{result.ok && result.admin ? a.introAdmin : a.introMine}</p>
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:py-8" data-analytics>
+      <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+        <Icon name="chart" size={20} className="text-muted" />{a.title}
+        <Hint label={t.common.about} text={result.ok && result.admin ? a.introAdmin : a.introMine} />
+      </h1>
       <nav className="mt-4 flex flex-wrap gap-1" aria-label={a.period}>
         {PERIODS.map((d) => (
           <Link
@@ -127,7 +131,7 @@ function Tile({ label, value, hint }: { label: string; value: string | number; h
   return (
     <div className="rounded-xl border border-border p-3" title={hint}>
       <p className="text-xs text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">{value}</p>
     </div>
   );
 }

@@ -5,6 +5,10 @@ import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { BoardBinActions, NewBoardButton, NewDesignButton } from "@/components/boards/board-list-actions";
+import { Icon } from "@/components/ui/icon";
+import { ServiceIcon } from "@/components/services/service-icon";
+import { Hint } from "@/components/ui/hint";
+import { buttonClass } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: `${t.boards.title} · ${t.app.name}` };
 
@@ -26,36 +30,36 @@ export default async function BoardsPage({ params, searchParams }: PageProps<"/w
   const b = t.boards;
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex-1 text-2xl font-semibold">🎨 {bin ? `${b.title} · ${b.bin}` : b.title}</h1>
-        <Link href={bin ? base : `${base}?bin=1`} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 md:py-8">
+      <header className="flex flex-wrap items-center gap-2">
+        <h1 className="flex min-w-0 flex-1 items-center gap-2 text-xl font-semibold tracking-tight">
+          <ServiceIcon serviceId="boards" size={28} />
+          <span className="truncate">{bin ? `${b.title} · ${b.bin}` : b.title}</span>
+          {!bin && <Hint label={b.title} text={b.intro} />}
+        </h1>
+        <Link href={bin ? base : `${base}?bin=1`} className={buttonClass("ghost")}>
+          <Icon name={bin ? "arrow-left" : "trash"} />
           {bin ? b.hideBin : b.showBin}
         </Link>
-      </div>
-      {!bin && (
-        <>
-          <p className="mt-1 text-muted">{b.intro}</p>
-          <div className="mt-4">
-            <NewBoardButton shortId={workspace.shortId} />
-            <NewDesignButton shortId={workspace.shortId} />
-          </div>
-        </>
-      )}
+        {!bin && (
+          <>
+          <NewBoardButton shortId={workspace.shortId} />
+          <NewDesignButton shortId={workspace.shortId} />
+          </>
+        )}
+      </header>
       {rows.length === 0 ? (
-        <p className="mt-6 text-muted">{bin ? b.binEmpty : b.none}</p>
+        <p className="mt-5 rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">{bin ? b.binEmpty : b.none}</p>
       ) : (
-        <ul className="mt-6 divide-y divide-border rounded-lg border border-border" data-boards>
+        <ul className="mt-5 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface" data-boards>
           {rows.map((row) => (
             <li key={row.id} className="flex min-h-14 flex-wrap items-center gap-3 px-3 py-2" data-board={row.title || b.untitled}>
-              <span aria-hidden="true" className="text-xl">
-                🎨
-              </span>
+              <ServiceIcon serviceId="boards" size={22} />
               <div className="min-w-0 flex-1">
                 {bin ? (
-                  <span className="block truncate font-medium">{row.title || b.untitled}</span>
+                  <span className="block truncate text-sm font-medium">{row.title || b.untitled}</span>
                 ) : (
-                  <Link href={`${base}/${row.id}`} className="block truncate font-medium hover:underline">
+                  <Link href={`${base}/${row.id}`} className="block truncate text-sm font-medium hover:underline">
                     {row.title || b.untitled}
                   </Link>
                 )}

@@ -33,6 +33,173 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-a",
+    version: "0.26.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Новий вигляд і навігація", en: "A new look and navigation" },
+    summaryDescription: {
+      uk: "Спокійніші поверхні з тонкими рамками, власні значки замість емодзі та ліва панель, у якій лишилося тільки потрібне.",
+      en: "Calmer surfaces with thin hairlines, our own icons instead of emoji, and a left panel that keeps only what you need.",
+    },
+    items: [
+      { id: "look-surfaces", type: "visual", scope: "global", title: { uk: "Нові кольори поверхонь, тонкі рамки й скролбари в обох темах.", en: "New surface colours, thin hairlines and scrollbars in both themes." } },
+      { id: "look-icons", type: "visual", scope: "global", title: { uk: "Власні значки інтерфейсу й знак кожного сервісу з його градієнтом.", en: "Our own interface icons and a mark for every service in its gradient." } },
+      { id: "nav-menu", type: "improved", scope: "global", title: { uk: "Профіль, налаштування, тема, мова, «Що нового», довідка й вихід — в одному меню під назвою workspace.", en: "Profile, settings, theme, language, “What's new”, help and sign-out — in one menu under the workspace name." } },
+      { id: "nav-services", type: "improved", scope: "global", title: { uk: "Сервіси за чотирма категоріями: закріплені — в панелі, усі — у списку (Ctrl+E).", en: "Services in four categories: pinned ones in the panel, all of them in the list (Ctrl+E)." } },
+      { id: "nav-collapse", type: "added", scope: "global", title: { uk: "Ліву панель можна згорнути (Ctrl+\\).", en: "The left panel can be collapsed (Ctrl+\\)." } },
+      { id: "studio", type: "visual", scope: "global", title: { uk: "Таблиці, презентації, дошки й карти відкриваються на весь екран під однією компактною шапкою: «Експорт / Імпорт», «Доступ», основна дія й «Ще».", en: "Tables, decks, boards and maps open on the whole screen under one compact bar: “Export / Import”, “Access”, the main action and “More”." } },
+      { id: "sheets-charts", type: "improved", scope: "sheets", title: { uk: "Sota: діаграми — у бічній панелі поруч із таблицею.", en: "Sota: charts sit in a side panel beside the table." } },
+      { id: "slides-rail", type: "improved", scope: "slides", title: { uk: "Kadry: вузька стрічка слайдів, копія й видалення на мініатюрі, нотатки у висувній смузі.", en: "Kadry: a slim slide rail, copy and delete on the thumbnail, notes in a drawer." } },
+      { id: "boards-dock", type: "improved", scope: "board", title: { uk: "Bordy: шаблони, голосування, таймер і задача зі стікера — в одній плаваючій панелі.", en: "Bordy: templates, voting, the timer and a task from a sticky note in one floating dock." } },
+      { id: "wiki-bar", type: "improved", scope: "wiki", title: { uk: "Wika: дії сторінки зібрано в одну шапку; на сторінках із зовнішнього джерела назва більше не повторюється двічі.", en: "Wika: a page's actions sit in one bar; on pages fed from outside the name is no longer shown twice." } },
+      { id: "forms-builder", type: "visual", scope: "forms", title: { uk: "Questa: вкладки зі значками, питання — окремі картки без зайвих рамок.", en: "Questa: tabs with icons, each question its own card without extra frames." } },
+      { id: "profile-cards", type: "visual", scope: "profile", title: { uk: "Профіль: картка людини, показники плитками, перемикачі-картки й окрема зона для видалення акаунта.", en: "Profile: a person card, numbers as tiles, choice cards and a separate zone for deleting the account." } },
+      { id: "kadry-panel", type: "visual", scope: "slides", title: { uk: "Kadry: панель оформлення і шарів схована за замовчуванням — слайд займає більше місця; відкривається кнопкою на панелі інструментів.", en: "Kadry: the design and layers panel is closed by default, so the slide gets more room; a toolbar button opens it." } },
+      { id: "dialogs", type: "visual", scope: "global", title: { uk: "Усі діалоги — в єдиному вигляді; пояснення під заголовками екранів сховано в підказки «i».", en: "Every dialog shares one look; explanations under screen titles moved into “i” hints." } },
+      { id: "tasks-card", type: "visual", scope: "tasks", title: { uk: "Rukh: компактна картка задачі — пріоритет і виконавець змінюються прямо на ній; один рядок заголовка й один рядок фільтрів.", en: "Rukh: a compact task card — priority and assignee change right on it; one header row and one filter row." } },
+      { id: "tasks-new-project", type: "improved", scope: "tasks", title: { uk: "Rukh: новий проєкт створюється в діалозі з кнопки «Новий проєкт».", en: "Rukh: a new project is created in a dialog from the “New project” button." } },
+      { id: "calendar-header", type: "improved", scope: "calendar", title: { uk: "Doba: у шапці один перемикач «Календар / Відсутності» й одна кнопка «Створити».", en: "Doba: the header has one “Calendar / Time off” switch and one “Create” button." } },
+      { id: "nav-tasks", type: "improved", scope: "tasks", title: { uk: "У лівій панелі Rukh — проєкти й дошки; самі задачі лишаються на дошці.", en: "The left panel in Rukh lists projects and boards; the tasks themselves stay on the board." } },
+    ],
+  },
+  {
+    id: "2026-11-10-i",
+    version: "0.25.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Obriy: галерея додатків компанії", en: "Obriy: your company's app gallery" },
+    summaryDescription: {
+      uk: "Усі зовнішні додатки й сервіси компанії в одному місці — плитками, з логотипом, категорією й описом.",
+      en: "All your company's outside apps and services in one place — as tiles with a logo, category and description.",
+    },
+    items: [
+      { id: "apps-gallery", type: "added", scope: "apps", title: { uk: "Плитки додатків з фільтром за категоріями; додаток відкривається в новій вкладці.", en: "App tiles with a category filter; an app opens in a new tab." } },
+      { id: "apps-fill", type: "added", scope: "apps", title: { uk: "Назва, опис і логотип підтягуються з посилання; усе можна змінити вручну або завантажити свій логотип.", en: "Name, description and logo are filled from the link; everything is editable, or upload your own logo." } },
+      { id: "apps-access", type: "added", scope: "apps", title: { uk: "Додають і змінюють додатки власник та адміністратори; доступ — усій компанії, людям чи підрозділам.", en: "The owner and admins add and change apps; access goes to the whole company, people or units." } },
+    ],
+  },
+  {
+    id: "2026-11-10-h",
+    version: "0.24.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: зайнятість з вашого календаря", en: "Doba: busy time from your calendar" },
+    summaryDescription: {
+      uk: "Підключіть власний календар за адресою-підпискою — колеги бачитимуть, коли ви зайняті, без жодних подробиць.",
+      en: "Connect your own calendar by its subscription address — colleagues see when you are busy, with no details at all.",
+    },
+    items: [
+      { id: "outside-busy", type: "added", scope: "calendar", title: { uk: "Зайнятість із зовнішнього календаря: лише час, без назв і учасників.", en: "Busy time from an outside calendar: times only, no titles or people." } },
+      { id: "outside-refresh", type: "added", scope: "calendar", title: { uk: "Оновлюється сама у фоні; є «Оновити зараз» і «Відключити».", en: "Refreshes by itself in the background; “Refresh now” and “Disconnect” are there." } },
+    ],
+  },
+  {
+    id: "2026-11-10-g",
+    version: "0.23.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba у вашому календарі", en: "Doba in your own calendar" },
+    summaryDescription: {
+      uk: "Особиста адреса-підписка: події Doba й ваші відсутності видно у власному календарі на телефоні чи в пошті.",
+      en: "A personal subscription address: Doba events and your time off show in your own calendar on the phone or in the mail.",
+    },
+    items: [
+      { id: "feed", type: "added", scope: "calendar", title: { uk: "«У моєму календарі»: секретна адреса для підписки у будь-якому календарі.", en: "“In my calendar”: a secret address to subscribe from any calendar app." } },
+      { id: "feed-renew", type: "added", scope: "calendar", title: { uk: "Адресу можна замінити новою або вимкнути будь-коли.", en: "The address can be replaced or turned off at any time." } },
+    ],
+  },
+  {
+    id: "2026-11-10-f",
+    version: "0.22.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: створення розтягуванням", en: "Doba: drag to create" },
+    summaryDescription: {
+      uk: "Сітка календаря відповідає на курсор: підсвічування, розтягування, відсутність просто з календаря.",
+      en: "The calendar grid answers the pointer: highlight, dragging, time off right from the calendar.",
+    },
+    items: [
+      { id: "drag-create", type: "added", scope: "calendar", title: { uk: "Подія розтягуванням по клітинках: по годинах (крок 15 хвилин) і по днях.", en: "An event by dragging across cells: down the hours (steps of 15 minutes) and across the days." } },
+      { id: "absence-grid", type: "added", scope: "calendar", title: { uk: "Режим «Відсутність»: заявка на обрані в сітці дні.", en: "The “Time off” mode: a request for the days picked on the grid." } },
+      { id: "withdraw", type: "added", scope: "calendar", title: { uk: "Свою відсутність можна відкликати кліком у календарі.", en: "Your own absence can be withdrawn with a click in the calendar." } },
+      { id: "hover", type: "visual", scope: "calendar", title: { uk: "Клітинка під курсором підсвічується.", en: "The cell under the pointer is highlighted." } },
+    ],
+  },
+  {
+    id: "2026-11-10-e",
+    version: "0.21.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: свята й автоматичне нарахування", en: "Doba: holidays and accrual by itself" },
+    summaryDescription: {
+      uk: "Свята не списуються з відпустки, норма нараховується сама, новачки отримують її пропорційно.",
+      en: "Holidays aren't taken from time off, the norm arrives by itself, newcomers get it in proportion.",
+    },
+    items: [
+      { id: "holidays", type: "added", scope: "calendar", title: { uk: "Свята й неробочі дні: список на рік і «скопіювати з минулого року».", en: "Holidays and days off: a list per year and “copy from last year”." } },
+      { id: "auto-accrual", type: "added", scope: "calendar", title: { uk: "Нарахування щороку або щомісяця — без кнопки й без подвоєння.", en: "Accrual every year or every month — without the button, and never twice." } },
+      { id: "start-date", type: "added", scope: "calendar", title: { uk: "Дата початку роботи: норма першого року — пропорційно місяцям.", en: "Start date: the first year's norm is in proportion to the months." } },
+    ],
+  },
+  {
+    id: "2026-11-10-d",
+    version: "0.20.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: задачі в календарі, підрозділи, пошук подій", en: "Doba: tasks on the calendar, units, event search" },
+    summaryDescription: {
+      uk: "Календар бачить решту платформи — з тими самими правами доступу.",
+      en: "The calendar sees the rest of the platform — with the same access rules.",
+    },
+    items: [
+      { id: "calendar-tasks", type: "added", scope: "calendar", title: { uk: "Терміни задач у календарі: мої або всі доступні; чужі приватні задачі не показуються.", en: "Task due dates on the calendar: mine or all I can see; other people's private tasks never show." } },
+      { id: "invite-unit", type: "added", scope: "calendar", title: { uk: "Запрошення цілого підрозділу на подію з кнопкою «Оновити склад».", en: "Inviting a whole unit to an event, with “Refresh” for those who joined later." } },
+      { id: "event-search", type: "added", scope: "global", title: { uk: "Події в пошуку та чіп події у вікі.", en: "Events in search, and an event chip in the wiki." } },
+    ],
+  },
+  {
+    id: "2026-11-10-c",
+    version: "0.19.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: повторювані події й нагадування", en: "Doba: repeating events and reminders" },
+    summaryDescription: {
+      uk: "Серії подій із гнучкими змінами: один день, цей і наступні або всі.",
+      en: "Series of events with flexible changes: one day, this and the following, or all.",
+    },
+    items: [
+      { id: "repeats", type: "added", scope: "calendar", title: { uk: "Повтори: щодня, щотижня у вибрані дні, щомісяця, щороку — до дати або певну кількість разів.", en: "Repeats: daily, weekly on chosen days, monthly, yearly — until a date or a number of times." } },
+      { id: "series-scope", type: "added", scope: "calendar", title: { uk: "Зміна й скасування: лише ця подія, ця й наступні або вся серія.", en: "Changing and cancelling: only this event, this and the following, or the whole series." } },
+      { id: "reminders", type: "added", scope: "calendar", title: { uk: "Нагадування учасникам за 10 хвилин, годину або день до початку.", en: "Reminders for the people 10 minutes, an hour or a day before the start." } },
+    ],
+  },
+  {
+    id: "2026-11-10-b",
+    version: "0.18.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: відпустки й відсутності", en: "Doba: time off" },
+    summaryDescription: {
+      uk: "Правила, баланси, заявки із заступником і погодження керівником підрозділу.",
+      en: "Policies, balances, requests with a deputy and approval by the unit's lead.",
+    },
+    items: [
+      { id: "leave-requests", type: "added", scope: "calendar", title: { uk: "Заявки на відпустку, лікарняний, відгул і віддалену роботу — на день, кілька днів або пів дня.", en: "Requests for vacation, sick leave, a day off and remote work — a day, several days or half a day." } },
+      { id: "leave-approval", type: "added", scope: "calendar", title: { uk: "Погодження керівником підрозділу; власну заявку не погоджує ніхто.", en: "Approval by the unit's lead; nobody approves their own request." } },
+      { id: "leave-balances", type: "added", scope: "calendar", title: { uk: "Баланси з річним нарахуванням, перенесенням залишку й ручними правками.", en: "Balances with a yearly accrual, carry-over and manual corrections." } },
+      { id: "leave-calendar", type: "added", scope: "calendar", title: { uk: "Відсутності колег видно в календарі — без зайвих подробиць.", en: "Colleagues' absences show on the calendar — without extra details." } },
+      { id: "leave-role", type: "added", scope: "security", title: { uk: "Право ролі «Керувати відпустками» для HR.", en: "The role right “Manage time off” for HR." } },
+    ],
+  },
+  {
+    id: "2026-11-10",
+    version: "0.17.0",
+    date: "2026-11-10",
+    summaryTitle: { uk: "Doba: календар команди", en: "Doba: the team calendar" },
+    summaryDescription: {
+      uk: "Події чотирьох видів, запити на участь і зайнятість колег без зайвих деталей.",
+      en: "Four kinds of events, requests to join and colleagues' busy time without extra details.",
+    },
+    items: [
+      { id: "events", type: "added", scope: "calendar", title: { uk: "Події: відкриті, із запитом на участь, лише за запрошенням і приватні.", en: "Events: open, by request, invite-only and private." } },
+      { id: "busy", type: "added", scope: "calendar", title: { uk: "Доступність колег: закриті події видно лише як «Зайнято», без назви й учасників.", en: "Colleagues' availability: hidden events show only as “Busy”, without the title or the people." } },
+      { id: "views", type: "added", scope: "calendar", title: { uk: "Місяць, тиждень і список; на телефоні тиждень показує один день.", en: "Month, week and list; on a phone the week shows one day." } },
+      { id: "event-notifications", type: "added", scope: "global", title: { uk: "Сповіщення про запрошення, запити на участь, зміну часу й скасування подій.", en: "Notifications about invitations, requests to join, time changes and cancelled events." } },
+    ],
+  },
+  {
     id: "2026-11-07",
     version: "0.16.0",
     date: "2026-11-07",

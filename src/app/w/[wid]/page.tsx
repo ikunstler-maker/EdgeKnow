@@ -8,6 +8,8 @@ import { ServiceTiles } from "@/components/services/service-tiles";
 import { Onboarding, type OnboardingStep } from "@/components/onboarding";
 import { createClient } from "@/lib/supabase/server";
 import { workspaceData } from "@/lib/team-db/data";
+import { Icon } from "@/components/ui/icon";
+import { iconButtonClass } from "@/components/ui/button";
 
 type MentionRow = {
   id: string;
@@ -103,11 +105,11 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
       const settings = (tab: string) => workspacePath(workspace.shortId, `/settings?tab=${tab}`);
       steps = [
         ...(data?.location !== "central" || needsDatabase
-          ? [{ key: "database" as const, done: data?.location === "team", href: settings("team") }]
+          ? [{ key: "database" as const, done: data?.location === "team", href: settings("data") }]
           : []),
         { key: "page", done: pages > 0, href: workspacePath(workspace.shortId) },
-        { key: "people", done: (memberCount ?? 0) > 1, href: settings("members") },
-        { key: "drive", done: Boolean((storage as { drive: unknown } | null)?.drive), href: settings("storage") },
+        { key: "people", done: (memberCount ?? 0) > 1, href: settings("people") },
+        { key: "drive", done: Boolean((storage as { drive: unknown } | null)?.drive), href: settings("data") },
         { key: "help", done: false, href: "/help" },
       ];
       canAddExamples = pages === 0 && !needsDatabase && (data?.location === "central" || data?.location === "team");
@@ -120,16 +122,16 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-muted">{workspace.name}</p>
-          <h1 className="text-2xl font-semibold md:text-3xl">{t.home.greeting(user.name ?? user.email)}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t.home.greeting(user.name ?? user.email)}</h1>
         </div>
         {isWorkspaceAdmin(workspace) && (
           <Link
             href={workspacePath(workspace.shortId, "/settings")}
             aria-label={t.home.settingsLink}
             title={t.home.settingsLink}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-border text-lg hover:bg-surface"
+            className={iconButtonClass("subtle")}
           >
-            ⚙️
+            <Icon name="settings" size={18} />
           </Link>
         )}
       </div>
@@ -139,14 +141,14 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
       {steps && <Onboarding workspaceId={workspace.id} shortId={workspace.shortId} steps={steps} canAddExamples={canAddExamples} />}
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold">{t.mentions.heading}</h2>
+        <h2 className="text-xs font-medium uppercase tracking-wide text-muted">{t.mentions.heading}</h2>
         {!list.length ? (
           <p className="mt-2 text-sm text-muted">{t.mentions.empty}</p>
         ) : (
-          <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
+          <ul className="mt-2.5 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
             {list.map((m) => (
               <li key={m.key}>
-                <Link href={m.href} className="block px-3 py-2 hover:bg-surface">
+                <Link href={m.href} className="block px-3.5 py-2.5 hover:bg-hover">
                   <span className="block text-xs text-muted">
                     {m.who} · {t.mentions.on(m.page)} · {dateFormat().format(new Date(m.at))}
                   </span>

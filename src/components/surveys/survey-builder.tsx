@@ -2,9 +2,10 @@
 
 import { t } from "@/i18n";
 import { canJump, isChoice, newId, newQuestion, QUESTION_TYPES, type Question, type QuestionType, type Section, type SurveyData } from "@/lib/surveys";
+import { Icon } from "@/components/ui/icon";
 
 const b = t.surveys.builder;
-const input = "min-h-11 w-full rounded-md border border-border bg-background px-3 text-base md:min-h-9 md:text-sm";
+const input = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
 const small = "min-h-11 rounded-md border border-border px-2 text-xs hover:bg-surface disabled:opacity-40 md:min-h-8";
 
 // Editing the form: sections, their questions and where each section (or a
@@ -39,7 +40,7 @@ export function SurveyBuilder({ survey, onChange, hasAnswers }: { survey: Survey
     <div className="flex flex-col gap-4" data-survey-builder>
       {hasAnswers && <p className="rounded-md bg-surface px-3 py-2 text-xs text-muted">{b.hasAnswers}</p>}
       {sections.map((section, si) => (
-        <section key={section.id} className="rounded-xl border border-border p-3 md:p-4" data-survey-section={si + 1}>
+        <section key={section.id} data-survey-section={si + 1}>
           {sections.length > 1 && (
             <div className="mb-3 flex flex-col gap-2">
               <div className="flex items-center gap-2">
@@ -79,6 +80,7 @@ export function SurveyBuilder({ survey, onChange, hasAnswers }: { survey: Survey
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setSection(si, { questions: [...section.questions, newQuestion("single", b.optionN)] })} className="min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface md:min-h-9">
+              <Icon name="plus" className="mr-1 inline" />
               {b.addQuestion}
             </button>
             {sections.length > 1 && (
@@ -101,6 +103,7 @@ export function SurveyBuilder({ survey, onChange, hasAnswers }: { survey: Survey
         onClick={() => onChange({ ...survey, sections: [...sections, { id: newId(), questions: [newQuestion("single", b.optionN)] }] })}
         className="self-start min-h-11 rounded-md border border-dashed border-border px-3 text-sm hover:bg-surface md:min-h-9"
       >
+        <Icon name="plus" className="mr-1 inline" />
         {b.addSection}
       </button>
     </div>
@@ -133,7 +136,7 @@ function QuestionEditor({
   const options = question.options ?? [];
   const labels = options.map((o) => o.label.trim());
   return (
-    <div className="rounded-lg border border-border bg-background p-3" data-question-editor>
+    <div className="rounded-xl bg-surface p-4" data-question-editor>
       <div className="flex flex-col gap-2 md:flex-row">
         <input value={question.title} maxLength={500} placeholder={b.questionPlaceholder} aria-label={b.questionPlaceholder} onChange={(e) => set({ title: e.target.value })} className={`${input} font-medium md:flex-1`} />
         <select value={question.type} aria-label={b.type} onChange={(e) => changeType(e.target.value as QuestionType)} className="min-h-11 rounded-md border border-border bg-background px-2 text-sm md:min-h-9 md:w-48">
@@ -151,14 +154,14 @@ function QuestionEditor({
           {options.map((option, i) => (
             <li key={i} className="flex flex-wrap items-center gap-2">
               <span aria-hidden="true" className="w-5 text-center text-muted">
-                {question.type === "multi" ? "☐" : question.type === "single" ? "○" : `${i + 1}.`}
+                {question.type === "multi" ? <Icon name="square" size={14} /> : question.type === "single" ? <Icon name="circle" size={14} /> : `${i + 1}.`}
               </span>
               <input
                 value={option.label}
                 maxLength={300}
                 aria-label={b.option(i + 1)}
                 onChange={(e) => set({ options: options.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)) })}
-                className={`${input} min-w-40 flex-1 ${option.label.trim() && labels.indexOf(option.label.trim()) !== i ? "border-danger" : ""}`}
+                className={`min-h-11 min-w-40 flex-1 rounded-lg border-b bg-transparent px-2 text-base outline-none hover:bg-hover focus:border-accent focus:bg-hover md:h-8 md:min-h-0 md:text-sm ${option.label.trim() && labels.indexOf(option.label.trim()) !== i ? "border-danger" : "border-transparent"}`}
               />
               {canJump(question.type) && targets.length > 2 && (
                 <select
@@ -176,12 +179,13 @@ function QuestionEditor({
                 </select>
               )}
               <button type="button" aria-label={b.removeOption} title={b.removeOption} disabled={options.length <= 1} onClick={() => set({ options: options.filter((_, j) => j !== i) })} className={small}>
-                ✕
+                <Icon name="close" />
               </button>
             </li>
           ))}
           <li>
             <button type="button" onClick={() => set({ options: [...options, { label: b.optionN(options.length + 1) }] })} className="ml-7 min-h-11 px-1 text-sm text-accent hover:underline md:min-h-8">
+              <Icon name="plus" className="mr-1 inline" />
               {b.addOption}
             </button>
           </li>
@@ -228,10 +232,10 @@ function QuestionEditor({
         </label>
         <span className="flex-1" />
         <button type="button" onClick={() => onMove(-1)} disabled={first} className={small} aria-label={b.moveUp} title={b.moveUp}>
-          ↑
+          <Icon name="arrow-up" />
         </button>
         <button type="button" onClick={() => onMove(1)} disabled={last} className={small} aria-label={b.moveDown} title={b.moveDown}>
-          ↓
+          <Icon name="arrow-down" />
         </button>
         <button type="button" onClick={onDuplicate} className={small}>
           {b.duplicate}

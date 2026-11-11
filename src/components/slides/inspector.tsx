@@ -3,6 +3,8 @@
 import { t } from "@/i18n";
 import type { Gradient, Slide, SlideNode } from "@/lib/slides";
 import { BRAND_GRADIENTS, FONTS } from "@/lib/slide-themes";
+import { Icon } from "@/components/ui/icon";
+import { ALIGN_ICON } from "@/components/slides/tool-icons";
 
 const s = t.slides;
 const d = t.slides.design;
@@ -154,7 +156,7 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
                       set({ gradient: { ...node.gradient!, stops: stops.map((x, j) => ({ ...x, offset: j / (stops.length - 1) })) } });
                     }}
                   >
-                    ＋
+                    <Icon name="plus" />
                   </button>
                 )}
                 {node.gradient.stops.length > 2 && (
@@ -276,12 +278,12 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
             </button>
             {(["left", "center", "right"] as const).map((a) => (
               <button key={a} type="button" aria-pressed={(node.align ?? "left") === a} onClick={() => set({ align: a })} className={chip((node.align ?? "left") === a)} aria-label={d.aligns[a]}>
-                {a === "left" ? "⇤" : a === "center" ? "↔" : "⇥"}
+                <Icon name={ALIGN_ICON[a]} />
               </button>
             ))}
             {(["top", "middle", "bottom"] as const).map((a) => (
               <button key={a} type="button" aria-pressed={(node.vAlign ?? "top") === a} onClick={() => set({ vAlign: a })} className={chip((node.vAlign ?? "top") === a)} aria-label={d.vAligns[a]}>
-                {a === "top" ? "⤒" : a === "middle" ? "↕" : "⤓"}
+                <Icon name={ALIGN_ICON[a]} />
               </button>
             ))}
           </div>

@@ -8,6 +8,7 @@ import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import type { CollectionItem, CollectionSummary, ObjectSummary } from "@/lib/tasks";
 import { deleteCollection, saveCollection, setCollectionItem } from "@/app/collection-actions";
+import { Icon } from "@/components/ui/icon";
 
 export type Collections = { list: CollectionSummary[]; items: CollectionItem[] };
 
@@ -116,7 +117,7 @@ export function ServiceCollections({
     const here = pathname === href || pathname.startsWith(`${href}/`);
     return (
       <li key={key} className="flex items-center">
-        <Link href={href} onClick={onNavigate} data-angler-here={here ? "" : undefined} className={rowClass(here)} data-sidebar-object>
+        <Link prefetch={false} href={href} onClick={onNavigate} data-angler-here={here ? "" : undefined} className={rowClass(here)} data-sidebar-object>
           <span className="truncate">{o.title || t.pages.untitled}</span>
         </Link>
         {extra}
@@ -131,7 +132,7 @@ export function ServiceCollections({
           <span className="flex-1 text-xs font-medium uppercase tracking-wide text-muted">{c.title}</span>
           {canManage && (
             <button type="button" onClick={() => setAdding(true)} aria-label={c.add} title={c.add} className={iconButton} data-collection-add>
-              ＋
+              <Icon name="plus" />
             </button>
           )}
         </div>
@@ -174,7 +175,7 @@ export function ServiceCollections({
                         entry.object_id,
                         canManage && (
                           <button type="button" onClick={() => put(item.id, entry.object_id, false)} aria-label={c.removeFrom(item.name)} title={c.removeFrom(item.name)} className={iconButton}>
-                            ✕
+                            <Icon name="close" size={14} />
                           </button>
                         ),
                       ),
@@ -195,7 +196,7 @@ export function ServiceCollections({
                 o.id,
                 <span className="relative">
                   <button type="button" onClick={() => setMenuFor(menuFor === o.id ? null : o.id)} aria-label={c.addTo(o.title || t.pages.untitled)} aria-expanded={menuFor === o.id} className={iconButton} data-collection-menu>
-                    ⋯
+                    <Icon name="more" />
                   </button>
                   {menuFor === o.id && (
                     <div className="absolute right-0 z-30 mt-1 w-56 rounded-lg border border-border bg-background p-2 shadow-xl" role="group" aria-label={c.inCollections}>
@@ -258,22 +259,22 @@ function CollectionRow({
       <div className="flex items-center">
         {canManage && (
           <button type="button" {...drag.listeners} {...drag.attributes} aria-label={c.drag(item.name)} className={`${iconButton} cursor-grab touch-none`}>
-            ⠿
+            <Icon name="drag" size={14} />
           </button>
         )}
         <button type="button" onClick={onToggle} aria-expanded={isOpen} className={rowClass(false)}>
-          <span className="w-3 shrink-0 text-xs text-muted">{isOpen ? "▾" : "▸"}</span>
-          <span aria-hidden>📁</span>
+          <Icon name={isOpen ? "chevron-down" : "chevron-right"} size={12} className="text-muted" />
+          <Icon name="folder" className="text-muted" />
           <span className="truncate">{item.name}</span>
           <span className="ml-auto text-xs text-muted">{count}</span>
         </button>
         {canManage && (
           <>
             <button type="button" onClick={onRename} aria-label={c.rename(item.name)} title={c.rename(item.name)} className={iconButton}>
-              ✎
+              <Icon name="edit" size={14} />
             </button>
             <button type="button" onClick={onDelete} aria-label={c.remove(item.name)} title={c.remove(item.name)} className={iconButton}>
-              🗑
+              <Icon name="trash" size={14} />
             </button>
           </>
         )}
@@ -289,7 +290,7 @@ function DraggableObject({ id, title, children }: { id: string; title: string; c
   return (
     <div ref={setNodeRef} style={style} className={`flex items-center ${isDragging ? "relative z-20 rounded-md bg-background shadow-lg" : ""}`}>
       <button type="button" {...listeners} {...attributes} aria-label={c.dragObject(title)} className={`${iconButton} cursor-grab touch-none`}>
-        ⠿
+        <Icon name="drag" />
       </button>
       <ul className="min-w-0 flex-1">{children}</ul>
     </div>

@@ -15,6 +15,9 @@ import { PageBody } from "@/components/editor/page-body";
 import { PageCover } from "@/components/pages/page-cover";
 import { PageHeader } from "@/components/pages/page-header";
 import { ShareButton } from "@/components/pages/share-dialog";
+import { PageExportButton } from "@/components/pages/page-export";
+import { DraftBar } from "@/components/pages/draft-bar";
+import { PageHistoryButton } from "@/components/pages/page-history";
 import { PageMeta } from "@/components/pages/page-meta";
 import { TrashedBanner } from "@/components/pages/trashed-banner";
 import { ClearNewFlag } from "@/components/pages/clear-new-flag";
@@ -40,6 +43,8 @@ type PageRecord = {
   ack_revision: number;
   ack_editing: boolean;
   ack_groups: string[];
+  published_at: string | null;
+  is_draft: boolean;
   author: { name: string | null; email: string } | null;
 };
 
@@ -51,7 +56,7 @@ async function loadPage(wid: string, id: string): Promise<PageRecord | null> {
   const { data } = await supabase
     .from("pages")
     .select(
-      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, ack_label, ack_revision, ack_editing, ack_groups, author:profiles!pages_created_by_fkey(name, email)",
+      "id, workspace_id, title, icon, content, version, created_at, updated_at, deleted_at, trashed_with, my_role, cover, ack_label, ack_revision, ack_editing, ack_groups, published_at, is_draft, author:profiles!pages_created_by_fkey(name, email)",
     )
     .eq("id", id)
     .maybeSingle()
@@ -134,6 +139,17 @@ async function loadSource(workspaceId: string, pageId: string) {
   return { id: data.id as string, info, content };
 }
 
+// A page fed from outside often opens with a heading that repeats its name; the
+// name is already the page's title, so that first heading is not shown twice.
+function withoutTitleHeading(content: unknown, title: string): unknown {
+  if (!Array.isArray(content) || content.length === 0) return content;
+  const first = content[0] as { type?: string; content?: unknown } | null;
+  if (first?.type !== "heading" || !Array.isArray(first.content)) return content;
+  const text = first.content.map((part) => (part && typeof (part as { text?: unknown }).text === "string" ? (part as { text: string }).text : "")).join("");
+  const same = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
+  return same(text) !== "" && same(text) === same(title) ? content.slice(1) : content;
+}
+
 export async function generateMetadata({ params }: PageProps<"/w/[wid]/p/[id]">): Promise<Metadata> {
   const { wid, id } = await params;
   const page = await loadPage(wid, id);
@@ -148,7 +164,7 @@ async function loadNewPage(wid: string, id: string, isNew: boolean, workspaceId:
   const ws = await workspaceId;
   if (!ws) return null;
   const now = new Date().toISOString();
-  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, ack_label: null, ack_revision: 0, ack_editing: false, ack_groups: [], author: null };
+  return { id, workspace_id: ws, title: "", icon: null, content: null, version: 1, created_at: now, updated_at: now, deleted_at: null, trashed_with: null, my_role: "owner", cover: null, ack_label: null, ack_revision: 0, ack_editing: false, ack_groups: [], published_at: null, is_draft: true, author: null };
 }
 
 export default async function WikiPage({ params, searchParams }: PageProps<"/w/[wid]/p/[id]">) {
@@ -166,14 +182,16 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
   if (!page || page.workspace_id !== workspace.id) {
     return (
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold">{t.pages.notFoundTitle}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t.pages.notFoundTitle}</h1>
         <p className="mt-3 text-muted">{t.pages.notFound}</p>
       </main>
     );
   }
 
-  const source = await loadSource(workspace.id, page.id);
-  const ack = await loadAck(wid, page, user.id, page.my_role === "owner" || isWorkspaceAdmin(workspace));
+  const [source, ack] = await Promise.all([
+    loadSource(workspace.id, page.id),
+    loadAck(wid, page, user.id, page.my_role === "owner" || isWorkspaceAdmin(workspace)),
+  ]);
   const frozen = isFrozen(ack);
   // Opening the page refreshes its source at most once an hour, after the response.
   if (source && !page.deleted_at) after(() => refreshIfStale(createAdminClient()!, source.id));
@@ -187,17 +205,20 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
 
   return (
     <div className="flex flex-1 flex-col">
+    {/* One bar for the page: where its text comes from on the left, its actions on the right. */}
+    {!page.deleted_at && (
+      <div className="sticky top-0 z-20 flex min-h-12 flex-wrap items-center justify-end gap-1.5 border-b border-border bg-background/90 px-3 py-1.5 backdrop-blur md:px-4" data-page-bar>
+        <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
+        {(ack?.canManage || (!ack && !page.is_draft && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
+        {canEdit(page.my_role) && !source && !isNew && <PageHistoryButton pageId={page.id} canRestore={editableMeta} />}
+        <PageExportButton pageId={page.id} />
+        <ShareButton pageId={page.id} />
+      </div>
+    )}
     <PageCover key={`cover-${page.id}`} pageId={page.id} initialCover={page.cover} editable={editableMeta} />
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 md:px-12 md:pt-12 xl:max-w-6xl">
       {isNew && <ClearNewFlag />}
       {page.deleted_at && <TrashedBanner trashRootId={page.trashed_with ?? page.id} canRestore={page.my_role === "owner"} />}
-      {!page.deleted_at && (
-        <div className="mb-2 flex flex-wrap justify-end gap-2">
-          <ExternalSourceBar shortId={wid} pageId={page.id} source={source?.info ?? null} isAdmin={isWorkspaceAdmin(workspace)} />
-          {(ack?.canManage || (!ack && (page.my_role === "owner" || isWorkspaceAdmin(workspace)) && !isNew)) && <AckManageButton pageId={page.id} ack={ack} />}
-          <ShareButton pageId={page.id} />
-        </div>
-      )}
       <PageHeader
         key={page.id}
         id={page.id}
@@ -210,13 +231,14 @@ export default async function WikiPage({ params, searchParams }: PageProps<"/w/[
         createdAt={page.created_at}
         updatedAt={page.updated_at}
       />
+      {page.is_draft && !page.deleted_at && <DraftBar pageId={page.id} ownDraft={page.published_at === null} canPublish={canEdit(page.my_role)} />}
       {ack && <AckBadge ack={ack} />}
       {frozen && canEdit(page.my_role) && !page.deleted_at && <p className="mt-2 text-xs text-muted" data-ack-frozen>{t.acks.frozenNote}</p>}
       <div className="mt-6">
         <PageBody
           key={`${page.id}-${source?.info.lang ?? ""}`}
           pageId={page.id}
-          initialContent={source?.content ?? page.content}
+          initialContent={source ? withoutTitleHeading(source.content ?? page.content, page.title) : page.content}
           initialVersion={page.version}
           editable={editable}
           canComment={canComment}

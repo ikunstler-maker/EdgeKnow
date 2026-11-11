@@ -1,42 +1,59 @@
 @import "tailwindcss";
 
 :root {
+  /* Surfaces, from the back to the front: the shell (left panel), the canvas, raised cards. */
+  --shell: #f3f4f6;
   --background: #ffffff;
-  --foreground: #1f1f1f;
-  --muted: #6b6b6b;
-  --border: #e6e6e3;
-  --surface: #f7f7f5;
+  --surface: #f9fafb;
+  --overlay: #ffffff;
+  --foreground: #14171f;
+  --muted: #646b7a;
+  /* Hairlines instead of solid grey outlines. */
+  --border: rgb(0 0 0 / 0.08);
+  --border-strong: rgb(0 0 0 / 0.16);
+  --hover: rgb(0 0 0 / 0.045);
   --accent: #2f6feb;
   --danger: #c4372f;
   --comment: rgba(255, 212, 0, 0.35);
   --comment-active: rgba(255, 196, 0, 0.7);
+  --scroll-thumb: rgb(0 0 0 / 0.18);
 }
 
 /* Dark colours: from the system setting unless the person picked a theme
    (data-theme on <html>, see src/app/layout.tsx). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #191919;
-    --foreground: #ececec;
-    --muted: #9b9b9b;
-    --border: #2f2f2f;
-    --surface: #222222;
-    --accent: #5b8def;
-    --danger: #e5675f;
+    --shell: #090b0e;
+    --background: #0d1017;
+    --surface: #141821;
+    --overlay: #141821;
+    --foreground: #e8eaf0;
+    --muted: #8a92a3;
+    --border: rgb(255 255 255 / 0.07);
+    --border-strong: rgb(255 255 255 / 0.14);
+    --hover: rgb(255 255 255 / 0.06);
+    --accent: #6b9bff;
+    --danger: #f0736b;
     --comment: rgba(255, 212, 0, 0.22);
     --comment-active: rgba(255, 196, 0, 0.45);
+    --scroll-thumb: rgb(255 255 255 / 0.16);
   }
 }
 :root[data-theme="dark"] {
-  --background: #191919;
-  --foreground: #ececec;
-  --muted: #9b9b9b;
-  --border: #2f2f2f;
-  --surface: #222222;
-  --accent: #5b8def;
-  --danger: #e5675f;
+  --shell: #090b0e;
+  --background: #0d1017;
+  --surface: #141821;
+  --overlay: #141821;
+  --foreground: #e8eaf0;
+  --muted: #8a92a3;
+  --border: rgb(255 255 255 / 0.07);
+  --border-strong: rgb(255 255 255 / 0.14);
+  --hover: rgb(255 255 255 / 0.06);
+  --accent: #6b9bff;
+  --danger: #f0736b;
   --comment: rgba(255, 212, 0, 0.22);
   --comment-active: rgba(255, 196, 0, 0.45);
+  --scroll-thumb: rgb(255 255 255 / 0.16);
 }
 :root {
   color-scheme: light dark;
@@ -49,15 +66,40 @@
 }
 
 @theme inline {
+  --color-shell: var(--shell);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-surface: var(--surface);
+  --color-overlay: var(--overlay);
+  --color-hover: var(--hover);
   --color-accent: var(--accent);
   --color-danger: var(--danger);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
+  /* Buttons, inputs and pills share one 8px corner; cards 12px; dialogs 16px. */
+  --radius-md: 0.5rem;
+}
+
+/* Thin, quiet scrollbars everywhere: the system's grey bars never show. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: var(--scroll-thumb);
+  background-clip: content-box;
 }
 
 body {
@@ -647,6 +689,11 @@ nav[data-angler-on] > :not([data-sidebar-bottom]):not(.ek-angler-guide) {
   --surface: #1c1c1e;
   --muted: #98989d;
   --border: #2c2c2e;
+  --border-strong: #3a3a3c;
+  --hover: rgb(255 255 255 / 0.06);
+  --overlay: #1c1c1e;
+  --shell: #000;
+  --scroll-thumb: rgb(255 255 255 / 0.18);
   background: #000;
   color: #f5f5f7;
   color-scheme: dark;
@@ -763,21 +810,26 @@ nav[data-angler-on] > :not([data-sidebar-bottom]):not(.ek-angler-guide) {
   .apus *, .apus-mini * { animation: none !important; }
 }
 
-/* Sidebar «What's new» button: a slow gradient glow while there is an unseen release. */
-.ek-news-glow::before {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  z-index: -1;
-  border-radius: inherit;
-  background: linear-gradient(120deg, #a78bfa, #f472b6, #fbbf24, #34d399, #60a5fa, #a78bfa);
-  background-size: 300% 300%;
-  filter: blur(4px);
-  animation: ek-news-shift 6s linear infinite, ek-news-pulse 3s ease-in-out infinite;
+/* In a document's studio Apus stands a little higher, clear of the editor's own
+   controls in the bottom corners (zoom, help, pagination), unless the person moved it. */
+:root:has([data-studio]) [data-apus]:not([style*="left"]) {
+  left: auto;
+  right: 0.75rem;
+  bottom: 4.5rem;
 }
-.ek-news-glow { isolation: isolate; }
-@keyframes ek-news-shift { to { background-position: 300% 50%; } }
-@keyframes ek-news-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.8; } }
+
+/* ---------- The line at the top while the next page loads ---------- */
+@keyframes ek-nav-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+.ek-nav-progress {
+  animation: ek-nav-progress 1.1s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .ek-news-glow::before { animation: none; opacity: 0.5; }
+  .ek-nav-progress {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
 }

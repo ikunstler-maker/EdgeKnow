@@ -7,9 +7,10 @@ import { workspacePath } from "@/lib/paths";
 import { boardSession, createTaskFromSticky, setBoardTimer, setBoardVoting, toggleBoardVote, type BoardSession } from "@/app/board-actions";
 import { projectsForEmbed, taskChips, type ChipProject } from "@/app/task-wiki-actions";
 import type { BoardController, StickyInfo } from "./board-canvas";
+import { Icon } from "@/components/ui/icon";
 
 const b = t.boards;
-const button = "inline-flex min-h-11 items-center gap-1 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const button = "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-transparent px-2.5 text-[13px] font-medium hover:bg-hover disabled:opacity-50 md:h-8 md:min-h-0";
 const MINUTES = [1, 3, 5, 10, 15];
 
 export type SessionView = { votes: { open: boolean; tally: Record<string, number>; mine: string[]; show: boolean } | null; chips: Record<string, { key: string; done: boolean; status: string } | null> };
@@ -85,7 +86,7 @@ export function BoardSessionBar({
 }) {
   const canEdit = role === "owner" || role === "editor";
   const { session, offset, refresh } = state;
-  const [menu, setMenu] = useState<"templates" | "voting" | "timer" | "task" | null>(null);
+  const [menu, setMenu] = useState<"templates" | "voting" | "timer" | "task" | "keys" | null>(null);
   const [votes, setVotes] = useState(3);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -137,14 +138,15 @@ export function BoardSessionBar({
   const ranked = [...stickies].map((s) => ({ ...s, n: session?.tally[s.id] ?? 0 })).filter((s) => s.n > 0).sort((x, y) => y.n - x.n);
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2" data-board-session>
+    // One floating dock over the canvas: templates, voting, the timer, a task from a sticky note, the keys.
+    <div className="absolute bottom-20 left-1/2 z-20 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-border-strong bg-overlay/85 p-1.5 shadow-2xl backdrop-blur-md empty:hidden md:bottom-4" data-board-session>
       {canEdit && (
         <div className="relative">
           <button type="button" className={button} onClick={() => setMenu(menu === "templates" ? null : "templates")} aria-expanded={menu === "templates"}>
             {b.templates.button}
           </button>
           {menu === "templates" && (
-            <div className="absolute left-0 top-full z-20 mt-1 w-64 rounded-lg border border-border bg-background p-1 shadow-lg" role="menu">
+            <div className="absolute left-0 bottom-full z-20 mb-2 w-64 rounded-lg border border-border bg-background p-1 shadow-lg" role="menu">
               {TEMPLATE_KEYS.map((key) => (
                 <button key={key} type="button" role="menuitem" className="block min-h-10 w-full rounded px-3 text-left text-sm hover:bg-surface" onClick={() => { controller?.insertTemplate(key); setMenu(null); }}>
                   {b.templates.names[key]}
@@ -158,7 +160,7 @@ export function BoardSessionBar({
       {/* Voting */}
       {session?.votingOpen ? (
         <span className="flex flex-wrap items-center gap-2 rounded-md bg-accent/10 px-2 py-1 text-sm" data-voting-open>
-          <span>🗳️ {b.voting.left(myLeft, session.votesPerPerson ?? 0)}</span>
+          <span><Icon name="vote" className="mr-1.5 inline" />{b.voting.left(myLeft, session.votesPerPerson ?? 0)}</span>
           <span className="hidden text-xs text-muted lg:inline">{b.voting.hint}</span>
           {canEdit && (
             <button type="button" disabled={busy} className={button} onClick={() => void run(() => setBoardVoting(shortId, id, null)).then(() => setShowResults(true))}>
@@ -173,7 +175,7 @@ export function BoardSessionBar({
               {b.voting.start}
             </button>
             {menu === "voting" && (
-              <div className="absolute left-0 top-full z-20 mt-1 flex w-64 flex-wrap items-end gap-2 rounded-lg border border-border bg-background p-3 shadow-lg">
+              <div className="absolute left-0 bottom-full z-20 mb-2 flex w-64 flex-wrap items-end gap-2 rounded-lg border border-border bg-background p-3 shadow-lg">
                 <label className="flex flex-1 flex-col gap-1 text-sm">
                   {b.voting.votesEach}
                   <select value={votes} onChange={(e) => setVotes(Number(e.target.value))} className="min-h-10 rounded-md border border-border bg-background px-2">
@@ -194,7 +196,8 @@ export function BoardSessionBar({
       )}
       {session && Object.keys(session.tally).length > 0 && (
         <button type="button" className={button} onClick={() => setShowResults(!showResults)} aria-pressed={showResults}>
-          📊 {b.voting.results}
+          <Icon name="chart" className="mr-1 inline" />
+          {b.voting.results}
         </button>
       )}
 
@@ -215,7 +218,7 @@ export function BoardSessionBar({
               {b.timer.button}
             </button>
             {menu === "timer" && (
-              <div className="absolute left-0 top-full z-20 mt-1 flex gap-1 rounded-lg border border-border bg-background p-2 shadow-lg">
+              <div className="absolute left-0 bottom-full z-20 mb-2 flex gap-1 rounded-lg border border-border bg-background p-2 shadow-lg">
                 {MINUTES.map((m) => (
                   <button key={m} type="button" disabled={busy} className={button} onClick={() => void run(() => setBoardTimer(shortId, id, m * 60))}>
                     {b.timer.minutes(m)}
@@ -247,7 +250,7 @@ export function BoardSessionBar({
             {b.task.button}
           </button>
           {menu === "task" && sticky && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-72 rounded-lg border border-border bg-background p-3 shadow-lg" role="dialog" aria-label={b.task.title}>
+            <div className="absolute right-0 bottom-full z-20 mb-2 w-72 rounded-lg border border-border border border-border-strong bg-overlay p-3 shadow-lg" role="dialog" aria-label={b.task.title}>
               <p className="text-sm font-medium">{b.task.title}</p>
               <p className="mt-1 line-clamp-2 text-sm text-muted">{sticky.text || b.voting.untitledSticky}</p>
               {projects && projects.length === 0 ? (
@@ -259,7 +262,7 @@ export function BoardSessionBar({
                     <select value={project} onChange={(e) => setProject(e.target.value)} className="min-h-10 rounded-md border border-border bg-background px-2">
                       {(projects ?? []).map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.icon ?? "📋"} {p.name}
+                          {p.icon ? `${p.icon} ` : ""}{p.name}
                         </option>
                       ))}
                     </select>
@@ -288,14 +291,29 @@ export function BoardSessionBar({
         </div>
       )}
 
+      {canEdit && (
+        <div className="relative">
+          <button type="button" className={button} onClick={() => setMenu(menu === "keys" ? null : "keys")} aria-expanded={menu === "keys"} aria-label={b.keys} title={b.keys} data-board-keys>
+            <Icon name="keyboard" />
+          </button>
+          {menu === "keys" && (
+            <ul className="absolute bottom-full right-0 z-20 mb-2 w-56 space-y-1 rounded-xl border border-border-strong bg-overlay p-3 text-xs shadow-xl" aria-label={b.keys}>
+              {b.hints.split(" · ").map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {notice && (
-        <p role="status" className="w-full text-sm text-muted">
+        <p role="status" className="order-first w-full px-2 text-center text-sm text-muted">
           {notice}
         </p>
       )}
 
       {showResults && session && (
-        <section className="w-full rounded-lg border border-border p-3 text-sm" aria-label={b.voting.resultsTitle} data-vote-results>
+        <section className="order-first max-h-64 w-full overflow-y-auto rounded-xl border border-border p-3 text-sm" aria-label={b.voting.resultsTitle} data-vote-results>
           <p className="font-medium">
             {b.voting.resultsTitle} · {b.voting.voters(session.voters)}
             {!session.votingOpen && ` · ${b.voting.closed}`}

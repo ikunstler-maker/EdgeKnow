@@ -14,6 +14,10 @@ export const APP = process.argv[3] ?? "http://localhost:3000";
 export const API = status.API_URL;
 export const ANON = status.ANON_KEY ?? status.PUBLISHABLE_KEY;
 export const sql = (query) => execFileSync("psql", [status.DB_URL, "-Atc", query], { encoding: "utf8" }).trim();
+// Pages the scenarios make are published at once, as before drafts; the drafts
+// themselves have their own checks at the end of wiki.mjs (which lifts this).
+sql("alter table public.pages alter column published_at set default now()");
+sql("update public.pages set published_at = created_at where published_at is null");
 
 // Cut by characters, never inside an emoji (half of one breaks GitHub's log).
 export const clip = (text, length) => Array.from(String(text ?? "")).slice(0, length).join("").replace(/[\uD800-\uDFFF]/g, "");

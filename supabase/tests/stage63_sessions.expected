@@ -1,0 +1,20 @@
+owner sees: 3
+kinds: computer,phone,tablet
+no ip or agent: true
+outsider not listed: forbidden
+member looks: forbidden
+member ends: forbidden
+own devices: 3
+this one marked: 1
+ends the tablet: 1
+can't end this one by id: 0
+left: 2
+admin ends owner: forbidden
+admin ends mira: 2
+mira sessions left: 0
+logged: sessions_ended mira@sess.test
+ended session member: false
+ended session alive: false
+ended session own list: forbidden
+live session member: true alive: true
+psql: ERROR:  permission denied for function session_list

@@ -7,6 +7,7 @@ import { t } from "@/i18n";
 import { canEdit, childrenOf, rootsOf, type PageNode } from "@/lib/pages";
 import { pagePath } from "@/lib/paths";
 import { useOptionalPages } from "@/components/pages/pages-provider";
+import { Icon } from "@/components/ui/icon";
 
 const n = t.editor.navigation;
 
@@ -56,7 +57,7 @@ function NavigationView({
   return (
     <nav contentEditable={false} className="ek-navigation" aria-label={n.title}>
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        <span className="flex-1 text-sm font-medium">🧭 {scope === "workspace" ? n.workspace : n.children}</span>
+        <span className="flex-1 text-sm font-medium"><Icon name="layers" className="mr-1.5 inline" />{scope === "workspace" ? n.workspace : n.children}</span>
         {editable && (
           <div role="group" aria-label={n.scope} className="flex rounded-md border border-border p-0.5 text-xs">
             {(["children", "workspace"] as const).map((value) => (
@@ -88,7 +89,8 @@ function NavigationView({
           onClick={() => pagesContext.create(scope === "workspace" ? null : pageId)}
           className="flex min-h-11 w-full items-center gap-2 border-t border-border px-3 text-left text-sm text-muted hover:bg-surface hover:text-foreground md:min-h-9"
         >
-          ＋ {scope === "workspace" ? n.newPage : n.newSubpage}
+          <Icon name="plus" className="mr-1 inline" />
+          {scope === "workspace" ? n.newPage : n.newSubpage}
         </button>
       )}
     </nav>
@@ -108,13 +110,13 @@ function NavItem({ page, pages, depth, currentId }: { page: PageNode; pages: Pag
           aria-label={open ? t.sidebar.collapse : t.sidebar.expand}
           className={`flex h-8 w-6 shrink-0 items-center justify-center rounded text-xs text-muted hover:bg-border ${children.length ? "" : "invisible"}`}
         >
-          <span className={`inline-block transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
+          <Icon name="chevron-right" size={12} className={`transition-transform ${open ? "rotate-90" : ""}`} />
         </button>
-        <Link
+        <Link prefetch={false}
           href={pagesContext ? pagePath(pagesContext.workspace.shortId, page.id) : "#"}
           className={`flex min-w-0 flex-1 items-center gap-2 text-sm ${page.id === currentId ? "font-semibold" : ""}`}
         >
-          <span className="shrink-0">{page.icon ?? "📄"}</span>
+          {page.icon ? <span className="shrink-0">{page.icon}</span> : <Icon name="file-text" className="text-muted" />}
           <span className="truncate">{page.title || t.pages.untitled}</span>
         </Link>
         {children.length > 0 && <span className="text-xs text-muted">{children.length}</span>}

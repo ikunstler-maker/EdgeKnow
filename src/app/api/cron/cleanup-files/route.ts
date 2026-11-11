@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { refreshAllStale } from "@/lib/calendar-external";
 import { driveApi } from "@/lib/drive/google-drive";
 import { connectionById, refreshTokenOf } from "@/lib/drive/storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -39,7 +40,9 @@ export async function GET(request: NextRequest) {
   const rekeyed = process.env.TEAM_DB_KEY ? await rekeyTeamSecrets(admin).catch(() => ({ changed: 0, failed: 1 })) : null;
   // Domains proven through DNS: is the record still there (weekly per domain)?
   const domains = await recheckDomains(admin);
-  return NextResponse.json({ removed: central + teams, health, domains, rekeyed });
+  // Outside calendars nobody looked at lately are read again (busy time only).
+  const calendars = await refreshAllStale(admin).catch(() => null);
+  return NextResponse.json({ removed: central + teams, health, domains, rekeyed, calendars });
 }
 
 // Task files and board pictures share their bucket.
@@ -49,6 +52,10 @@ const TASK_FILE_PATH = /^[0-9a-f-]{36}\/(tasks|objects)\//;
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
   // Survey files added but never sent with an answer (after a day) go the same way.
   await rows.rpc("clean_survey_files");
+  // Events cancelled over 30 days ago go for good (a database not yet upgraded has no such function).
+  await rows.rpc("purge_calendar_events");
+  // Time-off policies that accrue by themselves are brought up to date (nothing is given twice).
+  await rows.rpc("run_leave_accruals");
   const { data: found, error } = await rows
     .from("attachment_tombstones")
     .select("storage_path, storage_backend, drive_connection_id, drive_file_id")

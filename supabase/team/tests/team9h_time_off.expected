@@ -1,0 +1,11 @@
+sync: true
+bob seeds: forbidden
+alice seeds: 4
+ten days: true, accrued: 3, again: 0
+bob asks a week: pending 5, twelve days more: no_balance, approves himself: forbidden
+dora (colleague, deputy) sees: 0 requests, 1 ledger rows, 4 policies, 0 absences, approves: forbidden
+alice approves: true
+dora now sees: 0 requests, 1 ledger rows, 4 policies, 1 absences — Bob absent, hears: leave_deputy
+gwen (guest) sees: 0 requests, 0 ledger rows, 0 policies, 0 absences, asks: forbidden
+carol (not a member) sees: 0 requests, 0 ledger rows, 0 policies, 0 absences, cancels: forbidden
+psql: ERROR:  permission denied for table leave_requests

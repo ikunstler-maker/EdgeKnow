@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { withPaths } from "@/lib/groups";
-import Link from "next/link";
 import { t } from "@/i18n";
-import { workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import type { ObjectAccess } from "@/components/access/object-access";
@@ -55,10 +53,7 @@ export default async function DeckPage({ params }: PageProps<"/w/[wid]/slides/[i
   }
 
   return (
-    <main className="flex w-full flex-1 flex-col px-4 py-4" data-deck-page>
-      <Link href={workspacePath(workspace.shortId, "/slides")} className="text-sm text-muted hover:text-foreground hover:underline">
-        {t.slides.back}
-      </Link>
+    <main className="flex w-full min-w-0 flex-1 flex-col" data-deck-page>
       <DeckScreen
         key={deck.id}
         shortId={workspace.shortId}

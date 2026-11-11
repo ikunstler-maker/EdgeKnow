@@ -5,15 +5,17 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
-import { PRIORITY_ICONS, TASK_PRIORITIES, TASK_TYPES, TYPE_ICONS, personLabel, progressOf, taskKey, type Person, type TaskField, type TaskRow, type TaskStatus } from "@/lib/tasks";
+import { TASK_PRIORITIES, TASK_TYPES, personLabel, progressOf, taskKey, type Person, type TaskField, type TaskRow, type TaskStatus } from "@/lib/tasks";
 import { FilterBar, applyFilters, useFilters } from "./task-filters";
 import { bulkUpdateTasks } from "@/app/task-actions";
 import { NewTaskDialog } from "./new-task-dialog";
 import { DraftCard, useTaskDrafts } from "./task-drafts";
 import { TemplatePicker, useTemplates } from "./task-templates";
+import { Icon } from "@/components/ui/icon";
+import { PriorityIcon, TypeIcon } from "./task-icons";
 
 const k = t.tasks;
-const inputClass = "min-h-11 rounded-md border border-border bg-background px-3 text-base md:min-h-9 md:text-sm";
+const inputClass = "min-h-11 rounded-lg border border-border bg-background px-3 text-base hover:border-border-strong md:h-9 md:min-h-0 md:text-sm";
 
 const shortDate = (value: string) => new Intl.DateTimeFormat(dateLocale(), { day: "numeric", month: "short" }).format(new Date(value));
 
@@ -86,7 +88,8 @@ export function TaskList({
       {canEdit && (
         <div className="flex gap-2">
           <TemplatePicker templates={templates.templates} chosen={templates.chosen} onPick={templates.pick} />
-          <button type="button" onClick={() => setCreating(true)} className="min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white md:min-h-9" data-new-task-open>
+          <button type="button" onClick={() => setCreating(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white hover:brightness-110 md:h-8 md:min-h-0" data-new-task-open>
+            <Icon name="plus" />
             {t.tasks.newTask.open}
           </button>
         </div>
@@ -180,17 +183,22 @@ export function TaskList({
                     )}
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-muted">{key}</td>
                     <td className="px-3 py-2">
-                      <Link href={workspacePath(shortId, `/tasks/${project.key}/${task.number}`)} className={`hover:underline ${s?.category === "done" ? "text-muted line-through" : ""}`}>
-                        <span title={k.types[task.type]}>{TYPE_ICONS[task.type]}</span> {task.title}
+                      <Link prefetch={false} href={workspacePath(shortId, `/tasks/${project.key}/${task.number}`)} className={`hover:underline ${s?.category === "done" ? "text-muted line-through" : ""}`}>
+                        <span title={k.types[task.type]}>
+                          <TypeIcon type={task.type} className="mr-1.5 inline" />
+                        </span>
+                        {task.title}
                       </Link>
                       {blocked.has(task.id) && s?.category !== "done" && (
                         <span className="ml-2 text-xs text-danger" title={k.hierarchy.blocked} data-list-blocked>
-                          🔒 {k.hierarchy.blockedShort}
+                          <Icon name="lock" className="mr-1 inline" />
+                          {k.hierarchy.blockedShort}
                         </span>
                       )}
                       {progress.has(task.id) && (
                         <span className="ml-2 text-xs text-muted" title={k.hierarchy.progress(progress.get(task.id)!.done, progress.get(task.id)!.total)} data-list-progress>
-                          ☑ {progress.get(task.id)!.done}/{progress.get(task.id)!.total}
+                          <Icon name="subtask" className="mr-1 inline" />
+                          {progress.get(task.id)!.done}/{progress.get(task.id)!.total}
                         </span>
                       )}
                       {task.labels.length > 0 && (
@@ -210,7 +218,8 @@ export function TaskList({
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">{personLabel(personOf.get(task.assignee_id ?? "")) || <span className="text-muted">—</span>}</td>
                     <td className="whitespace-nowrap px-3 py-2" title={k.priorities[task.priority]}>
-                      {PRIORITY_ICONS[task.priority]} {k.priorities[task.priority]}
+                      <PriorityIcon priority={task.priority} className="mr-1 inline" />
+                      {k.priorities[task.priority]}
                     </td>
                     <td className={`whitespace-nowrap px-3 py-2 ${overdue ? "font-medium text-danger" : ""}`}>{task.due_date ? shortDate(task.due_date) : ""}</td>
                   </tr>
@@ -269,8 +278,8 @@ function BulkBar({
       <span className="px-1 font-medium">{b.selected(count)}</span>
       {pick(b.status, statuses.map((s) => ({ value: s.id, label: s.name })), (value) => ({ status_id: value }))}
       {pick(b.assignee, [{ value: "-", label: k.unassigned }, ...members.map((m) => ({ value: m.id, label: personLabel(m) }))], (value) => ({ assignee_id: value || null }))}
-      {pick(b.priority, TASK_PRIORITIES.map((p) => ({ value: p, label: `${PRIORITY_ICONS[p]} ${k.priorities[p]}` })), (value) => ({ priority: value }))}
-      {pick(b.type, TASK_TYPES.map((value) => ({ value, label: `${TYPE_ICONS[value]} ${k.types[value]}` })), (value) => ({ type: value }))}
+      {pick(b.priority, TASK_PRIORITIES.map((p) => ({ value: p, label: k.priorities[p] })), (value) => ({ priority: value }))}
+      {pick(b.type, TASK_TYPES.map((value) => ({ value, label: k.types[value] })), (value) => ({ type: value }))}
       {pick(b.epic, [{ value: "-", label: b.noEpic }, ...epics.map((e) => ({ value: e.id, label: `${taskKey(projectKey, e.number)} ${e.title}` }))], (value) => ({ parent_id: value || null }))}
       <form
         className="flex gap-1"
