@@ -76,7 +76,7 @@ check("the team database was brought to the current schema", teamSchema === late
 await gammaTab.goto(`${APP}/w/${gammaShort}/settings?tab=storage`);
 check("the storage tab explains where a team workspace keeps its files", (await gammaTab.getByText(/сховищі вашого власного Supabase/).count()) === 1);
 await gammaTab.getByRole("link", { name: "Підключити Google Drive" }).click();
-await gammaTab.waitForURL(/tab=storage&drive=connected/);
+await gammaTab.waitForURL(/tab=data&drive=connected/);
 await gammaTab.goto(`${APP}/w/${gammaShort}/p/${gammaPage}`);
 await gammaTab.waitForSelector(".bn-editor");
 await gammaTab.locator(".bn-editor").click();

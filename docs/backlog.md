@@ -8,6 +8,11 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 3 Left panel shows only the current section (tasks: projects/boards/tasks; wiki: pages; tables: tables…); fix the old fish name near Apus. — DONE (#109).
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
+## Workspace settings (owner, 2026-11-11; decision 2026-11-11)
+- PR 1: 8 tabs → 5 (Team & structure, Roles & security, Data & storage), members table + member card — in review.
+- PR 2: active sessions — admin sees a member's devices (type, last activity, no IP) and ends all their sessions (signed out everywhere, logged); the person sees and ends own devices in the profile; proxy checks the session still exists. Reads Supabase's own sessions, no new table. DB/sign-in → approved 2026-11-11, plan details before code.
+- Later: device limit 3 per email (card shows «Скоро»); SSO (PRO).
+
 ## Next (owner, 2027-01-05)
 - PR А: add a task field right in the task / new-task window — DONE (#111).
 - PR Б-1: unit tree — DONE (#112).

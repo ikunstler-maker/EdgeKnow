@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore, useTransition } from "react";
-import { dateLocale, t } from "@/i18n";
+import { useState, useSyncExternalStore, useTransition } from "react";
+import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import type { Workspace } from "@/lib/workspace";
 import {
@@ -11,18 +11,15 @@ import {
   leaveWorkspace,
   reassignMemberPages,
   removeDomain,
-  removeMember,
   renameWorkspace,
   setPrivateTasksAdmin,
   revokeInvitation,
   setDomainActive,
-  setGuestAccessUntil,
-  setMemberCustomRole,
-  setMemberRole,
   transferOwnership,
 } from "@/app/workspace-actions";
 import { cancelDomainRequest, requestDomain, verifyDomain } from "@/app/domain-actions";
-import { RemoveMemberDialog } from "./remove-member-dialog";
+import type { GroupItem } from "./groups-panel";
+import { endOfDay, MembersTable, shortDay, today } from "./members-table";
 import { roleName, type RoleItem } from "./roles-panel";
 
 const s = t.settings;
@@ -210,9 +207,6 @@ export function GeneralPanel({ workspace, members, privateTasksAdmin = false }: 
 }
 
 // Dates of a guest's access: a picked day lasts until its end, in the admin's time zone.
-const today = () => new Date().toLocaleDateString("sv");
-const endOfDay = (day: string) => (day ? new Date(`${day}T23:59:59`).toISOString() : null);
-const shortDay = (iso: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(iso));
 
 export function MembersPanel({
   workspace,
@@ -221,6 +215,7 @@ export function MembersPanel({
   invitations,
   departed,
   roles = [],
+  groups = [],
   canSetRoles = false,
   inviteOnly = false,
 }: {
@@ -230,11 +225,11 @@ export function MembersPanel({
   invitations: InvitationItem[];
   departed: DepartedOwner[];
   roles?: RoleItem[];
+  groups?: GroupItem[];
   canSetRoles?: boolean;
   // Not an admin, but the role allows inviting: only the invitation form.
   inviteOnly?: boolean;
 }) {
-  const custom = roles.filter((x) => !x.builtin);
   const builtinName = (kind: "admin" | "member") => {
     const row = roles.find((x) => x.builtin === kind);
     return row ? roleName(row) : t.workspace.roles[kind];
@@ -244,8 +239,6 @@ export function MembersPanel({
   const [role, setRole] = useState("member");
   const [until, setUntil] = useState("");
   const [link, setLink] = useState<{ email: string; url: string } | null>(null);
-  const [removing, setRemoving] = useState<MemberItem | null>(null);
-  const stopRemoving = useCallback(() => setRemoving(null), []);
 
   // The link token is shown only now; the database keeps just its hash.
   const invite = (address: string, inviteRole: string, guestUntil: string | null = null) =>
@@ -257,8 +250,6 @@ export function MembersPanel({
       }
       return result;
     });
-
-  const via = { creator: s.members.viaCreator, domain: s.members.viaDomain, invite: s.members.viaInvite };
 
   return (
     <div className="flex flex-col gap-8">
@@ -302,7 +293,7 @@ export function MembersPanel({
         )}
       </section>
 
-      {invitations.length > 0 && (
+      {inviteOnly && invitations.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold">{s.members.pendingHeading}</h2>
           <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
@@ -334,98 +325,17 @@ export function MembersPanel({
 
       {!inviteOnly && (
       <>
-      <section>
-        <h2 className="text-lg font-semibold">{s.members.heading}</h2>
-        <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
-          {members.map((m) => (
-            <li key={m.userId} className="flex flex-wrap items-center gap-2 px-3 py-2">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">
-                  {m.name ?? m.email}
-                  {m.userId === currentUserId && <span className="text-muted"> ({s.members.you})</span>}
-                </span>
-                <span className="block truncate text-xs text-muted">
-                  {m.email} · {via[m.joinedVia]}
-                  {m.role === "guest" && (
-                    <>
-                      {" · "}
-                      <span className="rounded bg-surface px-1.5 font-medium text-foreground" data-guest-badge>
-                        {t.workspace.roles.guest}
-                      </span>{" "}
-                      {m.accessUntil ? s.members.guestUntil(shortDay(m.accessUntil)) : s.members.guestNoEnd}
-                    </>
-                  )}
-                </span>
-              </span>
-              {m.role === "owner" ? (
-                <span className="px-3 text-sm text-muted">{t.workspace.roles.owner}</span>
-              ) : (
-                <>
-                  <select
-                    value={m.role === "member" && m.customRoleId && custom.some((x) => x.id === m.customRoleId) ? `custom:${m.customRoleId}` : m.role}
-                    disabled={pending}
-                    aria-label={s.members.inviteRole}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value.startsWith("custom:")) {
-                        const roleId = value.slice(7);
-                        return run(async () => {
-                          if (m.role !== "member") {
-                            const first = await setMemberRole(workspace.id, m.userId, "member");
-                            if (!first.ok) return first;
-                          }
-                          return setMemberCustomRole(workspace.id, m.userId, roleId);
-                        });
-                      }
-                      if (value === "member" && m.role === "member" && m.customRoleId && canSetRoles) return run(() => setMemberCustomRole(workspace.id, m.userId, null));
-                      run(() => setMemberRole(workspace.id, m.userId, value));
-                    }}
-                    className={inputClass}
-                    data-member-role
-                  >
-                    <option value="member">{builtinName("member")}</option>
-                    {canSetRoles &&
-                      custom.map((x) => (
-                        <option key={x.id} value={`custom:${x.id}`}>
-                          {x.name}
-                        </option>
-                      ))}
-                    <option value="admin">{builtinName("admin")}</option>
-                    <option value="guest">{t.workspace.roles.guest}</option>
-                  </select>
-                  {m.role === "guest" && (
-                    <span className="flex items-center gap-1">
-                      <input
-                        type="date"
-                        suppressHydrationWarning
-                        aria-label={`${s.members.accessUntil}: ${m.name ?? m.email}`}
-                        value={m.accessUntil ? m.accessUntil.slice(0, 10) : ""}
-                        min={today()}
-                        disabled={pending}
-                        onChange={(e) => e.target.value && run(() => setGuestAccessUntil(workspace.id, m.userId, endOfDay(e.target.value)))}
-                        className={inputClass}
-                      />
-                      {m.accessUntil && (
-                        <button type="button" disabled={pending} className={buttonClass} onClick={() => run(() => setGuestAccessUntil(workspace.id, m.userId, null))}>
-                          {s.members.noEnd}
-                        </button>
-                      )}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    disabled={pending}
-                    className={`${buttonClass} text-danger`}
-                    onClick={() => setRemoving(m)}
-                  >
-                    {s.members.remove}
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <MembersTable
+        workspace={workspace}
+        currentUserId={currentUserId}
+        members={members}
+        invitations={invitations}
+        roles={roles}
+        groups={groups}
+        canSetRoles={canSetRoles}
+        onReinvite={invite}
+        pending={pending}
+      />
 
       {departed.length > 0 && (
         <section>
@@ -437,9 +347,6 @@ export function MembersPanel({
             ))}
           </ul>
         </section>
-      )}
-      {removing && (
-        <RemoveMemberDialog workspaceId={workspace.id} member={removing} onRemove={() => removeMember(workspace.id, removing.userId)} onClose={stopRemoving} />
       )}
       </>
       )}

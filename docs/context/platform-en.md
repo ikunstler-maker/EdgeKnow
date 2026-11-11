@@ -20,6 +20,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Storage:** the workspace's Google Drive or the database's storage; moving files between them.
 - **Team-owned database:** connection wizard, health state, automatic schema updates, moving a workspace there and back.
 - **Backups** to Google Drive.
+- **Settings** in five tabs: General; Team & structure (members table with search, quick filters, unit filter and a member card; company structure); Roles & security (roles, domains, device limit and SSO marked Soon); Data & storage (Drive, backups, team database); Log. Old `?tab=` addresses still open the right tab.
 
 ### People and access
 - Roles: owner, admin, member, guest.

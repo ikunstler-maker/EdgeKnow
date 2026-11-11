@@ -103,11 +103,11 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
       const settings = (tab: string) => workspacePath(workspace.shortId, `/settings?tab=${tab}`);
       steps = [
         ...(data?.location !== "central" || needsDatabase
-          ? [{ key: "database" as const, done: data?.location === "team", href: settings("team") }]
+          ? [{ key: "database" as const, done: data?.location === "team", href: settings("data") }]
           : []),
         { key: "page", done: pages > 0, href: workspacePath(workspace.shortId) },
-        { key: "people", done: (memberCount ?? 0) > 1, href: settings("members") },
-        { key: "drive", done: Boolean((storage as { drive: unknown } | null)?.drive), href: settings("storage") },
+        { key: "people", done: (memberCount ?? 0) > 1, href: settings("people") },
+        { key: "drive", done: Boolean((storage as { drive: unknown } | null)?.drive), href: settings("data") },
         { key: "help", done: false, href: "/help" },
       ];
       canAddExamples = pages === 0 && !needsDatabase && (data?.location === "central" || data?.location === "team");

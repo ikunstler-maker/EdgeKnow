@@ -130,14 +130,14 @@ export default async function WorkspaceLayout({ children, params }: LayoutProps<
           <p role="status" className="border-b border-border bg-surface px-4 py-2 text-center text-sm">
             {workspace.role === "owner" ? t.workspace.needsDatabaseOwner : t.workspace.needsDatabase}{" "}
             {workspace.role === "owner" && (
-              <Link href={workspacePath(workspace.shortId, "/settings?tab=team")} className="underline">
+              <Link href={workspacePath(workspace.shortId, "/settings?tab=data")} className="underline">
                 {t.workspace.connectDatabase}
               </Link>
             )}
           </p>
         )}
         {showHealth && (
-          <TeamHealthBanner health={showHealth} isOwner={workspace.role === "owner"} settingsHref={`/w/${wid}/settings?tab=team`} />
+          <TeamHealthBanner health={showHealth} isOwner={workspace.role === "owner"} settingsHref={`/w/${wid}/settings?tab=data`} />
         )}
         {children}
       </AppShell>
