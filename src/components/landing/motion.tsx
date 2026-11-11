@@ -104,7 +104,7 @@ export function CountUp({ value, suffix = "" }: { value: number; suffix?: string
   );
 }
 
-type Service = { key: string; icon: string; name: string; like: string; soon: boolean; headline: string; points: string[] };
+type Service = { key: string; icon: string; name: string; soon: boolean; headline: string; points: string[] };
 
 
 // The service's own colours (lib/services), as CSS variables for .ek-brand-*.
@@ -150,7 +150,7 @@ export function ServiceTour({ services, soon }: { services: Service[]; soon: str
               <span className="ek-brand-text text-base font-extrabold" data-landing-brand>
                 {SERVICE_BRANDS[service.key as ServiceKey]?.name ?? service.name}
               </span>{" "}
-              · {service.name} · {service.like}
+              · {service.name}
               {service.soon && <SoonBadge label={soon} />}
             </p>
             <h3 className="ek-brand-text mt-3 pb-1 text-3xl font-bold tracking-tight md:text-5xl" style={brandStyle(service.key)}>

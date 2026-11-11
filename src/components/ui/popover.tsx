@@ -46,7 +46,7 @@ export function Popover({
     <div
       ref={panelRef}
       style={style}
-      className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-lg"
+      className="fixed z-50 max-h-[60vh] overflow-y-auto rounded-xl border border-border-strong bg-overlay p-1 shadow-xl"
     >
       {children}
     </div>,
@@ -67,7 +67,7 @@ export function MenuItem({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex min-h-11 w-full items-center rounded-md px-3 text-left text-sm hover:bg-surface ${
+      className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-sm hover:bg-hover md:min-h-8 ${
         danger ? "text-danger" : ""
       }`}
     >

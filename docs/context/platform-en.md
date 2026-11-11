@@ -47,7 +47,10 @@ The core gives every service people, access, storage, search, notifications and 
 ### Look
 - Light and dark themes, Ukrainian and English.
 - **Apus** — the mascot: a small one in the left panel next to the current place, a big one as a floating button with a menu (notifications, feedback); can be dragged, collapsed or hidden.
-- Service names and gradients — `src/lib/services.ts`.
+- Service names, gradients and the four service categories (Knowledge & planning, Visuals & design, Data & storage, Communication & business) — `src/lib/services.ts`.
+- **Design system** (updated 2026-11-11, PR 1 of 6): three surface levels — the shell (left panel), the canvas, raised cards — and thin translucent hairlines instead of grey outlines; colours in `src/app/globals.css` (`--shell`, `--background`, `--surface`, `--overlay`, `--border`, `--border-strong`, `--hover`). Corners: buttons, inputs and pills 8 px, cards 12 px, dialogs 16 px. Thin scrollbars everywhere.
+- **Icons:** our own line icon set `Icon` (`src/components/ui/icon.tsx`, 1.75 stroke) and each service's mark `ServiceIcon` (`src/components/services/service-icon.tsx`: a tile in the service's gradient with a drawn glyph). No emoji in the interface; the exception is icons a person picked themselves (Wika pages, Rukh projects).
+- **Shared controls** (`src/components/ui/`): `Button`/`IconButton` (32 px on a desktop, 44 px on a phone), `inputClass` (36/44 px), `Segmented`, `Dialog`, `Hint`, `Popover`. A screen header has at most one primary button.
 
 ### Public pages
 - Landing `/about` (always dark, with "Soon" badges).
@@ -67,8 +70,8 @@ The core gives every service people, access, storage, search, notifications and 
 | What | State | Note |
 |---|---|---|
 | Rename to Synkvela | approved, not done | texts, logo, emails, domain, redirects from old URLs |
-| Own icons instead of emoji | owner's request | |
-| Service logos on the start page | planned | |
+| Own icons instead of emoji | in progress (6 PRs, decision 2026-11-11) | the set and the service marks are ready; screens move over one by one |
+| Service logos on the start page | done | `ServiceIcon` |
 | Smart chips everywhere | owner's request | the wiki already has page, person and task chips |
 | Notifications when the site is closed | planned | needs a key in hosting settings |
 | "Organization" level above several workspaces | planned | Business |
