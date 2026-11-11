@@ -15,7 +15,7 @@ await alice.goto(APP);
 await alice.waitForURL(new RegExp(`/w/${alphaShort}$`));
 check("root opens the workspace", alice.url().endsWith(`/w/${alphaShort}`), alice.url());
 check("workspace home greets the user", await alice.getByText("Вітаємо").count() > 0);
-check("switcher shows the workspace name", await alice.getByRole("button", { name: "Перемкнути workspace" }).innerText().then((t) => t.includes("Alpha")));
+check("switcher shows the workspace name", await alice.locator("[data-workspace-menu-button]").first().innerText().then((t) => t.includes("Alpha")));
 
 // Existing page with author and dates.
 await alice.goto(`${APP}/w/${alphaShort}/p/${alphaPage}`);
@@ -126,7 +126,7 @@ await alice.goto(`${APP}/new`);
 await alice.getByLabel("Назва").fill("Gamma");
 await alice.getByRole("button", { name: "Створити" }).click();
 await alice.waitForURL(/\/w\/[a-z0-9]{8}$/);
-check("new workspace opens", (await alice.getByRole("button", { name: "Перемкнути workspace" }).innerText()).includes("Gamma"));
+check("new workspace opens", (await alice.locator("[data-workspace-menu-button]").first().innerText()).includes("Gamma"));
 check("new workspace has an empty tree", (await alice.locator("aside").getByText("Alpha secret").count()) === 0);
 
 // First steps on a new workspace, and the example pages to start from.
@@ -1030,7 +1030,8 @@ await alice.waitForFunction(
 check("counter follows typing", (await wordsOf()) >= wordsBefore + 4, `${wordsBefore} → ${await wordsOf()}`);
 await alice.getByText("Збережено").first().waitFor({ timeout: 15000 }).catch(() => {});
 
-await alice.locator("aside").getByRole("link", { name: /Мій профіль/ }).click();
+await openWorkspaceMenu(alice);
+await alice.locator("[data-workspace-menu]").getByRole("link", { name: /Мій профіль/ }).click();
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/profile$`));
 const aliceId = sql("select id from public.profiles where email = 'alice@alpha.test'");
 const written = sql(`select coalesce(sum(chars_added), 0) from public.page_contributions where user_id = '${aliceId}'`);
