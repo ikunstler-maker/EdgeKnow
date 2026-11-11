@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { createSurvey, deleteSurveyForever, trashSurvey } from "@/app/survey-actions";
 
-const buttonClass = "inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60 md:min-h-9";
+const buttonClass = "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border bg-hover px-3 text-[13px] font-medium hover:border-border-strong disabled:opacity-50 md:h-8 md:min-h-0";
 
 export function NewSurveyButton({ shortId }: { shortId: string }) {
   const router = useRouter();
@@ -24,7 +24,7 @@ export function NewSurveyButton({ shortId }: { shortId: string }) {
             router.push(workspacePath(shortId, `/surveys/${made.id}`));
           })
         }
-        className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white disabled:opacity-60 md:min-h-9"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-3 text-[13px] font-medium text-white hover:brightness-110 disabled:opacity-50 md:h-8 md:min-h-0"
       >
         {t.surveys.newSurvey}
       </button>

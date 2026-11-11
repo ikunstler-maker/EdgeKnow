@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { t } from "@/i18n";
 import { ASPECTS, MAX_SIDE, MIN_SIDE, aspectOf, aspectSize, type Size } from "@/lib/slides";
+import { Icon } from "@/components/ui/icon";
 
 const z = t.slides.size;
 const chip = (on: boolean) => `min-h-11 rounded-md border px-2 text-sm hover:bg-surface md:min-h-9 ${on ? "border-accent bg-accent/10" : "border-border"}`;
@@ -37,7 +38,8 @@ export function SizePicker({ size, onChange }: { size: Size; onChange: (size: Si
         title={z.title}
         data-size-button
       >
-        📐 {current ?? z.custom} · {size.w}×{size.h}
+        <Icon name="template" className="mr-1 inline" />
+        {current ?? z.custom} · {size.w}×{size.h}
       </button>
       {open && (
         <div className="absolute left-0 z-40 mt-1 w-72 space-y-3 rounded-lg border border-border bg-background p-3 text-sm shadow-xl" role="dialog" aria-label={z.title} data-size-dialog>

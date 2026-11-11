@@ -83,3 +83,6 @@ A space for thinking together and for mock-ups. Two kinds of files:
 
 - Co-editing needs a technology choice and a cost estimate.
 - Free limit "number of boards" — open pricing question.
+
+## Screen (updated 2026-11-11)
+- The board screen is a studio: the canvas takes the whole screen; "Template", "Voting", "Timer", "Task from a sticky note" and the keys hint sit in one floating dock at the bottom. "Design" opens in the same studio with "Prototype" as the main action.

@@ -11,6 +11,7 @@ import { STICKY_COLORS, type BoardData, type StickyColor } from "@/lib/boards";
 import { templateParts, type TemplateKey, type TemplatePart } from "@/lib/board-templates";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { prepareImage } from "@/lib/image-compression";
+import { Icon } from "@/components/ui/icon";
 
 const b = t.boards;
 
@@ -377,7 +378,7 @@ export default function BoardCanvas({
                   className={`pointer-events-auto absolute flex h-8 min-w-8 -translate-x-full items-center justify-center gap-0.5 rounded-full border px-2 text-sm font-semibold shadow ${mine ? "border-accent bg-accent text-white" : "border-border bg-background text-foreground"}`}
                   style={{ left: corner.left - 4, top: corner.top + 4 }}
                 >
-                  {mine ? "✓" : votes!.open ? "＋" : ""}
+                  {mine ? <Icon name="check" size={14} /> : votes!.open ? <Icon name="plus" size={14} /> : null}
                   {count > 0 ? count : ""}
                 </button>
               )}
@@ -388,7 +389,7 @@ export default function BoardCanvas({
                   style={{ left: bottom.left + 4, top: bottom.top - 4 }}
                   data-sticky-task={info.task.key}
                 >
-                  <span>{chip?.done ? "✅" : "☑️"}</span>
+                  <Icon name={chip?.done ? "check-circle" : "task"} size={12} />
                   <span className={chip?.done ? "line-through" : ""}>{info.task.key}</span>
                   {chip && <span className="truncate text-muted">· {chip.status}</span>}
                 </a>

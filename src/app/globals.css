@@ -810,6 +810,14 @@ nav[data-angler-on] > :not([data-sidebar-bottom]):not(.ek-angler-guide) {
   .apus *, .apus-mini * { animation: none !important; }
 }
 
+/* In a document's studio Apus stands a little higher, clear of the editor's own
+   controls in the bottom corners (zoom, help, pagination), unless the person moved it. */
+:root:has([data-studio]) [data-apus]:not([style*="left"]) {
+  left: auto;
+  right: 0.75rem;
+  bottom: 4.5rem;
+}
+
 /* ---------- The line at the top while the next page loads ---------- */
 @keyframes ek-nav-progress {
   from { transform: translateX(-100%); }

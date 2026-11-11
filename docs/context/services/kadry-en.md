@@ -73,3 +73,6 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 
 - Free limit "number of presentations" — open pricing question.
 - Which slide embeds are paid — open question.
+
+## Screen (updated 2026-11-11)
+- The deck screen is a studio: a slim 180 px slide rail ("Slide" on top, copy and delete on the thumbnail and in its right-click menu), the stage in the centre, speaker notes in a drawer at the bottom; PDF in the "Export / Import" menu, "Show" is the main action, presenter mode is under "More".

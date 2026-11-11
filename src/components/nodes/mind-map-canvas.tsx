@@ -29,6 +29,7 @@ import {
   type MapData,
   type NodeColor,
 } from "@/lib/nodes";
+import { Icon } from "@/components/ui/icon";
 
 const n = t.nodes;
 
@@ -288,8 +289,8 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
 
   const tool = "min-h-11 rounded-md border border-border bg-background px-3 text-sm hover:bg-surface disabled:opacity-40 md:min-h-9";
   return (
-    <div className="mt-3 flex flex-1 flex-col gap-2">
-      <div role="toolbar" aria-label={n.toolbar} className="flex flex-wrap items-center gap-1" data-map-toolbar>
+    <div className={compact ? "mt-3 flex flex-1 flex-col gap-2" : "flex min-h-0 flex-1 flex-col"}>
+      <div role="toolbar" aria-label={n.toolbar} className={`flex flex-wrap items-center gap-1 ${compact ? "" : "shrink-0 border-b border-border px-2 py-1"}`} data-map-toolbar>
         {editable && !compact && (
           <>
             <button type="button" title={n.addChildHint} onClick={() => grow(addChild(map, node.id))} className={tool}>
@@ -299,13 +300,13 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
               {n.addSibling}
             </button>
             <button type="button" aria-label={n.edit} title={n.edit} onClick={() => edit(node.id)} className={tool}>
-              ✏️
+              <Icon name="edit" />
             </button>
           </>
         )}
         {editable && compact && (
           <button type="button" aria-label={n.edit} title={n.edit} onClick={() => edit(node.id)} className={tool}>
-            ✏️
+            <Icon name="edit" />
           </button>
         )}
         <button type="button" disabled={!childrenOf(map, node.id).length} aria-label={node.collapsed ? n.expand : n.collapse} title={node.collapsed ? n.expand : n.collapse} onClick={() => callbacks.toggle(node.id)} className={tool}>
@@ -336,7 +337,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
               }}
               className={`${tool} text-danger`}
             >
-              🗑
+              <Icon name="trash" />
             </button>
           </>
         )}
@@ -353,11 +354,13 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
           }}
           className={tool}
         >
-          📋 {n.asList}
+          <Icon name="template" className="mr-1 inline" />
+          {n.asList}
         </button>}
         {editable && (
           <button type="button" onClick={() => setPasting(true)} className={tool}>
-            📥 {n.fromList}
+            <Icon name="download" className="mr-1 inline" />
+            {n.fromList}
           </button>
         )}
         <button
@@ -369,7 +372,8 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
           }}
           className={tool}
         >
-          🔀 {n.toFlow}
+          <Icon name="layers" className="mr-1 inline" />
+          {n.toFlow}
         </button>
         </>)}
         <span className="hidden text-xs text-muted lg:inline">{editable ? (compact ? n.keysCompact : n.keys) : ""}</span>
@@ -419,7 +423,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
         onKeyDown={onKey}
         aria-label={t.nodes.kinds.mindmap}
         data-mind-map
-        className={`relative ${compact ? "h-96" : "h-[65vh] min-h-80"} overflow-hidden rounded-xl border border-border outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+        className={`relative ${compact ? "h-96 rounded-xl border border-border" : "min-h-80 flex-1"} overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent`}
       >
         <CallbacksContext value={callbacks}>
         <ReactFlow

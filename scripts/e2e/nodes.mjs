@@ -19,7 +19,7 @@ await alice.locator("[data-service-menu]").getByRole("link", { name: "Нодов
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/nodes$`), { timeout: 15000 });
 
 // A new map: title, then branches from the keyboard.
-await alice.getByRole("button", { name: "＋ Ментальна карта" }).click();
+await alice.getByRole("button", { name: "Ментальна карта" }).click();
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/nodes/[0-9a-f-]{36}$`), { timeout: 15000 });
 const mapUrl = alice.url();
 await alice.getByLabel("Назва карти").fill("Launch map");
@@ -66,7 +66,7 @@ const mapId = mapUrl.split("/nodes/")[1];
 await colleague.goto(mapUrl);
 await colleague.locator('[data-map-node="Launch"]').waitFor({ timeout: 15000 });
 check("a colleague opens the map and can edit it", (await colleague.getByLabel("Назва карти").count()) === 1);
-await alice.getByRole("button", { name: "⚙️ Доступ" }).click();
+await alice.getByRole("button", { name: "Доступ", exact: true }).click();
 const dialog = alice.getByRole("dialog", { name: "Доступ до карти" });
 await dialog.getByRole("combobox").first().selectOption("");
 check("…the owner closes it to the workspace", await until(() => sql(`select coalesce(workspace_role, 'none') from public.service_objects where id = '${mapId}'`) === "none", 10000));
@@ -78,11 +78,13 @@ await dialog.getByRole("combobox").first().selectOption("viewer");
 await until(() => sql(`select workspace_role from public.service_objects where id = '${mapId}'`) === "viewer", 10000);
 await colleague.goto(mapUrl);
 await colleague.locator('[data-map-node="Launch"]').waitFor({ timeout: 15000 });
-check("as a viewer they see it without editing", (await colleague.getByText("У вас лише перегляд").count()) === 1 && (await colleague.getByRole("button", { name: "＋ Гілка" }).count()) === 0);
+check("as a viewer they see it without editing", (await colleague.getByText("У вас лише перегляд").count()) === 1 && (await colleague.getByRole("button", { name: "Гілка", exact: true }).count()) === 0);
 await alice.keyboard.press("Escape");
 
 // The bin.
-await alice.getByRole("button", { name: /У кошик/ }).click();
+// "To the bin" lives in the document's "More" menu.
+await alice.locator("[data-studio-more]").click();
+await alice.locator("[data-to-bin]").click();
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/nodes$`), { timeout: 15000 });
 check("a map goes to the bin", (await alice.locator('[data-node-map="Launch map"]').count()) === 0 && sql(`select deleted_at is not null from public.service_objects where id = '${mapId}'`) === "t");
 await alice.goto(`${APP}/w/${alphaShort}/nodes?bin=1`);
@@ -110,7 +112,7 @@ const flowShape = JSON.parse(sql(`select data::text from public.service_objects 
 check("…and the map turns into a diagram with the same boxes and lines", sql(`select kind from public.service_objects where id = '${flowId}'`) === "flow" && flowShape.nodes.length === mapNodes && flowShape.edges.length === mapNodes - 1, `${flowShape.nodes.length}/${flowShape.edges.length} of ${mapNodes}`);
 
 await alice.goto(`${APP}/w/${alphaShort}/nodes`);
-await alice.getByRole("button", { name: "＋ Схема" }).click();
+await alice.getByRole("button", { name: "Схема", exact: true }).click();
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/nodes/[0-9a-f-]{36}$`), { timeout: 15000 });
 await alice.getByLabel("Назва карти").fill("Order flow");
 await alice.locator("[data-flow]").getByRole("button", { name: /Нода/ }).click();
@@ -180,7 +182,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.goto(`${APP}/w/${alphaShort}`);
   check("the Boards tile is ready on the start page", (await alice.locator(`a[href="/w/${alphaShort}/boards"]`).count()) >= 1);
   await alice.goto(`${APP}/w/${alphaShort}/boards`);
-  await alice.getByRole("button", { name: "＋ Нова дошка" }).click();
+  await alice.getByRole("button", { name: "Нова дошка" }).click();
   await alice.waitForURL(/\/boards\/[0-9a-f-]{36}$/, { timeout: 20000 });
   const boardId = alice.url().split("/").pop();
   await alice.locator("[data-board-canvas] canvas").first().waitFor({ timeout: 30000 });
@@ -199,15 +201,15 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("the canvas's fonts are served by the site itself", font.status === 200, String(font.status));
 
   // Step Д3a: a template, voting, the shared timer and a task from a sticky note.
-  await alice.getByRole("button", { name: "＋ Нова дошка" }).waitFor({ state: "detached" }).catch(() => {});
+  await alice.getByRole("button", { name: "Нова дошка" }).waitFor({ state: "detached" }).catch(() => {});
   await alice.goto(`${APP}/w/${alphaShort}/boards`);
-  await alice.getByRole("button", { name: "＋ Нова дошка" }).click();
+  await alice.getByRole("button", { name: "Нова дошка" }).click();
   await alice.waitForURL(/\/boards\/[0-9a-f-]{36}$/, { timeout: 20000 });
   const retroId = alice.url().split("/").pop();
   await alice.locator("[data-template-chooser]").getByRole("button", { name: "Ретроспектива" }).click();
   const frames = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${retroId}' and e ->> 'type' = 'frame'`);
   check("a new board starts from a template (retro: three frames)", await until(() => frames() === "3", 20000), frames());
-  await alice.getByRole("button", { name: "🗳️ Голосування" }).click();
+  await alice.getByRole("button", { name: "Голосування", exact: true }).click();
   await alice.getByLabel("Голосів у кожного").selectOption("2");
   await alice.getByRole("button", { name: "Почати", exact: true }).click();
   await alice.locator("[data-voting-open]").waitFor({ timeout: 15000 });
@@ -218,7 +220,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.getByRole("button", { name: "Завершити" }).click();
   await alice.locator("[data-vote-results]").waitFor({ timeout: 15000 });
   check("…finished, the results list the sticky note", (await alice.locator("[data-vote-results] li").count()) === 1);
-  await alice.getByRole("button", { name: "⏱️ Таймер" }).click();
+  await alice.getByRole("button", { name: "Таймер", exact: true }).click();
   await alice.getByRole("button", { name: "3 хв" }).click();
   await alice.locator("[data-board-timer]").waitFor({ timeout: 15000 });
   check("the shared timer runs for everyone", sql(`select timer_seconds from public.board_sessions where object_id = '${retroId}'`) === "180");
@@ -230,7 +232,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.keyboard.type("Fix the login page");
   await alice.keyboard.press("Escape");
   await alice.waitForTimeout(800);
-  await alice.getByRole("button", { name: "✅ Задача зі стікера" }).click();
+  await alice.getByRole("button", { name: "Задача зі стікера", exact: true }).click();
   const taskDialog = alice.getByRole("dialog", { name: "Задача зі стікера" });
   await taskDialog.getByRole("button", { name: "Створити задачу" }).click();
   await alice.getByText(/Створено [A-Z0-9]+-\d+/).waitFor({ timeout: 20000 }).catch(() => {});
@@ -318,7 +320,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
 // --- Presentations (step П-1): slides with text and shapes, saved, reordered ---------------------
 {
   await alice.goto(`${APP}/w/${alphaShort}/slides`);
-  await alice.getByRole("button", { name: "＋ Нова презентація" }).click();
+  await alice.getByRole("button", { name: "Нова презентація" }).click();
   await alice.waitForURL(/\/slides\/[0-9a-f-]{36}$/, { timeout: 20000 });
   const deckId = alice.url().split("/").pop();
   await alice.getByLabel("Назва презентації").fill("Pitch");
@@ -431,7 +433,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
 // --- Tables (step Т1): a workbook with Excel formulas, saved and private ----------------------------
 {
   await alice.goto(`${APP}/w/${alphaShort}/sheets`);
-  await alice.getByRole("button", { name: "＋ Нова таблиця" }).click();
+  await alice.getByRole("button", { name: "Нова таблиця" }).click();
   await alice.waitForURL(/\/sheets\/[0-9a-f-]{36}$/, { timeout: 20000 });
   const sheetId = alice.url().split("/").pop();
   const overlay = alice.locator("[data-sheet] .fortune-sheet-overlay").first();
@@ -455,7 +457,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("the editor speaks Ukrainian", (await alice.locator("[data-sheet]").getByText("Аркуш1").count()) >= 1);
   check("search reads the table's cells", await until(() => sql(`select search_text from public.service_objects where id = '${sheetId}'`).includes("42"), 10000));
   // Step Т3: a chart from a range, saved with the table and drawn from its data.
-  await alice.getByRole("button", { name: "📈 Нова діаграма" }).click();
+  await alice.locator("[data-new-chart]").click();
   const chartForm = alice.locator("[data-chart-form]");
   await chartForm.getByLabel("Назва діаграми").fill("Totals");
   await chartForm.getByLabel(/Дані/).fill("A1:A3");
@@ -472,13 +474,13 @@ check("…while a map they may view shows as usual", shownMap, screen);
   const { mkdtempSync, writeFileSync, readFileSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const dir = mkdtempSync(`${tmpdir()}/sheets-`);
-  const [xlsxDownload] = await Promise.all([alice.waitForEvent("download", { timeout: 20000 }), alice.locator("[data-sheet-files]").getByRole("button", { name: "⬇️ Excel" }).click()]);
+  const [xlsxDownload] = await Promise.all([alice.waitForEvent("download", { timeout: 20000 }), alice.locator("[data-studio-files]").click().then(() => alice.locator('[data-export="xlsx"]').click())]);
   await xlsxDownload.saveAs(`${dir}/budget.xlsx`);
   const saved = new ExcelJS.Workbook();
   await saved.xlsx.load(readFileSync(`${dir}/budget.xlsx`));
   const total = saved.worksheets[0].getCell("A3").value;
   check("a table saves as an Excel file with its formulas and results", xlsxDownload.suggestedFilename() === "Budget.xlsx" && total?.formula === "SUM(A1:A2)" && Number(total?.result) === 42, JSON.stringify(total));
-  const [csvDownload] = await Promise.all([alice.waitForEvent("download", { timeout: 20000 }), alice.locator("[data-sheet-files]").getByRole("button", { name: "⬇️ CSV" }).click()]);
+  const [csvDownload] = await Promise.all([alice.waitForEvent("download", { timeout: 20000 }), alice.locator("[data-studio-files]").click().then(() => alice.locator('[data-export="csv"]').click())]);
   await csvDownload.saveAs(`${dir}/budget.csv`);
   const csv = readFileSync(`${dir}/budget.csv`, "utf8").replace(/^\uFEFF/, "").split(/\r?\n/);
   check("…and the current sheet as CSV", csv[0] === "10" && csv[2] === "42", JSON.stringify(csv.slice(0, 3)));
@@ -559,7 +561,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("the form is saved by itself", await until(() => /Lunch poll .*Coming to lunch\?.*"required": true.*/.test(surveyJson()) && surveyJson().includes('"label": "No"'), 15000), surveyJson());
 
   await alice.getByRole("tab", { name: /Налаштування/ }).click();
-  await alice.getByRole("button", { name: "＋ Нова таблиця" }).click();
+  await alice.getByRole("button", { name: "Нова таблиця" }).click();
   await alice.locator("[data-survey-sheet-linked]").waitFor({ timeout: 15000 }).catch(() => {});
   const linkedSheet = sql(`select coalesce(sheet_id::text, '') from public.survey_settings where object_id = '${surveyId}'`);
   check("a new table is connected for the answers", linkedSheet.length === 36 && (await alice.locator("[data-survey-sheet-linked]").count()) === 1, linkedSheet);
