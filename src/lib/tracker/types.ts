@@ -57,7 +57,7 @@ export type ImportPreview = {
 }[];
 
 export type ImportProgress = {
-  phase: "tasks" | "relations" | "done";
+  phase: "tasks" | "relations" | "activity" | "done";
   cursor: string | null;
   total: number;
   seen: number;
@@ -67,6 +67,9 @@ export type ImportProgress = {
   links: number;
   // Links and parents whose other task isn't among the imported ones.
   missing: number;
+  // Comments and status changes brought with their dates and authors.
+  comments?: number;
+  moves?: number;
   // Tracker people brought as seats, and how many of them sit on a member already.
   people?: number;
   seated?: number;

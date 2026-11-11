@@ -15,14 +15,22 @@ psql: ERROR:  permission denied for table task_import_people
 a stranger sees seats: 0
 a stranger seats a person: forbidden
 seat on a stranger: not_a_member
-seat on carl: {"ok": true, "assigned": 2, "reported": 0}
+seat on carl: {"ok": true, "assigned": 2, "comments": 0, "reported": 0}
 carl sees tasks: 3, his: 2, names left: 0
 carl keeps the higher role: commenter
 nobody was told: 0
-re-seat on bob: {"ok": true, "assigned": 1, "reported": 0}
+re-seat on bob: {"ok": true, "assigned": 1, "comments": 0, "reported": 0}
 carl sees tasks: 2
-seat freed: {"ok": true, "assigned": 1, "reported": 0}
+seat freed: {"ok": true, "assigned": 1, "comments": 0, "reported": 0}
 the name is back: Old Timer, held by nobody
 owner lists: Old Timer 2/0 free; Bob Tracker 1/1 66b1; Carl Tracker 0/0 66c1
 legacy joined: 1, seats: 4
 second run: 1, still 66c1
+psql: ERROR:  permission denied for function import_task_activity
+activity: {"ok": true, "moves": 2, "missing": 1, "comments": 2}
+second run: {"ok": true, "moves": 1, "missing": 0, "comments": 1}
+comments: Old words, edited there by a seat 2024-05-01; Bob answers by 66b1 2024-05-02
+moves kept: 1, own history lines kept: 3
+told about comments: 0
+seat with comments: {"ok": true, "assigned": 1, "comments": 1, "reported": 0}
+the comment is carl's: 66c1, the move too: 66c1

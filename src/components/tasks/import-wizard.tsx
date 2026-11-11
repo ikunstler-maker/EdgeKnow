@@ -481,7 +481,7 @@ function RunView({ shortId, state, moving, pending, onResume, onForget, onAnothe
   const share = progress ? (progress.phase === "tasks" ? Math.min(1, progress.seen / Math.max(1, progress.total)) : 1) : 0;
   return (
     <section className="mt-5 max-w-2xl" data-import-run={state.state}>
-      <h2 className="font-semibold">{done ? m.done : state.state === "failed" || (!moving && state.state === "running") ? m.failed : progress?.phase === "relations" ? m.linking : m.running}</h2>
+      <h2 className="font-semibold">{done ? m.done : state.state === "failed" || (!moving && state.state === "running") ? m.failed : progress?.phase === "relations" ? m.linking : progress?.phase === "activity" ? m.activity : m.running}</h2>
       {progress && !done && (
         <>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.seen} aria-label={m.running}>
@@ -502,6 +502,7 @@ function RunView({ shortId, state, moving, pending, onResume, onForget, onAnothe
       {progress && done && (
         <div className="mt-3 space-y-1 text-sm" data-import-report>
           <p>{m.report.created(progress.created)}</p>
+          {(progress.comments ?? 0) + (progress.moves ?? 0) > 0 && <p data-import-report-activity>{m.report.activity(progress.comments ?? 0, progress.moves ?? 0)}</p>}
           {(progress.people ?? 0) > 0 && <p data-import-report-people>{m.report.people(progress.people ?? 0, progress.seated ?? 0)}</p>}
           {progress.updated > 0 && <p>{m.report.updated(progress.updated)}</p>}
           <p>{m.report.parents(progress.parents)}</p>

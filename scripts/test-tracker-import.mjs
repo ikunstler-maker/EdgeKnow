@@ -2,7 +2,7 @@
 // statuses, numbers, links — without a network or a database.
 // Run: node --experimental-strip-types --no-warnings scripts/test-tracker-import.mjs
 import assert from "node:assert/strict";
-import { documentToBlocks, matchPeople, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
+import { documentToBlocks, documentToText, parseComments, parseMoves, toActivityItem, matchPeople, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
 
 const text = (t, marks) => ({ type: "text", text: t, ...(marks ? { marks } : {}) });
 const doc = {
@@ -157,3 +157,22 @@ console.log("tracker import: ok");
   assert.deepEqual([made.item.assignee_ext, made.item.reporter_ext, made.item.private, made.item.reporter_id, made.item.imported_assignee], ["u2", "u1", true, "member-1", "Bo"]);
 }
 console.log("people, roles and restricted tasks: ok");
+
+// Comments and the way through the statuses.
+{
+  const para = (t) => ({ type: "paragraph", content: [{ type: "text", text: t }] });
+  const body = { type: "doc", version: 1, content: [para("First line"), { type: "bulletList", content: [{ type: "listItem", content: [para("One")] }] }, { type: "paragraph", content: [{ type: "text", text: "site", marks: [{ type: "link", attrs: { href: "https://example.com" } }] }] }] };
+  assert.equal(documentToText(body), "First line\n• One\nsite (https://example.com)");
+  const comments = parseComments([{ id: "10", author: { accountId: "u2", displayName: "Bo" }, body, created: "2024-05-01T09:00:00.000+0000", updated: "2024-05-01T09:00:00.000+0000" }, { id: "11", body: { type: "doc", content: [] }, created: "2024-05-02T09:00:00.000+0000", updated: "2024-05-03T09:00:00.000+0000" }, { body }]);
+  assert.deepEqual(comments.map((c) => [c.id, c.author?.id ?? null, c.updated]), [["10", "u2", null], ["11", null, "2024-05-03T09:00:00.000+0000"]]);
+  const moves = parseMoves([
+    { id: "h2", created: "2024-05-04T00:00:00.000+0000", author: { accountId: "u1", displayName: "Ann" }, items: [{ field: "status", from: "2", to: "3" }] },
+    { id: "h1", created: "2024-05-02T00:00:00.000+0000", items: [{ field: "assignee", from: "a", to: "b" }, { field: "status", from: "1", to: "2" }] },
+    { id: "h3", created: "2024-05-05T00:00:00.000+0000", items: [{ field: "status", from: "3", to: "9" }] },
+  ]);
+  assert.equal(moves.length, 3);
+  const made = toActivityItem({ key: "K-1", comments, moves }, { statuses: { 1: "todo", 2: "doing", 3: "done" }, types: {}, priorities: {}, people: {}, fields: {}, startField: null });
+  assert.deepEqual(made.item.comments.map((c) => [c.external_id, c.author_ext, c.edited_at]), [["10", "u2", null]], "an empty comment is left out");
+  assert.deepEqual(made.item.moves.map((m) => [m.external_id, m.from_status, m.to_status]), [["h1", "todo", "doing"], ["h2", "doing", "done"]], "moves in the order of time; a status we have no column for is left out");
+}
+console.log("comments and status history: ok");

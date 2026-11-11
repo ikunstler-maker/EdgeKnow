@@ -229,6 +229,7 @@ check("bob can't call the server-only domain confirmation", selfConfirm.status >
 for (const [fn, body] of [
   ["import_tasks", { target_project: alphaProject?.id, items: [] }],
   ["import_people", { target_project: alphaProject?.id, items: [] }],
+  ["import_task_activity", { target_project: alphaProject?.id, items: [] }],
   ["import_task_relations", { target_project: alphaProject?.id, items: [] }],
   ["make_room_for_import", { target_project: alphaProject?.id, last_number: 5 }],
 ]) {

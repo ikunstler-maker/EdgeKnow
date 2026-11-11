@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { numberOfKey, parseField, parseIssue, parseStatus, parseType, parseUser, type TrackerField, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
+import { numberOfKey, parseComments, parseField, parseIssue, parseMoves, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
 
 // Reading another tracker (Rukh Р-3а): the cloud tracker's own API, called only from
 // the server with the person's access key. Nothing is ever written to the tracker.
@@ -30,6 +30,8 @@ export interface TrackerApi {
   lastNumber(access: TrackerAccess, key: string): Promise<number>;
   // Issues in the order of their keys; `fields`: custom field ids to bring along.
   issues(access: TrackerAccess, key: string, cursor: string | null, size: number, fields: string[]): Promise<IssuePage>;
+  // The same tasks, page by page, with their comments and status changes.
+  activity(access: TrackerAccess, key: string, cursor: string | null, size: number): Promise<{ items: TrackerActivity[]; next: string | null }>;
 }
 
 const BASE_FIELDS = ["summary", "description", "status", "issuetype", "priority", "assignee", "reporter", "creator", "security", "labels", "duedate", "timeoriginalestimate", "created", "updated", "resolutiondate", "parent", "issuelinks"];
@@ -140,6 +142,32 @@ const cloud: TrackerApi = {
       next: typeof page.nextPageToken === "string" && page.nextPageToken ? page.nextPageToken : null,
     };
   },
+  async activity(access, key, cursor, size) {
+    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC"), maxResults: size, fields: ["comment"], expand: "changelog", ...(cursor ? { nextPageToken: cursor } : {}) }));
+    const items: TrackerActivity[] = [];
+    for (const raw of list(page.issues)) {
+      const issue = obj(raw);
+      const issueKey = String(issue.key ?? "");
+      if (!issueKey) continue;
+      // The search gives the first comments and history entries; long ones are read in full.
+      const rest = async (kind: "comment" | "changelog", listKey: "comments" | "values") => {
+        const all: unknown[] = [];
+        for (let at = 0; at < 1000; at += 100) {
+          const part = obj(await call(access, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/${kind}?startAt=${at}&maxResults=100`));
+          const got = list(part[listKey]);
+          all.push(...got);
+          if (got.length < 100) break;
+        }
+        return all;
+      };
+      const comment = obj(obj(issue.fields).comment);
+      const changelog = obj(issue.changelog);
+      const comments = Number(comment.total ?? 0) > list(comment.comments).length ? await rest("comment", "comments") : list(comment.comments);
+      const histories = !Array.isArray(changelog.histories) || Number(changelog.total ?? 0) > list(changelog.histories).length ? await rest("changelog", "values") : list(changelog.histories);
+      items.push({ key: issueKey, comments: parseComments(comments), moves: parseMoves(histories) });
+    }
+    return { items, next: typeof page.nextPageToken === "string" && page.nextPageToken ? page.nextPageToken : null };
+  },
 };
 
 // For the automatic tests: a tracker read from a file (never on the live site).
@@ -174,6 +202,18 @@ function fake(dir: string): TrackerApi {
     ),
     count: async (access, key) => all(access, key).length,
     lastNumber: async (access, key) => Math.max(0, ...all(access, key).map((i) => numberOfKey(i.key) ?? 0)),
+    activity: async (access, key, cursor, size) => {
+      project(access, key);
+      const raw = list(read(access).issues);
+      const from = Number(cursor ?? 0);
+      return {
+        items: raw.slice(from, from + size).map((value) => {
+          const issue = obj(value);
+          return { key: String(issue.key), comments: parseComments(obj(obj(issue.fields).comment).comments), moves: parseMoves(obj(issue.changelog).histories) };
+        }),
+        next: from + size < raw.length ? String(from + size) : null,
+      };
+    },
     issues: async (access, key, cursor, size) => {
       const issues = all(access, key);
       const from = Number(cursor ?? 0);

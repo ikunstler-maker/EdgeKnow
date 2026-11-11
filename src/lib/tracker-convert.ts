@@ -228,6 +228,93 @@ export const numberOfKey = (key: string) => {
   return Number.isInteger(number) && number > 0 ? number : null;
 };
 
+// Formatted text as plain lines: a comment of ours is text.
+export function documentToText(value: unknown): string {
+  const inline = (content: unknown): string => {
+    if (!Array.isArray(content)) return "";
+    return content
+      .map((part) => {
+        const node = part as { type?: string; text?: string; href?: string; content?: unknown };
+        if (node.type === "link") return `${inline(node.content)}${node.href && inline(node.content) !== node.href ? ` (${node.href})` : ""}`;
+        return typeof node.text === "string" ? node.text : "";
+      })
+      .join("");
+  };
+  const lines: string[] = [];
+  const walk = (blocks: Block[], depth: number) => {
+    for (const block of blocks) {
+      const raw = block as unknown as { type: string; props?: Record<string, unknown>; content?: unknown; children?: Block[] };
+      const pad = "  ".repeat(depth);
+      const table = raw.content as { rows?: { cells?: unknown[] }[] } | undefined;
+      if (raw.type === "table" && table?.rows) {
+        for (const row of table.rows) lines.push(pad + (row.cells ?? []).map((cell) => inline(Array.isArray(cell) ? cell : (cell as { content?: unknown })?.content)).join(" | "));
+      } else if (raw.type === "divider") {
+        lines.push(`${pad}———`);
+      } else {
+        const mark = raw.type === "bulletListItem" ? "• " : raw.type === "numberedListItem" ? "– " : raw.type === "checkListItem" ? (raw.props?.checked ? "[x] " : "[ ] ") : "";
+        lines.push(pad + mark + inline(raw.content));
+      }
+      if (raw.children?.length) walk(raw.children, depth + 1);
+    }
+  };
+  walk(documentToBlocks(value) ?? [], 0);
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// ---- What happened to a task in the tracker: comments and its way through the statuses ----
+
+export type TrackerComment = { id: string; author: TrackerUser | null; body: unknown; created: string; updated: string | null };
+export type TrackerMove = { id: string; author: TrackerUser | null; from: string | null; to: string; at: string };
+export type TrackerActivity = { key: string; comments: TrackerComment[]; moves: TrackerMove[] };
+export type ImportActivityItem = {
+  external_key: string;
+  comments: { external_id: string; author_ext: string | null; body: string; created_at: string; edited_at: string | null }[];
+  moves: { external_id: string; actor_ext: string | null; from_status: string | null; to_status: string; at: string }[];
+};
+
+export function parseComments(value: unknown): TrackerComment[] {
+  return (Array.isArray(value) ? value : []).flatMap((raw) => {
+    const comment = obj(raw);
+    const id = str(comment.id);
+    const created = str(comment.created);
+    if (!id || !created) return [];
+    const updated = str(comment.updated);
+    return [{ id, author: parseUser(comment.author), body: comment.body ?? null, created, updated: updated && updated !== created ? updated : null }];
+  });
+}
+
+// Each change of status in the task's history (one history entry can hold several fields).
+export function parseMoves(value: unknown): TrackerMove[] {
+  return (Array.isArray(value) ? value : []).flatMap((raw) => {
+    const history = obj(raw);
+    const id = str(history.id);
+    const at = str(history.created);
+    if (!id || !at) return [];
+    return (Array.isArray(history.items) ? history.items : []).flatMap((entry) => {
+      const item = obj(entry);
+      const to = str(item.to);
+      return str(item.field) === "status" && to ? [{ id, author: parseUser(history.author), from: str(item.from) || null, to, at }] : [];
+    });
+  });
+}
+
+export function toActivityItem(activity: TrackerActivity, mapping: ImportMapping): { item: ImportActivityItem; problems: string[] } {
+  const problems: string[] = [];
+  const comments = activity.comments.flatMap((comment) => {
+    const text = documentToText(comment.body);
+    if (!text) return [];
+    if (text.length > 10000) problems.push("comment_cut");
+    return [{ external_id: comment.id.slice(0, 100), author_ext: comment.author?.id ?? null, body: text.slice(0, 10000), created_at: comment.created, edited_at: comment.updated }];
+  });
+  const moves = activity.moves
+    .flatMap((move) => {
+      const to = mapping.statuses[move.to];
+      return to ? [{ external_id: move.id.slice(0, 100), actor_ext: move.author?.id ?? null, from_status: (move.from && mapping.statuses[move.from]) || null, to_status: to, at: move.at }] : [];
+    })
+    .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  return { item: { external_key: activity.key, comments, moves }, problems };
+}
+
 export function suggestType(type: TrackerType): OurType {
   const name = type.name.toLowerCase();
   if (type.epic || /epic|епік/.test(name)) return "epic";

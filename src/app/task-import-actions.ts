@@ -12,7 +12,7 @@ import type { Person } from "@/lib/tasks";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { TrackerError, trackerApi, type TrackerAccess } from "@/lib/tracker/api";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState } from "@/lib/tracker/types";
-import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toImportItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
+import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toActivityItem, toImportItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 
 // Moving tasks in from another tracker (Rukh Р-3а). Only the workspace's owner and
@@ -392,6 +392,38 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
     const api = trackerApi();
     const access = accessOf(row);
     const home = await filesHome(ctx.admin, ctx.workspace.id);
+    if (progress.phase === "activity") {
+      // Comments and the way through the columns, with the tracker's dates and people.
+      const page = await api.activity(access, row.source_project, progress.cursor, PAGE);
+      const made = page.items.map((activity) => toActivityItem(activity, row.mapping));
+      for (const one of made) for (const note of new Set(one.problems)) progress.notes[note] = (progress.notes[note] ?? 0) + 1;
+      const items = made.map((one) => one.item).filter((item) => item.comments.length || item.moves.length);
+      if (items.length) {
+        const authors = page.items.flatMap((a) => [...a.comments.map((c) => c.author), ...a.moves.map((m) => m.author)].flatMap((u) => (u ? [u] : [])));
+        const people = toPersonItems(authors, row.mapping);
+        if (people.length) await home.rows.rpc("import_people", { target_project: row.project_id, items: people });
+        // Tasks with long histories go in small portions.
+        for (let at = 0; at < items.length; at += 10) {
+          const { data, error } = await home.rows.rpc("import_task_activity", { target_project: row.project_id, items: items.slice(at, at + 10) });
+          const result = data as { ok?: boolean; error?: string; comments?: number; moves?: number } | null;
+          if (error || !result?.ok) {
+            await save({ last_error: result?.error ?? "unknown" });
+            return fail(result?.error ?? "unknown");
+          }
+          progress.comments = (progress.comments ?? 0) + (result.comments ?? 0);
+          progress.moves = (progress.moves ?? 0) + (result.moves ?? 0);
+        }
+      }
+      progress.cursor = page.next;
+      if (!page.next) {
+        progress.phase = "done";
+        await save({ state: "done", report: progress, finished_at: new Date().toISOString() });
+        revalidatePath("/", "layout");
+        return { ok: true, progress, state: "done" };
+      }
+      await save({});
+      return { ok: true, progress, state: "running" };
+    }
     const page = await api.issues(access, row.source_project, progress.cursor, PAGE, progress.phase === "tasks" ? [...Object.keys(row.mapping.fields), ...(row.mapping.startField ? [row.mapping.startField] : [])] : []);
     if (progress.phase === "tasks") {
       const mappingGrew = await growOptions(db, row.project_id, row.mapping, page.issues);
@@ -437,12 +469,7 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
         }
       }
       progress.cursor = page.next;
-      if (!page.next) {
-        progress.phase = "done";
-        await save({ state: "done", report: progress, finished_at: new Date().toISOString() });
-        revalidatePath("/", "layout");
-        return { ok: true, progress, state: "done" };
-      }
+      if (!page.next) progress.phase = "activity";
       await save({});
     }
     return { ok: true, progress, state: "running" };

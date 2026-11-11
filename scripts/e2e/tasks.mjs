@@ -820,7 +820,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const text = (value) => ({ type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: value, marks: [{ type: "strong" }] }] }] });
   const status = (id, name, key) => ({ id, name, statusCategory: { key } });
   const statuses = [status("1", "Backlog", "new"), status("2", "In Review", "indeterminate"), status("3", "Released", "done")];
-  const issue = (number, fields) => ({ key: `OLD-${number}`, fields: { labels: [], issuelinks: [], created: "2025-03-01T10:00:00.000+0000", updated: "2025-03-05T10:00:00.000+0000", priority: { name: "High" }, ...fields } });
+  const issue = (number, fields, changelog) => ({ key: `OLD-${number}`, ...(changelog ? { changelog } : {}), fields: { labels: [], issuelinks: [], created: "2025-03-01T10:00:00.000+0000", updated: "2025-03-05T10:00:00.000+0000", priority: { name: "High" }, ...fields } });
   writeFileSync(
     `${dir}/tracker.json`,
     JSON.stringify({
@@ -833,7 +833,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
       users: [{ accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }],
       roles: [{ name: "Developers", users: ["u-alice", "u-gone"] }, { name: "Empty role", users: [] }],
       issues: [
-        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01" }),
+        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01", comment: { total: 1, comments: [{ id: "c1", author: { accountId: "u-gone", displayName: "Gone Person" }, body: text("Said long ago"), created: "2025-03-02T08:00:00.000+0000", updated: "2025-03-02T08:00:00.000+0000" }] } }, { total: 1, histories: [{ id: "h1", created: "2025-03-03T08:00:00.000+0000", author: { accountId: "u-gone", displayName: "Gone Person" }, items: [{ field: "status", from: "2", to: "1" }] }] }),
         issue(2, { summary: "Old child", status: statuses[1], issuetype: { id: "12" }, parent: { key: "OLD-1" }, issuelinks: [{ type: { name: "Blocks" }, outwardIssue: { key: "OLD-5" } }] }),
         issue(5, { summary: "Old done", status: statuses[2], issuetype: { id: "11" }, assignee: { accountId: "u-gone", displayName: "Gone Person" }, security: { name: "Staff only" }, resolutiondate: "2025-03-04T10:00:00.000+0000" }),
       ],
@@ -868,10 +868,13 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…with people (a member by email, a stranger by name), dates and the description", people === "alice@alpha.test Gone Person 2025-03-01 OLD-1 true", people);
   const tied = sql(`select (select p.number from public.tasks p where p.id = t.parent_id) || ' ' || (select count(*) from public.task_links l where l.source_id = t.id and l.kind = 'blocks') from public.tasks t where t.project_id = ${old} and t.number = 2`);
   check("…and with subtasks and links", tied === "1 1", tied);
+  const activity = sql(`select (select count(*) || ' ' || min(to_char(c.created_at at time zone 'utc', 'YYYY-MM-DD')) || ' ' || bool_and(c.author_id is null and c.author_slot is not null) from public.task_comments c join public.tasks t on t.id = c.task_id where t.project_id = ${old}) || ' / ' || (select count(*) || ' ' || min(to_char(e.created_at at time zone 'utc', 'YYYY-MM-DD')) from public.task_events e join public.tasks t on t.id = e.task_id where t.project_id = ${old} and e.field = 'status_id' and e.external_id is not null)`);
+  check("…with comments and status changes, on their own dates and by the tracker's people", activity === "1 2025-03-02 true / 1 2025-03-03" && (await alice.locator("[data-import-report-activity]").count()) === 1, activity);
   check("…telling nobody about it", sql(`select count(*) from public.notifications n join public.tasks t on t.id = n.task_id where t.project_id = ${old}`) === "0");
   await alice.locator("[data-import-open-project]").click();
   await alice.waitForURL(/\/tasks\/OLD$/);
   await alice.goto(`${APP}/w/${alphaShort}/tasks/OLD/1`);
+  check("a comment from the tracker shows who wrote it there", ((await alice.locator("[data-task-comment]").first().textContent().catch(() => "")) ?? "").includes("Gone Person (з трекера)"));
   check("an imported task says where it came from and who wrote it", (await alice.locator("[data-task-origin]").innerText()).includes("OLD-1") && (await alice.locator("[data-task-reporter]").innerText()) === "Gone Person");
   // The key changes in the project's settings; the tasks follow.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/OLD`);
@@ -901,6 +904,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/w/${alphaShort}/tasks/import`);
   await alice.locator("[data-import-resume]").click();
   await alice.locator('[data-import-run="done"]').waitFor({ timeout: 60000 });
+  const again = sql(`select (select count(*) from public.task_comments c join public.tasks t on t.id = c.task_id where t.project_id = (select id from public.task_projects where key = 'OLDER')) || ' ' || (select count(*) from public.task_events e join public.tasks t on t.id = e.task_id where t.project_id = (select id from public.task_projects where key = 'OLDER') and e.external_id is not null) || ' ' || (select split_part(email, '@', 1) from public.profiles where id = (select author_id from public.task_comments where external_id = 'c1'))`);
+  check("…nor comments and history; the seated person's comment is the member's", again === "1 1 colleague", again);
   check("running an import again changes tasks, never doubles them", sql(`select count(*) from public.tasks where project_id = (select id from public.task_projects where key = 'OLDER')`) === "3");
   await alice.locator("[data-import-forget]").click();
   await alice.locator("[data-import-connect]").waitFor({ timeout: 20000 });

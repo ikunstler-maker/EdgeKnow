@@ -99,3 +99,38 @@ select 'legacy joined: ' || (public.import_people(:'project', jsonb_build_array(
 select public.seat_import_person(:'old_timer', '00000000-0000-0000-0000-0000000066c1') ->> 'ok' as ignored \gset
 select 'second run: ' || (public.import_people(:'project', jsonb_build_array(jsonb_build_object('external_id', 'u2', 'name', 'Old Timer', 'user_id', '00000000-0000-0000-0000-0000000066b1'))) ->> 'seated')
   || ', still ' || right((select user_id::text from public.task_import_people where id = :'old_timer'), 4);
+
+-- 3б: comments and the way through the columns come over; a second run doubles nothing;
+-- nobody is told; a seated person's comments follow the seat.
+select id as doing from public.task_statuses where project_id = :'project' and category = 'doing' \gset
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000066a1';
+select 'a person brings activity: ' || coalesce(public.import_task_activity(:'project', '[]')::text, 'null');
+reset role;
+select public.seat_import_person(:'old_timer', null) ->> 'ok' as ignored \gset
+select 'activity: ' || public.import_task_activity(:'project', jsonb_build_array(
+  jsonb_build_object('external_key', 'MOV-1',
+    'comments', jsonb_build_array(
+      jsonb_build_object('external_id', 'c1', 'author_ext', 'u2', 'body', 'Old words', 'created_at', '2024-05-01T09:00:00Z'),
+      jsonb_build_object('external_id', 'c2', 'author_ext', 'u1', 'body', 'Bob answers', 'created_at', '2024-05-02T09:00:00Z', 'edited_at', '2024-05-03T09:00:00Z'),
+      jsonb_build_object('external_id', 'c3', 'author_ext', 'u2', 'body', '   ')),
+    'moves', jsonb_build_array(
+      jsonb_build_object('external_id', 'h1', 'actor_ext', 'u2', 'from_status', :'todo', 'to_status', :'doing', 'at', '2024-05-02T00:00:00Z'),
+      jsonb_build_object('external_id', 'h2', 'actor_ext', 'u1', 'from_status', :'doing', 'to_status', :'todo', 'at', '2024-05-04T00:00:00Z'),
+      jsonb_build_object('external_id', 'h3', 'from_status', :'todo', 'to_status', gen_random_uuid(), 'at', '2024-05-05T00:00:00Z'))),
+  jsonb_build_object('external_key', 'MOV-404', 'comments', '[]'::jsonb)))::text;
+select 'second run: ' || public.import_task_activity(:'project', jsonb_build_array(
+  jsonb_build_object('external_key', 'MOV-1',
+    'comments', jsonb_build_array(jsonb_build_object('external_id', 'c1', 'author_ext', 'u2', 'body', 'Old words, edited there', 'created_at', '2024-05-01T09:00:00Z')),
+    'moves', jsonb_build_array(jsonb_build_object('external_id', 'h1', 'actor_ext', 'u2', 'from_status', :'todo', 'to_status', :'doing', 'at', '2024-05-02T00:00:00Z')))))::text;
+select 'comments: ' || string_agg(c.body || ' by ' || coalesce(right(c.author_id::text, 4), 'a seat') || ' ' || to_char(c.created_at at time zone 'utc', 'YYYY-MM-DD'), '; ' order by c.created_at)
+  from public.task_comments c join public.tasks t on t.id = c.task_id where t.project_id = :'project';
+select 'moves kept: ' || count(*) || ', own history lines kept: ' || (select count(*) from public.task_events e join public.tasks t on t.id = e.task_id where t.project_id = :'project' and e.external_id is null and e.field = 'created')
+  from public.task_events e join public.tasks t on t.id = e.task_id where t.project_id = :'project' and e.external_id is not null;
+select 'told about comments: ' || count(*) from public.notifications where workspace_id = :'ws' and kind not in ('assigned');
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000066a1';
+select 'seat with comments: ' || public.seat_import_person(:'old_timer', '00000000-0000-0000-0000-0000000066c1')::text;
+reset role;
+select 'the comment is carl''s: ' || right(c.author_id::text, 4) || ', the move too: ' || (select right(e.actor_id::text, 4) from public.task_events e where e.external_id = 'h1')
+  from public.task_comments c where c.external_id = 'c1';
