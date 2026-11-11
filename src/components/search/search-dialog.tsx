@@ -16,6 +16,7 @@ import { searchSurveys, type SurveyHit } from "@/app/survey-actions";
 import { usePages } from "@/components/pages/pages-provider";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { ServiceIcon } from "@/components/services/service-icon";
+import { SERVICE_BRANDS } from "@/lib/services";
 
 const s = t.search;
 // Labels are read when shown, in the current language.
@@ -357,7 +358,7 @@ function SearchDialog({
               data-search-mode="maps"
               className={`min-h-9 rounded-full border px-3 text-xs ${mapsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              {s.maps}
+              <span title={s.maps}>{SERVICE_BRANDS.nodes.name}</span>
             </button>
             <button
               type="button"
@@ -366,7 +367,7 @@ function SearchDialog({
               data-search-mode="boards"
               className={`min-h-9 rounded-full border px-3 text-xs ${boardsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              {s.boards}
+              <span title={s.boards}>{SERVICE_BRANDS.boards.name}</span>
             </button>
             <button
               type="button"
@@ -376,7 +377,7 @@ function SearchDialog({
               className={`min-h-9 rounded-full border px-3 text-xs ${eventsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
               data-search-events
             >
-              {s.events}
+              <span title={s.events}>{SERVICE_BRANDS.calendar.name}</span>
             </button>
             <button
               type="button"
@@ -385,7 +386,7 @@ function SearchDialog({
               data-search-mode="sheets"
               className={`min-h-9 rounded-full border px-3 text-xs ${sheetsMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              {s.sheets}
+              <span title={s.sheets}>{SERVICE_BRANDS.sheets.name}</span>
             </button>
             <button
               type="button"
@@ -394,7 +395,7 @@ function SearchDialog({
               data-search-mode="surveys"
               className={`min-h-9 rounded-full border px-3 text-xs ${surveysMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
             >
-              {s.surveys}
+              <span title={s.surveys}>{SERVICE_BRANDS.surveys.name}</span>
             </button>
           </div>
           {said && <p className="mt-1 text-xs text-muted">{s.kindSaid(s.kinds[said.kind])}</p>}
