@@ -167,6 +167,7 @@ const bobReads = {
   "alpha group members": `workspace_group_members?workspace_id=eq.${alpha.id}&select=user_id`,
   "alpha group grants": `page_group_access?workspace_id=eq.${alpha.id}&select=role`,
   "alpha page versions": `page_versions?workspace_id=eq.${alpha.id}&select=id,content`,
+  "tracker imports and their keys": "task_imports?select=secret_encrypted",
 };
 for (const [name, path] of Object.entries(bobReads)) {
   const res = await rest(bob, path);
@@ -201,6 +202,7 @@ const bobActions = {
   "open alpha's map to everyone": ["set_service_object_workspace_role", { target_object: alphaMap?.id, new_role: "editor" }],
   "give himself alpha's map": ["set_service_object_member_role", { target_object: alphaMap?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
+  "change the key of alpha's project": ["set_task_project_key", { target_project: alphaProject?.id, new_key: "MINE" }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "let alpha keep pages centrally": ["platform_set_central_allowed", { ws: alpha.id, allowed: true }],
   "switch \"own database first\"": ["set_require_team_database", { required: false }],
@@ -220,6 +222,15 @@ for (const [name, [fn, body]] of Object.entries(bobActions)) {
 // Only the EdgeKnow server (secret key), after looking up DNS, may confirm a domain.
 const selfConfirm = await rpc(bob, "confirm_workspace_domain", { ws: alpha.id, target_domain: "alpha.test", how: "dns", actor: null });
 check("bob can't call the server-only domain confirmation", selfConfirm.status >= 400, `HTTP ${selfConfirm.status} ${JSON.stringify(selfConfirm.json)}`);
+// Importing tasks from another tracker is the server's alone (Rukh Р-3а).
+for (const [fn, body] of [
+  ["import_tasks", { target_project: alphaProject?.id, items: [] }],
+  ["import_task_relations", { target_project: alphaProject?.id, items: [] }],
+  ["make_room_for_import", { target_project: alphaProject?.id, last_number: 5 }],
+]) {
+  const res = await rpc(bob, fn, body);
+  check(`bob can't call the server-only ${fn}`, res.status >= 400, `HTTP ${res.status} ${JSON.stringify(res.json)}`);
+}
 const role = await rpc(bob, "effective_role", { target_page: page.id });
 check("bob has no role on alpha page", role.json === null, JSON.stringify(role.json));
 const centralSize = await rpc(bob, "platform_database_size");
