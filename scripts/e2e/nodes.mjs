@@ -13,7 +13,9 @@ const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
 await alice.goto(`${APP}/w/${alphaShort}`);
 await alice.locator('[data-service="nodes"]').waitFor({ timeout: 15000 });
 check("the start page has the node space working and the chat coming", (await alice.locator('[data-service="nodes"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="chat"]', { hasText: "Скоро" }).count()) === 1);
-await alice.locator("[data-service-switcher]").getByRole("link", { name: "Нодовий простір" }).click();
+// Not pinned to the dock: opened from the list of all services.
+await alice.locator("[data-service-menu-button]").first().click();
+await alice.locator("[data-service-menu]").getByRole("link", { name: "Нодовий простір" }).click();
 await alice.waitForURL(new RegExp(`/w/${alphaShort}/nodes$`), { timeout: 15000 });
 
 // A new map: title, then branches from the keyboard.
@@ -151,7 +153,7 @@ await embed.locator('[data-map-node="Launch 2"]').waitFor({ timeout: 20000 }).ca
 check("…a change made elsewhere shows up without editing the page", (await embed.locator('[data-map-node="Launch 2"]').count()) === 1);
 
 await alice.getByRole("button", { name: /Пошук/ }).first().click();
-await alice.getByRole("button", { name: "🧠 Карти" }).click();
+await alice.getByRole("button", { name: "Карти", exact: true }).click();
 await alice.getByLabel(/Шукати в назвах/).fill("Budget");
 await alice.locator("[data-map-results]").getByText("Launch map").waitFor({ timeout: 15000 }).catch(() => {});
 check("search “Maps” finds a map by the text of its nodes", (await alice.locator("[data-map-results]").getByText("Launch map").count()) === 1);
@@ -294,7 +296,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-board-embed="Retro board 2"]').count()) === 1);
 
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
-  await alice.getByRole("button", { name: "🎨 Дошки" }).click();
+  await alice.getByRole("button", { name: "Дошки", exact: true }).click();
   await alice.getByLabel(/Шукати в назвах/).fill("login page");
   await alice.locator("[data-board-results]").getByText("Retro board 2").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Boards” finds a board by the text of its sticky notes", (await alice.locator("[data-board-results]").getByText("Retro board 2").count()) === 1);
@@ -523,7 +525,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator('[data-sheet-embed="Budget 2"]').nth(1).waitFor({ timeout: 20000 }).catch(() => {});
   check("…a change made elsewhere shows up without editing the page", (await alice.locator('[data-sheet-embed="Budget 2"]').count()) === 2);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
-  await alice.getByRole("button", { name: "📊 Таблиці" }).click();
+  await alice.getByRole("button", { name: "Таблиці", exact: true }).click();
   await alice.getByLabel(/Шукати в назвах/).fill("42");
   await alice.locator("[data-sheet-results]").getByText("Budget 2").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Tables” finds a table by the text of its cells", (await alice.locator("[data-sheet-results]").getByText("Budget 2").count()) === 1);
@@ -540,7 +542,9 @@ check("…while a map they may view shows as usual", shownMap, screen);
 // --- Surveys (steps О1, О2, О4): a form, answers into a connected table, results, on a page --------
 {
   await alice.goto(`${APP}/w/${alphaShort}`);
-  await alice.locator("[data-service-switcher]").getByRole("link", { name: "Опитування" }).click();
+  // Not pinned to the dock: opened from the list of all services.
+  await alice.locator("[data-service-menu-button]").first().click();
+  await alice.locator("[data-service-menu]").getByRole("link", { name: "Опитування" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/surveys$`), { timeout: 15000 });
   await alice.getByRole("button", { name: "＋ Нове опитування" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/surveys/[0-9a-f-]{36}$`), { timeout: 15000 });
@@ -606,7 +610,7 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("…someone who only answers sees the form (answered) but not the summary",
     (await colleague.locator("[data-survey-answered]").count()) === 1 && (await colleague.getByText("Підсумки бачать лише ті, хто редагує опитування.").count()) === 1);
   await alice.getByRole("button", { name: /Пошук/ }).first().click();
-  await alice.getByRole("button", { name: "📝 Опитування" }).click();
+  await alice.getByRole("button", { name: "Опитування", exact: true }).click();
   await alice.getByLabel(/Шукати в назвах/).fill("lunch?");
   await alice.locator("[data-survey-hits]").getByText("Lunch poll").waitFor({ timeout: 15000 }).catch(() => {});
   check("search “Surveys” finds a survey by its question", (await alice.locator("[data-survey-hits]").getByText("Lunch poll").count()) === 1);

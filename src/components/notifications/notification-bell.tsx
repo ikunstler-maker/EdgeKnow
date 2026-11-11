@@ -17,6 +17,7 @@ import {
 import { loadNotificationPrefs, loadNotifications, markNotificationsRead, setNotificationPrefs } from "@/app/notification-actions";
 import { usePages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
+import { Icon } from "@/components/ui/icon";
 
 const n = t.notifications;
 export const NOTIFICATIONS_EVENT = "ek-notifications";
@@ -117,13 +118,13 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }) {
         onClick={(e) => setAnchor(anchor ? null : e.currentTarget)}
         aria-label={n.bell(unread)}
         aria-expanded={open}
-        className="flex min-h-11 items-center gap-2 rounded-md px-3 text-sm text-muted hover:bg-surface hover:text-foreground md:min-h-9"
+        className="flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8"
         data-notification-bell
       >
-        <span className="w-5 text-center">🔔</span>
+        <Icon name="bell" />
         <span className="flex-1 text-left">{n.title}</span>
         {unread > 0 && (
-          <span className="rounded-full bg-accent px-2 text-xs font-medium text-white" data-unread>
+          <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-[18px] text-white" data-unread>
             {unread}
           </span>
         )}

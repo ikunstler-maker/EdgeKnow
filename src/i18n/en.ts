@@ -908,6 +908,10 @@ export const en: Dictionary = {
   services: {
     heading: "Services",
     switcher: "Services",
+    all: "All services",
+    pin: (name: string) => `Pin “${name}” to the panel`,
+    unpin: (name: string) => `Unpin “${name}” from the panel`,
+    create: "Create",
     home: "Home",
     soon: "Soon",
     soonHint: "This service is still being built — its tile starts working as soon as it is ready.",
@@ -1505,6 +1509,7 @@ export const en: Dictionary = {
     returningBanner: "The workspace is moving back to the EdgeKnow server: view-only for now, changes are not saved. This usually takes a few minutes.",
     movingBanner: "The workspace is moving to the team's own database: view-only for now, changes are not saved. This usually takes a few minutes.",
     switcher: "Switch workspace",
+    menu: "Workspace and account menu",
     create: "Create workspace",
     settings: "Workspace settings",
     noAccessTitle: "No access to this workspace",
@@ -1554,6 +1559,8 @@ export const en: Dictionary = {
     noObjects: "Nothing here yet",
     allOf: (service: string) => `All: ${service}`,
     openMenu: "Open menu",
+    hidePanel: "Collapse the panel",
+    showPanel: "Expand the panel",
     closeMenu: "Close menu",
     pagesHeading: "Pages",
     sections: {
@@ -2515,7 +2522,7 @@ export const en: Dictionary = {
   help: {
     link: "Help",
     title: "Help: how to use the wiki",
-    intro: "Everything the service can do, in one place. This page is the same for every team and is always available from the sidebar (❓ Help).",
+    intro: "Everything the service can do, in one place. This page is the same for every team and is always available from the workspace menu (“Help”).",
     contents: "Help sections",
     back: "Back to the wiki",
     sections: [
@@ -2525,7 +2532,7 @@ export const en: Dictionary = {
         items: [
           "Sign in with Google. If your email is on your team's domain, you join its workspace automatically; otherwise you need an invitation from an admin.",
           "A workspace is a team's own private space: its pages, members, files and settings. Workspaces share no links and no search.",
-          "To switch workspaces or create a new one, use the button with the workspace name at the top of the sidebar.",
+          "To switch workspaces or create a new one, use the button with the workspace name at the top of the sidebar. The same menu holds your profile, settings, theme, language, “What's new”, help and sign-out.",
           "The workspace home shows a greeting and “Mentions” — where you were mentioned in comments or in page text.",
         ],
       },
@@ -2533,7 +2540,7 @@ export const en: Dictionary = {
         id: "pages",
         title: "Pages and the page tree",
         items: [
-          "“＋ New page” in the sidebar creates a top-level page; “+” next to a page creates a subpage.",
+          "“New page” in the sidebar creates a top-level page; “+” next to a page creates a subpage.",
           "The sidebar has sections: “Whole workspace” (pages open to everyone), “My pages” and “Shared with me”.",
           "Drag pages in the tree to reorder or nest them. On a phone, press and hold a page. Or use the ⋯ menu → “Move to…”.",
           "Page icon — “Add icon” above the title. Cover — “🖼 Add cover”: an image, a colour or a gradient (linear or radial, 2–4 colour stops).",
@@ -2592,7 +2599,7 @@ export const en: Dictionary = {
         items: [
           "The “Navigation” block (“/navigation”) shows the tree of this page's subpages or of the whole workspace (switch in the block) and lets you create a new page right there.",
           "Page contents are built from the headings automatically. If the page has comments, the top right has a “☰ Contents | 💬 Comments” switch; ⚙ next to it shows the contents on the right, at the bottom of the page, or on the left instead of the page tree.",
-          "Search — “🔍 Search” in the sidebar or Ctrl+K. Searches page titles and text, diagram node titles and link cards, by the start of words. Search the whole workspace or the current page with its subpages, at a chosen depth.",
+          "Search — “Search” in the sidebar or Ctrl+K. Searches page titles and text, diagram node titles and link cards, by the start of words. Search the whole workspace or the current page with its subpages, at a chosen depth.",
         ],
       },
       {
@@ -2642,9 +2649,9 @@ export const en: Dictionary = {
         id: "personal",
         title: "Personal settings",
         items: [
-          "Theme — 🖥 system, ☀️ light or 🌙 dark; interface language — UA | EN. The switches are at the bottom of the sidebar; your choice follows you to all your devices.",
-          "“Sign out” is next to your email at the bottom of the sidebar.",
-          "“👤 My profile” in the sidebar shows your statistics in this workspace: pages you created and edited, how many pages you can open with each role, characters written, comments left.",
+          "Theme — system, light or dark; interface language — UA | EN. The switches are in the menu that the workspace name at the top of the sidebar opens; your choice follows you to all your devices.",
+          "“Sign out” is the last row of the menu the workspace name opens. Services: the pinned ones are the icons under the workspace name, all of them are behind the button next to those or Ctrl+E. The panel collapses with the button beside the name or Ctrl+\\.",
+          "“My profile” in the workspace menu shows your statistics in this workspace: pages you created and edited, how many pages you can open with each role, characters written, comments left.",
           "Only you see them. To show them to colleagues, choose “All workspace members” and send them the profile link. They see numbers only, never page contents.",
         ],
       },

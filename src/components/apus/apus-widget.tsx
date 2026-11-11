@@ -11,6 +11,8 @@ import { ANGLER_GAME_EVENT } from "@/components/angler/angler-guide";
 import { OPEN_FEEDBACK_EVENT } from "@/components/feedback/feedback-button";
 import { NOTIFICATIONS_EVENT, OPEN_NOTIFICATIONS_EVENT, type NotificationNews } from "@/components/notifications/notification-bell";
 import { ApusFigure, type ApusMood } from "./apus-figure";
+import { OPEN_APUS_EVENT } from "./apus-events";
+import { Icon, type IconName } from "@/components/ui/icon";
 
 const a = t.apus;
 const SIDES = ["left", "right", "top", "bottom"] as const;
@@ -78,6 +80,17 @@ export function ApusWidget() {
     window.addEventListener(NOTIFICATIONS_EVENT, onNews);
     return () => window.removeEventListener(NOTIFICATIONS_EVENT, onNews);
   }, [flash]);
+
+  useEffect(() => {
+    const onOpen = () => {
+      const box = root.current?.getBoundingClientRect();
+      if (box) setWhere({ low: box.top > window.innerHeight / 2, rightHalf: box.left > window.innerWidth / 2 });
+      setTab("menu");
+      setMenu(true);
+    };
+    window.addEventListener(OPEN_APUS_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_APUS_EVENT, onOpen);
+  }, []);
 
   if (appearance.lure === "hidden" || !settings) return null;
 
@@ -179,12 +192,12 @@ export function ApusWidget() {
             }
           }
         }}
-        className={`relative block touch-none rounded-full outline-offset-4 ${settings.minimized ? "h-11 w-11 border border-border bg-background shadow-md" : "h-16 w-16 md:h-24 md:w-24"} ${
+        className={`relative block touch-none rounded-full outline-offset-4 ${settings.minimized ? "h-11 w-11 border border-border bg-overlay opacity-70 shadow-md hover:opacity-100 md:h-7 md:w-7" : "h-12 w-12 border border-border bg-overlay shadow-lg md:h-10 md:w-10"} ${
           appearance.lure === "subtle" ? "opacity-60 hover:opacity-100" : ""
         }`}
         data-apus-button
       >
-        <ApusFigure mood={mood} className="h-full w-full drop-shadow-lg" />
+        <ApusFigure mood={mood} className="h-full w-full" />
         {unread > 0 && (
           <span className="absolute -right-1 -top-1 rounded-full bg-accent px-1.5 text-xs font-bold text-white" data-apus-unread>
             {unread}
@@ -210,15 +223,15 @@ export function ApusWidget() {
       )}
 
       {menu && (
-        <div role="menu" aria-label={a.name} className={`absolute ${sideClass} w-72 max-w-[calc(100vw-5rem)] rounded-2xl border border-border bg-background p-2 text-sm shadow-xl`} data-apus-menu>
+        <div role="menu" aria-label={a.name} className={`absolute ${sideClass} w-72 max-w-[calc(100vw-5rem)] rounded-2xl border border-border-strong bg-overlay p-2 text-sm shadow-2xl`} data-apus-menu>
           {tab === "menu" ? (
             <>
               <p className="px-2 pb-1 font-semibold">{a.name}</p>
-              <MenuButton onClick={() => go(() => window.dispatchEvent(new CustomEvent(OPEN_NOTIFICATIONS_EVENT, { detail: root.current })))} label={`🔔 ${t.notifications.title}${unread ? ` (${unread})` : ""}`} data="notifications" />
-              <MenuButton onClick={() => go(() => window.dispatchEvent(new Event(OPEN_FEEDBACK_EVENT)))} label={`💬 ${a.feedback}`} data="feedback" />
-              <MenuButton disabled label={`🤖 ${a.helper}`} hint={t.services.soon} data="helper" />
-              <MenuButton onClick={() => go(() => window.dispatchEvent(new Event(ANGLER_GAME_EVENT)))} label={`🌊 ${a.game}`} data="game" />
-              <MenuButton onClick={() => act(() => setTab("settings"))} label={`⚙️ ${a.settings}`} data="settings" />
+              <MenuButton onClick={() => go(() => window.dispatchEvent(new CustomEvent(OPEN_NOTIFICATIONS_EVENT, { detail: root.current })))} icon="bell" label={`${t.notifications.title}${unread ? ` (${unread})` : ""}`} data="notifications" />
+              <MenuButton onClick={() => go(() => window.dispatchEvent(new Event(OPEN_FEEDBACK_EVENT)))} icon="comment" label={a.feedback} data="feedback" />
+              <MenuButton disabled icon="sparkle" label={a.helper} hint={t.services.soon} data="helper" />
+              <MenuButton onClick={() => go(() => window.dispatchEvent(new Event(ANGLER_GAME_EVENT)))} icon="play" label={a.game} data="game" />
+              <MenuButton onClick={() => act(() => setTab("settings"))} icon="settings" label={a.settings} data="settings" />
               <div className="mt-1 flex gap-1 border-t border-border pt-1">
                 <button type="button" onClick={() => act(() => update({ minimized: !settings.minimized }))} className="min-h-11 flex-1 rounded-lg px-2 hover:bg-surface md:min-h-9" data-apus-minimize>
                   {settings.minimized ? a.expand : a.minimize}
@@ -235,8 +248,8 @@ export function ApusWidget() {
                 >
                   {a.hide}
                 </button>
-                <button type="button" onClick={closeMenu} aria-label={t.common.close} className="min-h-11 min-w-11 rounded-lg hover:bg-surface md:min-h-9">
-                  ✕
+                <button type="button" onClick={closeMenu} aria-label={t.common.close} className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-surface md:min-h-9">
+                  <Icon name="close" />
                 </button>
               </div>
               <p className="px-2 pt-1 text-xs text-muted">{a.hideHint}</p>
@@ -280,10 +293,10 @@ export function ApusWidget() {
               </label>
               <div className="flex gap-2">
                 <button type="button" onClick={() => act(() => playApusSound(settings))} className="min-h-11 flex-1 rounded-lg border border-border hover:bg-surface md:min-h-9">
-                  ▶ {a.test}
+                  <Icon name="play" className="mr-1 inline" />{a.test}
                 </button>
                 <button type="button" onClick={() => setTab("menu")} className="min-h-11 flex-1 rounded-lg border border-border hover:bg-surface md:min-h-9">
-                  ← {a.back}
+                  <Icon name="arrow-left" className="mr-1 inline" />{a.back}
                 </button>
               </div>
               <p className="text-xs text-muted">{a.deviceOnly}</p>
@@ -300,7 +313,7 @@ export function ApusWidget() {
   );
 }
 
-function MenuButton({ onClick, label, hint, disabled, data }: { onClick?: () => void; label: string; hint?: string; disabled?: boolean; data: string }) {
+function MenuButton({ onClick, label, icon, hint, disabled, data }: { onClick?: () => void; label: string; icon: IconName; hint?: string; disabled?: boolean; data: string }) {
   return (
     <button
       type="button"
@@ -310,6 +323,7 @@ function MenuButton({ onClick, label, hint, disabled, data }: { onClick?: () => 
       className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left hover:bg-surface disabled:opacity-50 md:min-h-9"
       data-apus-item={data}
     >
+      <Icon name={icon} className="text-muted" />
       <span className="flex-1">{label}</span>
       {hint && <span className="rounded-full bg-accent/10 px-2 text-xs text-accent">{hint}</span>}
     </button>

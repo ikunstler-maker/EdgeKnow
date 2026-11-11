@@ -835,12 +835,22 @@ check("reader's direct cover change refused", readerCover.data?.error === "forbi
 
 // --- Theme and language --------------------------------------------------------------
 
+// Theme and language live in the workspace and account menu.
+const openWorkspaceMenu = async (page) => {
+  // A click before the page wakes up does nothing, so it is repeated until the menu shows.
+  for (let attempt = 0; attempt < 8 && !(await page.locator("[data-workspace-menu]").count()); attempt += 1) {
+    await page.locator("[data-workspace-menu-button]").first().click();
+    await page.locator("[data-workspace-menu]").waitFor({ timeout: 2500 }).catch(() => {});
+  }
+};
 const prefsOf = (email) => sql(`select theme || ' ' || locale from public.profiles where email = '${email}'`);
+await openWorkspaceMenu(wide);
 await wide.getByRole("radio", { name: "Темна", exact: true }).click();
 check("dark theme applied", (await wide.evaluate(() => document.documentElement.dataset.theme)) === "dark");
 check("theme saved in the profile", await until(() => prefsOf("alice@alpha.test").startsWith("dark")), prefsOf("alice@alpha.test"));
 await wide.reload();
 check("theme kept after reload", (await wide.evaluate(() => document.documentElement.dataset.theme)) === "dark");
+await openWorkspaceMenu(wide);
 await Promise.all([wide.waitForEvent("load"), wide.getByRole("radio", { name: "EN" }).click()]);
 await wide.waitForSelector("aside");
 check("interface switches to English", (await wide.locator("aside").getByText("New page").count()) > 0 && (await wide.evaluate(() => document.documentElement.lang)) === "en");
@@ -850,7 +860,10 @@ const { cookies: freshCookies } = await sessionCookies("alice@alpha.test");
 const freshDevice = await newPage(freshCookies);
 await freshDevice.goto(`${APP}/w/${alphaShort}`);
 check("new device follows the profile", (await freshDevice.evaluate(() => `${document.documentElement.lang} ${document.documentElement.dataset.theme}`)) === "en dark");
+await openWorkspaceMenu(wide);
 await Promise.all([wide.waitForEvent("load"), wide.getByRole("radio", { name: "UA" }).click()]);
+await wide.waitForSelector("aside");
+await openWorkspaceMenu(wide);
 await wide.getByRole("radio", { name: "System", exact: true }).or(wide.getByRole("radio", { name: "Системна", exact: true })).first().click();
 check("back to Ukrainian and system theme", await until(() => prefsOf("alice@alpha.test") === "system uk"), prefsOf("alice@alpha.test"));
 
@@ -959,16 +972,17 @@ check("files moved to the new Drive", onOld === "0", onOld);
 const anonHelp = await fetch(`${APP}/help`);
 check("help is open without signing in", anonHelp.status === 200 && (await anonHelp.text()).includes("Довідка"), String(anonHelp.status));
 await alice.goto(`${APP}/w/${alphaShort}`);
-await alice.locator("aside").getByRole("link", { name: /Довідка/ }).click();
+await openWorkspaceMenu(alice);
+await alice.locator("[data-workspace-menu]").getByRole("link", { name: /Довідка/ }).click();
 await alice.waitForURL(/\/help$/);
-check("help linked from the sidebar, with every section", (await alice.locator("main section").count()) >= 14);
+check("help linked from the workspace menu, with every section", (await alice.locator("main section").count()) >= 14);
 
-// --- Sidebar: one row of icons at the bottom, width set by dragging -----------------------
+// --- Sidebar: a slim bottom bar (bin and Apus), width set by dragging -----------------------
 {
   await alice.goto(`${APP}/w/${alphaShort}`);
-  const bottom = alice.locator("aside [data-sidebar-bottom] > div").first();
+  const bottom = alice.locator("aside [data-sidebar-bottom]").first();
   const icons = await bottom.locator("a, button").evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
-  check("the bottom links are one row of icons", icons.length >= 5 && new Set(icons).size === 1, JSON.stringify(icons));
+  check("the bottom bar is one slim row", icons.length >= 1 && icons.length <= 2 && new Set(icons).size === 1, JSON.stringify(icons));
   const aside = alice.locator("aside[data-sidebar-width]");
   const handle = alice.locator("[data-sidebar-resize]");
   const before = (await aside.boundingBox()).width;

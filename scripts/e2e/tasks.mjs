@@ -673,7 +673,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
 
   const gwen = await newPage(gwenCookies);
   await gwen.goto(`${APP}/w/${alphaShort}`);
-  await gwen.getByRole("link", { name: "Мій профіль" }).waitFor({ timeout: 15000 });
+  await gwen.locator("[data-workspace-menu-button]").first().waitFor({ timeout: 15000 });
   check("a guest's menu has “New page” but no bin", (await gwen.getByRole("button", { name: "Нова сторінка" }).count()) === 1 && (await gwen.getByRole("link", { name: "Кошик" }).count()) === 0);
   await gwen.getByRole("button", { name: "Нова сторінка" }).click();
   await gwen.waitForURL(/\/p\/[0-9a-f-]{36}(\?new=1)?$/, { timeout: 20000 });
