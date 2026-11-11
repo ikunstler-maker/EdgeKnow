@@ -3,6 +3,7 @@ import { t } from "@/i18n";
 import { pagePath, workspacePath } from "@/lib/paths";
 import { SERVICES, SERVICE_BRANDS, brandGradients } from "@/lib/services";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ServiceIcon } from "./service-icon";
 
 const s = t.services;
 
@@ -29,11 +30,11 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
     db.from("service_objects").select("id, title").eq("workspace_id", workspaceId).eq("service", "surveys").is("deleted_at", null).order("updated_at", { ascending: false }).limit(3),
   ]);
   const recent: Record<string, { href: string; label: string }[]> = {
-    wiki: ((pages ?? []) as RecentPage[]).map((p) => ({ href: pagePath(shortId, p.id), label: `${p.icon ?? "📄"} ${p.title || t.pages.untitled}` })),
-    nodes: ((maps ?? []) as { id: string; title: string; kind: string }[]).map((m) => ({ href: workspacePath(shortId, `/nodes/${m.id}`), label: `${m.kind === "flow" ? "🔀" : "🧠"} ${m.title || t.nodes.untitled}` })),
-    boards: ((boards ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/boards/${m.id}`), label: `🎨 ${m.title || t.boards.untitled}` })),
-    sheets: ((sheets ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/sheets/${m.id}`), label: `📊 ${m.title || t.sheets.untitled}` })),
-    surveys: ((surveys ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/surveys/${m.id}`), label: `📝 ${m.title || t.surveys.untitled}` })),
+    wiki: ((pages ?? []) as RecentPage[]).map((p) => ({ href: pagePath(shortId, p.id), label: `${p.icon ? `${p.icon} ` : ""}${p.title || t.pages.untitled}` })),
+    nodes: ((maps ?? []) as { id: string; title: string; kind: string }[]).map((m) => ({ href: workspacePath(shortId, `/nodes/${m.id}`), label: m.title || t.nodes.untitled })),
+    boards: ((boards ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/boards/${m.id}`), label: m.title || t.boards.untitled })),
+    sheets: ((sheets ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/sheets/${m.id}`), label: m.title || t.sheets.untitled })),
+    surveys: ((surveys ?? []) as { id: string; title: string }[]).map((m) => ({ href: workspacePath(shortId, `/surveys/${m.id}`), label: m.title || t.surveys.untitled })),
     tasks: (tasks ?? []).flatMap((task) =>
       task.project ? [{ href: workspacePath(shortId, `/tasks/${task.project.key}/${task.number}`), label: `${task.project.key}-${task.number} ${task.title}` }] : [],
     ),
@@ -46,7 +47,7 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
   return (
     <section className="mt-6" aria-label={s.heading}>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {SERVICES.map((service, index) => {
+        {SERVICES.map((service) => {
           const item = s.items[service.key];
           const brand = brandGradients(service.key);
           const href = service.ready ? hrefOf(service.key, service.path) : null;
@@ -63,13 +64,8 @@ export async function ServiceTiles({ db, workspaceId, shortId, userId }: { db: S
               {/* The service's colours: a thin bar on top, its squircle and its name. */}
               <span className="ek-brand-fill absolute inset-x-0 top-0 h-1.5 opacity-90 transition-all group-hover:h-2" aria-hidden="true" />
               <div className="flex items-start gap-3">
-                <span
-                  className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface font-mono text-sm font-black"
-                  aria-hidden="true"
-                  data-service-mark
-                >
-                  <span className="ek-brand-fill absolute inset-0 opacity-20" />
-                  <span className="relative">{String(index + 1).padStart(2, "0")}</span>
+                <span className="shrink-0" data-service-mark>
+                  <ServiceIcon serviceId={service.key} size={44} muted={!service.ready} />
                 </span>
                 <div className="min-w-0">
                   <span className="inline-block rounded-lg border border-border bg-surface px-2 py-0.5 text-[11px] font-semibold text-muted">{item.name}</span>

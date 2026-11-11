@@ -131,7 +131,7 @@ export function AppShell({
       <NavProgress />
     <div className="flex min-h-dvh flex-1">
       <aside
-        className="sticky top-0 hidden h-dvh shrink-0 border-r border-border bg-surface/60 md:block"
+        className="sticky top-0 hidden h-dvh shrink-0 border-r border-border bg-shell md:block"
         style={{ width }}
         data-sidebar-width={width}
       >
