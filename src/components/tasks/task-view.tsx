@@ -4,7 +4,7 @@ import { canComment, canEdit, linkedTasks, type ProjectView } from "@/lib/tasks-
 import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "./task-relations";
 import type { TaskFileView } from "./task-files";
-import { TaskDetail, type TaskComment, type TaskEvent } from "./task-detail";
+import { TaskDetail, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
 import { TaskSnapshot, type TaskSnapshotData } from "./task-snapshot";
 
 const EVENT_COLUMNS = "id, actor_id, field, old_value, new_value, created_at";
@@ -68,6 +68,9 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
     db.from("task_events").select("old_value, new_value, created_at").eq("task_id", task.id).eq("field", "status_id").order("created_at"),
     db.from("task_participants").select("user_id, role").eq("task_id", task.id),
   ]);
+  // Where an imported task came from. Read apart: a database a step behind the site
+  // doesn't have these columns yet, and the card must still open.
+  const { data: origin } = await db.from("tasks").select("external_key, external_url, imported_reporter, imported_assignee").eq("id", task.id).maybeSingle();
   const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -104,6 +107,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       canComment={canComment(view.role)}
       isOwner={view.role === "owner"}
       inPanel={inPanel}
+      origin={(origin as TaskOrigin | null) ?? null}
     />
   );
 }
