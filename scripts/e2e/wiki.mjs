@@ -593,6 +593,9 @@ check("dragged node stays aligned with its neighbour", dd?.nodes?.[0]?.y === dd?
 // Readers see the same diagram, can't change it, and node text is never HTML.
 await colleague.goto(`${APP}/w/${alphaShort}/p/${diagramPage}`);
 await colleague.waitForSelector(".ek-diagram .react-flow__node", { timeout: 20000 });
+// The second node and the edge are drawn a moment after the first node.
+await colleague.locator(".react-flow__node").nth(1).waitFor({ timeout: 20000 }).catch(() => {});
+await colleague.locator(".react-flow__edge").first().waitFor({ state: "attached", timeout: 20000 }).catch(() => {});
 check("reader sees the nodes", (await colleague.locator(".react-flow__node").count()) === 2 && (await colleague.locator(".react-flow__edge").count()) === 1);
 check("node title shown as text, not HTML", (await colleague.getByText("<b>Brief</b>").count()) > 0 && (await colleague.locator(".react-flow__node b").count()) === 0);
 check("reader has no diagram toolbar", (await colleague.getByRole("toolbar", { name: "Дії зі схемою" }).count()) === 0);

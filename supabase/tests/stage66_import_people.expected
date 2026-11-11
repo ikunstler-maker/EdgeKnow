@@ -22,6 +22,7 @@ nobody was told: 0
 re-seat on bob: {"ok": true, "assigned": 1, "reported": 0}
 carl sees tasks: 2
 seat freed: {"ok": true, "assigned": 1, "reported": 0}
+the name is back: Old Timer, held by nobody
 owner lists: Old Timer 2/0 free; Bob Tracker 1/1 66b1; Carl Tracker 0/0 66c1
 legacy joined: 1, seats: 4
 second run: 1, still 66c1

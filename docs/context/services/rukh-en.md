@@ -56,7 +56,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - An imported task shows "Moved from <old key>" with a link to the old tracker.
 - Tracker people (package 3, part 1): each person is a "seat" in the project; tied to a member at once by email or the wizard's choice, otherwise later in "Access and settings" → "People from the tracker" (project owner or workspace admin). Seating and re-seating hand over the tasks the person held or wrote; nobody is notified.
 - Tracker roles → our project roles (a wizard step); a seated member gets the role if theirs is lower. Roles held through a tracker group are not seen.
-- A task the tracker restricts comes over private (the existing private-task rule).
+- A task the tracker restricts comes over private; the project's owners see such a task too (owner's decision, 2026-11-11). Private tasks made here: only author, assignee, participants.
 
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.

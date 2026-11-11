@@ -1,0 +1,5 @@
+imported: 1
+bob hides his task: true
+bob (an editor) sees: Bob only
+alice (the workspace owner) sees: Restricted there
+carl (a project owner) sees: Restricted there
