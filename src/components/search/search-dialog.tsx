@@ -344,6 +344,7 @@ function SearchDialog({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setKind(value)}
+                  data-search-kind={value}
                   className={`min-h-9 rounded-full border px-3 text-xs ${on ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
                 >
                   {value !== "text" && <Icon name={KIND_ICONS[value]} size={14} className="mr-1 inline" />}
