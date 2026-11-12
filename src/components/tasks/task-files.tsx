@@ -65,6 +65,8 @@ export function TaskFiles({
   members,
   me,
   canEdit,
+  canDeleteOwn = true,
+  canDeleteAny,
 }: {
   shortId: string;
   taskId: string;
@@ -74,7 +76,10 @@ export function TaskFiles({
   limits?: { fileMb: number; zipMb: number };
   members: Person[];
   me: string;
+  // May add files and links; may remove one's own; may remove anyone's (absent: as adding).
   canEdit: boolean;
+  canDeleteOwn?: boolean;
+  canDeleteAny?: boolean;
 }) {
   const router = useRouter();
   // A guest views files but gets no download button.
@@ -85,6 +90,7 @@ export function TaskFiles({
   const [over, setOver] = useState(false);
   const [pending, startTransition] = useTransition();
   const personOf = new Map(members.map((m) => [m.id, m]));
+  const removable = (by: string | null) => (by === me ? canDeleteOwn : (canDeleteAny ?? canEdit));
   const [view, setView] = useState<"tiles" | "list">("tiles");
   const [kind, setKind] = useState<FileKind | "all">("all");
   const [open, setOpen] = useState(false);
@@ -114,7 +120,7 @@ export function TaskFiles({
             <Icon name="download" />
           </a>
         )}
-        {(canEdit || file.uploaded_by === me) && (
+        {removable(file.uploaded_by) && (
           <button
             type="button"
             disabled={pending}
@@ -322,7 +328,7 @@ export function TaskFiles({
                 <Icon name="link" className="shrink-0 text-muted" />
                 <span className="truncate">{link.title}</span>
               </a>
-              {canEdit || link.added_by === me ? (
+              {removable(link.added_by) ? (
                 <button
                   type="button"
                   disabled={pending}

@@ -42,6 +42,9 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
     );
   }
   const db = await dataClient(wid);
+  // What the person may do on the board by the project's permissions (a database a step behind has no such function: the role decides).
+  const { data: allowed } = await db.rpc("my_project_permissions", { target_project: view.project.id });
+  const may = allowed && typeof allowed === "object" ? (allowed as { create?: boolean; transition?: boolean }) : null;
   // The project's tasks in one pass (project_tasks works the access out once). Where the
   // function isn't there yet — the site is a moment ahead of the database — the same rows
   // come from the table, each checked by its rule.
@@ -135,6 +138,8 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
           blocked={blocked}
           me={user.id}
           canEdit={canEdit(view.role)}
+          canMove={may?.transition ?? canEdit(view.role)}
+          canCreate={may?.create ?? canEdit(view.role)}
           isOwner={view.role === "owner"}
         />
       ) : (

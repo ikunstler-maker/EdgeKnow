@@ -146,3 +146,18 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
 select 'someone removed sees permissions: ' || count(*) || ', sets one: ' || (public.set_task_permission(:'project', 'edit', '{"roles": ["viewer"]}') ->> 'error') from public.task_permissions;
 reset role;
+-- Д-2: comments, attachments and time by the project's permissions.
+set role authenticated;
+:as_alice;
+select 'alice lets nobody but owners comment: ' || (public.set_task_permission(:'project', 'comment_add', '{"roles": []}') ->> 'ok');
+reset role;
+set role authenticated;
+:as_bob;
+select 'bob comments: ' || (public.add_task_comment((select id from public.tasks where external_key = 'SEA-1'), 'Hello', '{}') ->> 'error')
+  || ', on the board he may: ' || public.my_project_permissions(:'project')::text;
+reset role;
+set role authenticated;
+:as_alice;
+select 'alice comments: ' || ((public.add_task_comment((select id from public.tasks where external_key = 'SEA-1'), 'Owner speaking', '{}') ->> 'id') is not null)::text
+  || ', resets: ' || (public.set_task_permission(:'project', 'comment_add', null) ->> 'ok');
+reset role;

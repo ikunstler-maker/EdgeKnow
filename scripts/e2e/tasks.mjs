@@ -550,6 +550,13 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const moveRule = () => sql("select array_to_string(p.roles, ',') || '|' || p.assignee || '|' || p.reporter from public.task_permissions p join public.task_projects t on t.id = p.project_id where t.key = 'MAR' and p.action = 'transition'");
   check("the project's owner lets only the assignee move tasks", await until(() => moveRule() === "|true|false", 15000), moveRule());
   check("…and still moves them herself (owners always may)", sql(`select public.task_action_allowed((select id from public.task_projects where key = 'MAR'), 'transition', null::public.tasks, (select id from public.profiles where email = 'alice@alpha.test'))`) === "t");
+  // Comments, attachments and time have their own rows ("one's own" apart from "anyone's").
+  const shownGroups = await alice.locator("[data-permission-group-of]").evaluateAll((els) => els.map((el) => el.getAttribute("data-permission-group-of")).join(","));
+  await alice.locator('[data-permission="comment_add"] [data-permission-role="viewer"]').check();
+  const commentRule = () => sql("select array_to_string(array(select unnest(p.roles) order by 1), ',') from public.task_permissions p join public.task_projects t on t.id = p.project_id where t.key = 'MAR' and p.action = 'comment_add'");
+  check("the permissions cover tasks, comments, attachments and time; viewers are let to comment", shownGroups === "tasks,comments,files,time" && (await until(() => commentRule() === "commenter,editor,viewer", 15000)), `${shownGroups} / ${commentRule()}`);
+  await alice.locator('[data-permission="comment_add"] [data-permission-reset]').click();
+  await until(() => commentRule() === "", 15000);
   await alice.locator('[data-permission="transition"] [data-permission-reset]').click();
   check("…and the usual rule comes back", await until(() => sql("select count(*) from public.task_permissions p join public.task_projects t on t.id = p.project_id where t.key = 'MAR'") === "0", 15000));
   await alice.keyboard.press("Escape");

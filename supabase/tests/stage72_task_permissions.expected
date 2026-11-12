@@ -1,9 +1,9 @@
 usual — the editor edits: true, moves: true, makes a task: true, sets permissions: forbidden
-usual — the commenter edits: forbidden, moves: forbidden, makes a task: forbidden, what he may: {"edit": false, "link": false, "assign": false, "create": false, "delete": false, "schedule": false, "transition": false}
+usual — the commenter edits: forbidden, moves: forbidden, makes a task: forbidden, what he may: {"edit": false, "link": false, "assign": false, "create": false, "delete": false, "file_add": false, "schedule": false, "time_log": false, "transition": false, "comment_add": true, "time_edit_any": false, "time_edit_own": true, "file_delete_any": false, "file_delete_own": true, "comment_edit_any": false, "comment_edit_own": true, "comment_delete_any": false, "comment_delete_own": true}
 rules set: true true true true true, an unknown action: invalid, a stranger as a holder: invalid, a role that is not one: invalid
 the editor edits: forbidden, moves: forbidden, moves through an update: forbidden, sets a date (still his): true, assigns: forbidden, many at once: forbidden
 the assignee moves: true, edits: forbidden
-the commenter makes a task: true, edits it as its author: true, what he may with it: {"edit": true, "link": false, "assign": false, "create": true, "delete": false, "schedule": false, "transition": false}
+the commenter makes a task: true, edits it as its author: true, what he may with it: {"edit": true, "link": false, "assign": false, "create": true, "delete": false, "file_add": false, "schedule": false, "time_log": false, "transition": false, "comment_add": true, "time_edit_any": false, "time_edit_own": true, "file_delete_any": false, "file_delete_own": true, "comment_edit_any": false, "comment_edit_own": true, "comment_delete_any": false, "comment_delete_own": true}
 the unit's member moves: true, assigns a commenter: not_assignable, assigns an editor: true, edits: forbidden, deletes: forbidden
 the owner edits and moves: true
 a stranger sees rules: 0, sets one: forbidden, asks what he may: false

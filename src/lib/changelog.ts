@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-h",
+    version: "0.40.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: дозволи для коментарів, вкладень і часу", en: "Rukh: permissions for comments, attachments and time" },
+    items: [
+      { id: "permissions-more", type: "added", scope: "tasks", title: { uk: "Дозволи проєкту охоплюють коментарі, вкладення й час — «свої» окремо від «будь-чиїх».", en: "A project's permissions cover comments, attachments and time, one's own apart from anyone's." } },
+      { id: "permissions-board", type: "improved", scope: "tasks", title: { uk: "Дошка перетягує й створює задачі за дозволами проєкту.", en: "The board drags and makes tasks by the project's permissions." } },
+    ],
+  },
+  {
     id: "2026-11-12-g",
     version: "0.39.0",
     date: "2026-11-12",

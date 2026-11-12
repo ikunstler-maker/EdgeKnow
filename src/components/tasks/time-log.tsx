@@ -25,7 +25,7 @@ export function parseSpent(input: string): number | null {
 
 // Time spent on a task, where the project tracks it: the total next to the estimate, the
 // entries the reader may see, and a short form to write down one's own time.
-export function TimeLog({ taskId, entries, estimate, members, importedNames, me, canEdit, isOwner }: { taskId: string; entries: TimeEntry[]; estimate: number | null; members: Person[]; importedNames: Record<string, string>; me: string; canEdit: boolean; isOwner: boolean }) {
+export function TimeLog({ taskId, entries, estimate, members, importedNames, me, canEdit, canRemoveOwn = true, canRemoveAny = false }: { taskId: string; entries: TimeEntry[]; estimate: number | null; members: Person[]; importedNames: Record<string, string>; me: string; canEdit: boolean; canRemoveOwn?: boolean; canRemoveAny?: boolean }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState(false);
@@ -59,7 +59,7 @@ export function TimeLog({ taskId, entries, estimate, members, importedNames, me,
                 <span className="font-medium">{w.duration(e.minutes)}</span> · {who(e)} · {day(e.spent_on)}
                 {e.note && <span className="block text-muted">{e.note}</span>}
               </span>
-              {(e.user_id === me || isOwner) && (
+              {(e.user_id === me ? canRemoveOwn : canRemoveAny) && (
                 <button
                   type="button"
                   disabled={pending}

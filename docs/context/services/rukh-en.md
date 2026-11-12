@@ -89,6 +89,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - Column (package 2): separately "who takes out" and "who puts in" — units; the project owner and workspace admins always may; the database enforces. A cross-board rule, an import and creating a task straight in a column are not checked.
 - A column has a short name and a colour: on a computer the status in the task card is a row of such buttons (scrolls by wheel and drag), on a phone a list.
 - Project permissions (Д-1, 2026-11-12): for each action on tasks (create, edit, delete, assign, who may be assigned, dates, statuses, links) the owner says who may: roles, units, people, the author, the assignee; unset: the usual rules; the database enforces it.
+- Project permissions (Д-2): also comments, attachments and time, with "one's own" apart from "anyone's"; the board drags and makes tasks by the permissions.
 
 ## 3. Planned
 

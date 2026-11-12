@@ -237,6 +237,8 @@ const foundByOwner = await rpc(alice, "find_task_by_key", { ws: alpha.id, wanted
 const foundByStranger = await rpc(bob, "find_task_by_key", { ws: alpha.id, wanted: "SEC-1" });
 check("alice finds her task by its key, bob finds nothing", foundByOwner.json?.number === 1 && foundByStranger.json === null, JSON.stringify([foundByOwner.json, foundByStranger.json]));
 // What a stranger "may" in someone else's project: nothing.
+const strangerBoard = await rpc(bob, "my_project_permissions", { target_project: alphaProject?.id });
+check("bob learns nothing of what he may on alpha's board", strangerBoard.json === null, JSON.stringify(strangerBoard.json));
 const strangerMay = await rpc(bob, "project_permits", { target_project: alphaProject?.id, wanted: "create" });
 const strangerTask = await rpc(bob, "my_task_permissions", { target_task: alphaTask?.id });
 check("bob may do nothing in alpha's project by its permissions", strangerMay.json === false && Object.values(strangerTask.json ?? { x: true }).every((v) => v === false), JSON.stringify([strangerMay.json, strangerTask.json]));
