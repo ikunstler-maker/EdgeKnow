@@ -27,10 +27,13 @@ export type TaskFileRow = {
 };
 // A board picture (object_files) is kept the same way: the same bucket and Drive
 // folder, its own table.
-export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string };
+// Chat files (chat_files) too, in their own bucket.
+export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string; channel_id?: string };
 export const OBJECT_FILE_COLUMNS =
   "id, workspace_id, object_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
-const tableOf = (row: StoredFile) => (row.object_id ? "object_files" : "task_files");
+const tableOf = (row: StoredFile) => (row.channel_id ? "chat_files" : row.object_id ? "object_files" : "task_files");
+export const CHAT_BUCKET = "chat-files";
+const bucketOf = (row: StoredFile) => (row.channel_id ? CHAT_BUCKET : TASK_BUCKET);
 
 export const TASK_FILE_COLUMNS =
   "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
@@ -69,7 +72,7 @@ const nameOnDrive = (row: Pick<StoredFile, "id" | "name">) => `${row.id.slice(0,
 // Puts the bytes at the destination and records where (`rows`: the database with the file's record).
 export async function storeTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: StoredFile, bytes: Uint8Array, to: Destination) {
   if (to.kind === "storage") {
-    const { error } = await rows.storage.from(TASK_BUCKET).upload(row.storage_path, bytes, { contentType: row.mime_type, upsert: true });
+    const { error } = await rows.storage.from(bucketOf(row)).upload(row.storage_path, bytes, { contentType: row.mime_type, upsert: true });
     if (error) throw new Error(`storage: ${error.message}`);
     const { error: updateError } = await rows
       .from(tableOf(row))
@@ -107,7 +110,7 @@ export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
     }
   }
   if (row.storage_backend !== "supabase") throw new DriveError("not stored yet", 404);
-  const { data, error } = await rows.storage.from(TASK_BUCKET).download(row.storage_path);
+  const { data, error } = await rows.storage.from(bucketOf(row)).download(row.storage_path);
   if (error || !data) throw new DriveError("storage download failed", 404);
   return new Uint8Array(await data.arrayBuffer());
 }
@@ -119,7 +122,7 @@ export async function moveTaskFile(admin: SupabaseClient, rows: SupabaseClient, 
   const bytes = await readTaskFile(admin, rows, row);
   await storeTaskFile(admin, rows, row, bytes, to);
   if (keepOld) return;
-  if (row.storage_backend === "supabase") await rows.storage.from(TASK_BUCKET).remove([row.storage_path]);
+  if (row.storage_backend === "supabase") await rows.storage.from(bucketOf(row)).remove([row.storage_path]);
   if (row.storage_backend === "drive" && row.drive_account_id && row.drive_file_id) {
     const connection = await connectionById(admin, row.drive_account_id);
     if (connection) await driveApi().remove(refreshTokenOf(connection), row.drive_file_id).catch(() => {});
@@ -146,14 +149,15 @@ export async function spaceAt(admin: SupabaseClient, to: Destination, workspaceI
     const { data } = await admin.from("team_databases").select("storage_bytes").eq("workspace_id", workspaceId).maybeSingle();
     return { limit: 1024 ** 3, used: Number(data?.storage_bytes ?? 0) };
   }
-  const [{ data: ws }, { data: images }, { data: files }, { data: pictures }] = await Promise.all([
+  const [{ data: ws }, { data: images }, { data: files }, { data: pictures }, { data: chat }] = await Promise.all([
     admin.from("workspaces").select("storage_limit_mb").eq("id", workspaceId).maybeSingle(),
     admin.from("attachments").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
     admin.from("task_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
     admin.from("object_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
+    admin.from("chat_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
   ]);
   const sum = (list: { bytes: number }[] | null) => (list ?? []).reduce((total, r) => total + Number(r.bytes), 0);
-  return { limit: Number(ws?.storage_limit_mb ?? 0) * 1024 * 1024, used: sum(images) + sum(files) + sum(pictures) };
+  return { limit: Number(ws?.storage_limit_mb ?? 0) * 1024 * 1024, used: sum(images) + sum(files) + sum(pictures) + sum(chat) };
 }
 
 // The first bytes must fit the declared type: nothing else is stored or served.
@@ -203,5 +207,23 @@ export async function streamTaskFile(admin: SupabaseClient, row: StoredFile, ran
   } catch (error) {
     await noteDriveError(admin, connection, error);
     throw error;
+  }
+}
+
+// Chat files: what tasks take, plus recorded voice (WebM, Ogg, MP4 audio) and MP3.
+export const MAX_CHAT_FILE_BYTES = 10 * 1024 * 1024;
+export function chatFileLooksLike(mimeType: string, bytes: Uint8Array): boolean {
+  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.slice(from, to));
+  switch (mimeType) {
+    case "audio/webm":
+      return bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+    case "audio/ogg":
+      return ascii(0, 4) === "OggS";
+    case "audio/mp4":
+      return ascii(4, 8) === "ftyp";
+    case "audio/mpeg":
+      return ascii(0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
+    default:
+      return taskFileLooksLike(mimeType, bytes);
   }
 }

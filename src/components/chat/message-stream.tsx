@@ -2,10 +2,12 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { dateLocale, t } from "@/i18n";
-import { MAX_MESSAGE, groupReactions, mentionPattern, type ChatMessage, type ChatPerson, type ChatReaction } from "@/lib/chat";
+import { MAX_MESSAGE, groupReactions, mentionPattern, type ChatFile, type ChatMessage, type ChatPerson, type ChatReaction } from "@/lib/chat";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/pages/emoji-picker";
+import { Popover, MenuItem } from "@/components/ui/popover";
+import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, firstLink, uploadChatFile, type Pending } from "./chat-files";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
@@ -98,6 +100,8 @@ export function MessageStream({
   empty,
   header,
   highlight,
+  files,
+  shortId,
 }: {
   messages: ChatMessage[];
   people: Map<string, ChatPerson>;
@@ -111,6 +115,8 @@ export function MessageStream({
   empty: ReactNode;
   header?: ReactNode;
   highlight?: string | null;
+  files: Map<string, ChatFile[]>;
+  shortId: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -231,6 +237,8 @@ export function MessageStream({
                     {m.edited_at && <span className="ml-1 text-xs text-muted">{c().edited}</span>}
                   </p>
                 )}
+                {!m.deleted_at && <MessageFiles files={files.get(m.id) ?? []} shortId={shortId} />}
+                {!m.deleted_at && !m.file_count && editing !== m.id && firstLink(m.body) && <LinkCard url={firstLink(m.body)!} />}
                 {pending && <p className="text-xs text-muted">{c().sending}</p>}
                 {signs.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1" data-chat-reactions>
@@ -425,7 +433,8 @@ function MentionTextarea({
 }
 
 // The field at the bottom: Enter sends, Shift+Enter starts a new line, "@" mentions
-// someone. A draft per channel survives switching channels (in this tab).
+// someone. Files: a photo made smaller, a file as it is, or a voice message; they are
+// uploaded at once and sent with the text. A draft per channel survives switching.
 export function Composer({
   placeholder,
   people,
@@ -434,46 +443,116 @@ export function Composer({
   onSend,
   draft,
   onDraft,
+  upload,
 }: {
   placeholder: string;
   people: ChatPerson[];
   disabled: boolean;
   note: ReactNode;
-  onSend: (body: string) => void;
+  onSend: (body: string, fileIds: string[]) => void;
   draft: string;
   onDraft: (value: string) => void;
+  upload: { shortId: string; channelId: string } | null;
 }) {
+  const [items, setItems] = useState<Pending[]>([]);
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const uploading = items.some((p) => p.state === "uploading");
+  const ready = items.filter((p) => p.state === "ready" && p.id).map((p) => p.id!);
+
+  const add = async (name: string, kind: ChatFile["kind"], make: () => Promise<{ blob: Blob; name?: string; extra?: { duration?: number; width?: number; height?: number } }>, preview?: string) => {
+    if (!upload) return;
+    const key = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setItems((list) => [...list, { key, name, kind, state: "uploading", preview }]);
+    try {
+      const made = await make();
+      const result = await uploadChatFile(upload.shortId, upload.channelId, made.blob, made.name ?? name, kind, made.extra);
+      setItems((list) => list.map((p) => (p.key === key ? (result.ok ? { ...p, state: "ready", id: result.id } : { ...p, state: "error", error: result.error }) : p)));
+    } catch {
+      setItems((list) => list.map((p) => (p.key === key ? { ...p, state: "error", error: "upload_failed" } : p)));
+    }
+  };
+  const pick = (files: FileList | null, compress: boolean) => {
+    for (const file of Array.from(files ?? []).slice(0, 10)) {
+      const image = file.type.startsWith("image/");
+      if (compress && image && file.type !== "image/gif") {
+        void add(file.name, "image", async () => {
+          const small = await compressImage(file);
+          return { blob: small.blob, name: small.name, extra: { width: small.width, height: small.height } };
+        }, URL.createObjectURL(file));
+      } else {
+        void add(file.name, image ? "image" : "file", async () => ({ blob: file }), image ? URL.createObjectURL(file) : undefined);
+      }
+    }
+  };
   const send = () => {
     const body = draft.trim();
-    if (!body || disabled) return;
-    onSend(body);
+    if ((!body && !ready.length) || disabled || uploading) return;
+    onSend(body, ready);
     onDraft("");
+    setItems([]);
   };
   return (
     <div className="shrink-0 border-t border-border px-2 py-2 md:px-4" data-chat-composer>
       {note ? (
         <div className="py-2 text-center text-sm text-muted">{note}</div>
       ) : (
-        <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1">
-            <MentionTextarea value={draft} onChange={onDraft} people={people} label={placeholder} placeholder={placeholder} disabled={disabled} onSubmit={send} />
+        <>
+          <PendingFiles items={items} onRemove={(key) => setItems((list) => list.filter((p) => p.key !== key))} />
+          <div className="flex items-end gap-1">
+            {upload && (
+              <button type="button" onClick={(e) => setMenu(e.currentTarget)} disabled={disabled || items.length >= 10} aria-label={c().files.attach} title={c().files.attach} className={iconButtonClass("ghost")} data-chat-attach>
+                <Icon name="paperclip" size={18} />
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <MentionTextarea value={draft} onChange={onDraft} people={people} label={placeholder} placeholder={placeholder} disabled={disabled} onSubmit={send} />
+            </div>
+            {upload && !draft.trim() && !ready.length ? (
+              <VoiceButton
+                disabled={disabled || items.length >= 10}
+                onRecorded={(blob, duration) => void add(c().files.voiceName, "voice", async () => ({ blob, name: `voice.${blob.type.split("/")[1] ?? "webm"}`, extra: { duration } }))}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={send}
+                disabled={disabled || uploading || (!draft.trim() && !ready.length)}
+                aria-label={c().send}
+                title={c().send}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-white disabled:opacity-50"
+              >
+                <Icon name="send" size={18} />
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={send}
-            disabled={disabled || !draft.trim()}
-            aria-label={c().send}
-            title={c().send}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-white disabled:opacity-50"
-          >
-            <Icon name="send" size={18} />
-          </button>
-        </div>
+        </>
       )}
       {draft.length > MAX_MESSAGE - 200 && (
         <p className="mt-1 text-right text-xs text-muted">
           {draft.length} / {MAX_MESSAGE}
         </p>
+      )}
+      <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={(e) => { pick(e.target.files, true); e.target.value = ""; }} />
+      <input ref={fileInput} type="file" multiple hidden onChange={(e) => { pick(e.target.files, false); e.target.value = ""; }} />
+      {menu && (
+        <Popover anchor={menu} onClose={() => setMenu(null)} width={260}>
+          <MenuItem onSelect={() => { setMenu(null); photoInput.current?.click(); }}>
+            <Icon name="image" size={16} />
+            <span>
+              {c().files.photo}
+              <span className="block text-xs text-muted">{c().files.photoHint}</span>
+            </span>
+          </MenuItem>
+          <MenuItem onSelect={() => { setMenu(null); fileInput.current?.click(); }}>
+            <Icon name="file" size={16} />
+            <span>
+              {c().files.asFile}
+              <span className="block text-xs text-muted">{c().files.asFileHint}</span>
+            </span>
+          </MenuItem>
+        </Popover>
       )}
     </div>
   );
