@@ -1,4 +1,4 @@
--- Undo 0069_chat_mentions.
+-- Undo 0070_chat_mentions.
 drop trigger chat_messages_notify on public.chat_messages;
 drop function public.chat_notify_message();
 drop function public.chat_notify(uuid, text, public.chat_messages);

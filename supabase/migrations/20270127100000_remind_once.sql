@@ -1,4 +1,10 @@
--- Undo 0070_remind_once.
+-- Doba: reminders and birthdays in the bell without duplicates (decision 2026-11-12
+-- "Doba: нагадування без дублів"). Two calls of calendar_remind_me at once for the same
+-- person could both pass the "not yet there" check; now they run one after another.
+-- Muting event reminders no longer silences birthdays as well.
+-- The same in supabase/team/migrations/0071_remind_once.sql.
+-- Rollback: supabase/rollbacks/20270127100000_remind_once.down.sql
+
 create or replace function public.calendar_remind_me(ws uuid)
 returns integer
 language plpgsql
@@ -10,10 +16,14 @@ declare
   added integer := 0;
   born integer := 0;
 begin
-  if me is null or not public.is_workspace_member(ws)
-     or exists (select 1 from public.notification_prefs p where p.workspace_id = ws and p.user_id = me and 'event_reminder' = any (p.muted)) then
+  if me is null or not public.is_workspace_member(ws) then
     return 0;
   end if;
+  -- One run at a time per person and workspace: two calls at once (the bell's poll and
+  -- another) would both find nothing yet and add the same reminder twice.
+  perform pg_advisory_xact_lock(hashtextextended('calendar_remind_me:' || ws::text || ':' || me::text, 0));
+  -- Event reminders, unless muted (muting them no longer silences birthdays too).
+  if not exists (select 1 from public.notification_prefs p where p.workspace_id = ws and p.user_id = me and 'event_reminder' = any (p.muted)) then
   insert into public.notifications (workspace_id, user_id, kind, actor_id, event_id, event_at)
   select ws, me, 'event_reminder', e.organizer_id, e.id, o.starts_at
   from public.calendar_event_attendees a
@@ -26,6 +36,7 @@ begin
     and o.starts_at > now() and o.starts_at <= now() + e.reminder_minutes * interval '1 minute'
     and not exists (select 1 from public.notifications n where n.user_id = me and n.kind = 'event_reminder' and n.event_id = e.id and n.event_at = o.starts_at);
   get diagnostics added = row_count;
+  end if;
   -- Birthdays of today (the workspace's own day): to the people who share a unit with
   -- the person — or to everyone, when the person is in no unit. Once per person and year.
   if not public.is_guest(ws, me)

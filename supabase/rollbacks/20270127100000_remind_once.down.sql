@@ -1,4 +1,4 @@
--- Undo 20270125100000_remind_once.
+-- Undo 20270127100000_remind_once.
 create or replace function public.calendar_remind_me(ws uuid)
 returns integer
 language plpgsql

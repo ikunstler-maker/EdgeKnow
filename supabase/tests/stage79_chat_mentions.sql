@@ -5,14 +5,14 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000077a1', 'alice@ment.test', now()),
- ('00000000-0000-0000-0000-0000000077b1', 'bob@ment.test', now()),
- ('00000000-0000-0000-0000-0000000077c1', 'carol@ment.test', now()),
- ('00000000-0000-0000-0000-0000000077d1', 'dan@ment.test', now());
-\set alice '00000000-0000-0000-0000-0000000077a1'
-\set bob '00000000-0000-0000-0000-0000000077b1'
-\set carol '00000000-0000-0000-0000-0000000077c1'
-\set dan '00000000-0000-0000-0000-0000000077d1'
+ ('00000000-0000-0000-0000-0000000079a1', 'alice@ment.test', now()),
+ ('00000000-0000-0000-0000-0000000079b1', 'bob@ment.test', now()),
+ ('00000000-0000-0000-0000-0000000079c1', 'carol@ment.test', now()),
+ ('00000000-0000-0000-0000-0000000079d1', 'dan@ment.test', now());
+\set alice '00000000-0000-0000-0000-0000000079a1'
+\set bob '00000000-0000-0000-0000-0000000079b1'
+\set carol '00000000-0000-0000-0000-0000000079c1'
+\set dan '00000000-0000-0000-0000-0000000079d1'
 \set bell '(select coalesce(string_agg((x ->> ''kind'') || '':'' || coalesce(x -> ''chat'' ->> ''excerpt'', ''hidden''), '', '' order by x ->> ''created_at'', x ->> ''kind''), ''nothing'') from jsonb_array_elements(public.my_notifications(:''ws'', 30) -> ''items'') x where x ->> ''kind'' like ''chat_%'')'
 update public.platform_settings set open_registration = true;
 set role authenticated;

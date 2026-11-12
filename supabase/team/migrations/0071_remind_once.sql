@@ -1,9 +1,5 @@
--- Doba: reminders and birthdays in the bell without duplicates (decision 2026-11-12
--- "Doba: нагадування без дублів"). Two calls of calendar_remind_me at once for the same
--- person could both pass the "not yet there" check; now they run one after another.
--- Muting event reminders no longer silences birthdays as well.
--- The same in supabase/team/migrations/0070_remind_once.sql.
--- Rollback: supabase/rollbacks/20270125100000_remind_once.down.sql
+-- Doba reminders without duplicates in a team's own database (as supabase/migrations/20270127100000_remind_once.sql).
+-- Rollback: supabase/team/rollbacks/0071_remind_once.down.sql
 
 create or replace function public.calendar_remind_me(ws uuid)
 returns integer

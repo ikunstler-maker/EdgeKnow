@@ -5,10 +5,10 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000078a1', 'alice@remind.test', now()),
- ('00000000-0000-0000-0000-0000000078b1', 'bob@remind.test', now());
-\set alice '00000000-0000-0000-0000-0000000078a1'
-\set bob '00000000-0000-0000-0000-0000000078b1'
+ ('00000000-0000-0000-0000-0000000080a1', 'alice@remind.test', now()),
+ ('00000000-0000-0000-0000-0000000080b1', 'bob@remind.test', now());
+\set alice '00000000-0000-0000-0000-0000000080a1'
+\set bob '00000000-0000-0000-0000-0000000080b1'
 \set heard '(select count(*) from public.notifications where user_id = :''alice'' and kind = ''birthday'')'
 update public.platform_settings set open_registration = true;
 set role authenticated;

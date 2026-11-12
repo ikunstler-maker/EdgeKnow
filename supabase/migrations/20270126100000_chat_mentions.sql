@@ -1,5 +1,5 @@
--- The same in supabase/team/migrations/0069_chat_mentions.sql.
--- Rollback: supabase/rollbacks/20270124100000_chat_mentions.down.sql
+-- The same in supabase/team/migrations/0070_chat_mentions.sql.
+-- Rollback: supabase/rollbacks/20270126100000_chat_mentions.down.sql
 
 -- Toker, stage 1c: mentions and thread replies in the bell (decision 2026-11-12
 -- "Toker, етап 1": mentions in the bell together with the interface).
