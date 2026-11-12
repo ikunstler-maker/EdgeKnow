@@ -58,6 +58,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - Tracker roles → our project roles (a wizard step); a seated member gets the role if theirs is lower. Roles held through a tracker group are not seen.
 - A task the tracker restricts comes over private; the project's owners see such a task too (owner's decision, 2026-11-11). Private tasks made here: only author, assignee, participants.
 - Comments and status history (3б): a separate phase, with the tracker's dates and authors; the author is a seat, and after seating the comments and history lines become the member's; time in a column counts from the tracker's history; a second run doubles nothing.
+- Files (3б): a separate phase; from the tracker to the team's Google Drive in parts (250 MB per file, ZIP up to 10 GB, any kind); served as a stream through our server; what did not come is in the wizard's "Not moved" list with "Pull again".
 
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.
@@ -110,6 +111,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_comments`, `task_events` | comments and history |
 | `task_files` | files |
 | `task_import_people` | люди трекера як місця: ім'я, пошта, ролі, до кого прив'язано |
+| `task_import_gaps` | що не перейшло з трекера (файли) і чому |
 | `task_rules` | notification rules and rules between boards |
 | `task_imports` (central database only, server only) | a move from another tracker: its address, the encrypted access key, the mapping, progress and report |
 

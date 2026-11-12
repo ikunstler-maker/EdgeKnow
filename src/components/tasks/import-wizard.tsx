@@ -9,7 +9,7 @@ import { workspacePath } from "@/lib/paths";
 import { TASK_PRIORITIES, TASK_TYPES, personLabel } from "@/lib/tasks";
 import { OUR_ROLES, parseTrackerLink, suggestPriority, suggestRole, suggestType, type OurPriority, type OurRole, type OurType } from "@/lib/tracker-convert";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState, ImportTarget } from "@/lib/tracker/types";
-import { trackerConnect, trackerForget, trackerOutline, trackerPreview, trackerStart, trackerState, trackerStep } from "@/app/task-import-actions";
+import { trackerConnect, trackerForget, trackerGaps, trackerOutline, trackerPreview, trackerRetryFiles, trackerStart, trackerState, trackerStep, type ImportGap } from "@/app/task-import-actions";
 import { Button, buttonClass, inputClass } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { PriorityIcon, StatusDot, TypeIcon } from "./task-icons";
@@ -205,6 +205,15 @@ export function ImportWizard({ shortId, initial, configured }: { shortId: string
           moving={moving}
           pending={pending}
           onResume={() => (setError(null), setMoving(true))}
+          onRetryFiles={() =>
+            startTransition(async () => {
+              const result = await trackerRetryFiles(shortId, state.id);
+              if (!result.ok) return setError(errorText(result.error));
+              setError(null);
+              setState(await trackerState(shortId));
+              setMoving(true);
+            })
+          }
           onAnother={() => {
             setOutline(null);
             setPlan(null);
@@ -475,20 +484,57 @@ function PlanForm({ outline, plan, setPlan, pending, onBack, onNext }: { outline
   );
 }
 
-function RunView({ shortId, state, moving, pending, onResume, onForget, onAnother }: { shortId: string; state: ImportState; moving: boolean; pending: boolean; onResume: () => void; onForget: () => void; onAnother: () => void }) {
+const megabytes = (bytes: number) => (bytes >= 1024 * 1024 ? Math.round(bytes / (1024 * 1024)) : bytes > 0 ? 1 : 0);
+
+// What could not come over (files too big, refused by the tracker or the Drive), with a
+// way to try again while the connection to the tracker is kept.
+function Gaps({ shortId, projectKey, pending, onRetry }: { shortId: string; projectKey: string; pending: boolean; onRetry: () => void }) {
+  const [gaps, setGaps] = useState<ImportGap[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    void trackerGaps(shortId, projectKey).then((rows) => live && setGaps(rows));
+    return () => {
+      live = false;
+    };
+  }, [shortId, projectKey]);
+  if (!gaps?.length) return null;
+  return (
+    <div className="mt-4 rounded-xl border border-border p-3 text-sm" data-import-gaps>
+      <h3 className="font-medium">{m.gaps.title(gaps.length)}</h3>
+      <p className="mt-1 text-xs text-muted">{m.gaps.hint}</p>
+      <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+        {gaps.map((gap) => (
+          <li key={gap.id} className="flex flex-wrap gap-x-2 text-xs" data-import-gap={gap.name}>
+            <span className="font-mono text-muted">{gap.task}</span>
+            <span className="min-w-0 flex-1 truncate">{gap.name}</span>
+            <span className="text-muted">
+              {gap.bytes ? `${megabytes(gap.bytes)} ${m.gaps.mb} · ` : ""}
+              {m.gaps.reasons[gap.reason] ?? gap.reason}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Button className="mt-3" onClick={onRetry} disabled={pending} data-import-retry-files>
+        {m.gaps.retry}
+      </Button>
+    </div>
+  );
+}
+
+function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onForget, onAnother }: { shortId: string; state: ImportState; moving: boolean; pending: boolean; onResume: () => void; onRetryFiles: () => void; onForget: () => void; onAnother: () => void }) {
   const progress: ImportProgress | null = state.progress;
   const done = state.state === "done";
   const share = progress ? (progress.phase === "tasks" ? Math.min(1, progress.seen / Math.max(1, progress.total)) : 1) : 0;
   return (
     <section className="mt-5 max-w-2xl" data-import-run={state.state}>
-      <h2 className="font-semibold">{done ? m.done : state.state === "failed" || (!moving && state.state === "running") ? m.failed : progress?.phase === "relations" ? m.linking : progress?.phase === "activity" ? m.activity : m.running}</h2>
+      <h2 className="font-semibold">{done ? m.done : state.state === "failed" || (!moving && state.state === "running") ? m.failed : progress?.phase === "relations" ? m.linking : progress?.phase === "activity" ? m.activity : progress?.phase === "files" ? m.movingFiles : m.running}</h2>
       {progress && !done && (
         <>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.seen} aria-label={m.running}>
             <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${share * 100}%` }} />
           </div>
           <p className="mt-1 text-xs text-muted" data-import-progress>
-            {m.progress(Math.min(progress.seen, progress.total), progress.total)}
+            {progress.phase === "files" ? m.filesProgress(progress.files ?? 0, megabytes(progress.fileBytes ?? 0)) : m.progress(Math.min(progress.seen, progress.total), progress.total)}
           </p>
           {moving ? <p className="mt-3 text-sm text-muted">{m.keepOpen}</p> : null}
         </>
@@ -499,10 +545,12 @@ function RunView({ shortId, state, moving, pending, onResume, onForget, onAnothe
           {m.resume}
         </Button>
       )}
+      {done && state.projectKey && <Gaps key={`${state.projectKey}:${progress?.files ?? 0}:${progress?.filesMissed ?? 0}`} shortId={shortId} projectKey={state.projectKey} pending={pending} onRetry={onRetryFiles} />}
       {progress && done && (
         <div className="mt-3 space-y-1 text-sm" data-import-report>
           <p>{m.report.created(progress.created)}</p>
           {(progress.comments ?? 0) + (progress.moves ?? 0) > 0 && <p data-import-report-activity>{m.report.activity(progress.comments ?? 0, progress.moves ?? 0)}</p>}
+          {(progress.files ?? 0) + (progress.filesKept ?? 0) > 0 && <p data-import-report-files>{m.report.files((progress.files ?? 0) + (progress.filesKept ?? 0), megabytes(progress.fileBytes ?? 0))}</p>}
           {(progress.people ?? 0) > 0 && <p data-import-report-people>{m.report.people(progress.people ?? 0, progress.seated ?? 0)}</p>}
           {progress.updated > 0 && <p>{m.report.updated(progress.updated)}</p>}
           <p>{m.report.parents(progress.parents)}</p>

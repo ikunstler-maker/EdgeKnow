@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-a",
+    version: "0.33.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: файли з іншого трекера", en: "Rukh: files from another tracker" },
+    items: [
+      { id: "import-files", type: "added", scope: "tasks", title: { uk: "Файли задач переносяться на Google Drive команди: до 250 МБ, архів — до 10 ГБ.", en: "Task files move to the team's Google Drive: up to 250 MB, an archive up to 10 GB." } },
+      { id: "import-gaps", type: "added", scope: "tasks", title: { uk: "Що не перенеслося, видно списком; «Дотягнути» пробує ще раз.", en: "What did not come over is listed; \"Pull again\" retries it." } },
+    ],
+  },
+  {
     id: "2026-11-11-g",
     version: "0.32.0",
     date: "2026-11-11",

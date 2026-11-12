@@ -57,7 +57,7 @@ export type ImportPreview = {
 }[];
 
 export type ImportProgress = {
-  phase: "tasks" | "relations" | "activity" | "done";
+  phase: "tasks" | "relations" | "activity" | "files" | "done";
   cursor: string | null;
   total: number;
   seen: number;
@@ -70,6 +70,12 @@ export type ImportProgress = {
   // Comments and status changes brought with their dates and authors.
   comments?: number;
   moves?: number;
+  // Files put on the team's Drive, their size in bytes, those already there from an
+  // earlier run, and those that could not come (they are listed apart).
+  files?: number;
+  fileBytes?: number;
+  filesKept?: number;
+  filesMissed?: number;
   // Tracker people brought as seats, and how many of them sit on a member already.
   people?: number;
   seated?: number;
