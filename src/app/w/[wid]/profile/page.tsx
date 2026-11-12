@@ -12,6 +12,8 @@ import { ProfileCard } from "./profile-card";
 import { VisibilitySwitch } from "./visibility-switch";
 import { BirthdayForm } from "./birthday-form";
 import { MyData } from "./my-data";
+import { MyWishlists } from "./my-wishlists";
+import { loadMyWishlists } from "@/app/wishlist-actions";
 import { MyDevices } from "./my-devices";
 import { AppearanceSettings } from "@/components/angler/appearance-settings";
 import { Icon } from "@/components/ui/icon";
@@ -26,9 +28,10 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
   const workspace = await getWorkspace((await params).wid);
   if (!workspace) return null;
   const user = await getCurrentUser();
-  const [stats, card] = await Promise.all([
+  const [stats, card, wishlists] = await Promise.all([
     loadProfileStats(workspace.shortId, workspace.id, user.id),
     loadMemberCard(workspace.shortId, workspace.id, user.id),
+    workspace.role === "guest" ? Promise.resolve([]) : loadMyWishlists(workspace.shortId, workspace.id, user.id),
   ]);
   if (!stats || !card) return null;
   const host = (await headers()).get("host") ?? "";
@@ -61,6 +64,7 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
       <p className="sr-only">{t.profile.intro(stats.name, workspace.name)}</p>
       <VisibilitySwitch workspaceId={workspace.id} initial={stats.visibility} shareUrl={shareUrl} />
       {workspace.role !== "guest" && <BirthdayForm shortId={workspace.shortId} workspaceId={workspace.id} />}
+      {workspace.role !== "guest" && <MyWishlists shortId={workspace.shortId} wishlists={wishlists} />}
       <ProfileView stats={stats} />
       <AppearanceSettings />
       <MyDevices />
