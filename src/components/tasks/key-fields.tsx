@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
 import type { TaskField } from "@/lib/tasks";
-import { deleteTaskField, saveTaskField } from "@/app/task-actions";
+import { copyTaskField, deleteTaskField, saveTaskField } from "@/app/task-actions";
+import { EditFieldForm } from "./fields-editor";
 import { Icon } from "@/components/ui/icon";
 
 // The project's own fields in the task card. The project's owner (and the workspace's
@@ -14,6 +15,7 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
   const router = useRouter();
   const [order, setOrder] = useState<{ from: TaskField[]; ids: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }), useSensor(KeyboardSensor));
   // The order just dragged is shown until the server's order arrives.
@@ -51,14 +53,29 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
     });
   };
 
-  if (!canOrder) return <>{shown.map((field) => <div key={field.id}>{render(field)}</div>)}</>;
+  const copy = (field: TaskField) =>
+    startTransition(async () => {
+      const result = await copyTaskField(field.id, t.tasks.customFields.copyName(field.name));
+      setError(result.ok ? null : (t.tasks.errors[result.error] ?? t.common.unknownError));
+      router.refresh();
+    });
+  // Half-wide fields stand two in a row; the rest take the whole row.
+  const span = (field: TaskField) => (field.width === "half" ? "" : "@xl:col-span-2");
+
+  if (!canOrder) return <>{shown.map((field) => <div key={field.id} className={span(field)}>{render(field)}</div>)}</>;
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      {shown.map((field) => (
-        <Slot key={field.id} field={field} movable={shown.length > 1} onRemove={() => remove(field)}>
-          {render(field)}
-        </Slot>
-      ))}
+      {shown.map((field) =>
+        editing === field.id ? (
+          <div key={field.id} className="@xl:col-span-2">
+            <EditFieldForm projectId={projectId} field={field} onClose={() => setEditing(null)} />
+          </div>
+        ) : (
+          <Slot key={field.id} field={field} span={span(field)} movable={shown.length > 1} onRemove={() => remove(field)} onEdit={() => setEditing(field.id)} onCopy={() => copy(field)}>
+            {render(field)}
+          </Slot>
+        ),
+      )}
       {error && (
         <p role="alert" className="text-sm text-danger @xl:col-span-2">
           {error}
@@ -68,9 +85,11 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
   );
 }
 
-function Slot({ field, movable, onRemove, children }: { field: TaskField; movable: boolean; onRemove: () => void; children: ReactNode }) {
+function Slot({ field, span, movable, onRemove, onEdit, onCopy, children }: { field: TaskField; span: string; movable: boolean; onRemove: () => void; onEdit: () => void; onCopy: () => void; children: ReactNode }) {
   const drag = useDraggable({ id: field.id });
   const drop = useDroppable({ id: field.id });
+  const c = t.tasks.customFields;
+  const tool = "flex h-9 w-9 items-center justify-center rounded text-muted hover:bg-hover hover:text-foreground md:h-6 md:w-6";
   return (
     <div
       ref={(node) => {
@@ -78,7 +97,7 @@ function Slot({ field, movable, onRemove, children }: { field: TaskField; movabl
         drop.setNodeRef(node);
       }}
       style={drag.transform ? { transform: `translate(${drag.transform.x}px, ${drag.transform.y}px)`, zIndex: 10, position: "relative" } : undefined}
-      className={`group/field flex items-start gap-1 rounded-lg ${drop.isOver && !drag.isDragging ? "outline-2 outline-dashed outline-accent" : ""} ${drag.isDragging ? "bg-background opacity-90 shadow-lg" : ""}`}
+      className={`group/field relative flex items-start gap-1 rounded-lg ${span} ${drop.isOver && !drag.isDragging ? "outline-2 outline-dashed outline-accent" : ""} ${drag.isDragging ? "bg-background opacity-90 shadow-lg" : ""}`}
       data-key-field={field.name}
     >
       <button
@@ -88,22 +107,24 @@ function Slot({ field, movable, onRemove, children }: { field: TaskField; movabl
         aria-label={t.tasks.card.moveField(field.name)}
         title={t.tasks.card.moveField(field.name)}
         disabled={!movable}
-        className="-ml-1 mt-5 flex h-11 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted opacity-70 hover:bg-hover hover:opacity-100 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 md:h-8"
+        className="-ml-1 flex h-11 w-6 shrink-0 cursor-grab touch-none items-center justify-center self-center rounded text-muted opacity-70 hover:bg-hover hover:opacity-100 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 md:h-8"
         data-key-field-handle
       >
         <Icon name="drag" size={14} />
       </button>
       <div className="min-w-0 flex-1">{children}</div>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={t.tasks.card.removeField(field.name)}
-        title={t.tasks.card.removeField(field.name)}
-        className="mt-5 flex h-11 w-8 shrink-0 items-center justify-center rounded text-muted opacity-70 hover:bg-hover hover:text-danger hover:opacity-100 md:h-8 md:w-6"
-        data-key-field-remove
-      >
-        <Icon name="trash" size={14} />
-      </button>
+      {/* The field's own tools, in its top right corner: always there on a phone, on hover or focus on a computer. */}
+      <div className="absolute -top-1 right-0 flex rounded-md bg-background/95 md:opacity-0 md:focus-within:opacity-100 md:group-hover/field:opacity-100" data-key-field-tools>
+        <button type="button" onClick={onEdit} aria-label={c.editField(field.name)} title={c.editField(field.name)} className={tool} data-key-field-edit>
+          <Icon name="edit" size={14} />
+        </button>
+        <button type="button" onClick={onCopy} aria-label={c.copyField(field.name)} title={c.copyField(field.name)} className={tool} data-key-field-copy>
+          <Icon name="copy" size={14} />
+        </button>
+        <button type="button" onClick={onRemove} aria-label={t.tasks.card.removeField(field.name)} title={t.tasks.card.removeField(field.name)} className={`${tool} hover:text-danger`} data-key-field-remove>
+          <Icon name="trash" size={14} />
+        </button>
+      </div>
     </div>
   );
 }

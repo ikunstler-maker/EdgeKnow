@@ -1,0 +1,7 @@
+fields: Timing:duration:half, Where:heading:full, —:divider:full, Languages:language:half, Geo:geo:full, Currency:currency:full, Format:multiselect:full, Stage:select:full
+an unknown width: invalid, an unknown kind: invalid, made narrow later: true
+values taken: true
+a duration as text: invalid_value, a negative one: invalid_value, a value in a heading: invalid_value, a value in a divider: invalid_value, a geo that is no code: invalid_value, one language, not a list: invalid_value, an option that is not there: invalid_value, an empty own value: invalid_value
+copied: Format → Format (copy), the copy: multiselect 2 options, full
+a copy with no name: invalid_name
+bob (an editor) copies a field: forbidden, fills a duration: true

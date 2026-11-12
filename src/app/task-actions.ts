@@ -125,6 +125,11 @@ export async function saveTaskField(projectId: string, fieldId: string | null, d
   return call<{ id: string }>("save_task_field", { target_project: projectId, field_id: fieldId, definition });
 }
 
+// A copy of a field, right after it.
+export async function copyTaskField(fieldId: string, name: string) {
+  return call<{ id: string }>("copy_task_field", { target_field: fieldId, new_name: name.slice(0, 60) });
+}
+
 export async function deleteTaskField(fieldId: string) {
   return call("delete_task_field", { target_field: fieldId });
 }

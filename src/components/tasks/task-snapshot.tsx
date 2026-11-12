@@ -1,5 +1,6 @@
 "use client";
 
+import { durationText, isOther, otherText } from "@/lib/field-lists";
 import dynamic from "next/dynamic";
 import { dateLocale, t } from "@/i18n";
 import { personLabel, type Person, type TaskField } from "@/lib/tasks";
@@ -55,8 +56,11 @@ export function TaskSnapshot({
   const optionLabel = (field: TaskField, id: unknown) => field.options.find((o) => o.id === id)?.label ?? String(id);
   const customValue = (field: TaskField, value: unknown) => {
     if (value === null || value === undefined || value === "") return s.none;
-    if (field.kind === "select") return optionLabel(field, value);
-    if (field.kind === "multiselect" && Array.isArray(value)) return value.map((v) => optionLabel(field, v)).join(", ");
+    const own = (v: unknown) => (isOther(String(v)) ? otherText(String(v)) : null);
+    if (field.kind === "select") return own(value) ?? optionLabel(field, value);
+    if (field.kind === "multiselect" && Array.isArray(value)) return value.map((v) => own(v) ?? optionLabel(field, v)).join(", ");
+    if (field.kind === "duration") return durationText(Number(value));
+    if (Array.isArray(value)) return value.map((v) => own(v) ?? String(v)).join(", ");
     if (field.kind === "person") return who(String(value));
     if (typeof value === "boolean") return value ? "✓" : "—";
     return String(value);

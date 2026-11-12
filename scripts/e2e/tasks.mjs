@@ -270,6 +270,40 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator('[data-key-field="Inline"] [data-key-field-remove]').click();
   check("…and removes a field right in a task", await until(() => sql("select count(*) from public.task_fields where name = 'Inline'") === "0", 15000) && (await alice.locator('[data-key-field="Inline"]').waitFor({ state: "detached", timeout: 15000 }).then(() => true).catch(() => false)));
   sql("delete from public.task_fields where name = 'Inline'");
+  // More kinds of fields: a list of countries with tick boxes and an own value, a duration, a field's width, a copy.
+  const quickField = async (name, kind) => {
+    await alice.locator("[data-quick-add-field]").click();
+    const form = alice.getByRole("form", { name: "Додати поле" });
+    await form.getByLabel("Назва").fill(name);
+    await form.getByLabel("Формат", { exact: true }).selectOption(kind);
+    await form.getByRole("button", { name: "Зберегти" }).click();
+    await alice.locator(`[data-field="${name}"]`).waitFor({ timeout: 15000 }).catch(() => {});
+  };
+  const customOf = (name) => sql(`select (t.custom -> f.id::text)::text from public.tasks t join public.task_projects p on p.id = t.project_id join public.task_fields f on f.project_id = p.id and f.name = '${name}' where p.key = 'MAR' and t.number = 1`);
+  await quickField("Гео", "geo");
+  await alice.locator('button[data-multi="Гео"]').click();
+  await alice.locator('[data-multi-option="UA"]').check();
+  await alice.locator('[data-multi-option="PL"]').check();
+  await alice.locator("[data-multi-other]").fill("Марс");
+  await alice.locator("[data-multi-other-add]").click();
+  check("a list of countries takes several codes and an own value", await until(() => customOf("Гео") === '["UA", "PL", "other:Марс"]', 15000), customOf("Гео"));
+  await alice.keyboard.press("Escape");
+  check("…and shows the chosen ones as chips with the full name in a hint", (await alice.locator('[data-multi="Гео"] [data-multi-chosen] span[title="Україна"]').count()) === 1);
+  await quickField("Хронометраж", "duration");
+  await alice.locator('[data-duration="Хронометраж"] [data-duration-part="h"]').fill("1");
+  await alice.locator('[data-duration="Хронометраж"] [data-duration-part="m"]').fill("30");
+  await alice.locator("[data-task-detail] h1, [data-task-detail] textarea").first().click();
+  check("a duration is kept in seconds", await until(() => customOf("Хронометраж") === "5400", 15000), customOf("Хронометраж"));
+  await alice.locator('[data-key-field="Гео"]').hover();
+  await alice.locator('[data-key-field="Гео"] [data-key-field-copy]').click();
+  check("a field is copied right in a task", await until(() => sql("select kind from public.task_fields where name = 'Гео (копія)'") === "geo", 15000));
+  await alice.locator('[data-key-field="Гео"]').hover();
+  await alice.locator('[data-key-field="Гео"] [data-key-field-edit]').click();
+  await alice.locator('[data-edit-field="Гео"] [data-field-width]').selectOption("half");
+  await alice.locator('[data-edit-field="Гео"]').getByRole("button", { name: "Зберегти" }).click();
+  check("…and edited there: half the width", await until(() => sql("select width from public.task_fields where name = 'Гео'") === "half", 15000));
+  sql("delete from public.task_fields where name in ('Гео', 'Гео (копія)', 'Хронометраж')");
+  sql("update public.tasks t set custom = coalesce((select jsonb_object_agg(e.key, e.value) from jsonb_each(t.custom) e where exists (select 1 from public.task_fields f where f.id::text = e.key)), '{}'::jsonb) where t.custom <> '{}'::jsonb");
 
   // The board: quick add in a column, drag a card to another, a column limit, what the card shows.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);

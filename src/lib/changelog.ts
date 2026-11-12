@@ -33,6 +33,17 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-i",
+    version: "0.41.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: більше видів полів", en: "Rukh: more kinds of fields" },
+    items: [
+      { id: "field-kinds", type: "added", scope: "tasks", title: { uk: "Нові поля задач: тривалість, мова, гео, валюта, заголовок і роздільник.", en: "New task fields: duration, language, geo, currency, heading and divider." } },
+      { id: "field-multi", type: "improved", scope: "tasks", title: { uk: "Кілька варіантів обираються у випадному списку з галочками; у списках є «Інше».", en: "Several choices are picked in a drop-down with tick boxes; lists take an own value." } },
+      { id: "field-tools", type: "improved", scope: "tasks", title: { uk: "Поле можна змінити, скопіювати й зробити на пів ширини просто в задачі.", en: "A field can be edited, copied and made half width right in a task." } },
+    ],
+  },
+  {
     id: "2026-11-12-h",
     version: "0.40.0",
     date: "2026-11-12",

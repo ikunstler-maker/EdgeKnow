@@ -141,6 +141,8 @@ const alphaProject = (await rpc(alice, "create_task_project", { ws: alpha.id, ne
 const alphaTask = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha secret task" } })).json;
 check("alice makes a task project and a task", alphaProject?.ok === true && alphaTask?.key === "SEC-1", JSON.stringify([alphaProject, alphaTask]));
 const alphaColumn = (await rest(alice, `task_statuses?select=id&project_id=eq.${alphaProject?.id}&limit=1`)).json?.[0];
+const alphaField = (await rpc(alice, "save_task_field", { target_project: alphaProject?.id, field_id: null, definition: { name: "Alpha field", kind: "geo" } })).json;
+check("alice adds a field to her project", alphaField?.ok === true && Boolean(alphaField?.id), JSON.stringify(alphaField));
 const alphaTask2 = (await rpc(alice, "create_task", { target_project: alphaProject?.id, fields: { title: "Alpha second task" } })).json;
 const alphaLink = (await rpc(alice, "add_task_link", { source_task: alphaTask?.id, target_task: alphaTask2?.id, link_kind: "blocks" })).json;
 check("alice links two tasks", alphaLink?.ok === true, JSON.stringify(alphaLink));
@@ -207,6 +209,7 @@ const bobActions = {
   "start a large file on alpha's task": ["begin_large_task_file", { target_task: alphaTask?.id, file_name: "x.bin", file_type: "x/y", file_bytes: 10 }],
   "raise alpha's attachment limit": ["set_project_file_limits", { target_project: alphaProject?.id, file_mb: 50, zip_mb: 50 }],
   "set a permission in alpha's project": ["set_task_permission", { target_project: alphaProject?.id, wanted: "edit", holders: { roles: ["viewer"] } }],
+  "copy a field of alpha's project": ["copy_task_field", { target_field: alphaField?.id, new_name: "x" }],
   "make alpha's task repeat": ["set_task_recurrence", { target_task: alphaTask?.id, rule: { every: 1, unit: "day" } }],
   "write time on alpha's task": ["save_task_time", { target_task: alphaTask?.id, target_entry: null, spent_minutes: 30, spent_date: new Date().toISOString().slice(0, 10), new_note: null }],
   "turn on time tracking in alpha's project": ["set_project_time_tracking", { target_project: alphaProject?.id, enabled: true, visibility: "all" }],
