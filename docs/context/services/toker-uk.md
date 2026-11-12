@@ -6,7 +6,7 @@
 
 Чат команди поруч із роботою: канали, особисті повідомлення, гілки, голосові кімнати. Поєднує структурованість робочого месенджера з відчуттям присутності, як у спільнотах. Наступний великий сервіс за планом.
 
-- **Стан:** ✅ етап 1 (#169, #171, #174); 🛠 етап 2: особисті й групові розмови (2а, #176); 2б — файли й голосові. Раніше: етап 1: база (1а) і основний екран (1б) — канали, категорії, стрічка, поле введення, учасники, живі оновлення. Гілки (права панель), реакції, закріплені, згадки «@» і дзвіночок — 1в. Рішення 2026-11-12 «Toker, етап 1», «Toker, PR 1б», «Toker, PR 1в».
+- **Стан:** ✅ етап 1 (#169, #171, #174); 🛠 етап 2: особисті й групові розмови (2а, #176); файли й голосові (2б, #177); 2г — канали «публікують обрані», плеєр голосових. Раніше: етап 1: база (1а) і основний екран (1б) — канали, категорії, стрічка, поле введення, учасники, живі оновлення. Гілки (права панель), реакції, закріплені, згадки «@» і дзвіночок — 1в. Рішення 2026-11-12 «Toker, етап 1», «Toker, PR 1б», «Toker, PR 1в».
 
 ## 2. Задум
 
@@ -62,6 +62,7 @@
 - **Дзвіночок (1в):** види `chat_mention`, `chat_reply`; `notifications.chat_message_id`; тригер `chat_notify_message` → `chat_notify` (лише хто бачить канал, не «Нічого», не вимкнений вид, раз на повідомлення). Міграції `20270126100000_chat_mentions.sql`, команда `0070_chat_mentions.sql`; тести `stage79_chat_mentions`, `team9w_chat_mentions`. Посилання з дзвіночка: `?c=<канал>&t=<гілка>&m=<повідомлення>`.
 - **Особисті розмови (2а):** `chat_channels.visibility = 'direct'`, `dm_key` (одна розмова на пару), `history_visible`; `chat_channel_members.history_from` — з якого часу людина бачить повідомлення (`chat_history_ok` у правилах доступу повідомлень і реакцій). Функції `chat_open_direct`, `chat_set_history_visible`, `chat_set_member_history`, `chat_add_members(…, show_history)`. Міграції `20270129100000_chat_direct.sql`, команда `0073_chat_direct.sql`; тести `stage82_chat_direct`, `team9z_chat_direct`.
 - **Файли (2б):** `chat_files` (повідомлення, вид file/image/voice, тривалість, розміри; зберігання як у файлів задач: Диск простору або сховище `chat-files`), `chat_messages.file_count`; `register_chat_file` → `POST /api/chat/files` (перші байти, `chatFileLooksLike`) → `chat_post_message(…, file_ids)`; видача `GET /api/chat/files/<id>` за правами; `clean_chat_files` у щоденному прибиранні. Міграції `20270131150000_chat_files.sql`, команда `0074_chat_files.sql`; тести `stage83_chat_files`, `team9z1_chat_files`. Інтерфейс: `src/components/chat/chat-files.tsx`.
+- **Публікують обрані (2г):** `chat_channels.post_policy` (`everyone`/`chosen`), `chat_channel_members.can_post`, `chat_can_publish`; `chat_set_post_policy`, `chat_set_member_can_post`; у `chat_post_message` дописи (не відповіді) перевіряються. Голосові: `chat_files.waveform` (рівні 0..5), плеєр `src/components/chat/voice-player.tsx`. Міграції `20270202150000_chat_publish.sql`, команда `0075_chat_publish.sql`; тести `stage84_chat_publish`, `team9z2_chat_publish`.
 - **Реальний час:** тригери шлють сигнали з ідентифікаторами в закриті теми `chat:<канал>` і `chat-user:<людина>`; хто може приєднатися — `chat_topic_allowed`.
 
 ## 5. Очікувані зв'язки

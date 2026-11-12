@@ -319,14 +319,14 @@ const STAGES: Stage[] = [
   {
     name: "chat channels",
     table: "chat_channels",
-    columns: "id, workspace_id, category_id, name, topic, kind, visibility, unit_id, position, created_by, created_at, updated_at, archived_at, archived_by, history_visible, dm_key",
+    columns: "id, workspace_id, category_id, name, topic, kind, visibility, unit_id, position, created_by, created_at, updated_at, archived_at, archived_by, history_visible, dm_key, post_policy",
     order: "id",
     onConflict: "id",
   },
   {
     name: "people of channels",
     table: "chat_channel_members",
-    columns: "channel_id, workspace_id, user_id, role, invited, notify, last_read_at, added_by, joined_at, history_from",
+    columns: "channel_id, workspace_id, user_id, role, invited, notify, last_read_at, added_by, joined_at, history_from, can_post",
     order: "channel_id,user_id",
     onConflict: "channel_id,user_id",
     replace: true,
@@ -341,7 +341,7 @@ const STAGES: Stage[] = [
   {
     name: "chat files",
     table: "chat_files",
-    columns: "id, workspace_id, channel_id, message_id, name, mime_type, bytes, kind, duration_ms, width, height, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at",
+    columns: "id, workspace_id, channel_id, message_id, name, mime_type, bytes, kind, duration_ms, width, height, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at, waveform",
     order: "id",
     onConflict: "id",
     files: "chat-files",

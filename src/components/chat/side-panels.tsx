@@ -59,7 +59,7 @@ export function ThreadPanel({
   const everyone = [...people.values()];
   return (
     <div className="flex h-full min-h-0 flex-col" data-chat-thread>
-      <PanelHeader title={c().thread} subtitle={`#${channelName}`} onClose={onClose} />
+      <PanelHeader title={actions.comments ? c().publish.commentsTitle : c().thread} subtitle={channelName} onClose={onClose} />
       {!root ? (
         <p className="p-4 text-sm text-muted">{c().threadGone}</p>
       ) : (

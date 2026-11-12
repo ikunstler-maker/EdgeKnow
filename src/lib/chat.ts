@@ -23,6 +23,9 @@ export type ChatChannel = {
   mentioned: boolean;
   // Whether people added later see the earlier history.
   history_visible: boolean;
+  // "chosen": only who manages the channel and the people marked can_post publish; the rest comment.
+  post_policy: "everyone" | "chosen";
+  can_publish: boolean;
   // A conversation's people (the others first), instead of a name.
   people: string[] | null;
 };
@@ -58,12 +61,14 @@ export type ChatFile = {
   duration_ms: number | null;
   width: number | null;
   height: number | null;
+  // A voice message's levels (0..5), made in the browser from the sound.
+  waveform: number[] | null;
 };
 export const chatFileUrl = (shortId: string, id: string, download = false) => `/api/chat/files/${id}?ws=${shortId}${download ? "&download" : ""}`;
 
 export type ChatReaction = { message_id: string; user_id: string; emoji: string; created_at: string };
 
-export type ChatMember = { user_id: string; role: "owner" | "member"; invited: boolean; history_from: string | null };
+export type ChatMember = { user_id: string; role: "owner" | "member"; invited: boolean; history_from: string | null; can_post: boolean };
 
 export type ChatCategoryAccess = { group_id: string | null; user_id: string | null };
 

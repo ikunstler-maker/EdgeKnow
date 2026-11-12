@@ -1,0 +1,2 @@
+alice: only chosen publish: true
+bob publishes: publish_forbidden, comments: true
