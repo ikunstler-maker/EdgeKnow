@@ -69,7 +69,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Bordy «Дизайн» Д-1…Д-4 (pages, frames, layer tree, auto layout, constraints, pen, stacked fills, SVG import, prototypes + player, task from text, copy style, PNG/SVG/PDF export) — DONE (#119).
 - Д later: comments pinned on the canvas (new table + RLS → owner's approval first); variants/components; per-frame version history.
 - Original Д scope: Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
-- Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — in review (decision 2026-11-12).
+- CORE-1 Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — in review (decision 2026-11-12).
   - Owner's action: in the central Supabase project set the sign-in token lifetime (JWT expiry) to 10 minutes, so a revoked access stops in the channels within 10 minutes there too.
   - Phase 2: the idea board (its canvas library has its own merge; same channels and presence, no Yjs) — no DB change expected: the channel rules already cover all Bordy files.
   - Then Nodo, Sota, Wika: extend `live_channel_allowed` to their services (central + team migration), Wika pages need their own table rules.

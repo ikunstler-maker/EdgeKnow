@@ -1,8 +1,8 @@
 -- Real-time co-editing, phase 1 (decision 2026-11-12): who may join a document's live
 -- channels and send on them. The channels carry document changes ("doc") and cursors,
 -- presence and "follow" ("room"); nothing of them is stored.
--- The same in supabase/team/migrations/0077_live_collab.sql.
--- Rollback: supabase/rollbacks/20270204100000_live_collab.down.sql
+-- The same in supabase/team/migrations/0077_core_live_collab.sql.
+-- Rollback: supabase/rollbacks/20270204100000_core_live_collab.down.sql
 
 -- The workspace's owner turns co-editing on; off by default.
 alter table public.workspaces
@@ -105,7 +105,7 @@ begin
   end if;
 end $$;
 
--- The team database's copy carries the switch (supabase/team/migrations/0077_live_collab.sql).
+-- The team database's copy carries the switch (supabase/team/migrations/0077_core_live_collab.sql).
 create or replace function public.team_sync_payload(ws uuid)
 returns jsonb
 language sql
