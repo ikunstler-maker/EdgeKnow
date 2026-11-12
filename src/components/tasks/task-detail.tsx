@@ -80,6 +80,7 @@ export function TaskDetail({
   importedNames = {},
   webLinks = [],
   time = null,
+  fileLimits,
 }: {
   taskKey: string;
   shortId: string;
@@ -112,6 +113,7 @@ export function TaskDetail({
   webLinks?: TaskWebLink[];
   // Time entries the reader may see; null where the project doesn't track time.
   time?: TimeEntry[] | null;
+  fileLimits?: { fileMb: number; zipMb: number };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -324,7 +326,7 @@ export function TaskDetail({
           <div className="-mx-3 mt-2">
             <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={canEdit} />
           </div>
-          <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} members={members} me={me} canEdit={canEdit} />
+          <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} limits={fileLimits} members={members} me={me} canEdit={canEdit} />
         </div>
 
         <aside className="min-w-0 self-start rounded-xl border border-border p-3 text-sm @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1" aria-label={k.fields.heading} data-task-fields>

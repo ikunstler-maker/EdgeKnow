@@ -538,6 +538,32 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
     return [top("[data-status-row]"), top("[data-task-detail] textarea"), top("[data-task-key-fields]"), top("[data-task-files]")];
   });
   check("the card reads: statuses, title, the project's own fields, description, files", cardOrder[0] >= 0 && cardOrder[0] < cardOrder[1] && (cardOrder[2] < 0 || cardOrder[1] < cardOrder[2]) && cardOrder[1] < cardOrder[3] && (await alice.locator("[data-task-status]").isVisible()) === false && (await alice.locator("[data-task-side-blocks] [data-mentioned-on]").count()) === 1, JSON.stringify(cardOrder));
+  // Larger attachments: a workspace admin raises the project's limit; a file over 4 MB then
+  // goes to the team's Drive in parts; set back, the usual limit holds again.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
+  await alice.locator("[data-file-limit]").fill("20");
+  await alice.locator("[data-file-limits-save]").click();
+  check("a workspace admin raises the project's attachment limit", await until(() => sql("select file_limit_mb || ' ' || zip_limit_mb from public.task_projects where key = 'MAR'") === "20 4", 15000));
+  await alice.keyboard.press("Escape");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  const heavy = Buffer.alloc(9 * 1024 * 1024, 3);
+  heavy.write("HEAVY-ATTACHMENT", 0);
+  await alice.locator("[data-task-files] input[type=file]").setInputFiles({ name: "raw.footage", mimeType: "application/x-footage", buffer: heavy });
+  const heavyRow = () => sql(`select storage_backend || ' ' || large || ' ' || bytes || ' ' || mime_type || ' ' || coalesce(drive_file_id, '-') from public.task_files where task_id = ${marTask(2)} and name = 'raw.footage'`);
+  await until(() => heavyRow().startsWith("drive "), 60000);
+  const heavyParts = heavyRow().split(" ");
+  const { statSync: sizeOf } = await import("node:fs");
+  const heavyOnDrive = heavyParts[4] && heavyParts[4] !== "-" ? sizeOf(`${process.env.DRIVE_FAKE_DIR}/${heavyParts[4]}`, { throwIfNoEntry: false })?.size : 0;
+  check("a file over 4 MB is attached in parts and lands on the team's Drive whole", heavyParts[0] === "drive" && heavyParts[1] === "true" && heavyParts[2] === String(heavy.length) && heavyOnDrive === heavy.length && sql("select count(*) from public.task_uploads") === "0", `${heavyRow()} / ${heavyOnDrive}`);
+  await alice.locator('[data-task-file="raw.footage"]').waitFor({ timeout: 20000 }).catch(() => {});
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
+  await alice.locator("[data-file-limits-reset]").click();
+  check("…and the limit is set back", await until(() => sql("select file_limit_mb from public.task_projects where key = 'MAR'") === "4", 15000));
+  await alice.keyboard.press("Escape");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 20000 }).catch(() => {});
   check("a task file goes to the workspace's one storage (its Drive)", marFile() === "drive:wiki", marFile());
   check("…with no Drive of anyone's own", (await alice.getByRole("link", { name: /Підключити мій Google Диск/ }).count()) === 0);
   const fileId = sql(`select id from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);

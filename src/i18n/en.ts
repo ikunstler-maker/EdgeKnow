@@ -1436,6 +1436,14 @@ export const en: Dictionary = {
       groups: { overdue: "Overdue", today: "Today", week: "Next 7 days", later: "Later", none: "No due date" } as Record<string, string>,
       also: "where I am a co-assignee or responsible",
     },
+    fileLimits: {
+      title: "Attachment size",
+      file: "Largest file, MB",
+      zip: "Largest ZIP archive, MB",
+      save: "Save",
+      reset: "Back to 4 MB",
+      hint: "Usually 4 MB. It can go up to 250 MB (a ZIP archive up to 10,240 MB). Files over 4 MB are kept only on the team's Google Drive; a change of the limit leaves attached files alone.",
+    },
     importPeople: {
       title: "People from the tracker",
       hint: (free: number, total: number) => `Not tied: ${free} of ${total}. Tie a person to a member and their tasks become the member's. A person can be re-seated: the tasks follow.`,
@@ -1565,6 +1573,7 @@ export const en: Dictionary = {
       open: "Open the link",
     },
     files: {
+      dropHintLarge: (file: number, zip: number) => `or drop files here (up to ${file} MB, a ZIP archive up to ${zip} MB)`,
       filter: "Show",
       kinds: { all: "All", image: "Images", video: "Video", audio: "Audio", text: "Documents and text", archive: "Archives", other: "Other" } as Record<string, string>,
       views: { tiles: "As tiles", list: "As a list" },
@@ -1581,6 +1590,7 @@ export const en: Dictionary = {
       download: "Download",
       byOn: (who: string, when: string) => `${who}, ${when}`,
       errors: {
+        no_drive: "Files over 4 MB need the team's Google Drive connected.",
         drive_error: "EdgeKnow no longer has access to the workspace's Google Drive. The workspace owner needs to connect it again in Settings → Storage.",
         too_large: "The file is larger than 4 MB.",
         invalid_file: "This kind of file isn't supported. Allowed: images, PDF, text, CSV, documents (DOCX), spreadsheets (XLSX), presentations (PPTX) and ZIP.",

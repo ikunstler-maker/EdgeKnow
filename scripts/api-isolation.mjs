@@ -204,6 +204,8 @@ const bobActions = {
   "give himself alpha's map": ["set_service_object_member_role", { target_object: alphaMap?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
   "set who may move tasks in alpha's column": ["set_column_options", { target_status: alphaColumn?.id, options: { short_name: "x", take_groups: [] } }],
+  "start a large file on alpha's task": ["begin_large_task_file", { target_task: alphaTask?.id, file_name: "x.bin", file_type: "x/y", file_bytes: 10 }],
+  "raise alpha's attachment limit": ["set_project_file_limits", { target_project: alphaProject?.id, file_mb: 50, zip_mb: 50 }],
   "write time on alpha's task": ["save_task_time", { target_task: alphaTask?.id, target_entry: null, spent_minutes: 30, spent_date: new Date().toISOString().slice(0, 10), new_note: null }],
   "turn on time tracking in alpha's project": ["set_project_time_tracking", { target_project: alphaProject?.id, enabled: true, visibility: "all" }],
   "remove a time entry of alpha": ["delete_task_time", { target_entry: "00000000-0000-0000-0000-000000000000" }],

@@ -6,9 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { personLabel, type Person } from "@/lib/tasks";
-import { projectTimeReport, setProjectTimeTracking, setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject, type TimeReportRow } from "@/app/task-actions";
+import { projectTimeReport, setProjectFileLimits, setProjectTimeTracking, setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject, type TimeReportRow } from "@/app/task-actions";
 import { setTaskProjectKey } from "@/app/task-import-actions";
 import { Icon } from "@/components/ui/icon";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 import { ImportPeople } from "./import-people";
 
 export type ProjectAccess = {
@@ -30,7 +31,7 @@ export function ProjectAccessButton({
   access,
   members,
 }: {
-  project: { id: string; name: string; key: string; time_tracking?: boolean; time_visibility?: string };
+  project: { id: string; name: string; key: string; time_tracking?: boolean; time_visibility?: string; file_limit_mb?: number; zip_limit_mb?: number };
   access: ProjectAccess;
   members: Person[];
 }) {
@@ -46,7 +47,7 @@ export function ProjectAccessButton({
   );
 }
 
-function AccessDialog({ project, access, members, onClose }: { project: { id: string; name: string; key: string; time_tracking?: boolean; time_visibility?: string }; access: ProjectAccess; members: Person[]; onClose: () => void }) {
+function AccessDialog({ project, access, members, onClose }: { project: { id: string; name: string; key: string; time_tracking?: boolean; time_visibility?: string; file_limit_mb?: number; zip_limit_mb?: number }; access: ProjectAccess; members: Person[]; onClose: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +66,8 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
       setError(result.ok ? null : (t.tasks.errors[result.error] ?? t.common.unknownError));
       router.refresh();
     });
+  // The workspace's owner and admins set how large the project's attachments may be.
+  const isAdmin = ["owner", "admin"].includes(useOptionalPages()?.workspace.role ?? "");
   const personOf = new Map(members.map((m) => [m.id, m]));
   const groupName = new Map(access.groups.map((g) => [g.id, g.name]));
   const listedPeople = new Set(access.people.map((p) => p.user_id));
@@ -222,6 +225,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
           )}
 
           <TimeSettings project={project} members={members} run={run} pending={pending} />
+          {isAdmin && <FileLimits project={project} run={run} pending={pending} />}
           <ImportPeople projectId={project.id} members={members} />
           <ProjectKeyForm project={project} />
 
@@ -241,6 +245,46 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
       </div>
     </div>,
     document.body,
+  );
+}
+
+// The largest attachment and the largest ZIP archive the project takes (a workspace admin
+// raises them for a project and sets them back). Above 4 MB files go to the team's Drive.
+function FileLimits({ project, run, pending }: { project: { id: string; file_limit_mb?: number; zip_limit_mb?: number }; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
+  const l = t.tasks.fileLimits;
+  const [file, setFile] = useState(String(project.file_limit_mb ?? 4));
+  const [zip, setZip] = useState(String(project.zip_limit_mb ?? 4));
+  const changed = Number(file) !== (project.file_limit_mb ?? 4) || Number(zip) !== (project.zip_limit_mb ?? 4);
+  return (
+    <form
+      className="space-y-2 border-t border-border pt-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        run(() => setProjectFileLimits(project.id, Number(file), Number(zip)));
+      }}
+      data-file-limits
+    >
+      <h3 className="text-sm font-medium">{l.title}</h3>
+      <div className="flex flex-wrap items-end gap-2 text-sm">
+        <label className="flex flex-col gap-1">
+          {l.file}
+          <input type="number" min={4} max={250} required value={file} onChange={(e) => setFile(e.target.value)} className={`${selectClass} w-28`} data-file-limit />
+        </label>
+        <label className="flex flex-col gap-1">
+          {l.zip}
+          <input type="number" min={4} max={10240} required value={zip} onChange={(e) => setZip(e.target.value)} className={`${selectClass} w-28`} data-zip-limit />
+        </label>
+        <button type="submit" disabled={pending || !changed} className={buttonClass} data-file-limits-save>
+          {l.save}
+        </button>
+        {(Number(file) !== 4 || Number(zip) !== 4) && (
+          <button type="button" disabled={pending} onClick={() => (setFile("4"), setZip("4"), run(() => setProjectFileLimits(project.id, 4, 4)))} className={buttonClass} data-file-limits-reset>
+            {l.reset}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-muted">{l.hint}</p>
+    </form>
   );
 }
 

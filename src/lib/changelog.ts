@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-e",
+    version: "0.37.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: більші вкладення", en: "Rukh: larger attachments" },
+    items: [
+      { id: "large-files", type: "added", scope: "tasks", title: { uk: "Для проєкту можна підняти розмір вкладень до 250 МБ (архів ZIP — до 10 ГБ); такі файли зберігаються на Google Drive команди.", en: "A project's attachments can go up to 250 MB (a ZIP archive up to 10 GB); such files are kept on the team's Google Drive." } },
+    ],
+  },
+  {
     id: "2026-11-12-d",
     version: "0.36.0",
     date: "2026-11-12",

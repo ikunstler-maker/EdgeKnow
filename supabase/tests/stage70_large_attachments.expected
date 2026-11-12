@@ -1,0 +1,10 @@
+at the usual limit, 50 MB: too_large
+a project owner raises the limit: forbidden
+a workspace admin raises it: true, beyond the ceiling: invalid
+bob starts 50 MB: true, 150 MB: too_large, a 1 GB archive: true, a 3 GB archive: too_large, nothing: invalid_file
+waiting: all.zip application/zip pending large=true; film.mov video/quicktime pending large=true
+psql: ERROR:  permission denied for table task_uploads
+psql: ERROR:  permission denied for table task_files
+a stranger starts a file: forbidden, sets limits: forbidden
+set back: true, then 50 MB: too_large, files already there: 2
+psql: ERROR:  new row for relation "task_files" violates check constraint "task_files_mime_type_check"

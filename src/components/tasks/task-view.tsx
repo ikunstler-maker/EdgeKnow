@@ -144,6 +144,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       importedNames={importedNames}
       webLinks={(webLinks ?? []) as TaskWebLink[]}
       time={time}
+      fileLimits={{ fileMb: view.project.file_limit_mb ?? 4, zipMb: view.project.zip_limit_mb ?? 4 }}
     />
   );
 }
