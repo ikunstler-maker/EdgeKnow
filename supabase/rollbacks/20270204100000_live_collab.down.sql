@@ -1,4 +1,4 @@
--- Rollback of 20270203100000_live_collab.sql.
+-- Rollback of 20270204100000_live_collab.sql.
 do $$
 begin
   if to_regclass('realtime.messages') is not null then

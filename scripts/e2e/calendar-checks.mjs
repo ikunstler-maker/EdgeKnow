@@ -659,6 +659,24 @@ export async function birthdayChecks() {
     (await alice.locator("[data-wishlist-editor]").count()) === 0);
   await bob.goto(wishlistUrl).catch(() => {});
   check("an outsider never sees it", (await bob.locator("[data-wishlist-view]").count()) === 0);
+  // Home screen and the colleague's profile.
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  check("the home birthday block has a festive wishlist button", await until(async () => (await alice.locator("[data-home-birthdays] [data-home-wishlist]").count()) === 1, 15000));
+  await alice.goto(`${APP}/w/${alphaShort}/profile/${colleagueId}`);
+  check("the colleague's profile shows the wishlist card", (await alice.locator("[data-their-wishlists] [data-wishlist-card]").count()) === 1);
+  // "I'll give this": Alice gives the wish; the owner never sees who.
+  await alice.goto(wishlistUrl);
+  await alice.locator("[data-gift-give]").click();
+  const gifts = () => sql(`select count(*) from public.wishlist_gifts g join public.service_objects o on o.id = g.wishlist_id where o.owner_id = '${colleagueId}' and g.kind = 'gives'`);
+  check("a colleague gives a wish", await until(() => gifts() === "1", 15000), gifts());
+  check("…and sees it is theirs", await until(async () => (await alice.locator("[data-gift-giver]").count()) === 1, 15000));
+  await own.reload();
+  check("the owner sees no one's gifts", (await own.locator("[data-gift-bar]").count()) === 0);
+  // Removing a taken wish: a warning first, then the giver hears about it.
+  await own.locator("[data-wishlist-item-editor] button[aria-label='Видалити побажання']").click();
+  await own.locator("[data-wish-remove-anyway]").click();
+  const told = () => sql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id where n.kind = 'wishlist_item_removed' and u.email = 'alice@alpha.test'`);
+  check("removing a wish someone gives warns first and tells the giver", await until(() => told() === "1", 15000), told());
   await own.locator("[data-wishlist-copy]").click();
   check("copy for the same birthday is refused with a reason", await until(async () => (await own.getByRole("alert").count()) === 1, 15000));
   await own.locator("[data-wishlist-delete]").click();

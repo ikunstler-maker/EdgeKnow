@@ -8,6 +8,8 @@ import { getWorkspace } from "@/lib/workspace";
 import { loadMemberCard } from "@/lib/member-card";
 import { ProfileView } from "../profile-view";
 import { ProfileCard } from "../profile-card";
+import { loadWishlistsOf } from "@/app/wishlist-actions";
+import { WishlistCards } from "@/components/wishlists/wishlist-cards";
 import { Hint } from "@/components/ui/hint";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -27,6 +29,7 @@ export default async function PersonProfilePage({ params }: PageProps<"/w/[wid]/
   const [stats, card] = UUID.test(uid)
     ? await Promise.all([loadProfileStats(workspace.shortId, workspace.id, uid), loadMemberCard(workspace.shortId, workspace.id, uid)])
     : [null, null];
+  const wishlists = card ? await loadWishlistsOf(workspace.shortId, workspace.id, uid) : [];
 
   if (!card) {
     return (
@@ -47,6 +50,12 @@ export default async function PersonProfilePage({ params }: PageProps<"/w/[wid]/
         workspaceName={workspace.name}
         roleLabel={t.workspace.roles[card.role]}
       />
+      {wishlists.length > 0 && (
+        <section aria-labelledby="their-wishlists" className="rounded-xl border border-border bg-surface p-4" data-their-wishlists>
+          <h2 id="their-wishlists" className="mb-3 text-sm font-semibold">{t.wishlists.othersHeading}</h2>
+          <WishlistCards items={wishlists} shortId={workspace.shortId} mine={false} today={new Date().toISOString().slice(0, 10)} />
+        </section>
+      )}
       {stats ? (
         <>
           <h2 className="flex items-center gap-2 text-sm font-semibold">
