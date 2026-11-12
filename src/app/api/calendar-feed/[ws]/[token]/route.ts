@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
+import { t } from "@/i18n";
 import { buildFeed, isFeedToken, type FeedData } from "@/lib/calendar-feed";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { teamAdmin } from "@/lib/team-db/files";
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/api/c
   const hash = createHash("sha256").update(token).digest("hex");
   const { data, error } = await source.rpc("calendar_feed", { ws: workspace.id, hash });
   if (error || !data) return notFound();
-  const body = buildFeed(data as FeedData, { name: workspace.name, host: request.nextUrl.host });
+  const body = buildFeed(data as FeedData, { name: workspace.name, host: request.nextUrl.host, birthdayTitle: t.calendar.birthdays.mine });
   return new Response(body, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",

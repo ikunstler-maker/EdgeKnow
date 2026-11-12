@@ -1,0 +1,5 @@
+bob sets his: {"ok": true}
+bob reads: {"ok": true, "day": 14, "year": 1990, "month": 3, "shown": true, "workspace_on": true}
+alice sees: 1, the year in it: false
+zed (not a member) sees: 0, sets one: forbidden
+bob clears his: true

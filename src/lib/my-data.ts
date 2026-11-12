@@ -62,7 +62,7 @@ export async function exportMyData(userId: string) {
       time_off_requests: await rows(
         db.from("leave_requests").select("policy_id, start_date, end_date, half, days, comment, status, decided_at, decision_note, cancelled_at, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId),
       ),
-      time_off_start: await rows(db.from("leave_member_settings").select("started_on").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
+      time_off_start: await rows(db.from("leave_member_settings").select("started_on, birth_month, birth_day, birth_year, birthday_shown").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       time_off_ledger: await rows(db.from("leave_balances").select("policy_id, year, kind, month, days, note, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       // Busy time read from the person's outside calendar (starts and ends; the address itself is not kept readable).
       calendar_outside_busy: await rows(db.from("calendar_external_busy").select("starts_at, ends_at, all_day").eq("workspace_id", m.workspace_id).eq("user_id", userId)),

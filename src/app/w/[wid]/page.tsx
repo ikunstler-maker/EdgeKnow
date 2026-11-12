@@ -5,6 +5,7 @@ import { pagePath, workspacePath } from "@/lib/paths";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 import { ServiceTiles } from "@/components/services/service-tiles";
+import { BirthdaysBlock } from "@/components/home/birthdays-block";
 import { Onboarding, type OnboardingStep } from "@/components/onboarding";
 import { createClient } from "@/lib/supabase/server";
 import { workspaceData } from "@/lib/team-db/data";
@@ -135,6 +136,8 @@ export default async function WorkspaceHome({ params }: PageProps<"/w/[wid]">) {
           </Link>
         )}
       </div>
+
+      {workspace.role !== "guest" && <BirthdaysBlock db={supabase} workspaceId={workspace.id} shortId={workspace.shortId} />}
 
       <ServiceTiles db={supabase} workspaceId={workspace.id} shortId={workspace.shortId} userId={user.id} />
 

@@ -217,6 +217,13 @@ const ICONS = {
       <circle cx="8.5" cy="8.5" r="1" />
     </>
   ),
+  // A wrapped present: birthdays.
+  gift: (
+    <>
+      <rect x="4" y="9" width="16" height="11" rx="2" />
+      {p("M3.5 9h17M12 9v11M12 9c-1.5-3.5-5.5-4-5.5-1.5S10 9 12 9zM12 9c1.5-3.5 5.5-4 5.5-1.5S14 9 12 9z")}
+    </>
+  ),
   calendar: (
     <>
       <rect x="4" y="5.5" width="16" height="14.5" rx="2.5" />

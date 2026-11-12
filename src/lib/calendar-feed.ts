@@ -14,7 +14,8 @@ export type FeedEvent = {
   status: string;
 };
 export type FeedLeave = { id: string; name: string; start_date: string; end_date: string; updated_at: string };
-export type FeedData = { events: FeedEvent[]; leave: FeedLeave[] };
+// The person's own birthday (day and month only), if kept.
+export type FeedData = { events: FeedEvent[]; leave: FeedLeave[]; birthday?: { month: number; day: number } | null };
 
 export const FEED_PATH = "/api/calendar-feed";
 export const isFeedToken = (value: string) => /^[A-Za-z0-9_-]{43}$/.test(value);
@@ -46,7 +47,7 @@ const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").
 const dateOnly = (iso: string) => iso.slice(0, 10).replace(/-/g, "");
 const nextDay = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-export function buildFeed(data: FeedData, options: { name: string; host: string; now?: Date }): string {
+export function buildFeed(data: FeedData, options: { name: string; host: string; now?: Date; birthdayTitle?: string }): string {
   const now = stamp((options.now ?? new Date()).toISOString());
   const lines = [
     "BEGIN:VCALENDAR",
@@ -78,6 +79,21 @@ export function buildFeed(data: FeedData, options: { name: string; host: string;
       `SUMMARY:${escapeText(leave.name)}`,
       "TRANSP:OPAQUE",
       "STATUS:CONFIRMED",
+      "END:VEVENT",
+    );
+  }
+  if (data.birthday && options.birthdayTitle) {
+    // Every year from a leap year, so 29 February stays itself where calendars allow it.
+    const start = `2000${String(data.birthday.month).padStart(2, "0")}${String(data.birthday.day).padStart(2, "0")}`;
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:birthday@${options.host}`,
+      `DTSTAMP:${now}`,
+      `DTSTART;VALUE=DATE:${start}`,
+      "DURATION:P1D",
+      "RRULE:FREQ=YEARLY",
+      `SUMMARY:${escapeText(options.birthdayTitle)}`,
+      "TRANSP:TRANSPARENT",
       "END:VEVENT",
     );
   }

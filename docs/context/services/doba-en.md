@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2027-01-31 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a, 3b). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30, 2027-01-31, 2027-02-01) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-12 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a, 3b; birthdays). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30, 2027-01-31, 2027-02-01) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -58,6 +58,14 @@ The team's shared calendar and time-off management in one place: events and meet
 - Colleagues get it as plain anonymous "Busy" (availability, the overlap hint) with nothing to tell where it came from; only the owner sees "Busy (outside calendar)" in their own week.
 - Stale-while-revalidate: the calendar opens with what is known; an address not read for an hour is read again after the response; once a day all of them; "Refresh now" by hand (once a minute at most). Each refresh replaces the person's slots; past ones are not kept.
 - "Disconnect" (and leaving the workspace) removes the address and every slot at once.
+
+### Birthdays
+- Kept per person and workspace (day, month, an optional year, "show to colleagues"). Set by the person in the workspace profile, or by who manages time off in the members' table of the time-off settings ("dd.mm" or "dd.mm.yyyy").
+- Colleagues (not guests) see the day and month only — unless the person hides it or an admin turns birthdays off for the workspace (calendar settings). The year is seen by the person and who manages time off only. Guests and strangers see nothing.
+- A yearly whole-day mark in the month, week and list (not an event); 29 February is the 28th in other years.
+- Home screen: a festive but quiet block under the greeting — today's birthdays (one's own as a greeting) and the coming 7 days.
+- The bell on the day (the workspace's time zone): to people who share a unit with the person, or to everyone when the person is in no unit; once a year; can be muted.
+- One's own birthday is in the feed (3a) as a yearly event; in "My data" with the year; in the backup without it. Leaving the workspace erases it.
 
 ### Notifications
 - Invitation, request to join (to the organizer), answer to a request, time change or cancellation. Each can be muted in the bell's settings. A notification keeps only the event's id: the title shows while the person may see the event.
@@ -120,7 +128,8 @@ The team's shared calendar and time-off management in one place: events and meet
 | `notifications.event_id`, `event_at` | link from a notification to an event (and, for a reminder, to the start it is about) |
 | `leave_policies` | time-off policies (with `accrual`: manual / yearly / monthly) |
 | `leave_holidays` | the workspace's holidays |
-| `leave_member_settings` | a person's start date |
+| `leave_member_settings` | a person's start date and birthday (`birth_month`, `birth_day`, `birth_year`, `birthday_shown`) |
+| `calendar_settings.show_birthdays` | birthdays shown in the workspace at all |
 | `leave_balances` | the ledger: yearly accrual, monthly part (`month`), carry-over, correction |
 | `leave_requests` | requests with `deputy_id`, status, who decided |
 | `notifications.leave_request_id` | link from a notification to a request |
@@ -177,6 +186,8 @@ The team's shared calendar and time-off management in one place: events and meet
 - No third-party product names or logos in the UI or the code.
 
 ## 8. Known gaps and open questions
+
+- Birthdays: functions `birthday_visible`, `birthdays_between` (server-side helpers), `calendar_birthdays`, `my_birthday`, `set_my_birthday`, `set_member_birthday`, `set_calendar_birthdays`; the bell's are made by `calendar_remind_me`. No greeting thread or card yet; not shown in the member card of workspace settings.
 
 - No event chip in task descriptions; tasks can't be moved to another day from the calendar.
 - Series: no answer for a single day; no rule like "the last Friday of the month"; a notification about a changed day doesn't say which day; reminders don't come while the site is closed.

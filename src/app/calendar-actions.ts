@@ -1,7 +1,7 @@
 "use server";
 
 import type { ActionResult } from "@/lib/action-result";
-import type { BusySlot, CalendarEvent, CalendarSettings, CalendarTask, CancelledEvent, EventAnswer, EventChip, EventDetails, EventFields, EventHit } from "@/lib/calendar";
+import type { Birthday, BusySlot, CalendarEvent, CalendarSettings, CalendarTask, CancelledEvent, EventAnswer, EventChip, EventDetails, EventFields, EventHit, MyBirthday } from "@/lib/calendar";
 
 import { createHash, randomBytes } from "node:crypto";
 import { after } from "next/server";
@@ -194,4 +194,52 @@ export async function issueFeed(shortId: string, workspaceId: string): Promise<A
 
 export async function dropFeed(shortId: string, workspaceId: string) {
   return call(shortId, "drop_calendar_feed", { ws: workspaceId });
+}
+
+// --- Birthdays --------------------------------------------------------------
+
+// The birthdays the person may see on these days (no years; nothing for a guest).
+export async function loadBirthdays(shortId: string, workspaceId: string, from: string, to: string): Promise<Birthday[]> {
+  if (!isDay(from) || !isDay(to)) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("calendar_birthdays", { ws: workspaceId, first_day: from, last_day: to });
+  return (data ?? []) as Birthday[];
+}
+
+export async function loadMyBirthday(shortId: string, workspaceId: string): Promise<MyBirthday | null> {
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("my_birthday", { ws: workspaceId });
+  return data?.ok ? (data as MyBirthday) : null;
+}
+
+const birthdayArgs = (value: { month: number | null; day: number | null; year: number | null }) => {
+  const whole = (n: number | null) => (n === null ? null : Number.isInteger(n) ? n : NaN);
+  const args = { month: whole(value.month), day: whole(value.day), year: value.month === null ? null : whole(value.year) };
+  return Object.values(args).some((n) => Number.isNaN(n)) ? null : args;
+};
+
+// One's own birthday (nulls clear it) and whether colleagues see it.
+export async function saveMyBirthday(shortId: string, workspaceId: string, value: { month: number | null; day: number | null; year: number | null }, shown: boolean) {
+  const args = birthdayArgs(value);
+  if (!args) return { ok: false as const, error: "invalid" };
+  return call(shortId, "set_my_birthday", { ws: workspaceId, ...args, shown: Boolean(shown) });
+}
+
+// Who manages time off: a member's birthday.
+export async function saveMemberBirthday(shortId: string, workspaceId: string, person: string, value: { month: number | null; day: number | null; year: number | null }) {
+  const args = birthdayArgs(value);
+  if (!args) return { ok: false as const, error: "invalid" };
+  return call(shortId, "set_member_birthday", { ws: workspaceId, person, ...args });
+}
+
+// The members' birthdays for who manages time off (with years), by person.
+export async function loadMemberBirthdays(shortId: string, workspaceId: string): Promise<Record<string, { month: number; day: number; year: number | null }>> {
+  const db = await dataClient(shortId);
+  const { data } = await db.from("leave_member_settings").select("user_id, birth_month, birth_day, birth_year").eq("workspace_id", workspaceId).not("birth_month", "is", null);
+  return Object.fromEntries((data ?? []).map((r) => [r.user_id as string, { month: r.birth_month as number, day: r.birth_day as number, year: (r.birth_year as number | null) ?? null }]));
+}
+
+// The owner and admins: are birthdays shown in the workspace.
+export async function setBirthdaysShown(shortId: string, workspaceId: string, shown: boolean) {
+  return call(shortId, "set_calendar_birthdays", { ws: workspaceId, shown: Boolean(shown) });
 }

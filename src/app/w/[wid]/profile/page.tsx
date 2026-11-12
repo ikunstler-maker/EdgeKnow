@@ -8,6 +8,7 @@ import { loadProfileStats } from "@/lib/profile-stats";
 import { getWorkspace } from "@/lib/workspace";
 import { ProfileView } from "./profile-view";
 import { VisibilitySwitch } from "./visibility-switch";
+import { BirthdayForm } from "./birthday-form";
 import { MyData } from "./my-data";
 import { MyDevices } from "./my-devices";
 import { AppearanceSettings } from "@/components/angler/appearance-settings";
@@ -56,6 +57,7 @@ export default async function MyProfilePage({ params }: PageProps<"/w/[wid]/prof
       </header>
       <p className="sr-only">{t.profile.intro(stats.name, workspace.name)}</p>
       <VisibilitySwitch workspaceId={workspace.id} initial={stats.visibility} shareUrl={shareUrl} />
+      {workspace.role !== "guest" && <BirthdayForm shortId={workspace.shortId} workspaceId={workspace.id} />}
       <ProfileView stats={stats} />
       <AppearanceSettings />
       <MyDevices />

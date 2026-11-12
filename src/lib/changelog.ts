@@ -33,6 +33,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-birthdays",
+    version: "0.43.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Дні народження", en: "Birthdays" },
+    summaryDescription: {
+      uk: "Дні народження колег — у календарі, на головному екрані й у дзвіночку. Рік бачите лише ви.",
+      en: "Colleagues' birthdays — in the calendar, on the home screen and in the bell. Only you see the year.",
+    },
+    items: [
+      { id: "birthday-profile", type: "added", scope: "calendar", title: { uk: "Свій день народження вказується в профілі; можна приховати від колег.", en: "Set your birthday in the profile; you can hide it from colleagues." } },
+      { id: "birthday-home", type: "added", scope: "calendar", title: { uk: "На головному екрані — блок «Сьогодні святкуємо» і найближчі дні народження.", en: "The home screen shows “Celebrating today” and the birthdays coming up." } },
+      { id: "birthday-bell", type: "added", scope: "calendar", title: { uk: "Нагадування в дзвіночок у день народження колеги з вашого підрозділу.", en: "A reminder in the bell on the birthday of a colleague from your unit." } },
+    ],
+  },
+  {
     id: "2026-11-12-j",
     version: "0.42.0",
     date: "2026-11-12",

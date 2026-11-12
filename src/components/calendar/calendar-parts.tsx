@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { dateLocale, t } from "@/i18n";
-import { dropFeed, issueFeed, loadFeed, saveCalendarSettings } from "@/app/calendar-actions";
+import { dropFeed, issueFeed, loadFeed, saveCalendarSettings, setBirthdaysShown } from "@/app/calendar-actions";
 import { connectOutsideCalendar, disconnectOutsideCalendar, loadConnection, refreshOutsideCalendar } from "@/app/calendar-external-actions";
 import type { ConnectionState } from "@/lib/calendar-external";
 import { browserTimeZone, timeZones, type CalendarPerson, type CalendarSettings } from "@/lib/calendar";
@@ -117,16 +117,19 @@ export function CalendarSettingsDialog({
 }) {
   const [workDays, setWorkDays] = useState(settings.work_days);
   const [zone, setZone] = useState(settings.time_zone);
+  const [birthdays, setBirthdays] = useState(settings.show_birthdays ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const zones = useMemo(() => timeZones([settings.time_zone, browserTimeZone()]), [settings.time_zone]);
   const s = c.settings;
   const save = async () => {
     setSaving(true);
-    const next = { work_days: [...workDays].sort(), time_zone: zone };
+    const next = { work_days: [...workDays].sort(), time_zone: zone, show_birthdays: birthdays };
     const result = await saveCalendarSettings(shortId, workspaceId, next);
+    const shown = result.ok && birthdays !== (settings.show_birthdays ?? true) ? await setBirthdaysShown(shortId, workspaceId, birthdays) : result;
     setSaving(false);
     if (!result.ok) return setError(c.errors[result.error] ?? c.errors.unknown);
+    if (!shown.ok) return setError(c.errors[shown.error] ?? c.errors.unknown);
     onSaved(next);
   };
   return (
@@ -166,6 +169,13 @@ export function CalendarSettingsDialog({
               </option>
             ))}
           </select>
+        </label>
+        <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={birthdays} onChange={(e) => setBirthdays(e.target.checked)} data-show-birthdays />
+          <span>
+            {c.birthdays.workspaceSwitch}
+            <span className="block text-xs text-muted">{c.birthdays.workspaceHint}</span>
+          </span>
         </label>
         {error && <p className="mt-2 text-sm text-danger">{error}</p>}
         <div className="mt-4 flex justify-end gap-2">
