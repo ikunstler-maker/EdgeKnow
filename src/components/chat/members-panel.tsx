@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { t } from "@/i18n";
 import type { ChatChannel, ChatMember, ChatPerson } from "@/lib/chat";
-import { addMembers, loadMembers, removeMember, setMemberHistory, setMemberRole } from "@/app/chat-actions";
+import { addMembers, loadMembers, removeMember, setMemberCanPost, setMemberHistory, setMemberRole } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass, inputClass } from "@/components/ui/button";
 
@@ -147,6 +147,21 @@ export function MembersPanel({
                   <span className="min-w-0 flex-1 truncate text-sm">{person?.name ?? t.chat.formerMember}</span>
                   {person?.guest && <span className="text-[10px] uppercase text-muted">{t.chat.guest}</span>}
                   {m.role === "owner" && <span className="text-xs text-muted">{c().owner}</span>}
+                  {channel.post_policy === "chosen" && m.can_post && m.role !== "owner" && <span className="text-xs text-muted">{t.chat.publish.publisher}</span>}
+                  {channel.post_policy === "chosen" && canManage && m.role !== "owner" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void run(() => setMemberCanPost(shortId, channel.id, m.user_id, !m.can_post))}
+                      aria-pressed={m.can_post}
+                      aria-label={m.can_post ? t.chat.publish.revoke(person?.name ?? t.chat.formerMember) : t.chat.publish.grant(person?.name ?? t.chat.formerMember)}
+                      title={m.can_post ? t.chat.publish.revoke(person?.name ?? t.chat.formerMember) : t.chat.publish.grant(person?.name ?? t.chat.formerMember)}
+                      className={iconButtonClass(m.can_post ? "subtle" : "ghost")}
+                      data-chat-can-post
+                    >
+                      <Icon name="send" size={15} />
+                    </button>
+                  )}
                   {m.history_from && canManage && (
                     <button
                       type="button"

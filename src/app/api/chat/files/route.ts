@@ -5,11 +5,17 @@ import { overLimit, tooManyRequests } from "@/lib/rate-limit";
 import { writeClient } from "@/lib/team-db/data";
 import { MAX_CHAT_FILE_BYTES, chatFileLooksLike, filesHome, storeTaskFile, workspaceDestination, type StoredFile } from "@/lib/drive/task-files";
 
+// "1,3,5,2,…": up to 64 levels of 0..5 (the voice message's look), or nothing.
+function waveformOf(raw: string | null) {
+  if (!raw || !/^[0-5](,[0-5]){0,63}$/.test(raw)) return null;
+  return raw.split(",").map(Number);
+}
+
 const CHAT_FILE_COLUMNS =
   "id, workspace_id, channel_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
 
 // Adds a file to a chat message being written: ?ws=<short id>&ch=<channel>&name=<file name>
-// &kind=file|image|voice[&duration=<ms>][&w=&h=], the bytes as the body with their type.
+// &kind=file|image|voice[&duration=<ms>][&levels=1,3,5…][&w=&h=], the bytes as the body with their type.
 // The database checks the right to write in the channel, the kind, the size and the
 // workspace's limit (register_chat_file, with the person's own session); the server then
 // checks the bytes really are of that type and stores them in the workspace's one storage.
@@ -50,6 +56,7 @@ export async function POST(request: NextRequest) {
     duration: kind === "voice" ? (number("duration") ?? 0) : null,
     file_width: number("w"),
     file_height: number("h"),
+    levels: kind === "voice" ? waveformOf(params.get("levels")) : null,
   });
   const reg = registered as { ok: boolean; error?: string; id?: string; workspace_id?: string } | null;
   if (!reg?.ok || !reg.id) return NextResponse.json({ ok: false, error: reg?.error ?? "unknown" }, { status: 403 });

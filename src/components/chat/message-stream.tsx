@@ -8,6 +8,7 @@ import { iconButtonClass } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/pages/emoji-picker";
 import { Popover, MenuItem } from "@/components/ui/popover";
 import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, firstLink, uploadChatFile, type Pending } from "./chat-files";
+import { levelsOf } from "./voice-player";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
@@ -83,6 +84,8 @@ export type MessageActions = {
   onPin: (id: string, pinned: boolean) => void;
   // Absent inside a thread (replies have no threads of their own).
   onThread?: (id: string) => void;
+  // A channel where chosen people publish: threads read as comments, offered under each post.
+  comments?: boolean;
 };
 
 // The channel's stream (or a thread's replies): older pages on scrolling up, kept at
@@ -263,7 +266,7 @@ export function MessageStream({
                     })}
                   </div>
                 )}
-                {m.reply_count > 0 && actions.onThread && !m.thread_root_id && (
+                {(m.reply_count > 0 || actions.comments) && actions.onThread && !m.thread_root_id && !m.deleted_at && (
                   <button
                     type="button"
                     onClick={() => actions.onThread?.(m.id)}
@@ -271,14 +274,14 @@ export function MessageStream({
                     data-chat-replies
                   >
                     <Icon name="comment" size={13} />
-                    {c().replies(m.reply_count)}
+                    {actions.comments ? c().publish.comments(m.reply_count) : c().replies(m.reply_count)}
                   </button>
                 )}
               </div>
               {live && (actions.canWrite || mine || actions.canModerate) && (
                 <div className="absolute -top-3 right-2 hidden gap-0.5 rounded-lg border border-border bg-overlay p-0.5 shadow-sm group-focus-within:flex group-hover:flex" data-chat-tools>
                   {actions.canWrite && tool("smile", c().react, (anchor) => setPicker({ id: m.id, anchor }))}
-                  {actions.canWrite && actions.onThread && !m.thread_root_id && tool("comment", c().replyInThread, () => actions.onThread?.(m.id))}
+                  {actions.canWrite && actions.onThread && !m.thread_root_id && tool("comment", actions.comments ? c().publish.comment : c().replyInThread, () => actions.onThread?.(m.id))}
                   {actions.canWrite && tool("pin", m.pinned_at ? c().unpin : c().pin, () => actions.onPin(m.id, !m.pinned_at), Boolean(m.pinned_at))}
                   {mine && actions.canWrite && tool("edit", c().edit, () => setEditing(m.id))}
                   {(mine || actions.canModerate) && tool("trash", c().delete, () => actions.onDelete(m.id))}
@@ -461,7 +464,12 @@ export function Composer({
   const uploading = items.some((p) => p.state === "uploading");
   const ready = items.filter((p) => p.state === "ready" && p.id).map((p) => p.id!);
 
-  const add = async (name: string, kind: ChatFile["kind"], make: () => Promise<{ blob: Blob; name?: string; extra?: { duration?: number; width?: number; height?: number } }>, preview?: string) => {
+  const add = async (
+    name: string,
+    kind: ChatFile["kind"],
+    make: () => Promise<{ blob: Blob; name?: string; extra?: { duration?: number; width?: number; height?: number; levels?: number[] | null } }>,
+    preview?: string,
+  ) => {
     if (!upload) return;
     const key = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setItems((list) => [...list, { key, name, kind, state: "uploading", preview }]);
@@ -512,7 +520,9 @@ export function Composer({
             {upload && !draft.trim() && !ready.length ? (
               <VoiceButton
                 disabled={disabled || items.length >= 10}
-                onRecorded={(blob, duration) => void add(c().files.voiceName, "voice", async () => ({ blob, name: `voice.${blob.type.split("/")[1] ?? "webm"}`, extra: { duration } }))}
+                onRecorded={(blob, duration) =>
+                  void add(c().files.voiceName, "voice", async () => ({ blob, name: `voice.${blob.type.split("/")[1] ?? "webm"}`, extra: { duration, levels: await levelsOf(blob) } }))
+                }
               />
             ) : (
               <button
