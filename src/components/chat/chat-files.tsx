@@ -6,6 +6,7 @@ import { chatFileUrl, type ChatFile } from "@/lib/chat";
 import type { LinkPreview } from "@/lib/link-preview";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
+import { VoicePlayer } from "./voice-player";
 
 const c = () => t.chat.files;
 const MAX_SIDE = 1600;
@@ -44,12 +45,13 @@ export async function uploadChatFile(
   blob: Blob,
   name: string,
   kind: ChatFile["kind"],
-  extra: { duration?: number; width?: number; height?: number } = {},
+  extra: { duration?: number; width?: number; height?: number; levels?: number[] | null } = {},
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const params = new URLSearchParams({ ws: shortId, ch: channelId, name, kind });
   if (extra.duration) params.set("duration", String(Math.round(extra.duration)));
   if (extra.width) params.set("w", String(extra.width));
   if (extra.height) params.set("h", String(extra.height));
+  if (extra.levels?.length) params.set("levels", extra.levels.join(","));
   try {
     const response = await fetch(`/api/chat/files?${params}`, { method: "POST", headers: { "Content-Type": blob.type || "application/octet-stream" }, body: blob });
     const result = (await response.json().catch(() => null)) as { ok: boolean; id?: string; error?: string } | null;
@@ -158,11 +160,7 @@ export function MessageFiles({ files, shortId }: { files: ChatFile[]; shortId: s
         </div>
       )}
       {voices.map((f) => (
-        <div key={f.id} className="flex max-w-sm items-center gap-2 rounded-lg border border-border px-2 py-1" data-chat-voice-message>
-          <Icon name="mic" size={15} className="text-muted" />
-          <audio controls preload="none" src={chatFileUrl(shortId, f.id)} className="h-9 min-w-0 flex-1" />
-          {f.duration_ms !== null && <span className="text-xs tabular-nums text-muted">{durationLabel(f.duration_ms)}</span>}
-        </div>
+        <VoicePlayer key={f.id} src={chatFileUrl(shortId, f.id)} levels={f.waveform} durationMs={f.duration_ms} seed={f.id} />
       ))}
       {others.map((f) => (
         <a

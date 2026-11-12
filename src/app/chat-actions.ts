@@ -84,7 +84,7 @@ export async function loadFiles(shortId: string, messageIds: string[]): Promise<
   const supabase = await dataClient(shortId);
   const { data } = await supabase
     .from("chat_files")
-    .select("id, message_id, name, mime_type, bytes, kind, duration_ms, width, height")
+    .select("id, message_id, name, mime_type, bytes, kind, duration_ms, width, height, waveform")
     .in("message_id", wanted)
     .order("created_at")
     .limit(2000);
@@ -102,7 +102,7 @@ export async function loadReactions(shortId: string, messageIds: string[]): Prom
 export async function loadMembers(shortId: string, channelId: string): Promise<ChatMember[]> {
   if (!UUID.test(channelId)) return [];
   const supabase = await dataClient(shortId);
-  const { data } = await supabase.from("chat_channel_members").select("user_id, role, invited, history_from").eq("channel_id", channelId).limit(2000);
+  const { data } = await supabase.from("chat_channel_members").select("user_id, role, invited, history_from, can_post").eq("channel_id", channelId).limit(2000);
   return (data ?? []) as ChatMember[];
 }
 
@@ -162,6 +162,14 @@ export async function openDirect(shortId: string, workspaceId: string, people: s
 
 export async function setHistoryVisible(shortId: string, channelId: string, visible: boolean) {
   return call(shortId, "chat_set_history_visible", { ch: channelId, visible });
+}
+
+export async function setPostPolicy(shortId: string, channelId: string, policy: "everyone" | "chosen") {
+  return call(shortId, "chat_set_post_policy", { ch: channelId, policy });
+}
+
+export async function setMemberCanPost(shortId: string, channelId: string, userId: string, allowed: boolean) {
+  return call(shortId, "chat_set_member_can_post", { ch: channelId, person: userId, allowed });
 }
 
 export async function setMemberHistory(shortId: string, channelId: string, userId: string, show: boolean) {

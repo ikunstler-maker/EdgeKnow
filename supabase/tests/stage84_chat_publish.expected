@@ -1,0 +1,13 @@
+carol sets the policy (not managing): forbidden
+bob sets it: true, a wrong one: invalid_policy
+bob (owner) published: true
+carol publishes: publish_forbidden, comments: true, reacts: true
+carol's list says: chosen can_publish=false
+bob marks dan as publishing: true
+dan publishes: true
+alice (workspace owner) publishes: true
+back to everyone: true
+carol publishes now: true
+a conversation can't be made a publishing channel: forbidden
+voice with levels: true, a level of 7: invalid_file, levels on a pdf: invalid_file
+kept: {1,2,5,3}
