@@ -1,0 +1,6 @@
+bob made one: true
+alice sees the draft: 0
+bob publishes: true
+alice sees it: 1
+zed sees it: 0
+bob deletes it: true

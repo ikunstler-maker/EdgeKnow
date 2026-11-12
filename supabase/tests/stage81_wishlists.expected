@@ -1,0 +1,27 @@
+carol, no birthday: no_birthday
+guest: forbidden
+the generic way: forbidden
+for the next birthday: true, a draft: false
+again: exists, the same one: true
+carol sees the draft: 0
+the workspace owner sees the draft: 0, deletes it: forbidden
+a javascript: link: invalid
+four links: invalid
+a strange gradient: invalid
+saved: true
+birthday and draft kept: true false, found by its wishes: true
+carol publishes Bob's: forbidden
+bob publishes: true
+carol sees: 1, changes it: forbidden, adds a picture: forbidden, copies it: forbidden
+the workspace owner sees: 1, changes it: forbidden
+guest sees: 0
+stranger sees: 0
+bob adds a picture: true
+bob hides his birthday: true
+carol sees then: 0
+copy while this year's exists: exists
+the copy: My list, false, 1 wish, for the next birthday: true
+carol deletes: forbidden
+bob deletes: true
+left: 0
+the picture goes too: 0
