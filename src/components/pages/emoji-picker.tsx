@@ -21,11 +21,14 @@ export function EmojiPicker({
   current,
   onPick,
   onClose,
+  title,
 }: {
   anchor: HTMLElement;
   current: string | null;
   onPick: (icon: string | null) => void;
   onClose: () => void;
+  // The heading (a page's icon by default; the chat's reactions reuse the picker).
+  title?: string;
 }) {
   const [custom, setCustom] = useState("");
 
@@ -36,7 +39,7 @@ export function EmojiPicker({
 
   return (
     <Popover anchor={anchor} onClose={onClose} width={320}>
-      <p className="px-2 pt-1 text-xs font-medium text-muted">{t.emoji.title}</p>
+      <p className="px-2 pt-1 text-xs font-medium text-muted">{title ?? t.emoji.title}</p>
       <div className="grid grid-cols-8 gap-0.5 p-1">
         {EMOJIS.map((emoji) => (
           <button
