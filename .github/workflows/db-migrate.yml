@@ -97,7 +97,10 @@ jobs:
         run: |
           # Test users sign in with a password; only this throwaway copy allows it.
           sed -i '/^\[auth.email\]/,/^\[/ s/^enable_signup = false/enable_signup = true/' supabase/config.toml
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+          # The local ports (54xxx) lie where the system hands out ports for outgoing connections,
+          # so now and then one is taken for a moment ("address already in use"): one more try.
+          start() { supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta; }
+          start || { supabase stop --no-backup >/dev/null 2>&1 || true; sleep 10; start; }
       - name: Run API isolation test
         run: |
           supabase status -o json > status.json
@@ -142,7 +145,10 @@ jobs:
           # the browser alone: the runner image already has the libraries it needs to start.
           (npm ci && { timeout 240 npx playwright install --with-deps chromium || npx playwright install chromium; }) > prepare.log 2>&1 &
           prepare=$!
-          supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+          # The local ports (54xxx) lie where the system hands out ports for outgoing connections,
+          # so now and then one is taken for a moment ("address already in use"): one more try.
+          start() { supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta; }
+          start || { supabase stop --no-backup >/dev/null 2>&1 || true; sleep 10; start; }
           if ! wait $prepare; then tail -n 40 prepare.log; exit 1; fi
       # Table formulas against Excel's results (no browser needed; nodes part only).
       - name: Table formulas

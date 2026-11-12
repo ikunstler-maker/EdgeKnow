@@ -26,6 +26,10 @@ for team in ${TEAM_STACKS:-team-a team-b}; do
     node -e "const {generateKeyPairSync,randomUUID}=require('node:crypto');const k=generateKeyPairSync('ec',{namedCurve:'P-256'}).privateKey.export({format:'jwk'});console.log(JSON.stringify([{...k,kid:randomUUID(),alg:'ES256',use:'sig',key_ops:['sign','verify']}]))" > supabase/signing_keys.json
   fi
   sed -i '/^\[auth\]/a signing_keys_path = "./signing_keys.json"' supabase/config.toml
-  supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+  # The 55xxx and 56xxx ports lie where the system hands out ports for outgoing
+  # connections, so now and then one is taken for a moment ("address already in use").
+  # One more try after a short wait gets past that.
+  start() { supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta; }
+  start || { supabase stop --no-backup >/dev/null 2>&1 || true; sleep 10; start; }
   supabase status -o json > status.json
 done
