@@ -9,6 +9,12 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Fix: verify DB with `scripts/test-db.sh` / `scripts/test-team-db.sh` on local Postgres; UI with a temporary harness page; full e2e runs only in CI.
 - Seen: 2026-11-03
 
+## Duplicate bell notifications (birthday, reminders) — DB
+- Symptom: the same birthday or event reminder appears twice; e2e "the bell tells a colleague of the same unit on the day — 2".
+- Root cause: `calendar_remind_me` inserts with `where not exists (...)`; the bell polls from every open tab, and two calls at once both pass the check.
+- Fix: per person+workspace `pg_advisory_xact_lock` at the start of the function (migration `20270125100000_bell_once`). Any new "send once" insert called from polling needs the same guard or a unique index.
+- Seen: 2026-11-12
+
 ## Local Postgres "Connection refused" — Env
 - Symptom: `psql: ... .s.PGSQL.5432 failed: Connection refused` though `pg_ctlcluster` says running.
 - Root cause: stale pid after a container restart.
