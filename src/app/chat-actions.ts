@@ -2,7 +2,7 @@
 
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
-import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatFile, type ChatNotify, type ChatReaction } from "@/lib/chat";
+import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatFile, type ChatNotify, type ChatReaction, type ChatScheduled, type ChatSearchHit } from "@/lib/chat";
 
 // Toker: the screen's reads and changes. The database decides who sees and does
 // what (chat_* functions, row level security); these only forward to wherever the
@@ -25,6 +25,8 @@ const ids = (list: string[]) => list.filter((id) => UUID.test(id));
 
 export async function loadChat(shortId: string, workspaceId: string): Promise<{ channels: ChatChannel[]; categories: ChatCategory[] } | null> {
   if (!UUID.test(workspaceId)) return null;
+  // Messages planned for later whose time has come go out first (anyone's open page sends them).
+  await sendDue(shortId, workspaceId);
   const supabase = await dataClient(shortId);
   const [{ data: channels, error }, { data: categories }] = await Promise.all([
     supabase.rpc("chat_my_channels", { ws: workspaceId }),
@@ -89,6 +91,26 @@ export async function loadFiles(shortId: string, messageIds: string[]): Promise<
     .order("created_at")
     .limit(2000);
   return (data ?? []) as ChatFile[];
+}
+
+export async function searchChat(shortId: string, workspaceId: string, query: string, channelId: string | null = null): Promise<ChatSearchHit[]> {
+  if (!UUID.test(workspaceId) || query.trim().length < 2) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.rpc("chat_search", { ws: workspaceId, query: query.trim().slice(0, 200), ch: channelId && UUID.test(channelId) ? channelId : null });
+  return (data ?? []) as ChatSearchHit[];
+}
+
+export async function loadScheduled(shortId: string, workspaceId: string): Promise<ChatScheduled[]> {
+  if (!UUID.test(workspaceId)) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.from("chat_scheduled").select("id, channel_id, thread_root_id, body, send_at").eq("workspace_id", workspaceId).order("send_at");
+  return (data ?? []) as ChatScheduled[];
+}
+
+// Sends what is due (an older database without the function simply has none).
+export async function sendDue(shortId: string, workspaceId: string) {
+  const writer = await writeClient(shortId);
+  if (writer && UUID.test(workspaceId)) await writer.rpc("chat_send_due", { ws: workspaceId });
 }
 
 export async function loadReactions(shortId: string, messageIds: string[]): Promise<ChatReaction[]> {
@@ -200,6 +222,14 @@ export async function postMessage(shortId: string, channelId: string, body: stri
 
 export async function editMessage(shortId: string, messageId: string, body: string, mentions: string[] = []) {
   return call(shortId, "chat_edit_message", { msg: messageId, new_body: body, mention_ids: ids(mentions) });
+}
+
+export async function scheduleMessage(shortId: string, channelId: string, body: string, at: string, threadRootId: string | null = null, mentions: string[] = []) {
+  return call<{ id: string }>(shortId, "chat_schedule_message", { ch: channelId, new_body: body, thread_root: threadRootId, mention_ids: ids(mentions), at });
+}
+
+export async function cancelScheduled(shortId: string, scheduledId: string) {
+  return call(shortId, "chat_cancel_scheduled", { target: scheduledId });
 }
 
 export async function pinMessage(shortId: string, messageId: string, pinned: boolean) {

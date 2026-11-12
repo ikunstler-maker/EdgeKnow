@@ -123,3 +123,18 @@ export function channelTitle(channel: Pick<ChatChannel, "name" | "visibility" | 
   if (!others.length) return alone;
   return others.map((id) => names.get(id)?.name ?? former).join(", ");
 }
+
+// A message found by search (the database gives only what the person sees).
+export type ChatSearchHit = {
+  id: string;
+  channel_id: string;
+  channel: string;
+  visibility: ChatVisibility;
+  thread_root_id: string | null;
+  author_id: string | null;
+  created_at: string;
+  body: string;
+};
+
+// A message planned for later (seen only by its author).
+export type ChatScheduled = { id: string; channel_id: string; thread_root_id: string | null; body: string; send_at: string };

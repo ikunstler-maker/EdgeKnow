@@ -447,6 +447,7 @@ export function Composer({
   draft,
   onDraft,
   upload,
+  onSchedule,
 }: {
   placeholder: string;
   people: ChatPerson[];
@@ -456,9 +457,12 @@ export function Composer({
   draft: string;
   onDraft: (value: string) => void;
   upload: { shortId: string; channelId: string } | null;
+  // Send later (text only): answers whether it was planned.
+  onSchedule?: (body: string, at: Date) => Promise<boolean>;
 }) {
   const [items, setItems] = useState<Pending[]>([]);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const [later, setLater] = useState<HTMLElement | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploading = items.some((p) => p.state === "uploading");
@@ -517,6 +521,11 @@ export function Composer({
             <div className="min-w-0 flex-1">
               <MentionTextarea value={draft} onChange={onDraft} people={people} label={placeholder} placeholder={placeholder} disabled={disabled} onSubmit={send} />
             </div>
+            {onSchedule && draft.trim() && !items.length && (
+              <button type="button" onClick={(e) => setLater(e.currentTarget)} disabled={disabled} aria-label={c().later.title} title={c().later.title} className={iconButtonClass("ghost")} data-chat-later>
+                <Icon name="clock" size={18} />
+              </button>
+            )}
             {upload && !draft.trim() && !ready.length ? (
               <VoiceButton
                 disabled={disabled || items.length >= 10}
@@ -546,6 +555,17 @@ export function Composer({
       )}
       <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={(e) => { pick(e.target.files, true); e.target.value = ""; }} />
       <input ref={fileInput} type="file" multiple hidden onChange={(e) => { pick(e.target.files, false); e.target.value = ""; }} />
+      {later && onSchedule && (
+        <LaterMenu
+          anchor={later}
+          onClose={() => setLater(null)}
+          onPick={async (at) => {
+            setLater(null);
+            const body = draft.trim();
+            if (body && (await onSchedule(body, at))) onDraft("");
+          }}
+        />
+      )}
       {menu && (
         <Popover anchor={menu} onClose={() => setMenu(null)} width={260}>
           <MenuItem onSelect={() => { setMenu(null); photoInput.current?.click(); }}>
@@ -565,5 +585,50 @@ export function Composer({
         </Popover>
       )}
     </div>
+  );
+}
+
+// When to send: in an hour, tomorrow at 9, Monday at 9, or a chosen moment.
+function LaterMenu({ anchor, onClose, onPick }: { anchor: HTMLElement; onClose: () => void; onPick: (at: Date) => void }) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // The choices as of opening the menu.
+  const [choice] = useState(() => {
+    const now = new Date();
+    const at = (days: number, hour: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + days);
+      d.setHours(hour, 0, 0, 0);
+      return d;
+    };
+    return { inHour: new Date(now.getTime() + 60 * 60_000), tomorrow: at(1, 9), monday: at((8 - now.getDay()) % 7 || 7, 9), min: local(now) };
+  });
+  const [custom, setCustom] = useState(() => local(choice.tomorrow));
+  const label = (d: Date) => d.toLocaleString(dateLocale(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return (
+    <Popover anchor={anchor} onClose={onClose} width={280}>
+      <p className="px-3 pt-1 text-xs font-medium text-muted">{c().later.title}</p>
+      {[
+        [c().later.inHour, choice.inHour],
+        [c().later.tomorrow, choice.tomorrow],
+        [c().later.monday, choice.monday],
+      ].map(([text, date]) => (
+        <MenuItem key={String(text)} onSelect={() => onPick(date as Date)}>
+          <span className="flex-1">{text as string}</span>
+          <span className="text-xs text-muted">{label(date as Date)}</span>
+        </MenuItem>
+      ))}
+      <form
+        className="flex gap-2 border-t border-border p-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const d = new Date(custom);
+          if (!Number.isNaN(d.getTime())) onPick(d);
+        }}
+      >
+        <input type="datetime-local" value={custom} min={choice.min} onChange={(e) => setCustom(e.target.value)} aria-label={c().later.custom} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm md:min-h-8" />
+        <button type="submit" className="min-h-11 rounded-md bg-accent px-3 text-sm text-white md:min-h-8">{c().later.set}</button>
+      </form>
+    </Popover>
   );
 }
