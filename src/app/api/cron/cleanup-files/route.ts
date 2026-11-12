@@ -32,6 +32,14 @@ export async function GET(request: NextRequest) {
   for (const team of await readyTeams(admin)) {
     teams += (await removeDeleted(admin, teamAdmin(team)).catch(() => 0)) ?? 0;
   }
+  // Repeating tasks whose day has come get their next copy (centrally and in every team database).
+  let repeated = Number(((await admin.rpc("run_task_recurrences")).data as { made?: number } | null)?.made ?? 0);
+  for (const team of await readyTeams(admin)) {
+    const made = await teamAdmin(team)
+      .rpc("run_task_recurrences")
+      .then((r) => Number((r.data as { made?: number } | null)?.made ?? 0), () => 0);
+    repeated += made;
+  }
   // And how every team database is doing; sleeping ones are woken up before anyone needs them.
   const health = await checkAllTeams(admin);
   // Rate limit counters older than a day are no longer needed.
@@ -42,7 +50,7 @@ export async function GET(request: NextRequest) {
   const domains = await recheckDomains(admin);
   // Outside calendars nobody looked at lately are read again (busy time only).
   const calendars = await refreshAllStale(admin).catch(() => null);
-  return NextResponse.json({ removed: central + teams, health, domains, rekeyed, calendars });
+  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars });
 }
 
 // Task files and board pictures share their bucket.

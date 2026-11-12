@@ -10,6 +10,7 @@ import { StatusButtons, moveAllowed } from "./status-buttons";
 import { PriorityPicker } from "./priority-picker";
 import { KeyFields } from "./key-fields";
 import { TimeLog, type TimeEntry } from "./time-log";
+import { Recurrence, type TaskRecurrence } from "./recurrence";
 import type { TaskWebLink } from "./task-files";
 import type { ActionResult } from "@/lib/action-result";
 import {
@@ -81,6 +82,7 @@ export function TaskDetail({
   webLinks = [],
   time = null,
   fileLimits,
+  recurrence = null,
 }: {
   taskKey: string;
   shortId: string;
@@ -114,6 +116,8 @@ export function TaskDetail({
   // Time entries the reader may see; null where the project doesn't track time.
   time?: TimeEntry[] | null;
   fileLimits?: { fileMb: number; zipMb: number };
+  // How the task repeats, if it does.
+  recurrence?: TaskRecurrence | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -424,6 +428,8 @@ export function TaskDetail({
           )}
 
           {time && <TimeLog taskId={task.id} entries={time} estimate={task.estimate} members={members} importedNames={importedNames} me={me} canEdit={canEdit} isOwner={isOwner} />}
+
+          <Recurrence taskId={task.id} rule={recurrence} canEdit={canEdit} />
 
           {columnTime.length > 0 && (
             <div className="mt-3 border-t border-border px-2 pt-3" data-column-time>

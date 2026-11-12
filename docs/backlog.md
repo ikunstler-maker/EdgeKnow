@@ -35,7 +35,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - Task window in the owner's order (statuses over the title, the project's own fields under it, files under the description as tiles or a list with a filter by kind, links next to files; subtasks, links between tasks and "mentioned on" in the properties) — in review. The project's owner (and workspace admins) set the fields and reorder them by dragging in the card (owner, 2026-11-12).
   - Package 4-1: time tracking (per project: on/off and who sees entries; entries from the tracker; a per-person total in the project's settings) and "My tasks" — in review. Later: time totals in the workspace's Analytics; editing an entry in place (today: remove and log again).
   - Package 4-2: larger attachments with a per-project limit a workspace admin sets (up to 250 MB, ZIP 10 GB, in parts to the team's Drive) — in review. Open: an upload left unfinished stays as a waiting record until the files clean-up removes it; not verified on the real Drive.
-  - Package 4, next (DB approved 2026-11-12): 4-3 recurring tasks every N days/weeks/months/years; sprints last.
+  - Package 4-3: repeating tasks every N days/weeks (chosen weekdays)/months/years, copies made by the daily job, the next one at once when a copy is done early — in review.
+  - Found, not fixed (separate task suggested): a task's `done_at` is not set when it is moved to a done column on the board or by the status buttons, so analytics of finished tasks miss it.
+  - Package 4, last: sprints (the team does not use them).
 - **Must come later (owner, 2026-11-11): access rights carried over one to one from the tracker's permission scheme,** so anyone can move from it comfortably — today only "who sees and edits the project, with which role" is planned.
 - Later still: bulk actions on the board; not shipping done tasks to the board at all (today all tasks load, 50 a column are drawn).
 - Small, later: vacation mark next to a person in the task (from Doba); "Done" strike-through is gone by design.

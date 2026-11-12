@@ -71,6 +71,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.
 - Links between workspace tasks: blocks, relates, duplicates.
+- Repeating tasks (package 4-3): "every N" days/weeks/months/years in the task card; the daily job makes the copies; a copy done early brings the next at once.
 
 ### Files, comments, history
 - Files up to 4 MB (images, PDF, office documents, ZIP) in the workspace's single storage.
@@ -123,6 +124,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_import_gaps` | що не перейшло з трекера (файли) і чому |
 | `task_web_links` | посилання, збережені із задачею поруч із файлами |
 | `task_time_entries` | записи витраченого часу (людина або «місце» з трекера, хвилини, дата) |
+| `task_recurrences` | rules of repeating tasks |
 | `task_rules` | notification rules and rules between boards |
 | `task_imports` (central database only, server only) | a move from another tracker: its address, the encrypted access key, the mapping, progress and report |
 

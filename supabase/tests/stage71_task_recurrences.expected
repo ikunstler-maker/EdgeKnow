@@ -1,0 +1,15 @@
+every 3 days: 2027-03-04, every 2 weeks: 2027-03-15, every month from the 31st: 2027-02-28, every 2 years: 2029-03-01
+Mon → Thu the same week: 2027-03-04, Thu → Mon two weeks on: 2027-03-15
+a bad rule: invalid, an unknown unit: invalid, ends before it starts: invalid
+every 2 weeks from today: 0 days from now
+bob (a viewer) sees the rule: 1, changes it: forbidden, runs the rules: 
+psql: ERROR:  permission denied for function run_task_recurrences
+a stranger sees rules: 0, sets one: forbidden
+made: 1, again the same day: 0
+tasks: 1 Weekly report for 71b1 start +0 due +2 routine; 2 Weekly report for 71b1 start +0 due +2 routine
+next in 14 days, the assignee was told: 1
+after the copy is done: 3 tasks, the newest starts in 14 days
+the short rule makes: 1
+rules left: 1
+stopped: true
+rules: 0, tasks kept: 5

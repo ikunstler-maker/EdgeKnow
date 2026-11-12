@@ -6,6 +6,7 @@ import type { ProjectTask, TaskLinkView } from "./task-relations";
 import type { TaskFileView, TaskWebLink } from "./task-files";
 import { TaskDetail, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
 import type { TimeEntry } from "./time-log";
+import type { TaskRecurrence } from "./recurrence";
 import { TaskSnapshot, type TaskSnapshotData } from "./task-snapshot";
 
 const EVENT_COLUMNS = "id, actor_id, field, old_value, new_value, created_at";
@@ -103,6 +104,8 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       for (const e of slots) if (nameOf.has(e.author_slot!)) importedNames[e.id] = nameOf.get(e.author_slot!)!;
     }
   }
+  // How the task repeats (read apart: a database a step behind has no such table yet).
+  const { data: recurrence } = await db.from("task_recurrences").select("every_n, unit, weekdays, next_on, until").eq("task_id", task.id).maybeSingle();
   const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -144,6 +147,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       importedNames={importedNames}
       webLinks={(webLinks ?? []) as TaskWebLink[]}
       time={time}
+      recurrence={(recurrence as TaskRecurrence | null) ?? null}
       fileLimits={{ fileMb: view.project.file_limit_mb ?? 4, zipMb: view.project.zip_limit_mb ?? 4 }}
     />
   );

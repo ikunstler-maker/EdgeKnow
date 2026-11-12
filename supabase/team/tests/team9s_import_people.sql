@@ -116,3 +116,13 @@ select 'alice raises the limit: ' || (public.set_project_file_limits(:'project',
   || ', starts 20 MB: ' || ((public.begin_large_task_file((select id from public.tasks where external_key = 'SEA-1'), 'clip.mp4', 'video/mp4', 20971520) ->> 'id') is not null)::text
   || ', reads where uploads stand: ' || (select count(*) from public.task_files where large);
 reset role;
+-- 4-3: a task repeats by a rule its editor sets; the server makes the copies.
+set role authenticated;
+:as_alice;
+select 'alice sets a rule: ' || ((public.set_task_recurrence((select id from public.tasks where external_key = 'SEA-1'), jsonb_build_object('every', 3, 'unit', 'day', 'start', current_date)) ->> 'next_on')::date - current_date)
+  || ', runs the rules: ' || coalesce(to_jsonb(has_function_privilege('public.run_task_recurrences()', 'execute'))::text, '-');
+reset role;
+set role service_role;
+select 'the server makes copies: ' || (public.run_task_recurrences() ->> 'made');
+reset role;
+select 'copies in the project: ' || count(*) || ', next in ' || (select next_on - current_date from public.task_recurrences) || ' days' from public.tasks where project_id = :'project' and title = 'Open';

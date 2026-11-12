@@ -266,6 +266,9 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.getByRole("form", { name: "Додати поле" }).getByRole("button", { name: "Зберегти" }).click();
   await alice.locator('[data-field="Inline"]').waitFor({ timeout: 15000 }).catch(() => {});
   check("…and adds a field right in a task", (await alice.locator('[data-field="Inline"]').count()) === 1);
+  // …and removes it there too (the project's owner; the field goes from every task).
+  await alice.locator('[data-key-field="Inline"] [data-key-field-remove]').click();
+  check("…and removes a field right in a task", await until(() => sql("select count(*) from public.task_fields where name = 'Inline'") === "0", 15000) && (await alice.locator('[data-key-field="Inline"]').waitFor({ state: "detached", timeout: 15000 }).then(() => true).catch(() => false)));
   sql("delete from public.task_fields where name = 'Inline'");
 
   // The board: quick add in a column, drag a card to another, a column limit, what the card shows.
@@ -538,6 +541,25 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
     return [top("[data-status-row]"), top("[data-task-detail] textarea"), top("[data-task-key-fields]"), top("[data-task-files]")];
   });
   check("the card reads: statuses, title, the project's own fields, description, files", cardOrder[0] >= 0 && cardOrder[0] < cardOrder[1] && (cardOrder[2] < 0 || cardOrder[1] < cardOrder[2]) && cardOrder[1] < cardOrder[3] && (await alice.locator("[data-task-status]").isVisible()) === false && (await alice.locator("[data-task-side-blocks] [data-mentioned-on]").count()) === 1, JSON.stringify(cardOrder));
+  // A task repeats: every N days, weeks, months or years; the daily job makes the copies.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  await alice.locator("[data-task-repeat-open]").click();
+  await alice.locator("[data-task-repeat-every]").fill("3");
+  await alice.locator("[data-task-repeat-unit]").selectOption("day");
+  await alice.locator("[data-task-repeat-save]").click();
+  const repeatRule = () => sql(`select every_n || ' ' || unit || ' ' || (next_on - current_date) from public.task_recurrences where task_id = ${marTask(2)}`);
+  check("a task is set to repeat every three days", await until(() => repeatRule() === "3 day 1", 15000) && (await alice.locator("[data-task-repeat-summary]", { hasText: "кожні 3" }).waitFor({ timeout: 15000 }).then(() => true).catch(() => false)), repeatRule());
+  sql(`update public.task_recurrences set next_on = current_date where task_id = ${marTask(2)}`);
+  const tasksBeforeRepeat = Number(sql("select count(*) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR'"));
+  const repeatMade = sql("select public.run_task_recurrences() ->> 'made'");
+  const repeatCopy = sql(`select t.title = (select title from public.tasks where id = ${marTask(2)}) and t.start_date = current_date from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' order by t.number desc limit 1`);
+  check("…and on its day a copy of the task appears", repeatMade === "1" && repeatCopy === "t" && Number(sql("select count(*) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR'")) === tasksBeforeRepeat + 1, `${repeatMade} ${repeatCopy}`);
+  await alice.reload();
+  await alice.locator("[data-task-repeat-open]").click();
+  await alice.locator("[data-task-repeat-stop]").click();
+  check("…until the repeating is stopped (the copy stays)", await until(() => sql("select count(*) from public.task_recurrences") === "0", 15000));
+  sql("delete from public.tasks where id = (select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' order by t.number desc limit 1)");
+  sql("update public.task_projects set next_number = next_number - 1 where key = 'MAR'");
   // Larger attachments: a workspace admin raises the project's limit; a file over 4 MB then
   // goes to the team's Drive in parts; set back, the usual limit holds again.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
