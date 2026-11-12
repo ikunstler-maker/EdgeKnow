@@ -1304,6 +1304,7 @@ export const uk = {
       noTaskFound: "Задач не знайдено.",
     },
     card: {
+      moveField: (name: string) => `Перемістити поле «${name}»`,
       statusesBefore: "Попередні статуси",
       statusesAfter: "Наступні статуси",
       properties: "Властивості",

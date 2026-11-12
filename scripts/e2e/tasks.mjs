@@ -243,6 +243,23 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForTimeout(1500);
   const values = sql("select (select string_agg(f.name || '=' || coalesce(f.options -> 0 ->> 'label', '') || (t.custom -> f.id::text)::text, ',' order by f.position) from public.task_fields f where f.project_id = t.project_id and t.custom ? f.id::text) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("…and a task gets values in them", /^Формат=Відео".+",Погоджено=true$/.test(values), values);
+  // The project's owner puts the card's fields in order by dragging (the order is the project's).
+  const fieldOrder = () => sql("select string_agg(f.name, ',' order by f.position) from public.task_fields f join public.task_projects p on p.id = f.project_id where p.key = 'MAR'");
+  const dragField = async (name, onto) => {
+    const from = await alice.locator(`[data-key-field="${name}"] [data-key-field-handle]`).boundingBox();
+    const to = await alice.locator(`[data-key-field="${onto}"]`).boundingBox();
+    if (!from || !to) return;
+    await alice.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await alice.mouse.down();
+    await alice.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2 + 10, { steps: 3 });
+    await alice.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await alice.mouse.up();
+  };
+  await dragField("Погоджено", "Формат");
+  check("the project's owner reorders the card's fields by dragging", await until(() => fieldOrder() === "Погоджено,Формат", 15000), fieldOrder());
+  await alice.waitForTimeout(800);
+  await dragField("Формат", "Погоджено");
+  check("…and back", await until(() => fieldOrder() === "Формат,Погоджено", 15000), fieldOrder());
   // An admin adds a field right in the task, without the fields page.
   await alice.locator("[data-quick-add-field]").click();
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Назва").fill("Inline");

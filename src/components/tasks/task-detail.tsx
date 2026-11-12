@@ -8,6 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import { StatusButtons, moveAllowed } from "./status-buttons";
 import { PriorityPicker } from "./priority-picker";
+import { KeyFields } from "./key-fields";
 import type { TaskWebLink } from "./task-files";
 import type { ActionResult } from "@/lib/action-result";
 import {
@@ -294,9 +295,13 @@ export function TaskDetail({
           <BlockedNotice links={links} />
           {(isOwner || applicable.length > 0) && (
             <div className="mt-4 grid gap-x-6 gap-y-3 rounded-xl border border-border p-3 text-sm @xl:grid-cols-2" aria-label={k.customFields.heading} role="group" data-task-key-fields>
-              {shownFields.map((field) => (
-                <FieldValue key={field.id} field={field} value={task.custom?.[field.id]} members={members} disabled={!canEdit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />
-              ))}
+              <KeyFields
+                projectId={project.id}
+                fields={shownFields}
+                all={fields}
+                canOrder={isOwner}
+                render={(field) => <FieldValue field={field} value={task.custom?.[field.id]} members={members} disabled={!canEdit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />}
+              />
               {emptyFields.length > 3 && (
                 <button type="button" onClick={() => setAllFields(!allFields)} aria-expanded={allFields} className="min-h-11 self-start text-xs @xl:col-span-2 text-muted hover:text-foreground hover:underline md:min-h-8" data-more-fields>
                   <Icon name={allFields ? "chevron-up" : "chevron-down"} className="mr-1 inline" />

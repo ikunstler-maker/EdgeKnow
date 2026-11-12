@@ -1295,6 +1295,7 @@ export const en: Dictionary = {
       noTaskFound: "No tasks found.",
     },
     card: {
+      moveField: (name: string) => `Move the field "${name}"`,
       statusesBefore: "Earlier statuses",
       statusesAfter: "More statuses",
       properties: "Properties",
