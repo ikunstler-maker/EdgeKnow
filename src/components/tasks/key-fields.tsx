@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { t } from "@/i18n";
 import type { TaskField } from "@/lib/tasks";
-import { saveTaskField } from "@/app/task-actions";
+import { deleteTaskField, saveTaskField } from "@/app/task-actions";
 import { Icon } from "@/components/ui/icon";
 
 // The project's own fields in the task card. The project's owner (and the workspace's
-// admins) put them in order by dragging: the order is the project's, the same for everyone.
+// admins) put them in order by dragging and remove them: the set and the order are the project's, the same for everyone.
 export function KeyFields({ projectId, fields, all, canOrder, render }: { projectId: string; fields: TaskField[]; all: TaskField[]; canOrder: boolean; render: (field: TaskField) => ReactNode }) {
   const router = useRouter();
   const [order, setOrder] = useState<{ from: TaskField[]; ids: string[] } | null>(null);
@@ -42,11 +42,20 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
     });
   };
 
-  if (!canOrder || shown.length < 2) return <>{shown.map((field) => <div key={field.id}>{render(field)}</div>)}</>;
+  const remove = (field: TaskField) => {
+    if (!confirm(t.tasks.card.removeFieldConfirm(field.name))) return;
+    startTransition(async () => {
+      const result = await deleteTaskField(field.id);
+      setError(result.ok ? null : (t.tasks.errors[result.error] ?? t.common.unknownError));
+      router.refresh();
+    });
+  };
+
+  if (!canOrder) return <>{shown.map((field) => <div key={field.id}>{render(field)}</div>)}</>;
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       {shown.map((field) => (
-        <Slot key={field.id} field={field}>
+        <Slot key={field.id} field={field} movable={shown.length > 1} onRemove={() => remove(field)}>
           {render(field)}
         </Slot>
       ))}
@@ -59,7 +68,7 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
   );
 }
 
-function Slot({ field, children }: { field: TaskField; children: ReactNode }) {
+function Slot({ field, movable, onRemove, children }: { field: TaskField; movable: boolean; onRemove: () => void; children: ReactNode }) {
   const drag = useDraggable({ id: field.id });
   const drop = useDroppable({ id: field.id });
   return (
@@ -78,12 +87,23 @@ function Slot({ field, children }: { field: TaskField; children: ReactNode }) {
         {...drag.attributes}
         aria-label={t.tasks.card.moveField(field.name)}
         title={t.tasks.card.moveField(field.name)}
-        className="-ml-1 mt-5 flex h-11 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted opacity-60 hover:bg-hover hover:opacity-100 active:cursor-grabbing md:h-8 md:opacity-0 md:focus-visible:opacity-100 md:group-hover/field:opacity-100"
+        disabled={!movable}
+        className="-ml-1 mt-5 flex h-11 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted opacity-70 hover:bg-hover hover:opacity-100 active:cursor-grabbing disabled:cursor-default disabled:opacity-30 md:h-8"
         data-key-field-handle
       >
         <Icon name="drag" size={14} />
       </button>
       <div className="min-w-0 flex-1">{children}</div>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={t.tasks.card.removeField(field.name)}
+        title={t.tasks.card.removeField(field.name)}
+        className="mt-5 flex h-11 w-8 shrink-0 items-center justify-center rounded text-muted opacity-70 hover:bg-hover hover:text-danger hover:opacity-100 md:h-8 md:w-6"
+        data-key-field-remove
+      >
+        <Icon name="trash" size={14} />
+      </button>
     </div>
   );
 }

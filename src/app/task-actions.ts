@@ -69,6 +69,12 @@ export async function setProjectFileLimits(projectId: string, fileMb: number, zi
   return call("set_project_file_limits", { target_project: projectId, file_mb: Math.round(fileMb), zip_mb: Math.round(zipMb) });
 }
 
+// How a task repeats ({every, unit, weekdays, start, until}); null stops it.
+export type RecurrenceRule = { every: number; unit: "day" | "week" | "month" | "year"; weekdays: number[]; start: string | null; until: string | null };
+export async function setTaskRecurrence(taskId: string, rule: RecurrenceRule | null) {
+  return call<{ next_on?: string }>("set_task_recurrence", { target_task: taskId, rule });
+}
+
 // A link kept with a task next to its files.
 export async function addTaskWebLink(taskId: string, title: string, url: string) {
   return call<{ id: string }>("add_task_web_link", { target_task: taskId, new_title: title, new_url: url.trim() });

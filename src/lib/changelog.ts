@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-f",
+    version: "0.38.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: повторювані задачі", en: "Rukh: repeating tasks" },
+    items: [
+      { id: "repeat", type: "added", scope: "tasks", title: { uk: "Задачу можна повторювати кожні N діб, тижнів, місяців або років.", en: "A task can repeat every N days, weeks, months or years." } },
+    ],
+  },
+  {
     id: "2026-11-12-e",
     version: "0.37.0",
     date: "2026-11-12",
