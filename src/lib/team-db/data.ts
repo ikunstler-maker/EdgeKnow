@@ -111,3 +111,31 @@ export async function syncWorkspaceNow(workspaceId: string) {
   if (db.schema_version !== latestTeamMigration()) await upgradeTeam(admin, workspaceId).catch(() => {});
   await syncTeam(admin, db, oidcIssuer(await requestOrigin())).catch(() => {});
 }
+
+// Where the browser joins the live channels of this workspace's documents (real-time
+// co-editing): the database that keeps them, its public key and a short-lived pass for
+// the signed-in person — the same rights as through our server, checked by the same rules.
+// Central: the person's own session token. Team database: our 10-minute pass for this
+// workspace only. Null while a team database is being connected or moved.
+export async function liveConnection(shortId: string): Promise<{ url: string; key: string; token: string; expiresAt: number } | null> {
+  const data = await workspaceData(shortId);
+  if (!data || (data.location !== "central" && data.location !== "team")) return null;
+  if (data.location === "central") {
+    const { data: auth } = await (await createClient()).auth.getSession();
+    const session = auth.session;
+    if (!session) return null;
+    return {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      key: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      token: session.access_token,
+      expiresAt: session.expires_at ?? Math.floor(Date.now() / 1000) + 600,
+    };
+  }
+  const admin = createAdminClient();
+  if (!admin) return null;
+  const db = await teamDatabase(admin, data.workspaceId);
+  if (!db || !teamReady(db)) return null;
+  const user = await getCurrentUser();
+  const { token, expiresAt } = await mintTeamToken(oidcIssuer(await requestOrigin()), user, data.workspaceId);
+  return { url: db.project_url!, key: db.publishable_key!, token, expiresAt };
+}

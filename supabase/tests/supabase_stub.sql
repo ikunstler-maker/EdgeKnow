@@ -44,6 +44,9 @@ create table realtime.messages (
 );
 alter table realtime.messages enable row level security;
 grant select on realtime.messages to authenticated;
+-- Joining a private channel to send on it: Realtime checks an insert under the person's rights.
+grant insert on realtime.messages to authenticated;
+grant usage on sequence realtime.messages_id_seq to authenticated;
 create function realtime.topic() returns text language sql stable as $$
   select nullif(current_setting('realtime.topic', true), '')
 $$;

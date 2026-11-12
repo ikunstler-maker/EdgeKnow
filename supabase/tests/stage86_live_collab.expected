@@ -1,0 +1,29 @@
+switch off, bob (owner of the deck): read false, doc false, presence false, cursor false
+bob (not the workspace owner) turns it on: {"ok": false, "error": "forbidden"}
+alice (workspace owner) turns it on: {"ok": true}
+bob, deck owner: read true, doc true, presence true, cursor true
+alice, workspace owner: read true, doc true, presence true, cursor true
+dora, editor: read true, doc true, presence true, cursor true
+vera, viewer: read true, doc false, presence true, cursor false
+gwen, guest viewer: read true, doc false, presence true, cursor false
+vera, commenter on the design: read true, doc false, presence true, cursor false
+gwen, guest without the design: read false, doc false, presence false, cursor false
+carol, other workspace: read false, doc false, presence false, cursor false
+bob, a map (not in phase 1): read false, doc false, presence false, cursor false
+vera (viewer) shows viewers' cursors: {"ok": false, "error": "forbidden"}
+dora (editor) shows viewers' cursors: {"ok": true}
+carol (outsider) hides them: {"ok": false, "error": "forbidden"}
+vera, viewer, cursors shown: read true, doc false, presence true, cursor true
+gwen, guest, cursors shown: read true, doc false, presence true, cursor true
+vera, commenter on the design (not shown there): read true, doc false, presence true, cursor false
+odd topics: false false false
+anon may call the check: false
+vera reads the deck channel: 1
+vera sends a change (refused):
+psql: ERROR:  new row violates row-level security policy for table "messages"
+dora sends a change: ok
+carol reads the deck channel: 0
+design in the bin, bob: read false, doc false, presence false, cursor false
+alice turns it off: true
+switch off again, bob: read false, doc false, presence false, cursor false
+to the team database: {"live_collab": false, "files_on_drive": false}

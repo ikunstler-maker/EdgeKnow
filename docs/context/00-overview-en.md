@@ -85,6 +85,7 @@ Outside the services but for all of them: start page, left panel (shows the curr
 - The browser never writes protected tables directly — only through database functions with checks.
 - `src/proxy.ts` refreshes the session and re-checks access on every request. Open without sign-in: `/about`, `/changelog`, `/help`, `/privacy`, `/f/*` (survey forms by link) and sign-in service routes.
 - Page caching is off: every page is built per user.
+- **Live co-editing** (owner's switch): private Realtime channels per document; the database decides who joins and who may send changes (editors) or cursors (viewers only if the document allows); the browser's pass is renewed every 2 minutes.
 
 ### Files
 - One storage per workspace: a connected Google Drive or the database's storage. Files are served by the server after an access check; file content is verified by its first bytes.
@@ -162,7 +163,7 @@ A question or a small fix — no plan, just do it.
 
 ## 7. Where it is heading
 
-- **Next:** real-time co-editing for presentations and "Design"; chat (Toker); file manager (Vault).
+- **Next:** real-time co-editing — phase 1 (presentations and "Design") in review, then the idea board, Nodo, Sota, Wika; chat (Toker); file manager (Vault).
 - **New directions:** drafts and "Share" in the wiki; scripts in tables; AI tools; personal pages; company apps; calendar; video meetings; CRM.
 - **Launch:** rename to Synkvela, own domain, sign-in for everyone, legal documents, payments.
 - Exact list and order — `docs/backlog.md`.

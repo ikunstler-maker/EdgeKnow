@@ -7,6 +7,7 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Symptom: `docker pull` → `CONNECT tunnel failed, response 403` / `no such host` for cloudfront or pkg-containers.
 - Root cause: network policy blocks image registries' blob hosts; local Supabase stacks can't start.
 - Fix: verify DB with `scripts/test-db.sh` / `scripts/test-team-db.sh` on local Postgres; UI with a temporary harness page; full e2e runs only in CI.
+- Update 2026-11-12: Docker Hub works (start `dockerd` first; `sudo` is allowed). The CLI's default registry (public.ecr.aws → cloudfront) is still blocked: `SUPABASE_INTERNAL_IMAGE_REGISTRY=docker.io supabase start …` brings the full local stack up, so e2e parts run locally.
 - Seen: 2026-11-03
 
 ## Local Postgres "Connection refused" — Env
@@ -26,6 +27,18 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Fix: check deploys via `gh api repos/<repo>/commits/<sha>/status` (context "Vercel").
 - Seen: 2026-11-03
 
+## `tsc` reports "Cannot find name 'PageProps'" / 'RouteContext' — Env
+- Root cause: Next.js route types are generated, not committed.
+- Fix: `npx next typegen` once, then `npx tsc --noEmit`.
+- Seen: 2026-11-12
+
+## Realtime: "error_generating_signer" or every broadcast "timed out" — Realtime
+- `error_generating_signer`: the token's header lacks `typ: "JWT"` (our OIDC passes have it; hand-made test tokens must too).
+- Broadcasts time out, server log `JSONSerializer.decode_binary`: realtime server older than the client's binary protocol — use a recent `supabase/realtime` image.
+- Write rights are cached per join: a demoted editor can still send until the browser sends a new pass (`setAuth`, even the same token re-checks). Hence the 2-minute renewal in `src/lib/live/use-live-doc.ts`.
+- Seen: 2026-11-12
+
+## DB
 ## DB
 ## plpgsql "syntax error at end of input" around CASE — DB
 - Symptom: error inside `if ... > case when ... then ... end then`.

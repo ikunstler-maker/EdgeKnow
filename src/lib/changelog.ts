@@ -33,6 +33,22 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-live",
+    version: "0.44.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Спільне редагування наживо", en: "Live co-editing" },
+    summaryDescription: {
+      uk: "Презентації й файли «Дизайну» можна редагувати разом: зміни, курсори й «Стежити за людиною». Вмикає власник workspace.",
+      en: "Presentations and \"Design\" files can be edited together: changes, cursors and \"Follow\". The workspace owner turns it on.",
+    },
+    items: [
+      { id: "live-switch", type: "added", scope: "global", title: { uk: "Перемикач «Спільне редагування в реальному часі» в налаштуваннях workspace (лише власник, за замовчуванням вимкнено).", en: "A \"Real-time co-editing\" switch in the workspace settings (owner only, off by default)." } },
+      { id: "live-edit", type: "added", scope: "slides", title: { uk: "Зміни інших з'являються одразу; аватари учасників, курсори з іменами й рамки їхнього виділення.", en: "Others' changes show at once; avatars, cursors with names and outlines of what they selected." } },
+      { id: "live-follow", type: "added", scope: "board", title: { uk: "«Стежити за людиною»: ваш екран іде за її слайдом чи сторінкою; людина бачить, хто за нею стежить.", en: "\"Follow\": your view goes where theirs goes; the person sees who follows them." } },
+      { id: "live-viewers", type: "added", scope: "security", title: { uk: "Курсори глядачів — лише з дозволу редактора документа; змінити документ глядач не може (перевіряє база).", en: "Viewers' cursors only if an editor of the document allows them; a viewer can't change the document (the database checks)." } },
+    ],
+  },
+  {
     id: "2026-11-12-birthdays",
     version: "0.43.0",
     date: "2026-11-12",
