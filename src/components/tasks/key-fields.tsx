@@ -97,7 +97,7 @@ function Slot({ field, span, movable, onRemove, onEdit, onCopy, children }: { fi
         drop.setNodeRef(node);
       }}
       style={drag.transform ? { transform: `translate(${drag.transform.x}px, ${drag.transform.y}px)`, zIndex: 10, position: "relative" } : undefined}
-      className={`group/field relative flex items-start gap-1 rounded-lg ${span} ${drop.isOver && !drag.isDragging ? "outline-2 outline-dashed outline-accent" : ""} ${drag.isDragging ? "bg-background opacity-90 shadow-lg" : ""}`}
+      className={`group/field relative flex flex-wrap items-start gap-x-1 rounded-lg md:flex-nowrap ${span} ${drop.isOver && !drag.isDragging ? "outline-2 outline-dashed outline-accent" : ""} ${drag.isDragging ? "bg-background opacity-90 shadow-lg" : ""}`}
       data-key-field={field.name}
     >
       <button
@@ -112,9 +112,10 @@ function Slot({ field, span, movable, onRemove, onEdit, onCopy, children }: { fi
       >
         <Icon name="drag" size={14} />
       </button>
-      <div className="min-w-0 flex-1">{children}</div>
-      {/* The field's own tools, in its top right corner: always there on a phone, on hover or focus on a computer. */}
-      <div className="absolute -top-1 right-0 flex rounded-md bg-background/95 md:opacity-0 md:focus-within:opacity-100 md:group-hover/field:opacity-100" data-key-field-tools>
+      {/* A switch or a tick box stands at the right edge: room is left there for the tools. */}
+      <div className={`min-w-0 flex-1 ${field.kind === "checkbox" || field.kind === "toggle" ? "md:pr-20" : ""}`}>{children}</div>
+      {/* The field's own tools: a row of their own over the field on a phone; in its top right corner, on hover or focus, on a computer. */}
+      <div className="order-first flex w-full justify-end md:absolute md:-top-1 md:right-0 md:order-none md:w-auto md:rounded-md md:bg-background/95 md:opacity-0 md:focus-within:opacity-100 md:group-hover/field:opacity-100" data-key-field-tools>
         <button type="button" onClick={onEdit} aria-label={c.editField(field.name)} title={c.editField(field.name)} className={tool} data-key-field-edit>
           <Icon name="edit" size={14} />
         </button>
