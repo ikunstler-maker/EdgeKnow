@@ -7,6 +7,8 @@ import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { dateLocale, t } from "@/i18n";
 import { StatusButtons, moveAllowed } from "./status-buttons";
+import { PriorityPicker } from "./priority-picker";
+import type { TaskWebLink } from "./task-files";
 import type { ActionResult } from "@/lib/action-result";
 import {
   TASK_PRIORITIES,
@@ -74,6 +76,7 @@ export function TaskDetail({
   inPanel = false,
   origin = null,
   importedNames = {},
+  webLinks = [],
 }: {
   taskKey: string;
   shortId: string;
@@ -103,6 +106,7 @@ export function TaskDetail({
   origin?: TaskOrigin | null;
   // Comment or history line id → the tracker's name of whoever wrote it (not tied to a member yet).
   importedNames?: Record<string, string>;
+  webLinks?: TaskWebLink[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -199,6 +203,7 @@ export function TaskDetail({
     });
   };
 
+  const boardOfTask = statuses.find((x) => x.id === task.status_id)?.board_id ?? null;
   return (
     <div className="@container mt-4" data-task-detail>
       <div className="grid gap-x-8 gap-y-6 @3xl:grid-cols-[minmax(0,1fr)_19rem]">
@@ -223,6 +228,42 @@ export function TaskDetail({
               </span>
             )}
             <IconButton icon="link" label={k.card.copyLink} onClick={copyLink} data-copy-task-link />
+          </div>
+          {/* A computer: the columns as a row of buttons (the task's board first, other boards
+              after it). A phone: only the list. */}
+          <div className="mt-2 text-sm" data-task-status-area>
+          <StatusButtons
+            groups={[boardOfTask, ...[null, ...boards.map((x) => x.id)].filter((id) => id !== boardOfTask)].flatMap((board) => {
+              const columns = statuses.filter((s) => (s.board_id ?? null) === board);
+              return columns.length ? [{ label: boards.length ? (boards.find((x) => x.id === board)?.name ?? t.tasks.boards.main) : null, statuses: columns }] : [];
+            })}
+            current={task.status_id}
+            moves={moves}
+            disabled={!canEdit || pending}
+            onPick={(id) => run(() => moveTaskOnBoard(task.id, id))}
+          />
+          <label className="inline-flex max-w-full min-w-0 items-center gap-2 md:hidden">
+            <span className="text-xs text-muted">{k.fields.status}</span>
+            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => run(() => moveTaskOnBoard(task.id, e.target.value))} className="min-h-11 min-w-0 rounded-lg border border-border bg-hover px-2 text-sm font-medium hover:border-border-strong md:h-8 md:min-h-0" data-task-status>
+              {/* Columns of every board: picking another team's column moves the task to its board. */}
+              {[null, ...boards.map((x) => x.id)].map((board) => {
+                const columns = statuses.filter((s) => (s.board_id ?? null) === board);
+                if (!columns.length) return null;
+                const options = columns.map((s) => (
+                  <option key={s.id} value={s.id} disabled={!moveAllowed(moves, task.status_id, s.id)}>
+                    {s.name}
+                  </option>
+                ));
+                return boards.length ? (
+                  <optgroup key={board ?? "main"} label={boards.find((x) => x.id === board)?.name ?? t.tasks.boards.main}>
+                    {options}
+                  </optgroup>
+                ) : (
+                  options
+                );
+              })}
+            </select>
+          </label>
           </div>
           {canEdit ? (
             <textarea
@@ -251,44 +292,30 @@ export function TaskDetail({
             </p>
           )}
           <BlockedNotice links={links} />
-          <div className="mt-3 flex max-w-full items-center gap-2 text-sm">
-          {/* Desktop: the columns of the task's board as buttons. Phones (and columns of
-              other boards) keep the list. */}
-          <StatusButtons
-            statuses={statuses.filter((s) => (s.board_id ?? null) === (statuses.find((x) => x.id === task.status_id)?.board_id ?? null))}
-            current={task.status_id}
-            moves={moves}
-            disabled={!canEdit || pending}
-            onPick={(id) => run(() => moveTaskOnBoard(task.id, id))}
-          />
-          <label className={`inline-flex min-w-0 items-center gap-2 ${boards.length ? "" : "md:hidden"}`}>
-            <span className={`text-xs text-muted ${boards.length ? "md:hidden" : ""}`}>{k.fields.status}</span>
-            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => run(() => moveTaskOnBoard(task.id, e.target.value))} className="min-h-11 min-w-0 rounded-lg border border-border bg-hover px-2 text-sm font-medium hover:border-border-strong md:h-8 md:min-h-0" data-task-status>
-              {/* Columns of every board: picking another team's column moves the task to its board. */}
-              {[null, ...boards.map((x) => x.id)].map((board) => {
-                const columns = statuses.filter((s) => (s.board_id ?? null) === board);
-                if (!columns.length) return null;
-                const options = columns.map((s) => (
-                  <option key={s.id} value={s.id} disabled={!moveAllowed(moves, task.status_id, s.id)}>
-                    {s.name}
-                  </option>
-                ));
-                return boards.length ? (
-                  <optgroup key={board ?? "main"} label={boards.find((x) => x.id === board)?.name ?? t.tasks.boards.main}>
-                    {options}
-                  </optgroup>
-                ) : (
-                  options
-                );
-              })}
-            </select>
-          </label>
-          </div>
+          {(isOwner || applicable.length > 0) && (
+            <div className="mt-4 grid gap-x-6 gap-y-3 rounded-xl border border-border p-3 text-sm @xl:grid-cols-2" aria-label={k.customFields.heading} role="group" data-task-key-fields>
+              {shownFields.map((field) => (
+                <FieldValue key={field.id} field={field} value={task.custom?.[field.id]} members={members} disabled={!canEdit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />
+              ))}
+              {emptyFields.length > 3 && (
+                <button type="button" onClick={() => setAllFields(!allFields)} aria-expanded={allFields} className="min-h-11 self-start text-xs @xl:col-span-2 text-muted hover:text-foreground hover:underline md:min-h-8" data-more-fields>
+                  <Icon name={allFields ? "chevron-up" : "chevron-down"} className="mr-1 inline" />
+                  {allFields ? k.card.fewerFields : k.card.moreFields(emptyFields.length)}
+                </button>
+              )}
+              {isOwner && (
+                <div className="@xl:col-span-2">
+                  <QuickAddField projectId={project.id} />
+                </div>
+              )}
+            </div>
+          )}
 
           <h2 className="mt-5 text-sm font-medium text-muted">{k.description}</h2>
           <div className="-mx-3 mt-2">
             <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={canEdit} />
           </div>
+          <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} members={members} me={me} canEdit={canEdit} />
         </div>
 
         <aside className="min-w-0 self-start rounded-xl border border-border p-3 text-sm @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1" aria-label={k.fields.heading} data-task-fields>
@@ -307,13 +334,7 @@ export function TaskDetail({
             </Row>
           ))}
           <Row label={k.fields.priority}>
-            <select value={task.priority} disabled={!canEdit || pending} onChange={(e) => change({ priority: e.target.value })} className={quietClass} data-task-priority-field>
-              {TASK_PRIORITIES.map((value) => (
-                <option key={value} value={value}>
-                  {k.priorities[value]}
-                </option>
-              ))}
-            </select>
+<PriorityPicker value={task.priority} disabled={!canEdit || pending} onChange={(priority) => change({ priority })} />
           </Row>
           <Row label={k.fields.type}>
             <select value={task.type} disabled={!canEdit || pending} onChange={(e) => change({ type: e.target.value })} className={quietClass}>
@@ -352,24 +373,27 @@ export function TaskDetail({
             <ParentPicker task={task} tasks={projectTasks} canEdit={canEdit} projectKey={project.key} />
           </Row>
 
-          {(isOwner || applicable.length > 0) && (
-            <div className="mt-2 flex flex-col gap-3 border-t border-border px-2 pt-3" aria-label={k.customFields.heading} role="group">
-              {shownFields.map((field) => (
-                <FieldValue key={field.id} field={field} value={task.custom?.[field.id]} members={members} disabled={!canEdit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />
-              ))}
-              {emptyFields.length > 3 && (
-                <button type="button" onClick={() => setAllFields(!allFields)} aria-expanded={allFields} className="min-h-11 self-start text-xs text-muted hover:text-foreground hover:underline md:min-h-8" data-more-fields>
-                  <Icon name={allFields ? "chevron-up" : "chevron-down"} className="mr-1 inline" />
-                  {allFields ? k.card.fewerFields : k.card.moreFields(emptyFields.length)}
-                </button>
-              )}
-              {isOwner && (
-                <div>
-                  <QuickAddField projectId={project.id} />
-                </div>
-              )}
-            </div>
-          )}
+
+          <div className="mt-3 border-t border-border px-2 pt-1 [&_h2]:text-xs [&_section]:mt-3" data-task-side-blocks>
+          <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} hrefFor={hrefFor} />
+          <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={canEdit} />
+          <section className="mt-6" aria-label={t.tasks.wiki.mentionedOn} data-mentioned-on>
+            <h2 className="text-sm font-medium text-muted">{t.tasks.wiki.mentionedOn}</h2>
+            {mentionedOn.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">{t.tasks.wiki.notMentioned}</p>
+            ) : (
+              <ul className="mt-2 flex flex-wrap gap-2 text-sm">
+                {mentionedOn.map((page) => (
+                  <li key={page.id}>
+                    <Link href={pagePath(shortId, page.id)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 hover:bg-surface">
+                      {page.icon ? <span aria-hidden="true">{page.icon}</span> : <Icon name="file-text" className="inline text-muted" />} {page.title || t.pages.untitled}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          </div>
 
           {(task.private || task.reporter_id === me) && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border px-2 pt-3" data-task-privacy>
@@ -437,25 +461,6 @@ export function TaskDetail({
         </aside>
 
         <div className="min-w-0 @3xl:col-start-1">
-          <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} hrefFor={hrefFor} />
-          <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={canEdit} />
-          <section className="mt-6" aria-label={t.tasks.wiki.mentionedOn} data-mentioned-on>
-            <h2 className="text-sm font-medium text-muted">{t.tasks.wiki.mentionedOn}</h2>
-            {mentionedOn.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">{t.tasks.wiki.notMentioned}</p>
-            ) : (
-              <ul className="mt-2 flex flex-wrap gap-2 text-sm">
-                {mentionedOn.map((page) => (
-                  <li key={page.id}>
-                    <Link href={pagePath(shortId, page.id)} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border px-3 hover:bg-surface">
-                      {page.icon ? <span aria-hidden="true">{page.icon}</span> : <Icon name="file-text" className="inline text-muted" />} {page.title || t.pages.untitled}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <TaskFiles shortId={shortId} taskId={task.id} files={files} members={members} me={me} canEdit={canEdit} />
 
           <div className="mt-8">
             <Segmented

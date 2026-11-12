@@ -16,3 +16,5 @@ bob sees the file: plan.fig 5000000 his: true, gaps: 0
 alice sees gaps: huge.iso too_big
 alice finds by the old key: {"number": 1, "project_key": "SEA"}
 someone removed finds: nothing
+alice adds a link: true, a bad one: invalid_url
+someone removed sees links: 0

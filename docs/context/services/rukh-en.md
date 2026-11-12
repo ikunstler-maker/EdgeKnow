@@ -44,6 +44,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - **History:** a run of description autosaves by one person is one line ("N edits"); status, people, priority, dates and title lines say what changed to what. Description autosaves are read apart, so they can't push other changes out of the list.
 - **Panel over the board:** a task opened from the board or the list shows in a sheet on the right (the whole screen on a phone); the address carries `?task=N`, so it can be shared and "Back" closes it. Closes with ✕, a tap outside or Escape. The task's own page `/tasks/<KEY>/<N>` stays (it is what "Copy link" copies) — both addresses open the task.
 - Browser tab titles of the service end with "Rukh".
+- Order (2026-11-12): key → status buttons → title → the project's own fields → description → files (tiles or a list, a filter by kind) and links → comments/history; subtasks, links between tasks and "mentioned on" are in the properties. On a phone the status is a list.
 
 ### Move from another tracker (step Р-3а, 2026-11-11)
 - A wizard for the workspace's owner and admins (`/w/<id>/tasks/import`, the button on the projects page): connect (any link from the cloud tracker, account email, access key) → what goes where → dry run on the first three tasks → move → report.
@@ -113,6 +114,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_files` | files |
 | `task_import_people` | люди трекера як місця: ім'я, пошта, ролі, до кого прив'язано |
 | `task_import_gaps` | що не перейшло з трекера (файли) і чому |
+| `task_web_links` | посилання, збережені із задачею поруч із файлами |
 | `task_rules` | notification rules and rules between boards |
 | `task_imports` (central database only, server only) | a move from another tracker: its address, the encrypted access key, the mapping, progress and report |
 

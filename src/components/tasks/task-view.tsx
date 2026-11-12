@@ -3,7 +3,7 @@ import { dataClient } from "@/lib/team-db/data";
 import { canComment, canEdit, linkedTasks, type ProjectView } from "@/lib/tasks-server";
 import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "./task-relations";
-import type { TaskFileView } from "./task-files";
+import type { TaskFileView, TaskWebLink } from "./task-files";
 import { TaskDetail, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
 import { TaskSnapshot, type TaskSnapshotData } from "./task-snapshot";
 
@@ -87,6 +87,8 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
     const nameOf = new Map(((seats ?? []) as { id: string; name: string }[]).map((s) => [s.id, s.name]));
     for (const [id, slot] of slotOf) if (nameOf.has(slot)) importedNames[id] = nameOf.get(slot)!;
   }
+  // Links kept with the task (read apart: a database a step behind has no such table yet).
+  const { data: webLinks } = await db.from("task_web_links").select("id, title, url, added_by").eq("task_id", task.id).order("created_at");
   const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -126,6 +128,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       inPanel={inPanel}
       origin={(origin as TaskOrigin | null) ?? null}
       importedNames={importedNames}
+      webLinks={(webLinks ?? []) as TaskWebLink[]}
     />
   );
 }

@@ -204,6 +204,8 @@ const bobActions = {
   "give himself alpha's map": ["set_service_object_member_role", { target_object: alphaMap?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],
   "bulk-change alpha's tasks": ["bulk_update_tasks", { target_tasks: [alphaTask?.id], changes: { priority: "low" } }],
   "set who may move tasks in alpha's column": ["set_column_options", { target_status: alphaColumn?.id, options: { short_name: "x", take_groups: [] } }],
+  "add a link to alpha's task": ["add_task_web_link", { target_task: alphaTask?.id, new_title: "x", new_url: "https://example.com" }],
+  "remove a link of alpha's task": ["delete_task_web_link", { target_link: "00000000-0000-0000-0000-000000000000" }],
   "seat himself as a tracker person of alpha": ["seat_import_person", { target_person: "00000000-0000-0000-0000-000000000000", member: "00000000-0000-0000-0000-000000000000" }],
   "change the key of alpha's project": ["set_task_project_key", { target_project: alphaProject?.id, new_key: "MINE" }],
   "give himself access to alpha's project": ["set_task_project_member_role", { target_project: alphaProject?.id, member: "00000000-0000-0000-0000-000000000000", new_role: "owner" }],

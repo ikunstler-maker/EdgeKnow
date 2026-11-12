@@ -1,0 +1,8 @@
+added: true, no title: true, a script: invalid_url, with a space: invalid_url
+alice sees: Design file → https://example.com/design?x=1; http://example.com/a → http://example.com/a
+bob (a viewer) sees: 2, adds: forbidden, removes: forbidden
+psql: ERROR:  permission denied for table task_web_links
+a stranger sees: 0, adds: forbidden, removes: forbidden
+bob sees a private task's links: 0
+alice removes: true
+left: 1

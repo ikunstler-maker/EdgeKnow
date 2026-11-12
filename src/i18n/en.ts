@@ -1295,6 +1295,8 @@ export const en: Dictionary = {
       noTaskFound: "No tasks found.",
     },
     card: {
+      statusesBefore: "Earlier statuses",
+      statusesAfter: "More statuses",
       properties: "Properties",
       copyLink: "Copy link",
       linkCopied: "Link copied",
@@ -1530,6 +1532,12 @@ export const en: Dictionary = {
       open: "Open the link",
     },
     files: {
+      filter: "Show",
+      kinds: { all: "All", image: "Images", video: "Video", audio: "Audio", text: "Documents and text", archive: "Archives", other: "Other" } as Record<string, string>,
+      views: { tiles: "As tiles", list: "As a list" },
+      more: (n: number) => `Show ${n} more`,
+      fewer: "Show fewer",
+      links: { heading: "Links", add: "Add a link", url: "Address (https://…)", title: "Name (optional)", save: "Add" },
       heading: "Files",
       none: "No files.",
       attach: "Attach files",
@@ -1635,6 +1643,8 @@ export const en: Dictionary = {
       label: "Bulk changes",
     },
     errors: {
+      invalid_url: "An address starting with https:// or http:// is needed.",
+      too_many_web_links: "Too many links on the task (up to 50).",
       column_take_forbidden: "Only the chosen team may take tasks out of this column.",
       column_put_forbidden: "Only the chosen team may put tasks into this column.",
       too_many: "Too many: at most 50 templates or 30 rules.",

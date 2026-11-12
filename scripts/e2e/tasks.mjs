@@ -182,7 +182,9 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await openCard.locator('[data-people="assignee"]').click();
   await alice.locator(`[data-person-option="${colleagueId2}"]`).click();
   await alice.waitForTimeout(800);
-  await openCard.locator("[data-task-priority-field]").selectOption("high");
+  // The priority is a list with each priority's own mark.
+  await openCard.locator("[data-task-priority-field]").click();
+  await alice.locator('[data-task-priority-option="high"]').click();
   await alice.waitForTimeout(800);
   const taskRow = () => sql("select s.category || ' ' || coalesce(t.assignee_id::text, '-') || ' ' || t.priority from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("the task's fields change in place", taskRow() === `doing ${colleagueId2} high`, taskRow());
@@ -476,6 +478,22 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
   await alice.locator("[data-task-files] input[type=file]").setInputFiles(pdf);
   await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 15000 });
+  // Files show as tiles or as a list (kept in this browser); a link is kept next to them.
+  await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 20000 }).catch(() => {});
+  const tiles = await alice.locator("[data-task-files-tiles]").count();
+  await alice.locator('[data-task-files-view="list"]').click();
+  check("a task's files show as tiles, or as a list", tiles === 1 && (await alice.locator('[data-task-files-list] [data-task-file="brief.pdf"]').count()) === 1);
+  await alice.locator("[data-task-web-link-open]").click();
+  await alice.locator("[data-task-web-link-url]").fill("https://example.com/spec");
+  await alice.locator("[data-task-web-link-title]").fill("Spec elsewhere");
+  await alice.locator("[data-task-web-link-save]").click();
+  await alice.locator('[data-task-web-link="Spec elsewhere"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("a link is kept with the task next to its files", sql("select title || ' ' || url from public.task_web_links") === "Spec elsewhere https://example.com/spec" && (await alice.locator('[data-task-web-link="Spec elsewhere"] a').getAttribute("href")) === "https://example.com/spec");
+  const cardOrder = await alice.evaluate(() => {
+    const top = (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
+    return [top("[data-status-row]"), top("[data-task-detail] textarea"), top("[data-task-key-fields]"), top("[data-task-files]")];
+  });
+  check("the card reads: statuses, title, the project's own fields, description, files", cardOrder[0] >= 0 && cardOrder[0] < cardOrder[1] && (cardOrder[2] < 0 || cardOrder[1] < cardOrder[2]) && cardOrder[1] < cardOrder[3] && (await alice.locator("[data-task-status]").isVisible()) === false && (await alice.locator("[data-task-side-blocks] [data-mentioned-on]").count()) === 1, JSON.stringify(cardOrder));
   check("a task file goes to the workspace's one storage (its Drive)", marFile() === "drive:wiki", marFile());
   check("…with no Drive of anyone's own", (await alice.getByRole("link", { name: /Підключити мій Google Диск/ }).count()) === 0);
   const fileId = sql(`select id from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);

@@ -1304,6 +1304,8 @@ export const uk = {
       noTaskFound: "Задач не знайдено.",
     },
     card: {
+      statusesBefore: "Попередні статуси",
+      statusesAfter: "Наступні статуси",
       properties: "Властивості",
       copyLink: "Копіювати посилання",
       linkCopied: "Посилання скопійовано",
@@ -1539,6 +1541,12 @@ export const uk = {
       open: "Відкрити посилання",
     },
     files: {
+      filter: "Показати",
+      kinds: { all: "Усі", image: "Зображення", video: "Відео", audio: "Аудіо", text: "Документи й текст", archive: "Архіви", other: "Інше" } as Record<string, string>,
+      views: { tiles: "Плиткою", list: "Списком" },
+      more: (n: number) => `Показати ще ${n}`,
+      fewer: "Згорнути",
+      links: { heading: "Посилання", add: "Додати посилання", url: "Адреса (https://…)", title: "Назва (необов'язково)", save: "Додати" },
       heading: "Файли",
       none: "Файлів немає.",
       attach: "Прикріпити файли",
@@ -1644,6 +1652,8 @@ export const uk = {
       label: "Масові зміни",
     },
     errors: {
+      invalid_url: "Потрібна адреса, що починається з https:// або http://.",
+      too_many_web_links: "Забагато посилань у задачі (до 50).",
       column_take_forbidden: "Забирати задачі з цієї колонки може лише обрана команда.",
       column_put_forbidden: "Класти задачі в цю колонку може лише обрана команда.",
       too_many: "Забагато: не більше 50 шаблонів чи 30 правил.",

@@ -42,6 +42,15 @@ export async function seatImportPerson(personId: string, memberId: string | null
   return call<{ assigned: number; reported: number }>("seat_import_person", { target_person: personId, member: memberId });
 }
 
+// A link kept with a task next to its files.
+export async function addTaskWebLink(taskId: string, title: string, url: string) {
+  return call<{ id: string }>("add_task_web_link", { target_task: taskId, new_title: title, new_url: url.trim() });
+}
+
+export async function deleteTaskWebLink(linkId: string) {
+  return call("delete_task_web_link", { target_link: linkId });
+}
+
 export async function createTaskProject(ws: string, name: string, key: string, icon: string | null) {
   const s = t.tasks.defaultStatuses;
   return call<{ id: string; key: string }>("create_task_project", {
