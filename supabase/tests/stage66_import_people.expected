@@ -34,3 +34,15 @@ moves kept: 1, own history lines kept: 3
 told about comments: 0
 seat with comments: {"ok": true, "assigned": 1, "comments": 1, "reported": 0}
 the comment is carl's: 66c1, the move too: 66c1
+psql: ERROR:  permission denied for function import_task_file
+psql: ERROR:  permission denied for function note_import_gap
+gap noted: true, a bad reason: invalid
+file recorded: true, again: true, an archive of 9 GB: true, no such task: not_found
+psql: ERROR:  new row for relation "task_files" violates check constraint "task_files_bytes_check"
+psql: ERROR:  new row for relation "task_files" violates check constraint "task_files_mime_type_check"
+files: video.mov application/octet-stream 200000000 drive-2 by 66c1 2024; all.zip application/zip 9000000000 drive-3 by nobody 2023
+gaps open: 0, closed: 1
+the owner sees gaps: big.bin too_big
+bob (an editor) sees gaps: 0
+bob sees the task's files: 2
+a stranger sees gaps: 0, files: 0

@@ -821,6 +821,12 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const status = (id, name, key) => ({ id, name, statusCategory: { key } });
   const statuses = [status("1", "Backlog", "new"), status("2", "In Review", "indeterminate"), status("3", "Released", "done")];
   const issue = (number, fields, changelog) => ({ key: `OLD-${number}`, ...(changelog ? { changelog } : {}), fields: { labels: [], issuelinks: [], created: "2025-03-01T10:00:00.000+0000", updated: "2025-03-05T10:00:00.000+0000", priority: { name: "High" }, ...fields } });
+  // A file of 9 MB goes to the Drive in two parts; one file the tracker won't give; one too big.
+  const { mkdirSync, statSync } = await import("node:fs");
+  const bigFile = Buffer.alloc(9 * 1024 * 1024, 7);
+  bigFile.write("EDGEKNOW-FILE", 0);
+  mkdirSync(`${dir}/files`, { recursive: true });
+  writeFileSync(`${dir}/files/900`, bigFile);
   writeFileSync(
     `${dir}/tracker.json`,
     JSON.stringify({
@@ -833,7 +839,11 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
       users: [{ accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }],
       roles: [{ name: "Developers", users: ["u-alice", "u-gone"] }, { name: "Empty role", users: [] }],
       issues: [
-        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01", comment: { total: 1, comments: [{ id: "c1", author: { accountId: "u-gone", displayName: "Gone Person" }, body: text("Said long ago"), created: "2025-03-02T08:00:00.000+0000", updated: "2025-03-02T08:00:00.000+0000" }] } }, { total: 1, histories: [{ id: "h1", created: "2025-03-03T08:00:00.000+0000", author: { accountId: "u-gone", displayName: "Gone Person" }, items: [{ field: "status", from: "2", to: "1" }] }] }),
+        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01", attachment: [
+          { id: "900", filename: "spec.bin", mimeType: "application/x-design", size: bigFile.length, author: { accountId: "u-gone", displayName: "Gone Person" }, created: "2025-03-02T09:00:00.000+0000" },
+          { id: "901", filename: "lost.txt", mimeType: "text/plain", size: 5, created: "2025-03-02T09:00:00.000+0000" },
+          { id: "902", filename: "giant.mov", mimeType: "video/quicktime", size: 300 * 1024 * 1024, created: "2025-03-02T09:00:00.000+0000" },
+        ], comment: { total: 1, comments: [{ id: "c1", author: { accountId: "u-gone", displayName: "Gone Person" }, body: text("Said long ago"), created: "2025-03-02T08:00:00.000+0000", updated: "2025-03-02T08:00:00.000+0000" }] } }, { total: 1, histories: [{ id: "h1", created: "2025-03-03T08:00:00.000+0000", author: { accountId: "u-gone", displayName: "Gone Person" }, items: [{ field: "status", from: "2", to: "1" }] }] }),
         issue(2, { summary: "Old child", status: statuses[1], issuetype: { id: "12" }, parent: { key: "OLD-1" }, issuelinks: [{ type: { name: "Blocks" }, outwardIssue: { key: "OLD-5" } }] }),
         issue(5, { summary: "Old done", status: statuses[2], issuetype: { id: "11" }, assignee: { accountId: "u-gone", displayName: "Gone Person" }, security: { name: "Staff only" }, resolutiondate: "2025-03-04T10:00:00.000+0000" }),
       ],
@@ -870,6 +880,25 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…and with subtasks and links", tied === "1 1", tied);
   const activity = sql(`select (select count(*) || ' ' || min(to_char(c.created_at at time zone 'utc', 'YYYY-MM-DD')) || ' ' || bool_and(c.author_id is null and c.author_slot is not null) from public.task_comments c join public.tasks t on t.id = c.task_id where t.project_id = ${old}) || ' / ' || (select count(*) || ' ' || min(to_char(e.created_at at time zone 'utc', 'YYYY-MM-DD')) from public.task_events e join public.tasks t on t.id = e.task_id where t.project_id = ${old} and e.field = 'status_id' and e.external_id is not null)`);
   check("…with comments and status changes, on their own dates and by the tracker's people", activity === "1 2025-03-02 true / 1 2025-03-03" && (await alice.locator("[data-import-report-activity]").count()) === 1, activity);
+  const movedFile = sql(`select f.id || ' ' || f.mime_type || ' ' || f.bytes || ' ' || f.storage_backend || ' ' || f.drive_file_id from public.task_files f join public.tasks t on t.id = f.task_id where t.project_id = ${old} and f.external_id = '900'`).split(" ");
+  const onDrive = movedFile[4] ? statSync(`${process.env.DRIVE_FAKE_DIR}/${movedFile[4]}`, { throwIfNoEntry: false })?.size : 0;
+  check("…with files: a large one goes to the team's Drive whole, in parts", movedFile[1] === "application/x-design" && movedFile[2] === String(bigFile.length) && movedFile[3] === "drive" && onDrive === bigFile.length && (await alice.locator("[data-import-report-files]").count()) === 1, `${movedFile.join(" ")} / ${onDrive}`);
+  await alice.locator("[data-import-gaps]").waitFor({ timeout: 15000 }).catch(() => {});
+  const gapNames = await alice.locator("[data-import-gap]").evaluateAll((els) => els.map((el) => el.getAttribute("data-import-gap")).sort().join(","));
+  check("…and what could not come is listed (a file the tracker won't give, a file too big)", gapNames === "giant.mov,lost.txt", gapNames);
+  const fetched = await alice.evaluate(async (url) => {
+    const whole = await fetch(url);
+    const bytes = new Uint8Array(await whole.arrayBuffer());
+    const part = await fetch(url, { headers: { Range: "bytes=0-12" } });
+    return { status: whole.status, length: bytes.length, head: new TextDecoder().decode(bytes.slice(0, 13)), disposition: whole.headers.get("content-disposition") ?? "", partStatus: part.status, partText: await part.text() };
+  }, `${APP}/api/tasks/files/${movedFile[0]}?ws=${alphaShort}`);
+  check("a large file is handed out as a download, whole or by parts", fetched.status === 200 && fetched.length === bigFile.length && fetched.head === "EDGEKNOW-FILE" && fetched.disposition.startsWith("attachment") && fetched.partStatus === 206 && fetched.partText === "EDGEKNOW-FILE", JSON.stringify({ ...fetched, head: fetched.head.slice(0, 20) }));
+  // «Дотягнути»: the tracker now gives the file it refused.
+  writeFileSync(`${dir}/files/901`, "hello");
+  await alice.locator("[data-import-retry-files]").click();
+  const pulled = () => sql(`select (select count(*) from public.task_files f join public.tasks t on t.id = f.task_id where t.project_id = ${old} and f.external_id is not null) || ' ' || (select string_agg(g.name, ',') from public.task_import_gaps g where g.project_id = ${old} and g.resolved_at is null)`);
+  check("pulling again brings the file that was refused and keeps the rest", await until(() => pulled() === "2 giant.mov", 40000), pulled());
+  await alice.locator('[data-import-run="done"]').waitFor({ timeout: 30000 }).catch(() => {});
   check("…telling nobody about it", sql(`select count(*) from public.notifications n join public.tasks t on t.id = n.task_id where t.project_id = ${old}`) === "0");
   await alice.locator("[data-import-open-project]").click();
   await alice.waitForURL(/\/tasks\/OLD$/);
@@ -905,6 +934,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator("[data-import-resume]").click();
   await alice.locator('[data-import-run="done"]').waitFor({ timeout: 60000 });
   const again = sql(`select (select count(*) from public.task_comments c join public.tasks t on t.id = c.task_id where t.project_id = (select id from public.task_projects where key = 'OLDER')) || ' ' || (select count(*) from public.task_events e join public.tasks t on t.id = e.task_id where t.project_id = (select id from public.task_projects where key = 'OLDER') and e.external_id is not null) || ' ' || (select split_part(email, '@', 1) from public.profiles where id = (select author_id from public.task_comments where external_id = 'c1'))`);
+  const filesAgain = sql(`select count(*) || ' ' || (select split_part(email, '@', 1) from public.profiles where id = (select uploaded_by from public.task_files where external_id = '900')) from public.task_files f join public.tasks t on t.id = f.task_id where t.project_id = (select id from public.task_projects where key = 'OLDER') and f.external_id is not null`);
+  check("…nor files; the seated person's file is the member's", filesAgain === "2 colleague", filesAgain);
   check("…nor comments and history; the seated person's comment is the member's", again === "1 1 colleague", again);
   check("running an import again changes tasks, never doubles them", sql(`select count(*) from public.tasks where project_id = (select id from public.task_projects where key = 'OLDER')`) === "3");
   await alice.locator("[data-import-forget]").click();

@@ -230,6 +230,8 @@ for (const [fn, body] of [
   ["import_tasks", { target_project: alphaProject?.id, items: [] }],
   ["import_people", { target_project: alphaProject?.id, items: [] }],
   ["import_task_activity", { target_project: alphaProject?.id, items: [] }],
+  ["import_task_file", { target_project: alphaProject?.id, item: {} }],
+  ["note_import_gap", { target_project: alphaProject?.id, item: {} }],
   ["import_task_relations", { target_project: alphaProject?.id, items: [] }],
   ["make_room_for_import", { target_project: alphaProject?.id, last_number: 5 }],
 ]) {

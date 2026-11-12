@@ -12,6 +12,7 @@ import type { Person } from "@/lib/tasks";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { TrackerError, trackerApi, type TrackerAccess } from "@/lib/tracker/api";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState } from "@/lib/tracker/types";
+import { moveFilesStep, newFileWork, type FileWork } from "@/lib/tracker/files";
 import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toActivityItem, toImportItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 
@@ -416,12 +417,32 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
       }
       progress.cursor = page.next;
       if (!page.next) {
+        progress.phase = "files";
+        row.mapping.fileWork = newFileWork();
+        await save({ mapping: row.mapping });
+        return { ok: true, progress, state: "running" };
+      }
+      await save({});
+      return { ok: true, progress, state: "running" };
+    }
+    if (progress.phase === "files") {
+      // The files go to the team's Google Drive, a large one over several steps.
+      const work = (row.mapping.fileWork as FileWork | undefined) ?? newFileWork();
+      let done = false;
+      try {
+        ({ done } = await moveFilesStep({ admin: ctx.admin, rows: home.rows, api, access, workspaceId: ctx.workspace.id, projectId: row.project_id, sourceProject: row.source_project, mapping: row.mapping, work, progress }));
+      } finally {
+        // Whatever happened, where the work stands is kept: nothing is sent twice.
+        row.mapping.fileWork = work;
+        await save({ mapping: row.mapping });
+      }
+      if (done) {
         progress.phase = "done";
-        await save({ state: "done", report: progress, finished_at: new Date().toISOString() });
+        row.mapping.fileWork = undefined;
+        await save({ state: "done", report: progress, finished_at: new Date().toISOString(), mapping: row.mapping });
         revalidatePath("/", "layout");
         return { ok: true, progress, state: "done" };
       }
-      await save({});
       return { ok: true, progress, state: "running" };
     }
     const page = await api.issues(access, row.source_project, progress.cursor, PAGE, progress.phase === "tasks" ? [...Object.keys(row.mapping.fields), ...(row.mapping.startField ? [row.mapping.startField] : [])] : []);
@@ -478,6 +499,40 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
     await save({ last_error: failure.error });
     return failure;
   }
+}
+
+// «Дотягнути»: the files that could not come are tried again (those already on the Drive
+// are left alone). The import's connection must still be there.
+export async function trackerRetryFiles(shortId: string, importId: string): Promise<ActionResult> {
+  const ctx = await gate(shortId);
+  const row = ctx && (await rowOf(ctx.admin, ctx.workspace.id, importId));
+  if (!ctx || !row) return fail("forbidden");
+  if (row.state !== "done" || !row.project_id) return fail("already_started");
+  const progress: ImportProgress = { ...row.progress, phase: "files", cursor: null, filesMissed: 0, filesKept: 0 };
+  const { error } = await ctx.admin
+    .from("task_imports")
+    .update({ state: "running", progress, mapping: { ...row.mapping, fileWork: newFileWork() }, last_error: null, updated_at: new Date().toISOString() })
+    .eq("id", row.id);
+  return error ? fail("unknown") : { ok: true };
+}
+
+// What an import could not bring into this project (its owners and workspace admins see it).
+export type ImportGap = { id: string; task: string; name: string; bytes: number | null; reason: string };
+export async function trackerGaps(shortId: string, projectKey: string): Promise<ImportGap[]> {
+  const ctx = await gate(shortId);
+  if (!ctx || !KEY.test(projectKey)) return [];
+  const db = await dataClient(shortId);
+  const { data: project } = await db.from("task_projects").select("id").eq("workspace_id", ctx.workspace.id).eq("key", projectKey).maybeSingle();
+  if (!project) return [];
+  const { data } = await db
+    .from("task_import_gaps")
+    .select("id, name, bytes, reason, task:tasks(number)")
+    .eq("project_id", project.id)
+    .is("resolved_at", null)
+    .order("created_at")
+    .limit(500)
+    .overrideTypes<{ id: string; name: string; bytes: number | null; reason: string; task: { number: number } | null }[], { merge: false }>();
+  return (data ?? []).map((g) => ({ id: g.id, task: g.task ? `${projectKey}-${g.task.number}` : projectKey, name: g.name, bytes: g.bytes, reason: g.reason }));
 }
 
 // The latest import of the workspace, for coming back to the wizard (no key in it).

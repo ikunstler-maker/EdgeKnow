@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { numberOfKey, parseComments, parseField, parseIssue, parseMoves, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
+import { numberOfKey, parseComments, parseField, parseFiles, parseIssue, parseMoves, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerFile, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
 
 // Reading another tracker (Rukh Р-3а): the cloud tracker's own API, called only from
 // the server with the person's access key. Nothing is ever written to the tracker.
@@ -30,6 +30,10 @@ export interface TrackerApi {
   lastNumber(access: TrackerAccess, key: string): Promise<number>;
   // Issues in the order of their keys; `fields`: custom field ids to bring along.
   issues(access: TrackerAccess, key: string, cursor: string | null, size: number, fields: string[]): Promise<IssuePage>;
+  // The files attached to the same tasks, and one file's bytes from `offset` on
+  // (`ranged` false: the tracker sent the whole file, the caller skips what it has).
+  files(access: TrackerAccess, key: string, cursor: string | null, size: number): Promise<{ items: { key: string; files: TrackerFile[] }[]; next: string | null }>;
+  fileStream(access: TrackerAccess, id: string, offset: number): Promise<{ body: ReadableStream<Uint8Array>; ranged: boolean }>;
   // The same tasks, page by page, with their comments and status changes.
   activity(access: TrackerAccess, key: string, cursor: string | null, size: number): Promise<{ items: TrackerActivity[]; next: string | null }>;
 }
@@ -142,6 +146,41 @@ const cloud: TrackerApi = {
       next: typeof page.nextPageToken === "string" && page.nextPageToken ? page.nextPageToken : null,
     };
   },
+  async files(access, key, cursor, size) {
+    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC"), maxResults: size, fields: ["attachment"], ...(cursor ? { nextPageToken: cursor } : {}) }));
+    return {
+      items: list(page.issues).flatMap((raw) => {
+        const files = parseFiles(obj(obj(raw).fields).attachment);
+        return files.length && typeof obj(raw).key === "string" ? [{ key: String(obj(raw).key), files }] : [];
+      }),
+      next: typeof page.nextPageToken === "string" && page.nextPageToken ? page.nextPageToken : null,
+    };
+  },
+  async fileStream(access, id, offset) {
+    const range: Record<string, string> = offset > 0 ? { Range: `bytes=${offset}-` } : {};
+    let response: Response;
+    try {
+      // The tracker answers with the file or sends us on to where it is kept. The key
+      // goes only to the tracker itself, never along to that other address.
+      response = await fetch(`${access.site}/rest/api/3/attachment/content/${encodeURIComponent(id)}`, {
+        headers: { Authorization: `Basic ${Buffer.from(`${access.account}:${access.token}`).toString("base64")}`, ...range },
+        redirect: "manual",
+        cache: "no-store",
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const next = new URL(response.headers.get("location") ?? "", access.site);
+        if (next.protocol !== "https:" || /^(localhost|[\d.]+|\[.*\])$/.test(next.hostname)) throw new TrackerError("bad_answer");
+        response = await fetch(next, { headers: range, redirect: "follow", cache: "no-store" });
+      }
+    } catch (error) {
+      throw error instanceof TrackerError ? error : new TrackerError("unreachable");
+    }
+    if (response.status === 401 || response.status === 403) throw new TrackerError("auth");
+    if (response.status === 404) throw new TrackerError("not_found");
+    if (!response.ok || !response.body) throw new TrackerError("unreachable");
+    return { body: response.body, ranged: response.status === 206 };
+  },
   async activity(access, key, cursor, size) {
     const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC"), maxResults: size, fields: ["comment"], expand: "changelog", ...(cursor ? { nextPageToken: cursor } : {}) }));
     const items: TrackerActivity[] = [];
@@ -202,6 +241,29 @@ function fake(dir: string): TrackerApi {
     ),
     count: async (access, key) => all(access, key).length,
     lastNumber: async (access, key) => Math.max(0, ...all(access, key).map((i) => numberOfKey(i.key) ?? 0)),
+    files: async (access, key, cursor, size) => {
+      project(access, key);
+      const raw = list(read(access).issues);
+      const from = Number(cursor ?? 0);
+      return {
+        items: raw.slice(from, from + size).flatMap((value) => {
+          const files = parseFiles(obj(obj(value).fields).attachment);
+          return files.length ? [{ key: String(obj(value).key), files }] : [];
+        }),
+        next: from + size < raw.length ? String(from + size) : null,
+      };
+    },
+    // The file's bytes lie next to tracker.json under files/<id>; a missing one is "not found".
+    fileStream: async (access, id, offset) => {
+      read(access);
+      let bytes: Buffer;
+      try {
+        bytes = readFileSync(join(dir, "files", id.replace(/[^0-9A-Za-z_-]/g, "")));
+      } catch {
+        throw new TrackerError("not_found");
+      }
+      return { body: new Blob([new Uint8Array(bytes.subarray(offset))]).stream() as ReadableStream<Uint8Array>, ranged: true };
+    },
     activity: async (access, key, cursor, size) => {
       project(access, key);
       const raw = list(read(access).issues);

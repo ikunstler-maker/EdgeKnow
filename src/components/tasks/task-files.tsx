@@ -123,7 +123,7 @@ export function TaskFiles({
         <ul className="mt-2 grid gap-2 sm:grid-cols-2">
           {files.map((file) => (
             <li key={file.id} className="flex min-h-14 items-center gap-3 rounded-lg border border-border p-2 text-sm" data-task-file={file.name}>
-              {file.mime_type.startsWith("image/") ? (
+              {["image/png", "image/jpeg", "image/gif", "image/webp"].includes(file.mime_type) && file.bytes <= 20 * 1024 * 1024 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={href(file.id)} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded object-cover" />
               ) : (

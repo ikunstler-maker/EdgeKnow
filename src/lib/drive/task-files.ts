@@ -93,6 +93,9 @@ export async function storeTaskFile(admin: SupabaseClient, rows: SupabaseClient,
 }
 
 export async function readTaskFile(admin: SupabaseClient, rows: SupabaseClient, row: StoredFile): Promise<Uint8Array> {
+  // A large file from another tracker is only ever streamed (see streamTaskFile): moving
+  // it between storages in one piece would not fit in memory.
+  if (Number(row.bytes) > 64 * 1024 * 1024) throw new DriveError("too large to read whole", 413);
   if (row.storage_backend === "drive") {
     const connection = row.drive_account_id ? await connectionById(admin, row.drive_account_id) : null;
     if (!connection || !row.drive_file_id) throw new DriveError("connection gone", 404);
@@ -187,4 +190,18 @@ export function taskFileLooksLike(mimeType: string, bytes: Uint8Array): boolean 
 }
 
 // Shown in the browser: images and PDFs; everything else is downloaded, never run.
-export const showsInline = (mimeType: string) => mimeType.startsWith("image/") || mimeType === "application/pdf";
+// (A file from another tracker can be of any kind: only these plain picture kinds and PDF are shown.)
+export const showsInline = (mimeType: string) => ["image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"].includes(mimeType);
+
+// A file too large to hold in memory is handed on as a stream, straight from the Drive.
+export const STREAM_FROM_BYTES = 4 * 1024 * 1024;
+export async function streamTaskFile(admin: SupabaseClient, row: StoredFile, range: string | null) {
+  const connection = row.drive_account_id ? await connectionById(admin, row.drive_account_id) : null;
+  if (row.storage_backend !== "drive" || !connection || !row.drive_file_id) throw new DriveError("connection gone", 404);
+  try {
+    return await driveApi().stream(refreshTokenOf(connection), row.drive_file_id, range);
+  } catch (error) {
+    await noteDriveError(admin, connection, error);
+    throw error;
+  }
+}

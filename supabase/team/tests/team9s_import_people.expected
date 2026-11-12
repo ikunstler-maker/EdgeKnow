@@ -10,3 +10,7 @@ someone removed from the workspace sees seats: 0, seats a person: forbidden
 the server brings activity: {"ok": true, "moves": 1, "missing": 0, "comments": 1}
 psql: ERROR:  permission denied for function import_task_activity
 bob reads the comment: From before 2024 his: true
+the server notes a gap: true, records the file: true
+psql: ERROR:  permission denied for function import_task_file
+bob sees the file: plan.fig 5000000 his: true, gaps: 0
+alice sees gaps: huge.iso too_big

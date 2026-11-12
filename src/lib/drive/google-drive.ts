@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 // A small Google Drive client for what the wiki needs: sign-in exchange, folders,
@@ -20,6 +20,12 @@ export type DriveApi = {
   overwrite(refreshToken: string, fileId: string, mimeType: string, bytes: Uint8Array): Promise<void>;
   download(refreshToken: string, fileId: string): Promise<{ bytes: Uint8Array; mimeType: string }>;
   remove(refreshToken: string, fileId: string): Promise<void>;
+  // A large file goes up in parts: open a session, then send the parts in order (every
+  // part but the last a multiple of 256 KB). The session can be continued later.
+  beginUpload(refreshToken: string, folderId: string, name: string, mimeType: string, size: number): Promise<string>;
+  sendPart(refreshToken: string, session: string, bytes: Uint8Array, offset: number, size: number): Promise<{ fileId: string | null }>;
+  // A file as a stream (a large one never sits in memory); `range`: the request's own Range header.
+  stream(refreshToken: string, fileId: string, range?: string | null): Promise<{ body: ReadableStream<Uint8Array> | null; status: number; headers: Record<string, string> }>;
   // How much the Drive holds and how much is used, in bytes (no limit: null).
   quota(refreshToken: string): Promise<{ limit: number | null; usage: number }>;
 };
@@ -163,6 +169,45 @@ const google: DriveApi = {
     }
   },
 
+  async beginUpload(refreshToken, folderId, name, mimeType, size) {
+    const response = await call(refreshToken, `${UPLOAD}?uploadType=resumable&${ALL_DRIVES}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": mimeType, "X-Upload-Content-Length": String(size) },
+      body: JSON.stringify({ name, parents: [folderId] }),
+    });
+    const session = response.headers.get("location");
+    if (!session || !session.startsWith("https://www.googleapis.com/")) throw new DriveError("no upload session", 502);
+    return session;
+  },
+
+  async sendPart(refreshToken, session, bytes, offset, size) {
+    if (!session.startsWith("https://www.googleapis.com/")) throw new DriveError("bad upload session", 400);
+    const token = await accessToken(refreshToken);
+    const response = await fetch(session, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Length": String(bytes.length), "Content-Range": `bytes ${offset}-${offset + bytes.length - 1}/${size}` },
+      body: Buffer.from(bytes),
+      signal: AbortSignal.timeout(60_000),
+    });
+    // 308: the part is in, more are expected.
+    if (response.status === 308) return { fileId: null };
+    if (!response.ok) throw new DriveError(`drive upload failed: ${response.status}`, response.status);
+    const json = (await response.json().catch(() => ({}))) as { id?: string };
+    if (!json.id) throw new DriveError("drive upload gave no file", 502);
+    return { fileId: json.id };
+  },
+
+  async stream(refreshToken, fileId, range) {
+    const token = await accessToken(refreshToken);
+    const response = await fetch(`${FILES}/${encodeURIComponent(fileId)}?alt=media&${ALL_DRIVES}`, {
+      headers: { Authorization: `Bearer ${token}`, ...(range ? { Range: range } : {}) },
+    });
+    if (!response.ok) throw new DriveError(`drive request failed: ${response.status}`, response.status);
+    const headers: Record<string, string> = {};
+    for (const name of ["content-length", "content-range", "accept-ranges"]) if (response.headers.get(name)) headers[name] = response.headers.get(name)!;
+    return { body: response.body, status: response.status, headers };
+  },
+
   async quota(refreshToken) {
     const response = await call(refreshToken, "https://www.googleapis.com/drive/v3/about?fields=storageQuota");
     const { storageQuota } = (await response.json()) as { storageQuota?: { limit?: string; usage?: string } };
@@ -212,6 +257,39 @@ function fake(dir: string): DriveApi {
       check(refreshToken);
       await rm(file(fileId), { force: true });
       await rm(`${file(fileId)}.type`, { force: true });
+    },
+    async beginUpload(refreshToken, _folder, _name, mimeType) {
+      check(refreshToken);
+      await mkdir(dir, { recursive: true });
+      const id = `file-${randomUUID()}`;
+      await writeFile(file(id), new Uint8Array());
+      await writeFile(`${file(id)}.type`, mimeType);
+      return `https://www.googleapis.com/fake-session/${id}`;
+    },
+    async sendPart(refreshToken, session, bytes, offset, size) {
+      check(refreshToken);
+      const id = session.split("/").pop() ?? "";
+      const had = (await stat(file(id)).catch(() => null))?.size;
+      if (had !== offset) throw new DriveError("part out of order", 400);
+      await appendFile(file(id), bytes);
+      return { fileId: offset + bytes.length >= size ? id : null };
+    },
+    async stream(refreshToken, fileId, range) {
+      check(refreshToken);
+      try {
+        const all = new Uint8Array(await readFile(file(fileId)));
+        const match = /^bytes=(\d+)-(\d*)$/.exec(range ?? "");
+        const from = match ? Number(match[1]) : 0;
+        const to = match?.[2] ? Number(match[2]) + 1 : all.length;
+        const part = all.slice(from, to);
+        return {
+          body: new Blob([part]).stream() as ReadableStream<Uint8Array>,
+          status: match ? 206 : 200,
+          headers: { "content-length": String(part.length), "accept-ranges": "bytes", ...(match ? { "content-range": `bytes ${from}-${to - 1}/${all.length}` } : {}) },
+        };
+      } catch {
+        throw new DriveError("not found", 404);
+      }
     },
     async quota(refreshToken) {
       check(refreshToken);

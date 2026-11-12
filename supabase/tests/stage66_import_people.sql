@@ -134,3 +134,36 @@ select 'seat with comments: ' || public.seat_import_person(:'old_timer', '000000
 reset role;
 select 'the comment is carl''s: ' || right(c.author_id::text, 4) || ', the move too: ' || (select right(e.actor_id::text, 4) from public.task_events e where e.external_id = 'h1')
   from public.task_comments c where c.external_id = 'c1';
+
+-- 3б, files: a file that came from the tracker may be large and of any kind, on the Drive
+-- only; what could not come is listed for the project's owners; nothing here is for people.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000066a1';
+select 'a person records a file: ' || coalesce(public.import_task_file(:'project', '{}')::text, 'null');
+select 'a person notes a gap: ' || coalesce(public.note_import_gap(:'project', '{}')::text, 'null');
+reset role;
+select 'gap noted: ' || (public.note_import_gap(:'project', jsonb_build_object('external_key', 'MOV-1', 'external_id', 'f1', 'name', 'video.mov', 'bytes', 200000000, 'reason', 'tracker_error')) ->> 'ok')
+  || ', a bad reason: ' || (public.note_import_gap(:'project', jsonb_build_object('external_key', 'MOV-1', 'external_id', 'f9', 'name', 'x', 'reason', 'whatever')) ->> 'error');
+select 'file recorded: ' || (public.import_task_file(:'project', jsonb_build_object('external_key', 'MOV-1', 'external_id', 'f1', 'name', 'video.mov', 'mime_type', 'video/quicktime',
+  'bytes', 200000000, 'drive_account_id', gen_random_uuid(), 'drive_file_id', 'drive-1', 'author_ext', 'u2', 'created_at', '2024-06-01T10:00:00Z')) ->> 'ok')
+  || ', again: ' || (public.import_task_file(:'project', jsonb_build_object('external_key', 'MOV-1', 'external_id', 'f1', 'name', 'video.mov', 'mime_type', 'Strange Kind',
+  'bytes', 200000000, 'drive_account_id', gen_random_uuid(), 'drive_file_id', 'drive-2')) ->> 'ok')
+  || ', an archive of 9 GB: ' || (public.import_task_file(:'project', jsonb_build_object('external_key', 'MOV-1', 'external_id', 'f2', 'name', 'all.zip', 'mime_type', 'application/zip',
+  'bytes', 9000000000, 'drive_account_id', gen_random_uuid(), 'drive_file_id', 'drive-3', 'created_at', '2023-01-01T00:00:00Z')) ->> 'ok')
+  || ', no such task: ' || (public.import_task_file(:'project', jsonb_build_object('external_key', 'MOV-404', 'external_id', 'f3', 'name', 'a', 'bytes', 1, 'drive_account_id', gen_random_uuid(), 'drive_file_id', 'd')) ->> 'error');
+-- Over the limits: refused by the table itself.
+select public.import_task_file(:'project', jsonb_build_object('external_key', 'MOV-1', 'external_id', 'f4', 'name', 'huge.mov', 'mime_type', 'video/quicktime', 'bytes', 300000000, 'drive_account_id', gen_random_uuid(), 'drive_file_id', 'd4'));
+insert into public.task_files (workspace_id, task_id, name, mime_type, bytes, storage_path) select workspace_id, id, 'own.mov', 'video/quicktime', 10, 'own-path' from public.tasks where external_key = 'MOV-1';
+select 'files: ' || string_agg(f.name || ' ' || f.mime_type || ' ' || f.bytes || ' ' || f.drive_file_id || ' by ' || coalesce(right(f.uploaded_by::text, 4), 'nobody') || ' ' || to_char(f.created_at at time zone 'utc', 'YYYY'), '; ' order by f.external_id)
+  from public.task_files f where f.external_id is not null;
+select 'gaps open: ' || count(*) filter (where resolved_at is null) || ', closed: ' || count(*) filter (where resolved_at is not null) from public.task_import_gaps;
+select public.note_import_gap(:'project', jsonb_build_object('external_key', 'MOV-2', 'external_id', 'f5', 'name', 'big.bin', 'bytes', 999999999999, 'reason', 'too_big')) ->> 'ok' as ignored \gset
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000066a1';
+select 'the owner sees gaps: ' || string_agg(name || ' ' || reason, ', ' order by name) from public.task_import_gaps where resolved_at is null;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000066b1';
+select 'bob (an editor) sees gaps: ' || count(*) from public.task_import_gaps;
+select 'bob sees the task''s files: ' || count(*) from public.task_files where external_id is not null;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000066e1';
+select 'a stranger sees gaps: ' || count(*) || ', files: ' || (select count(*) from public.task_files where external_id is not null) from public.task_import_gaps;
+reset role;

@@ -54,3 +54,19 @@ set role authenticated;
 select 'bob brings activity: ' || coalesce(public.import_task_activity(:'project', '[]')::text, 'null');
 select 'bob reads the comment: ' || string_agg(c.body || ' ' || to_char(c.created_at at time zone 'utc', 'YYYY') || ' his: ' || (c.author_id = '00000000-0000-0000-0000-0000000000b1')::text, '; ') from public.task_comments c where c.external_id = 'c1';
 reset role;
+-- 3б, files: the server records a file put on the Drive and notes what could not come.
+set role service_role;
+select 'the server notes a gap: ' || (public.note_import_gap(:'project', jsonb_build_object('external_key', 'SEA-1', 'external_id', 'f1', 'name', 'plan.fig', 'bytes', 5000000, 'reason', 'drive_error')) ->> 'ok')
+  || ', records the file: ' || (public.import_task_file(:'project', jsonb_build_object('external_key', 'SEA-1', 'external_id', 'f1', 'name', 'plan.fig', 'mime_type', 'application/x-figma',
+     'bytes', 5000000, 'drive_account_id', gen_random_uuid(), 'drive_file_id', 'drive-9', 'author_ext', 'u2', 'created_at', '2024-02-02T10:00:00Z')) ->> 'ok');
+select public.note_import_gap(:'project', jsonb_build_object('external_key', 'SEA-2', 'external_id', 'f2', 'name', 'huge.iso', 'bytes', 900000000000, 'reason', 'too_big')) ->> 'ok' as ignored \gset
+reset role;
+set role authenticated;
+:as_bob;
+select 'bob records a file: ' || coalesce(public.import_task_file(:'project', '{}')::text, 'null');
+select 'bob sees the file: ' || string_agg(name || ' ' || bytes || ' his: ' || (uploaded_by = '00000000-0000-0000-0000-0000000000b1')::text, '; ') || ', gaps: ' || (select count(*) from public.task_import_gaps) from public.task_files where external_id is not null;
+reset role;
+set role authenticated;
+:as_alice;
+select 'alice sees gaps: ' || string_agg(name || ' ' || reason, ', ') from public.task_import_gaps where resolved_at is null;
+reset role;

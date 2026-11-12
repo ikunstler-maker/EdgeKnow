@@ -56,6 +56,8 @@ export type ImportMapping = {
   startField: string | null;
   // tracker user id → the role of ours their tracker roles map to (highest of them)
   personRoles?: Record<string, OurRole | null>;
+  // Where the move of files stands between steps (server only; see lib/tracker/files).
+  fileWork?: unknown;
   // tracker user id → the names of their roles in the tracker's project
   trackerRoles?: Record<string, string[]>;
 };
@@ -297,6 +299,20 @@ export function parseMoves(value: unknown): TrackerMove[] {
     });
   });
 }
+
+// A file attached to a task in the tracker.
+export type TrackerFile = { id: string; name: string; mime: string; size: number; author: TrackerUser | null; created: string };
+export function parseFiles(value: unknown): TrackerFile[] {
+  return (Array.isArray(value) ? value : []).flatMap((raw) => {
+    const file = obj(raw);
+    const id = str(file.id);
+    if (!/^[0-9A-Za-z_-]{1,100}$/.test(id)) return [];
+    return [{ id, name: (str(file.filename) || id).slice(0, 200), mime: str(file.mimeType).toLowerCase() || "application/octet-stream", size: typeof file.size === "number" ? file.size : 0, author: parseUser(file.author), created: str(file.created) }];
+  });
+}
+export const FILE_LIMIT = 250 * 1024 * 1024;
+export const ZIP_LIMIT = 10 * 1024 * 1024 * 1024;
+export const fileLimit = (file: Pick<TrackerFile, "mime">) => (file.mime === "application/zip" ? ZIP_LIMIT : FILE_LIMIT);
 
 export function toActivityItem(activity: TrackerActivity, mapping: ImportMapping): { item: ImportActivityItem; problems: string[] } {
   const problems: string[] = [];
