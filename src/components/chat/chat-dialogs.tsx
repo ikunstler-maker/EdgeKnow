@@ -12,9 +12,11 @@ import {
   joinChannel,
   leaveChannel,
   loadCategoryAccess,
+  openDirect,
   reorderCategories,
   saveCategory,
   setCategoryAccess,
+  setHistoryVisible,
   setNotify,
   updateChannel,
 } from "@/app/chat-actions";
@@ -151,6 +153,7 @@ export function CreateChannelDialog({
 export function ChannelSettingsDialog({
   shortId,
   channel,
+  title,
   categories,
   units,
   canManage,
@@ -160,6 +163,7 @@ export function ChannelSettingsDialog({
 }: {
   shortId: string;
   channel: ChatChannel;
+  title: string;
   categories: ChatCategory[];
   units: { id: string; name: string }[];
   canManage: boolean;
@@ -192,7 +196,7 @@ export function ChannelSettingsDialog({
   return (
     <Dialog title={c().settings.title} onClose={onClose} width={520}>
       <div className="flex flex-col gap-5">
-        {canManage && !channel.archived_at && (
+        {canManage && !channel.archived_at && channel.visibility !== "direct" && (
           <section className="flex flex-col gap-3">
             <Field label={c().create.name}>
               <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} className={inputClass} />
@@ -233,6 +237,22 @@ export function ChannelSettingsDialog({
           </section>
         )}
 
+        {canManage && !channel.archived_at && (channel.visibility === "closed" || (channel.visibility === "direct" && (channel.people?.length ?? 0) > 2)) && (
+          <label className="flex min-h-11 items-start gap-2 text-sm md:min-h-0" data-chat-history-visible>
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={channel.history_visible}
+              disabled={busy}
+              onChange={(e) => run(() => setHistoryVisible(shortId, channel.id, e.target.checked))}
+            />
+            <span>
+              <span className="font-medium">{c().history.setting}</span>
+              <span className="block text-xs text-muted">{c().history.settingHint}</span>
+            </span>
+          </label>
+        )}
+
         {channel.joined && (
           <Field label={c().settings.notify}>
             <select
@@ -269,7 +289,7 @@ export function ChannelSettingsDialog({
               type="button"
               disabled={busy}
               onClick={() => {
-                if (window.confirm(c().settings.deleteConfirm(channel.name))) void run(() => deleteChannel(shortId, channel.id), onGone);
+                if (window.confirm(c().settings.deleteConfirm(title))) void run(() => deleteChannel(shortId, channel.id), onGone);
               }}
               className={buttonClass("danger")}
               data-chat-delete-channel
@@ -305,6 +325,7 @@ export function BrowseDialog({
   const [error, setError] = useState<string | null>(null);
   const q = query.trim().toLowerCase();
   const list = channels
+    .filter((ch) => ch.visibility !== "direct")
     .filter((ch) => (showArchived ? Boolean(ch.archived_at) : !ch.archived_at))
     .filter((ch) => !q || ch.name.toLowerCase().includes(q) || ch.topic.toLowerCase().includes(q))
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -560,5 +581,91 @@ function CategoryEditor({
         </button>
       </div>
     </div>
+  );
+}
+
+// A new conversation: one person — the pair's conversation (the same one each time);
+// more (up to 7 others) — a new group conversation.
+export function NewDirectDialog({
+  shortId,
+  workspaceId,
+  people,
+  onClose,
+  onOpened,
+}: {
+  shortId: string;
+  workspaceId: string;
+  people: ChatPerson[];
+  onClose: () => void;
+  onOpened: (id: string) => void;
+}) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const q = query.trim().toLowerCase();
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const found = people.filter((p) => !picked.includes(p.id) && (!q || p.name.toLowerCase().includes(q))).slice(0, 8);
+  const open = async () => {
+    setBusy(true);
+    setError(null);
+    const result = await openDirect(shortId, workspaceId, picked);
+    setBusy(false);
+    if (!result.ok) return setError(errorText(result.error));
+    onOpened(result.id);
+  };
+  return (
+    <Dialog
+      title={c().direct.new}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={buttonClass("ghost")}>{t.common.cancel}</button>
+          <button type="button" onClick={open} disabled={busy || picked.length === 0} className={buttonClass("primary")} data-chat-direct-open>
+            {c().direct.open}
+          </button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-muted">{c().direct.about}</p>
+        {picked.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {picked.map((id) => (
+              <span key={id} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-sm">
+                {byId.get(id)?.name ?? c().formerMember}
+                <button type="button" onClick={() => setPicked((l) => l.filter((x) => x !== id))} aria-label={c().members.remove} className="inline-flex h-6 w-6 items-center justify-center">
+                  <Icon name="close" size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={c().members.addPlaceholder} aria-label={c().members.add} className={inputClass} autoFocus data-chat-direct-search />
+        {picked.length >= 7 ? (
+          <p className="text-xs text-muted">{c().direct.limit}</p>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {found.map((p) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPicked((l) => [...l, p.id]);
+                    setQuery("");
+                  }}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-hover md:min-h-8"
+                >
+                  <Icon name="plus" size={14} />
+                  <span className="flex-1 truncate">{p.name}</span>
+                  {p.guest && <span className="text-[10px] uppercase text-muted">{t.chat.guest}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ErrorLine error={error} />
+      </div>
+    </Dialog>
   );
 }

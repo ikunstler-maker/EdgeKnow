@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { t } from "@/i18n";
-import { groupChannels, type ChatCategory, type ChatChannel } from "@/lib/chat";
+import { channelTitle, groupChannels, type ChatCategory, type ChatChannel, type ChatPerson } from "@/lib/chat";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
 
@@ -30,6 +30,9 @@ export function ChannelList({
   onCreate,
   onBrowse,
   onCategories,
+  people,
+  me,
+  onNewDirect,
 }: {
   channels: ChatChannel[];
   categories: ChatCategory[];
@@ -40,6 +43,9 @@ export function ChannelList({
   onCreate: () => void;
   onBrowse: () => void;
   onCategories: () => void;
+  people: Map<string, ChatPerson>;
+  me: string;
+  onNewDirect: () => void;
 }) {
   const [folded, setFolded] = useState<string[]>([]);
   // After the first paint: the server has no browser storage.
@@ -56,9 +62,11 @@ export function ChannelList({
       // Private window: folding just isn't remembered.
     }
   };
-  const mine = channels.filter((ch) => ch.joined && !ch.archived_at);
+  const mine = channels.filter((ch) => ch.joined && !ch.archived_at && ch.visibility !== "direct");
+  const direct = channels.filter((ch) => ch.joined && !ch.archived_at && ch.visibility === "direct");
+  const title = (ch: ChatChannel) => channelTitle(ch, people, me, c().direct.alone, c().formerMember);
   const { loose, groups } = groupChannels(mine, categories);
-  const notJoined = channels.filter((ch) => !ch.joined && !ch.archived_at).length;
+  const notJoined = channels.filter((ch) => !ch.joined && !ch.archived_at && ch.visibility !== "direct").length;
 
   return (
     <nav aria-label={c().channels} className="flex h-full min-h-0 flex-col" data-chat-channels>
@@ -68,10 +76,10 @@ export function ChannelList({
         {canCreate && <button type="button" onClick={onCreate} aria-label={c().create.title} title={c().create.title} className={iconButtonClass("ghost")} data-chat-create><Icon name="plus" size={18} /></button>}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {mine.length === 0 && <p className="px-2 py-3 text-sm text-muted">{c().noChannels}</p>}
+        {mine.length === 0 && direct.length === 0 && <p className="px-2 py-3 text-sm text-muted">{c().noChannels}</p>}
         {loose.length > 0 && (
           <ul className="mb-2">
-            {loose.map((ch) => <ChannelRow key={ch.id} channel={ch} active={ch.id === activeId} onSelect={onSelect} />)}
+            {loose.map((ch) => <ChannelRow key={ch.id} channel={ch} title={title(ch)} active={ch.id === activeId} onSelect={onSelect} />)}
           </ul>
         )}
         {groups.map(({ category, channels: list }) => {
@@ -93,12 +101,23 @@ export function ChannelList({
               </button>
               {!closed && (
                 <ul>
-                  {list.map((ch) => <ChannelRow key={ch.id} channel={ch} active={ch.id === activeId} onSelect={onSelect} />)}
+                  {list.map((ch) => <ChannelRow key={ch.id} channel={ch} title={title(ch)} active={ch.id === activeId} onSelect={onSelect} />)}
                 </ul>
               )}
             </section>
           );
         })}
+        <section className="mb-2" aria-label={c().direct.title} data-chat-direct-list>
+          <div className="flex min-h-11 items-center gap-1 px-1.5 md:min-h-7">
+            <span className="flex-1 text-xs font-semibold uppercase tracking-wide text-muted">{c().direct.title}</span>
+            <button type="button" onClick={onNewDirect} aria-label={c().direct.new} title={c().direct.new} className={iconButtonClass("ghost")} data-chat-new-direct>
+              <Icon name="plus" size={15} />
+            </button>
+          </div>
+          <ul>
+            {direct.map((ch) => <ChannelRow key={ch.id} channel={ch} title={title(ch)} active={ch.id === activeId} onSelect={onSelect} />)}
+          </ul>
+        </section>
         <button type="button" onClick={onBrowse} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 text-sm text-muted hover:bg-hover hover:text-foreground md:min-h-8" data-chat-browse>
           <Icon name="search" size={16} />
           <span className="flex-1 text-left">{c().browse.title}</span>
@@ -109,7 +128,7 @@ export function ChannelList({
   );
 }
 
-function ChannelRow({ channel, active, onSelect }: { channel: ChatChannel; active: boolean; onSelect: (id: string) => void }) {
+function ChannelRow({ channel, title, active, onSelect }: { channel: ChatChannel; title: string; active: boolean; onSelect: (id: string) => void }) {
   const unread = channel.notify === "none" ? 0 : channel.unread;
   const loud = unread > 0 && (channel.notify === "all" || channel.mentioned);
   return (
@@ -123,8 +142,8 @@ function ChannelRow({ channel, active, onSelect }: { channel: ChatChannel; activ
         }`}
         data-chat-channel={channel.id}
       >
-        <Icon name={channel.visibility === "closed" ? "lock" : "hash"} size={15} />
-        <span className="min-w-0 flex-1 truncate text-left">{channel.name}</span>
+        <Icon name={channelIcon(channel)} size={15} />
+        <span className="min-w-0 flex-1 truncate text-left">{title}</span>
         {channel.mentioned && unread > 0 ? (
           <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white" aria-label={c().mentioned}>@</span>
         ) : loud ? (
@@ -134,3 +153,6 @@ function ChannelRow({ channel, active, onSelect }: { channel: ChatChannel; activ
     </li>
   );
 }
+
+export const channelIcon = (channel: Pick<ChatChannel, "visibility" | "people">) =>
+  channel.visibility === "direct" ? ((channel.people?.length ?? 0) > 2 ? "users" : "user") : channel.visibility === "closed" ? "lock" : "hash";

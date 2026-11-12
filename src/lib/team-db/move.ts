@@ -311,14 +311,14 @@ const STAGES: Stage[] = [
   {
     name: "chat channels",
     table: "chat_channels",
-    columns: "id, workspace_id, category_id, name, topic, kind, visibility, unit_id, position, created_by, created_at, updated_at, archived_at, archived_by",
+    columns: "id, workspace_id, category_id, name, topic, kind, visibility, unit_id, position, created_by, created_at, updated_at, archived_at, archived_by, history_visible, dm_key",
     order: "id",
     onConflict: "id",
   },
   {
     name: "people of channels",
     table: "chat_channel_members",
-    columns: "channel_id, workspace_id, user_id, role, invited, notify, last_read_at, added_by, joined_at",
+    columns: "channel_id, workspace_id, user_id, role, invited, notify, last_read_at, added_by, joined_at, history_from",
     order: "channel_id,user_id",
     onConflict: "channel_id,user_id",
     replace: true,
