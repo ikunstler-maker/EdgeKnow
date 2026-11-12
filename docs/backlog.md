@@ -82,6 +82,17 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 0 docs in review
+Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
+- 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — in review.
+- 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Next: tables + RLS proposal for approval.
+- 2. Direct & group messages; files and voice messages (magic-byte check, access-checked serving); search; drafts, scheduled send, per-channel notifications, quiet hours.
+- 3. Links: live chips (no rights → "No access" badge), message → Rukh task / Wika note / Doba event, Questa surveys in a channel, Doba "On leave" status + time-off approval button.
+- 4. Retention (workspace + per channel), "My data" export, Web Push (VAPID; key → approval), PWA.
+- 5. Secret rooms: on-device encryption (Web Crypto); limits → owner's consent.
+- 6. Forum channels, voice rooms (with Visio), Apus transcription + thread summaries, cross-company shared channels.
+- 7. Desktop (Tauri), phones (Capacitor or Expo).
+
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
 - Boards Д2: realtime co-editing (postponed by the owner).

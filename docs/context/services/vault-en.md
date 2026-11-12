@@ -22,6 +22,7 @@ Browse and manage all files of the workspace storage right in the product.
 | Service | Link |
 |---|---|
 | **All services** | files from every service in one place; insert a file into any |
+| **Toker** | chat files and voice messages appear in the file manager only for people with access to the channel; a file is checked by its first bytes and served after an access check |
 | **Core** | storage, access: a file is seen by whoever sees the object it is attached to |
 
 ## 4. Open questions

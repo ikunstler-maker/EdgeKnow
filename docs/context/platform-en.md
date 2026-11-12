@@ -76,7 +76,8 @@ The core gives every service people, access, storage, search, notifications and 
 | Own icons instead of emoji | done (6 PRs, decision 2026-11-11) | no emoji in the interface; `scripts/check-ui-emoji.mjs` checks it before every build |
 | Service logos on the start page | done | `ServiceIcon` |
 | Smart chips everywhere | owner's request | the wiki already has page, person and task chips |
-| Notifications when the site is closed | planned | needs a key in hosting settings |
+| Notifications when the site is closed | planned (Toker stage 4) | Web Push: works with the tab closed; the browser gets the key's public part from the server (the list of browser variables does not grow), the private part lives only in hosting settings → separate approval. Shared by all services (Rukh, Doba, Toker) |
+| Chat in global search and "My data" | with Toker | search sees only messages of channels the person is a member of; secret rooms are not indexed; "My data" exports one's own permitted chat history |
 | "Organization" level above several workspaces | planned | Business |
 | Objects shared between workspaces | planned | together with chat |
 | Pricing: feature flags, PRO badge, payments | planned (stage 4) | `docs/pricing-uk.md` |
