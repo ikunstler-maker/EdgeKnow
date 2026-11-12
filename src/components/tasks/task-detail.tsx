@@ -73,6 +73,7 @@ export function TaskDetail({
   moves = {},
   inPanel = false,
   origin = null,
+  importedNames = {},
 }: {
   taskKey: string;
   shortId: string;
@@ -100,6 +101,8 @@ export function TaskDetail({
   // Shown in the panel over the board: the project's other tasks open in the same panel.
   inPanel?: boolean;
   origin?: TaskOrigin | null;
+  // Comment or history line id → the tracker's name of whoever wrote it (not tied to a member yet).
+  importedNames?: Record<string, string>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -471,7 +474,7 @@ export function TaskDetail({
               {comments.map((c) => (
                 <li key={c.id} className="rounded-lg border border-border p-3 text-sm" data-task-comment>
                   <p className="text-xs text-muted">
-                    {who(c.author_id)} · {when(c.created_at)}
+                    {!c.author_id && importedNames[c.id] ? k.importer.fromTracker(importedNames[c.id]) : who(c.author_id)} · {when(c.created_at)}
                     {c.edited_at && ` · ${k.edited}`}
                   </p>
                   {editing?.id === c.id ? (
@@ -535,7 +538,7 @@ export function TaskDetail({
                 const to = shown(e.field, e.new_value);
                 return (
                   <li key={e.id} data-history-line={e.field}>
-                    {when(e.created_at)} — {who(e.actor_id)} {k.historyLine[e.field] ?? e.field}
+                    {when(e.created_at)} — {!e.actor_id && importedNames[e.id] ? k.importer.fromTracker(importedNames[e.id]) : who(e.actor_id)} {k.historyLine[e.field] ?? e.field}
                     {e.field !== "created" && from !== null && to !== null && (
                       <span className="text-foreground">
                         : {from} → {to}

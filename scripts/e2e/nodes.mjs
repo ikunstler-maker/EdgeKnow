@@ -520,6 +520,8 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.goto(`${APP}/w/${alphaShort}/p/${tablePage}`);
   const tableEmbed = alice.locator('[data-sheet-embed="Budget"]');
   await tableEmbed.first().locator("[data-sheet-embed-grid] .fortune-sheet-overlay").waitFor({ timeout: 30000 }).catch(() => {});
+  // The chart is drawn a moment after the grid.
+  await alice.locator("[data-sheet-embed-chart] canvas").first().waitFor({ timeout: 30000 }).catch(() => {});
   check("a table shows on a wiki page, and a chart of it too", (await tableEmbed.first().locator("[data-sheet-embed-grid] .fortune-sheet-overlay").count()) === 1 && (await alice.locator("[data-sheet-embed-chart] canvas").count()) === 1);
   check("…with a link to the editor", (await tableEmbed.first().getByRole("link", { name: /Відкрити в редакторі/ }).count()) === 1);
   sql(`update public.service_objects set title = 'Budget 2', version = version + 1 where id = '${sheetId}'`);

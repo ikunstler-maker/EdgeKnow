@@ -42,3 +42,15 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
 select 'someone removed from the workspace sees seats: ' || (select count(*) from public.task_import_people) || ', seats a person: ' || (public.seat_import_person(:'gone', '00000000-0000-0000-0000-0000000000d7') ->> 'error');
 reset role;
+-- 3б: comments and moves come with the server only; a seat's comments follow it.
+select id as doing from public.task_statuses where project_id = :'project' and category = 'doing' \gset
+set role service_role;
+select 'the server brings activity: ' || public.import_task_activity(:'project', jsonb_build_array(jsonb_build_object('external_key', 'SEA-1',
+  'comments', jsonb_build_array(jsonb_build_object('external_id', 'c1', 'author_ext', 'u2', 'body', 'From before', 'created_at', '2024-01-02T10:00:00Z')),
+  'moves', jsonb_build_array(jsonb_build_object('external_id', 'h1', 'actor_ext', 'u2', 'from_status', :'todo', 'to_status', :'doing', 'at', '2024-01-03T10:00:00Z')))))::text;
+reset role;
+set role authenticated;
+:as_bob;
+select 'bob brings activity: ' || coalesce(public.import_task_activity(:'project', '[]')::text, 'null');
+select 'bob reads the comment: ' || string_agg(c.body || ' ' || to_char(c.created_at at time zone 'utc', 'YYYY') || ' his: ' || (c.author_id = '00000000-0000-0000-0000-0000000000b1')::text, '; ') from public.task_comments c where c.external_id = 'c1';
+reset role;

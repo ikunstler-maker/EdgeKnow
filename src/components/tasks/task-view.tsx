@@ -71,6 +71,22 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
   // Where an imported task came from. Read apart: a database a step behind the site
   // doesn't have these columns yet, and the card must still open.
   const { data: origin } = await db.from("tasks").select("external_key, external_url, imported_reporter, imported_assignee").eq("id", task.id).maybeSingle();
+  // Comments and history lines that came from the tracker and whose person isn't tied to a
+  // member yet show the tracker's name. Read apart for the same reason.
+  const [{ data: slotComments }, { data: slotEvents }] = await Promise.all([
+    db.from("task_comments").select("id, author_slot").eq("task_id", task.id).is("author_id", null).not("author_slot", "is", null),
+    db.from("task_events").select("id, actor_slot").eq("task_id", task.id).is("actor_id", null).not("actor_slot", "is", null),
+  ]);
+  const slotOf = new Map<string, string>([
+    ...((slotComments ?? []) as { id: string; author_slot: string }[]).map((c) => [c.id, c.author_slot] as const),
+    ...((slotEvents ?? []) as { id: string; actor_slot: string }[]).map((e) => [e.id, e.actor_slot] as const),
+  ]);
+  const importedNames: Record<string, string> = {};
+  if (slotOf.size) {
+    const { data: seats } = await db.from("task_import_people").select("id, name").in("id", [...new Set(slotOf.values())]);
+    const nameOf = new Map(((seats ?? []) as { id: string; name: string }[]).map((s) => [s.id, s.name]));
+    for (const [id, slot] of slotOf) if (nameOf.has(slot)) importedNames[id] = nameOf.get(slot)!;
+  }
   const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -109,6 +125,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       moves={view.moves}
       inPanel={inPanel}
       origin={(origin as TaskOrigin | null) ?? null}
+      importedNames={importedNames}
     />
   );
 }

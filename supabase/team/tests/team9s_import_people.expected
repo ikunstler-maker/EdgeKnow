@@ -3,7 +3,10 @@ the server brings people: {"ok": true, "people": 2, "seated": 1}
 the server imports: {"ok": true, "created": 2, "updated": 0}
 bob sees tasks: 1, seats: 2
 bob seats himself: forbidden
-alice seats bob: {"ok": true, "assigned": 2, "reported": 0}
+alice seats bob: {"ok": true, "assigned": 2, "comments": 0, "reported": 0}
 alice lists: Gone Away 2/0; Known One 0/1
 bob sees tasks: 2, his: 2
 someone removed from the workspace sees seats: 0, seats a person: forbidden
+the server brings activity: {"ok": true, "moves": 1, "missing": 0, "comments": 1}
+psql: ERROR:  permission denied for function import_task_activity
+bob reads the comment: From before 2024 his: true

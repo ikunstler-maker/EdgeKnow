@@ -33,6 +33,17 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-11-g",
+    version: "0.32.0",
+    date: "2026-11-11",
+    summaryTitle: { uk: "Rukh: коментарі та історія з іншого трекера", en: "Rukh: comments and history from another tracker" },
+    items: [
+      { id: "import-comments", type: "added", scope: "tasks", title: { uk: "Коментарі переносяться зі своїми датами й авторами.", en: "Comments come over with their dates and authors." } },
+      { id: "import-history", type: "added", scope: "tasks", title: { uk: "Історія статусів переноситься: час у колонці рахується з неї.", en: "Status history comes over: time in a column counts from it." } },
+      { id: "import-private-owner", type: "improved", scope: "tasks", title: { uk: "Закриті задачі з трекера бачить власник проєкту.", en: "The project's owner sees restricted tasks from the tracker." } },
+    ],
+  },
+  {
     id: "2026-11-11-f",
     version: "0.31.0",
     date: "2026-11-11",
