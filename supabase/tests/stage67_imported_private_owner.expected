@@ -3,3 +3,6 @@ bob hides his task: true
 bob (an editor) sees: Bob only
 alice (the workspace owner) sees: Restricted there
 carl (a project owner) sees: Restricted there
+alice finds the old key: {"number": 1, "project_key": "HIDE"}, the key here: {"number": 1, "project_key": "HIDE"}, bob's private one: nothing, no such: nothing
+bob finds the restricted one: nothing, his own: {"number": 2, "project_key": "HIDE"}
+a stranger finds: nothing

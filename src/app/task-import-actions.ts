@@ -321,6 +321,8 @@ export async function trackerStart(shortId: string, importId: string, plan: Impo
       people: checked.people,
       fields: prepared.fieldMap,
       startField: checked.startField,
+      since: null,
+      runStarted: new Date().toISOString(),
     };
     // The tracker's people come first, as seats: by email or the wizard's choice a seat
     // is tied to a member at once, the rest wait for the project's owner.
@@ -395,7 +397,7 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
     const home = await filesHome(ctx.admin, ctx.workspace.id);
     if (progress.phase === "activity") {
       // Comments and the way through the columns, with the tracker's dates and people.
-      const page = await api.activity(access, row.source_project, progress.cursor, PAGE);
+      const page = await api.activity(access, row.source_project, progress.cursor, PAGE, row.mapping.since);
       const made = page.items.map((activity) => toActivityItem(activity, row.mapping));
       for (const one of made) for (const note of new Set(one.problems)) progress.notes[note] = (progress.notes[note] ?? 0) + 1;
       const items = made.map((one) => one.item).filter((item) => item.comments.length || item.moves.length);
@@ -439,13 +441,13 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
       if (done) {
         progress.phase = "done";
         row.mapping.fileWork = undefined;
-        await save({ state: "done", report: progress, finished_at: new Date().toISOString(), mapping: row.mapping });
+        await save({ state: "done", report: progress, finished_at: new Date().toISOString(), mapping: row.mapping, ...(row.mapping.runStarted ? { synced_at: row.mapping.runStarted } : {}) });
         revalidatePath("/", "layout");
         return { ok: true, progress, state: "done" };
       }
       return { ok: true, progress, state: "running" };
     }
-    const page = await api.issues(access, row.source_project, progress.cursor, PAGE, progress.phase === "tasks" ? [...Object.keys(row.mapping.fields), ...(row.mapping.startField ? [row.mapping.startField] : [])] : []);
+    const page = await api.issues(access, row.source_project, progress.cursor, PAGE, progress.phase === "tasks" ? [...Object.keys(row.mapping.fields), ...(row.mapping.startField ? [row.mapping.startField] : [])] : [], row.mapping.since);
     if (progress.phase === "tasks") {
       const mappingGrew = await growOptions(db, row.project_id, row.mapping, page.issues);
       const items: ImportItem[] = [];
@@ -499,6 +501,39 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
     await save({ last_error: failure.error });
     return failure;
   }
+}
+
+// «Оновити з трекера»: one way, the tracker → us. Only what changed there since the last
+// run is read again: new tasks come in, changed ones are changed (with the tracker's
+// values), their comments, history and files follow. Nothing is doubled.
+export async function trackerRefresh(shortId: string, importId: string): Promise<ActionResult> {
+  const ctx = await gate(shortId);
+  const row = ctx && (await rowOf(ctx.admin, ctx.workspace.id, importId));
+  if (!ctx || !row) return fail("forbidden");
+  if (row.state !== "done" || !row.project_id) return fail("already_started");
+  try {
+    const since = (row as Row & { synced_at?: string | null }).synced_at ?? row.created_at;
+    const total = await trackerApi().count(accessOf(row), row.source_project, since);
+    const { error } = await ctx.admin
+      .from("task_imports")
+      .update({ state: "running", progress: newProgress(total), mapping: { ...row.mapping, since, runStarted: new Date().toISOString(), fileWork: undefined }, last_error: null, updated_at: new Date().toISOString() })
+      .eq("id", row.id);
+    return error ? fail("unknown") : { ok: true };
+  } catch (error) {
+    return trackerFail(error);
+  }
+}
+
+// Where a task with this old key (or a link to it in the tracker) is now: the address of
+// our task, or null. Read with the person's own rights.
+export async function findTaskByOldKey(shortId: string, input: string): Promise<{ projectKey: string; number: number } | null> {
+  const key = /([A-Za-z][A-Za-z0-9_]{1,19}-\d{1,7})(?![A-Za-z0-9-])/.exec(input.trim().slice(0, 600))?.[1];
+  const workspace = key ? await getWorkspace(shortId) : null;
+  if (!key || !workspace) return null;
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("find_task_by_key", { ws: workspace.id, wanted: key });
+  const found = data as { project_key?: string; number?: number } | null;
+  return found?.project_key && found.number ? { projectKey: found.project_key, number: found.number } : null;
 }
 
 // «Дотягнути»: the files that could not come are tried again (those already on the Drive

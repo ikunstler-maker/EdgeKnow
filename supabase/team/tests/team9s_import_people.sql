@@ -70,3 +70,12 @@ set role authenticated;
 :as_alice;
 select 'alice sees gaps: ' || string_agg(name || ' ' || reason, ', ') from public.task_import_gaps where resolved_at is null;
 reset role;
+-- 3в: a task is found by its old key only by those who may see it.
+set role authenticated;
+:as_alice;
+select 'alice finds by the old key: ' || coalesce(public.find_task_by_key(:'ws', 'sea-1')::text, 'nothing');
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
+select 'someone removed finds: ' || coalesce(public.find_task_by_key(:'ws', 'SEA-1')::text, 'nothing');
+reset role;

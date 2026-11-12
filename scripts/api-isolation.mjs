@@ -223,6 +223,10 @@ for (const [name, [fn, body]] of Object.entries(bobActions)) {
   check(`bob is refused: ${name}`, denied(res), `HTTP ${res.status} ${JSON.stringify(res.json)}`);
 }
 // Only the EdgeKnow server (secret key), after looking up DNS, may confirm a domain.
+// Finding a task by its key answers only for tasks the asker may see.
+const foundByOwner = await rpc(alice, "find_task_by_key", { ws: alpha.id, wanted: "SEC-1" });
+const foundByStranger = await rpc(bob, "find_task_by_key", { ws: alpha.id, wanted: "SEC-1" });
+check("alice finds her task by its key, bob finds nothing", foundByOwner.json?.number === 1 && foundByStranger.json === null, JSON.stringify([foundByOwner.json, foundByStranger.json]));
 const selfConfirm = await rpc(bob, "confirm_workspace_domain", { ws: alpha.id, target_domain: "alpha.test", how: "dns", actor: null });
 check("bob can't call the server-only domain confirmation", selfConfirm.status >= 400, `HTTP ${selfConfirm.status} ${JSON.stringify(selfConfirm.json)}`);
 // Importing tasks from another tracker is the server's alone (Rukh Р-3а).

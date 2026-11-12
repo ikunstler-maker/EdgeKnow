@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-b",
+    version: "0.34.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: оновлення з трекера й пошук за старим ключем", en: "Rukh: updating from the tracker and finding by the old key" },
+    items: [
+      { id: "import-refresh", type: "added", scope: "tasks", title: { uk: "«Оновити з трекера» підтягує лише те, що змінилося після перенесення.", en: "\"Update from the tracker\" brings only what changed since the move." } },
+      { id: "task-finder", type: "added", scope: "tasks", title: { uk: "Задачу можна відкрити за старим ключем або посиланням з трекера.", en: "A task opens by its old key or a link from the tracker." } },
+    ],
+  },
+  {
     id: "2026-11-12-a",
     version: "0.33.0",
     date: "2026-11-12",

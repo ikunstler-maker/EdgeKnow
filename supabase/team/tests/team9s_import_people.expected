@@ -14,3 +14,5 @@ the server notes a gap: true, records the file: true
 psql: ERROR:  permission denied for function import_task_file
 bob sees the file: plan.fig 5000000 his: true, gaps: 0
 alice sees gaps: huge.iso too_big
+alice finds by the old key: {"number": 1, "project_key": "SEA"}
+someone removed finds: nothing
