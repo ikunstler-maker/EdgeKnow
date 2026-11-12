@@ -97,7 +97,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | What | State | Note |
 |---|---|---|
 | "My tasks" (today, overdue, next) | planned, not built | partly covered by notifications and analytics today |
-| Sprints and backlog | planned | turned on per project |
+| Sprints and backlog | postponed (owner, 2026-11-12) | draft plan in `docs/backlog.md` |
 | Recurring tasks | planned | |
 | Advanced query search | planned | |
 | Move from another tracker, step 3б | planned (owner approved) | comments with dates and authors, status history, files to the team's Google Drive (up to 250 MB a file, 10 GB a ZIP; what did not come over is listed and can be pulled later) |
