@@ -1,0 +1,9 @@
+a draft alice can't see: invalid
+published: true, twice: true
+links: 1
+not a wishlist: invalid
+carol (a viewer of the project) sees links: 1
+carol links: forbidden, removes alice's: forbidden
+stranger sees links: 0
+alice removes it: true
+link goes with the wishlist: 0

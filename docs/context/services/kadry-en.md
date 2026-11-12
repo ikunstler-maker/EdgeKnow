@@ -53,6 +53,7 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 | **Bordy** | shared canvas engine with "Design" |
 | **Rukh, Sota, Wika, Questa, Bordy, Nodo** | live embeds on a slide with the viewer's rights: without access — "No access" with no name |
 | **Core** | search, collections, file storage, access |
+| **Profile** | "Wishlist" embed on a slide (live card) |
 
 ## 6. Key files
 

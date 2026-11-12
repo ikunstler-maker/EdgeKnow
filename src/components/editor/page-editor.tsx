@@ -241,6 +241,14 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <Icon name="note" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "boardEmbed" }),
   };
+  const wishlistEmbed: DefaultReactSuggestionItem = {
+    title: t.wishlists.embed.title,
+    subtext: t.wishlists.embed.subtext,
+    aliases: t.wishlists.embed.aliases,
+    group: t.editor.groups.special,
+    icon: <Icon name="gift" />,
+    onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "wishlistEmbed" }),
+  };
   const sheetEmbed: DefaultReactSuggestionItem = {
     title: t.sheets.embed.title,
     subtext: t.sheets.embed.subtext,
@@ -257,7 +265,7 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
     icon: <Icon name="file-text" />,
     onItemClick: () => insertOrUpdateBlockForSlashMenu(editor, { type: "surveyEmbed" }),
   };
-  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed, sheetEmbed, surveyEmbed];
+  return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed, sheetEmbed, surveyEmbed, wishlistEmbed];
 }
 
 // "@": calendar events the person sees, by title (Doba, phase 2b).

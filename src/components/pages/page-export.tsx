@@ -98,6 +98,7 @@ export function PageExportButton({ pageId }: { pageId: string }) {
         pages: pages.map((p) => ({ id: p.id, title: p.title, icon: p.icon, parentId: p.parentId })),
         sheets: page.sheets,
         boards: page.boards,
+        wishlists: page.wishlists,
         nodes: page.nodes,
         surveys: page.surveys,
         taskLists: page.taskLists,

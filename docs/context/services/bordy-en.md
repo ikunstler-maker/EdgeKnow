@@ -62,6 +62,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 | **Rukh** | task from a sticky note or from text |
 | **Kadry** | board as an embed on a slide; **shared canvas engine** with "Design" |
 | **Core** | search, collections, file storage, access |
+| **Profile** | "Wishlist" button: a "Wishlist · name" link element (no title); a live card in "Design" |
 
 ## 6. Key files
 
