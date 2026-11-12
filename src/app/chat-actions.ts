@@ -88,7 +88,7 @@ export async function loadReactions(shortId: string, messageIds: string[]): Prom
 export async function loadMembers(shortId: string, channelId: string): Promise<ChatMember[]> {
   if (!UUID.test(channelId)) return [];
   const supabase = await dataClient(shortId);
-  const { data } = await supabase.from("chat_channel_members").select("user_id, role, invited").eq("channel_id", channelId).limit(2000);
+  const { data } = await supabase.from("chat_channel_members").select("user_id, role, invited, history_from").eq("channel_id", channelId).limit(2000);
   return (data ?? []) as ChatMember[];
 }
 
@@ -137,8 +137,21 @@ export async function leaveChannel(shortId: string, channelId: string) {
   return call(shortId, "chat_leave_channel", { ch: channelId });
 }
 
-export async function addMembers(shortId: string, channelId: string, userIds: string[]) {
-  return call(shortId, "chat_add_members", { ch: channelId, user_ids: ids(userIds) });
+// showHistory: null — as the channel says; true / false — chosen for these people.
+export async function addMembers(shortId: string, channelId: string, userIds: string[], showHistory: boolean | null = null) {
+  return call(shortId, "chat_add_members", { ch: channelId, user_ids: ids(userIds), show_history: showHistory });
+}
+
+export async function openDirect(shortId: string, workspaceId: string, people: string[]) {
+  return call<{ id: string }>(shortId, "chat_open_direct", { ws: workspaceId, people: ids(people) });
+}
+
+export async function setHistoryVisible(shortId: string, channelId: string, visible: boolean) {
+  return call(shortId, "chat_set_history_visible", { ch: channelId, visible });
+}
+
+export async function setMemberHistory(shortId: string, channelId: string, userId: string, show: boolean) {
+  return call(shortId, "chat_set_member_history", { ch: channelId, person: userId, show });
 }
 
 export async function removeMember(shortId: string, channelId: string, userId: string) {

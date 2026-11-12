@@ -1,7 +1,7 @@
 // Toker (team chat): shapes shared by the chat screen and its server actions.
 // The database decides who sees and changes what (decision 2026-11-12 "Toker, етап 1").
 
-export type ChatVisibility = "open" | "closed";
+export type ChatVisibility = "open" | "closed" | "direct";
 export type ChatNotify = "all" | "mentions" | "none";
 
 // One row of chat_my_channels: a channel the person sees, with their own state.
@@ -21,6 +21,10 @@ export type ChatChannel = {
   last_read_at: string | null;
   unread: number;
   mentioned: boolean;
+  // Whether people added later see the earlier history.
+  history_visible: boolean;
+  // A conversation's people (the others first), instead of a name.
+  people: string[] | null;
 };
 
 export type ChatCategory = { id: string; name: string; position: number; restricted: boolean };
@@ -44,7 +48,7 @@ export type ChatMessage = {
 
 export type ChatReaction = { message_id: string; user_id: string; emoji: string; created_at: string };
 
-export type ChatMember = { user_id: string; role: "owner" | "member"; invited: boolean };
+export type ChatMember = { user_id: string; role: "owner" | "member"; invited: boolean; history_from: string | null };
 
 export type ChatCategoryAccess = { group_id: string | null; user_id: string | null };
 
@@ -90,4 +94,12 @@ export const mentionPattern = (name: string) => new RegExp(`@${escapeRe(name)}(?
 export function mentionsIn(body: string, people: { id: string; name: string }[]) {
   if (!body.includes("@")) return [];
   return [...new Set(people.filter((p) => p.name && mentionPattern(p.name).test(body)).map((p) => p.id))].slice(0, 50);
+}
+
+// What a channel is called: its name, or for a conversation its people (without me).
+export function channelTitle(channel: Pick<ChatChannel, "name" | "visibility" | "people">, names: Map<string, { name: string }>, me: string, alone: string, former: string) {
+  if (channel.visibility !== "direct") return channel.name;
+  const others = (channel.people ?? []).filter((id) => id !== me);
+  if (!others.length) return alone;
+  return others.map((id) => names.get(id)?.name ?? former).join(", ");
 }

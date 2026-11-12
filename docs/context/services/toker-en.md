@@ -6,7 +6,7 @@
 
 Team chat next to the work: channels, direct messages, threads, voice rooms. Combines the structure of a work messenger with the sense of presence of a community app. The next big service by plan.
 
-- **State:** 🛠 stage 1: database (1a) and main screen (1b) — channels, categories, stream, composer, members, live updates. Threads (right panel), reactions, pins, "@" mentions and the bell — 1c. Decisions 2026-11-12 "Toker, етап 1", "Toker, PR 1б", "Toker, PR 1в".
+- **State:** ✅ stage 1 (#169, #171, #174); 🛠 stage 2a — direct and group conversations, history for new members. Before: stage 1: database (1a) and main screen (1b) — channels, categories, stream, composer, members, live updates. Threads (right panel), reactions, pins, "@" mentions and the bell — 1c. Decisions 2026-11-12 "Toker, етап 1", "Toker, PR 1б", "Toker, PR 1в".
 
 ## 2. Intent
 
@@ -60,6 +60,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - **Access:** `chat_can_see(channel, person)` — category open + (added; or open channel and not a guest; or closed unit channel and `unit_reaches`). Admins see a closed channel only as members. Changes only through `chat_*` functions (creating by role rights `create_open_channels` / `create_closed_channels`; at most 30 messages a minute).
 - **Screen (1b):** `src/app/w/[wid]/chat/page.tsx` → `src/components/chat/chat-screen.tsx` (left column `channel-list.tsx`, stream and composer `message-stream.tsx`, `members-panel.tsx`, dialogs `chat-dialogs.tsx`, live signals `use-chat-live.ts`); server actions `src/app/chat-actions.ts`; types `src/lib/chat.ts`. Channel address — `?c=<id>`. Central database — realtime signals; team database — 5 s polling.
 - **Bell (1c):** kinds `chat_mention`, `chat_reply`; `notifications.chat_message_id`; trigger `chat_notify_message` → `chat_notify` (only who sees the channel, not "Nothing", kind not muted, once per message). Migrations `20270126100000_chat_mentions.sql`, team `0070_chat_mentions.sql`; tests `stage79_chat_mentions`, `team9w_chat_mentions`. Bell link: `?c=<channel>&t=<thread>&m=<message>`.
+- **Direct conversations (2a):** `chat_channels.visibility = 'direct'`, `dm_key` (one conversation per pair), `history_visible`; `chat_channel_members.history_from` — from when a person sees messages (`chat_history_ok` in the message and reaction rules). Functions `chat_open_direct`, `chat_set_history_visible`, `chat_set_member_history`, `chat_add_members(…, show_history)`. Migrations `20270128100000_chat_direct.sql`, team `0072_chat_direct.sql`; tests `stage81_chat_direct`, `team9y_chat_direct`.
 - **Realtime:** triggers send id-only signals to private topics `chat:<channel>` and `chat-user:<person>`; who may join — `chat_topic_allowed`.
 
 ## 5. Expected links

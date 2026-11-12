@@ -1,0 +1,3 @@
+bob writes to himself only: invalid_people
+bob writes to alice: true
+alice reads it: 1
