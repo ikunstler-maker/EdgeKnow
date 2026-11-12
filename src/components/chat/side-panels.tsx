@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { dateLocale, t } from "@/i18n";
-import type { ChatMessage, ChatPerson, ChatReaction } from "@/lib/chat";
+import type { ChatFile, ChatMessage, ChatPerson, ChatReaction } from "@/lib/chat";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
 import { Composer, MessageStream, type MessageActions } from "./message-stream";
@@ -36,6 +36,9 @@ export function ThreadPanel({
   note,
   onSend,
   onClose,
+  files,
+  shortId,
+  upload,
 }: {
   channelName: string;
   root: ChatMessage | null;
@@ -46,8 +49,11 @@ export function ThreadPanel({
   actions: MessageActions;
   pendingIds: Set<string>;
   note: ReactNode;
-  onSend: (body: string) => void;
+  onSend: (body: string, fileIds: string[]) => void;
   onClose: () => void;
+  files: Map<string, ChatFile[]>;
+  shortId: string;
+  upload: { shortId: string; channelId: string } | null;
 }) {
   const [draft, setDraft] = useState("");
   const everyone = [...people.values()];
@@ -69,6 +75,8 @@ export function ThreadPanel({
             pendingIds={pendingIds}
             onLoadOlder={() => {}}
             empty={null}
+            files={files}
+            shortId={shortId}
           />
           <Composer
             placeholder={c().replyPlaceholder}
@@ -78,6 +86,7 @@ export function ThreadPanel({
             onSend={onSend}
             draft={draft}
             onDraft={setDraft}
+            upload={upload}
           />
         </>
       )}

@@ -44,7 +44,22 @@ export type ChatMessage = {
   pinned_at: string | null;
   reply_count: number;
   last_reply_at: string | null;
+  file_count: number;
 };
+
+// A file sent with a message (or being added to one).
+export type ChatFile = {
+  id: string;
+  message_id: string | null;
+  name: string;
+  mime_type: string;
+  bytes: number;
+  kind: "file" | "image" | "voice";
+  duration_ms: number | null;
+  width: number | null;
+  height: number | null;
+};
+export const chatFileUrl = (shortId: string, id: string, download = false) => `/api/chat/files/${id}?ws=${shortId}${download ? "&download" : ""}`;
 
 export type ChatReaction = { message_id: string; user_id: string; emoji: string; created_at: string };
 

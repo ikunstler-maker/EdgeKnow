@@ -94,7 +94,7 @@ select 'the guest reads: ' || (select count(*) from public.chat_messages where c
 set request.jwt.claim.sub = :'carol';
 select 'carol (not managing) hides history: ' || (public.chat_set_history_visible(:'grp', true) ->> 'error');
 set request.jwt.claim.sub = :'bob';
-select 'up to 8 people: ' || (public.chat_add_members(:'grp', array[gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), gen_random_uuid()]::uuid[]) ->> 'error');
+select 'up to 50 people: ' || (public.chat_add_members(:'grp', array(select gen_random_uuid() from generate_series(1, 47))) ->> 'error');
 select 'the pair''s history setting: ' || (public.chat_set_history_visible(:'pair', false) ->> 'error');
 set request.jwt.claim.sub = :'eve';
 select 'a stranger sees conversations: ' || (select count(*) from public.chat_channels where visibility = 'direct');

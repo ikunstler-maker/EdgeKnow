@@ -2,14 +2,14 @@
 
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
-import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatNotify, type ChatReaction } from "@/lib/chat";
+import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatFile, type ChatNotify, type ChatReaction } from "@/lib/chat";
 
 // Toker: the screen's reads and changes. The database decides who sees and does
 // what (chat_* functions, row level security); these only forward to wherever the
 // workspace keeps its data. No page re-render: the screen keeps its own state.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const MESSAGE_COLUMNS = "id, channel_id, author_id, thread_root_id, body, mentions, created_at, edited_at, deleted_at, pinned_at, reply_count, last_reply_at";
+const MESSAGE_COLUMNS = "id, channel_id, author_id, thread_root_id, body, mentions, created_at, edited_at, deleted_at, pinned_at, reply_count, last_reply_at, file_count";
 
 async function call<T extends object = object>(shortId: string, fn: string, args: Record<string, unknown>): Promise<ActionResult<T>> {
   const supabase = await writeClient(shortId);
@@ -75,6 +75,20 @@ export async function loadPinned(shortId: string, channelId: string): Promise<Ch
   const supabase = await dataClient(shortId);
   const { data } = await supabase.from("chat_messages").select(MESSAGE_COLUMNS).eq("channel_id", channelId).not("pinned_at", "is", null).order("pinned_at", { ascending: false }).limit(50);
   return (data ?? []) as ChatMessage[];
+}
+
+// Files of messages (the database gives only those of messages the person sees).
+export async function loadFiles(shortId: string, messageIds: string[]): Promise<ChatFile[]> {
+  const wanted = ids(messageIds).slice(0, 200);
+  if (!wanted.length) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase
+    .from("chat_files")
+    .select("id, message_id, name, mime_type, bytes, kind, duration_ms, width, height")
+    .in("message_id", wanted)
+    .order("created_at")
+    .limit(2000);
+  return (data ?? []) as ChatFile[];
 }
 
 export async function loadReactions(shortId: string, messageIds: string[]): Promise<ChatReaction[]> {
@@ -172,8 +186,8 @@ export async function setNotify(shortId: string, channelId: string, level: ChatN
 
 // ---------------------------------------------------------------- messages
 
-export async function postMessage(shortId: string, channelId: string, body: string, threadRootId: string | null = null, mentions: string[] = []) {
-  return call<{ id: string }>(shortId, "chat_post_message", { ch: channelId, new_body: body, thread_root: threadRootId, mention_ids: ids(mentions) });
+export async function postMessage(shortId: string, channelId: string, body: string, threadRootId: string | null = null, mentions: string[] = [], fileIds: string[] = []) {
+  return call<{ id: string }>(shortId, "chat_post_message", { ch: channelId, new_body: body, thread_root: threadRootId, mention_ids: ids(mentions), file_ids: ids(fileIds) });
 }
 
 export async function editMessage(shortId: string, messageId: string, body: string, mentions: string[] = []) {
