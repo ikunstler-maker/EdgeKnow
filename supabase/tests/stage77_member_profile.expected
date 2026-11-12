@@ -1,0 +1,29 @@
+carol sees bob: {"ok": true, "name": "Bob Google", "role": "member", "teams": ["North"], "birthday": null, "job_title": null, "departments": ["Design", "Sales"], "can_edit_title": false, "can_edit_birthday": false}
+guest sees bob: forbidden, herself: true
+stranger sees bob: forbidden
+not a member: forbidden
+bob sets his: true, too long: invalid, carol's: forbidden
+owner sets carol's: true
+guest sets her own: true
+titles: Sales manager / Designer
+carol can edit: bob's false, her own true
+direct write: false
+bob own: true
+bob on carol's profile: forbidden
+owner can edit bob's: true, her own: false, the guest's: false
+owner, same day: true
+bob's year stays: 1990
+owner, new day: true, 30 Feb: invalid, half: invalid, the guest: invalid
+bob now: {"ok": true, "day": 1, "year": null, "month": 4, "shown": true}
+carol sees on the card: {"day": 1, "month": 4}
+bob hides it: true
+carol sees: null
+bob sees his own: {"day": 1, "month": 4}
+carol after removal: no title
+bob renames: true, too long: invalid
+bad version: invalid, upload: true
+after sign-in: Robert B. | /api/avatar/<bob>?v=k1
+back to sign-in: truetrue
+now: Bob Again | https://img.test/new.png | falsefalse
+follows sign-in again: Bob Third
+psql: ERROR:  permission denied for function set_my_name

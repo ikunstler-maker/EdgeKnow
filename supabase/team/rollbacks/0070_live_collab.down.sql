@@ -1,88 +1,17 @@
--- Real-time co-editing, phase 1, in a team's own database (as
--- supabase/migrations/20270124100000_live_collab.sql).
--- Rollback: supabase/team/rollbacks/0069_live_collab.down.sql
-
--- The workspace's switch comes from the central service with the other settings.
-alter table public.team_settings
-  add column live_collab boolean not null default false;
-
--- Per document: may people who only view or comment show their cursors? Off by default.
-alter table public.service_objects
-  add column live_viewer_cursors boolean not null default false;
-
-create function public.set_live_viewer_cursors(target_object uuid, enabled boolean)
-returns jsonb
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  if not exists (select 1 from public.service_objects o where o.id = target_object and o.deleted_at is null)
-     or public.role_rank(public.service_object_role(target_object)) < public.role_rank('editor') then
-    return public.page_error('forbidden');
-  end if;
-  update public.service_objects set live_viewer_cursors = coalesce(enabled, false) where id = target_object;
-  return jsonb_build_object('ok', true);
-end;
-$$;
-revoke execute on function public.set_live_viewer_cursors(uuid, boolean) from public, anon;
-grant execute on function public.set_live_viewer_cursors(uuid, boolean) to authenticated;
-
--- As centrally. Realtime does not pass through the API's token guard (edgeknow_guard), so
--- the same check is made here: only a token from our issuer, given for this workspace.
-create function public.live_channel_allowed(topic text, ext text, want_write boolean)
-returns boolean
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-declare
-  parts text[] := regexp_match(coalesce(topic, ''), '^live:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):(doc|room)$');
-  settings public.team_settings;
-  object public.service_objects;
-  role text;
-begin
-  select * into settings from public.team_settings;
-  if parts is null or auth.uid() is null or not coalesce(settings.live_collab, false)
-     or settings.issuer is null or settings.workspace_id is null
-     or coalesce(auth.jwt() ->> 'iss', '') <> settings.issuer
-     or coalesce(auth.jwt() ->> 'role', '') <> 'authenticated'
-     or coalesce(auth.jwt() ->> 'ek_workspace', '') <> settings.workspace_id::text then
-    return false;
-  end if;
-  select * into object from public.service_objects o where o.id = parts[1]::uuid;
-  if not found or object.deleted_at is not null or object.service not in ('slides', 'boards')
-     or object.workspace_id <> settings.workspace_id then
-    return false;
-  end if;
-  role := public.service_object_role(object.id);
-  if role is null then
-    return false;
-  end if;
-  if not coalesce(want_write, false) then
-    return true;
-  end if;
-  if parts[2] = 'doc' then
-    return ext = 'broadcast' and public.role_rank(role) >= public.role_rank('editor');
-  end if;
-  return ext = 'presence'
-      or (ext = 'broadcast' and (public.role_rank(role) >= public.role_rank('editor') or object.live_viewer_cursors));
-end;
-$$;
-revoke execute on function public.live_channel_allowed(text, text, boolean) from public, anon;
-grant execute on function public.live_channel_allowed(text, text, boolean) to authenticated;
-
+-- Undo 0070_live_collab.
 do $$
 begin
   if to_regclass('realtime.messages') is not null then
-    create policy edgeknow_live_read on realtime.messages for select to authenticated
-      using (public.live_channel_allowed(realtime.topic(), extension, false));
-    create policy edgeknow_live_write on realtime.messages for insert to authenticated
-      with check (public.live_channel_allowed(realtime.topic(), extension, true));
+    drop policy if exists edgeknow_live_read on realtime.messages;
+    drop policy if exists edgeknow_live_write on realtime.messages;
   end if;
 end $$;
+drop function public.live_channel_allowed(text, text, boolean);
+drop function public.set_live_viewer_cursors(uuid, boolean);
+alter table public.service_objects drop column live_viewer_cursors;
+alter table public.team_settings drop column live_collab;
 
+-- team_sync as in 0037_unit_access.sql.
 create or replace function public.team_sync(payload jsonb)
 returns jsonb
 language plpgsql
@@ -180,7 +109,6 @@ begin
     issuer = coalesce(payload -> 'settings' ->> 'issuer', issuer),
     files_on_drive = coalesce((payload -> 'settings' ->> 'files_on_drive')::boolean, files_on_drive),
     private_tasks_admin = coalesce((payload -> 'settings' ->> 'private_tasks_admin')::boolean, private_tasks_admin),
-    live_collab = coalesce((payload -> 'settings' ->> 'live_collab')::boolean, live_collab),
     updated_at = now()
   -- Supabase refuses an UPDATE without WHERE coming through its API.
   where id;
