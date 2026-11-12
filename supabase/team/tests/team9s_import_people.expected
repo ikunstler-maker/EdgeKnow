@@ -26,3 +26,7 @@ alice raises the limit: true, starts 20 MB: true, reads where uploads stand: 0
 alice sets a rule: 0, runs the rules: false
 the server makes copies: 1
 copies in the project: 2, next in 3 days
+alice lets only the author edit: true
+bob sets a permission: forbidden, may edit: false, edits: forbidden
+alice (an owner) edits: true, resets: true
+someone removed sees permissions: 0, sets one: forbidden

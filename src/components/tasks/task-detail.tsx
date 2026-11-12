@@ -41,6 +41,8 @@ import { TypeIcon } from "./task-icons";
 
 const TaskDescription = dynamic(() => import("./task-description"), { ssr: false, loading: () => <p className="text-sm text-muted">…</p> });
 
+// What a person may do with one task.
+export type TaskCan = { edit: boolean; assign: boolean; schedule: boolean; transition: boolean; delete: boolean; link: boolean };
 export type TaskComment = { id: string; author_id: string | null; body: string; mentions: string[]; created_at: string; edited_at: string | null };
 // An imported task: its key and address in the old tracker, and people who aren't members here.
 export type TaskOrigin = { external_key: string | null; external_url: string | null; imported_reporter: string | null; imported_assignee: string | null };
@@ -73,6 +75,7 @@ export function TaskDetail({
   boards = [],
   me,
   canEdit,
+  permissions,
   canComment,
   isOwner,
   moves = {},
@@ -104,6 +107,8 @@ export function TaskDetail({
   boards?: TaskBoardInfo[];
   me: string;
   canEdit: boolean;
+  // What the reader may do with this task by the project's permissions (absent: by the role, as before).
+  permissions?: Partial<TaskCan>;
   canComment: boolean;
   isOwner: boolean;
   moves?: ColumnMoves;
@@ -148,6 +153,7 @@ export function TaskDetail({
       if (result.ok) onOk?.();
       router.refresh();
     });
+  const can: TaskCan = { edit: canEdit, assign: canEdit, schedule: canEdit, transition: canEdit, delete: canEdit, link: canEdit, ...permissions };
   const change = (changes: Record<string, unknown>) => run(() => updateTask(task.id, changes));
 
   if (task.deleted_at) {
@@ -157,7 +163,7 @@ export function TaskDetail({
           <span className="font-mono">{taskKey}</span> {task.title}
         </p>
         <p className="mt-2 text-muted">{k.deleted}</p>
-        {canEdit && (
+        {can.delete && (
           <button type="button" disabled={pending} onClick={() => run(() => deleteTask(task.id, true))} className="mt-3 min-h-11 rounded-lg border border-border px-4 text-sm hover:bg-surface">
             {k.restore}
           </button>
@@ -250,12 +256,12 @@ export function TaskDetail({
             })}
             current={task.status_id}
             moves={moves}
-            disabled={!canEdit || pending}
+            disabled={!can.transition || pending}
             onPick={(id) => run(() => moveTaskOnBoard(task.id, id))}
           />
           <label className="inline-flex max-w-full min-w-0 items-center gap-2 md:hidden">
             <span className="text-xs text-muted">{k.fields.status}</span>
-            <select value={task.status_id} disabled={!canEdit || pending} onChange={(e) => run(() => moveTaskOnBoard(task.id, e.target.value))} className="min-h-11 min-w-0 rounded-lg border border-border bg-hover px-2 text-sm font-medium hover:border-border-strong md:h-8 md:min-h-0" data-task-status>
+            <select value={task.status_id} disabled={!can.transition || pending} onChange={(e) => run(() => moveTaskOnBoard(task.id, e.target.value))} className="min-h-11 min-w-0 rounded-lg border border-border bg-hover px-2 text-sm font-medium hover:border-border-strong md:h-8 md:min-h-0" data-task-status>
               {/* Columns of every board: picking another team's column moves the task to its board. */}
               {[null, ...boards.map((x) => x.id)].map((board) => {
                 const columns = statuses.filter((s) => (s.board_id ?? null) === board);
@@ -276,7 +282,7 @@ export function TaskDetail({
             </select>
           </label>
           </div>
-          {canEdit ? (
+          {can.edit ? (
             <textarea
               defaultValue={task.title}
               aria-label={k.columns.title}
@@ -310,7 +316,7 @@ export function TaskDetail({
                 fields={shownFields}
                 all={fields}
                 canOrder={isOwner}
-                render={(field) => <FieldValue field={field} value={task.custom?.[field.id]} members={members} disabled={!canEdit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />}
+                render={(field) => <FieldValue field={field} value={task.custom?.[field.id]} members={members} disabled={!can.edit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />}
               />
               {emptyFields.length > 3 && (
                 <button type="button" onClick={() => setAllFields(!allFields)} aria-expanded={allFields} className="min-h-11 self-start text-xs @xl:col-span-2 text-muted hover:text-foreground hover:underline md:min-h-8" data-more-fields>
@@ -328,7 +334,7 @@ export function TaskDetail({
 
           <h2 className="mt-5 text-sm font-medium text-muted">{k.description}</h2>
           <div className="-mx-3 mt-2">
-            <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={canEdit} />
+            <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={can.edit} />
           </div>
           <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} limits={fileLimits} members={members} me={me} canEdit={canEdit} />
         </div>
@@ -336,7 +342,7 @@ export function TaskDetail({
         <aside className="min-w-0 self-start rounded-xl border border-border p-3 text-sm @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1" aria-label={k.fields.heading} data-task-fields>
           <h2 className="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-muted">{k.card.properties}</h2>
           <Row label={k.fields.assignee} plain>
-            <PeoplePicker name="assignee" label={k.fields.assignee} members={members} value={task.assignee_id ? [task.assignee_id] : []} disabled={!canEdit || pending} empty={k.unassigned} onChange={(ids) => change({ assignee_id: ids[0] ?? null })} />
+            <PeoplePicker name="assignee" label={k.fields.assignee} members={members} value={task.assignee_id ? [task.assignee_id] : []} disabled={!can.assign || pending} empty={k.unassigned} onChange={(ids) => change({ assignee_id: ids[0] ?? null })} />
           </Row>
           {!task.assignee_id && origin?.imported_assignee && (
             <p className="pb-1 pl-[7rem] text-xs text-muted" data-imported-assignee>
@@ -345,14 +351,14 @@ export function TaskDetail({
           )}
           {(["co_assignee", "responsible"] as const).map((role) => (
             <Row key={role} label={k.privacy.roles[role]} plain data-participants={role}>
-              <PeoplePicker name={role} label={k.privacy.roles[role]} members={members} value={people(role)} multiple disabled={!canEdit || pending} empty={k.pickers.nobody} onChange={(ids) => setPeople(role, ids)} />
+              <PeoplePicker name={role} label={k.privacy.roles[role]} members={members} value={people(role)} multiple disabled={!can.assign || pending} empty={k.pickers.nobody} onChange={(ids) => setPeople(role, ids)} />
             </Row>
           ))}
           <Row label={k.fields.priority}>
-<PriorityPicker value={task.priority} disabled={!canEdit || pending} onChange={(priority) => change({ priority })} />
+<PriorityPicker value={task.priority} disabled={!can.edit || pending} onChange={(priority) => change({ priority })} />
           </Row>
           <Row label={k.fields.type}>
-            <select value={task.type} disabled={!canEdit || pending} onChange={(e) => change({ type: e.target.value })} className={quietClass}>
+            <select value={task.type} disabled={!can.edit || pending} onChange={(e) => change({ type: e.target.value })} className={quietClass}>
               {TASK_TYPES.map((value) => (
                 <option key={value} value={value}>
                   {k.types[value]}
@@ -361,10 +367,10 @@ export function TaskDetail({
             </select>
           </Row>
           <Row label={k.fields.startDate}>
-            <input type="date" defaultValue={task.start_date ?? ""} disabled={!canEdit} onChange={(e) => change({ start_date: e.target.value || null })} className={quietClass} />
+            <input type="date" defaultValue={task.start_date ?? ""} disabled={!can.schedule} onChange={(e) => change({ start_date: e.target.value || null })} className={quietClass} />
           </Row>
           <Row label={k.fields.dueDate}>
-            <input type="date" defaultValue={task.due_date ?? ""} disabled={!canEdit} onChange={(e) => change({ due_date: e.target.value || null })} className={quietClass} />
+            <input type="date" defaultValue={task.due_date ?? ""} disabled={!can.schedule} onChange={(e) => change({ due_date: e.target.value || null })} className={quietClass} />
           </Row>
           <Row label={k.fields.estimate}>
             <input
@@ -372,7 +378,7 @@ export function TaskDetail({
               min={0}
               step={0.5}
               defaultValue={task.estimate ?? ""}
-              disabled={!canEdit}
+              disabled={!can.edit}
               placeholder="—"
               onBlur={(e) => {
                 const value = e.currentTarget.value === "" ? null : Number(e.currentTarget.value);
@@ -382,16 +388,16 @@ export function TaskDetail({
             />
           </Row>
           <Row label={k.fields.labels} plain>
-            <LabelsEditor value={task.labels} known={projectLabels} disabled={!canEdit} onChange={(labels) => change({ labels })} />
+            <LabelsEditor value={task.labels} known={projectLabels} disabled={!can.edit} onChange={(labels) => change({ labels })} />
           </Row>
           <Row label={k.hierarchy.parent} plain>
-            <ParentPicker task={task} tasks={projectTasks} canEdit={canEdit} projectKey={project.key} />
+            <ParentPicker task={task} tasks={projectTasks} canEdit={can.edit} projectKey={project.key} />
           </Row>
 
 
           <div className="mt-3 border-t border-border px-2 pt-1 [&_h2]:text-xs [&_section]:mt-3" data-task-side-blocks>
-          <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={canEdit} hrefFor={hrefFor} />
-          <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={canEdit} />
+          <Subtasks shortId={shortId} projectId={project.id} projectKey={project.key} task={task} tasks={projectTasks} statuses={statuses} canEdit={can.edit} hrefFor={hrefFor} />
+          <TaskLinks shortId={shortId} taskId={task.id} links={links} canEdit={can.link} />
           <section className="mt-6" aria-label={t.tasks.wiki.mentionedOn} data-mentioned-on>
             <h2 className="text-sm font-medium text-muted">{t.tasks.wiki.mentionedOn}</h2>
             {mentionedOn.length === 0 ? (
@@ -583,7 +589,7 @@ export function TaskDetail({
               </button>
             )}
             {savingTemplate && <SaveTemplateDialog projectId={project.id} isOwner={isOwner} data={templateOf(task)} onClose={() => setSavingTemplate(false)} />}
-            {canEdit && (
+            {can.delete && (
               <button
                 type="button"
                 disabled={pending}

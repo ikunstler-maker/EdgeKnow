@@ -206,6 +206,7 @@ const bobActions = {
   "set who may move tasks in alpha's column": ["set_column_options", { target_status: alphaColumn?.id, options: { short_name: "x", take_groups: [] } }],
   "start a large file on alpha's task": ["begin_large_task_file", { target_task: alphaTask?.id, file_name: "x.bin", file_type: "x/y", file_bytes: 10 }],
   "raise alpha's attachment limit": ["set_project_file_limits", { target_project: alphaProject?.id, file_mb: 50, zip_mb: 50 }],
+  "set a permission in alpha's project": ["set_task_permission", { target_project: alphaProject?.id, wanted: "edit", holders: { roles: ["viewer"] } }],
   "make alpha's task repeat": ["set_task_recurrence", { target_task: alphaTask?.id, rule: { every: 1, unit: "day" } }],
   "write time on alpha's task": ["save_task_time", { target_task: alphaTask?.id, target_entry: null, spent_minutes: 30, spent_date: new Date().toISOString().slice(0, 10), new_note: null }],
   "turn on time tracking in alpha's project": ["set_project_time_tracking", { target_project: alphaProject?.id, enabled: true, visibility: "all" }],
@@ -235,6 +236,10 @@ for (const [name, [fn, body]] of Object.entries(bobActions)) {
 const foundByOwner = await rpc(alice, "find_task_by_key", { ws: alpha.id, wanted: "SEC-1" });
 const foundByStranger = await rpc(bob, "find_task_by_key", { ws: alpha.id, wanted: "SEC-1" });
 check("alice finds her task by its key, bob finds nothing", foundByOwner.json?.number === 1 && foundByStranger.json === null, JSON.stringify([foundByOwner.json, foundByStranger.json]));
+// What a stranger "may" in someone else's project: nothing.
+const strangerMay = await rpc(bob, "project_permits", { target_project: alphaProject?.id, wanted: "create" });
+const strangerTask = await rpc(bob, "my_task_permissions", { target_task: alphaTask?.id });
+check("bob may do nothing in alpha's project by its permissions", strangerMay.json === false && Object.values(strangerTask.json ?? { x: true }).every((v) => v === false), JSON.stringify([strangerMay.json, strangerTask.json]));
 const selfConfirm = await rpc(bob, "confirm_workspace_domain", { ws: alpha.id, target_domain: "alpha.test", how: "dns", actor: null });
 check("bob can't call the server-only domain confirmation", selfConfirm.status >= 400, `HTTP ${selfConfirm.status} ${JSON.stringify(selfConfirm.json)}`);
 // Importing tasks from another tracker is the server's alone (Rukh Р-3а).

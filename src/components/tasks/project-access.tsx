@@ -11,6 +11,7 @@ import { setTaskProjectKey } from "@/app/task-import-actions";
 import { Icon } from "@/components/ui/icon";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { ImportPeople } from "./import-people";
+import { ProjectPermissions } from "./project-permissions";
 
 export type ProjectAccess = {
   workspaceRole: string | null;
@@ -224,6 +225,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
             </section>
           )}
 
+          <ProjectPermissions projectId={project.id} members={members} groups={access.groups} />
           <TimeSettings project={project} members={members} run={run} pending={pending} />
           {isAdmin && <FileLimits project={project} run={run} pending={pending} />}
           <ImportPeople projectId={project.id} members={members} />

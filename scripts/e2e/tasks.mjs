@@ -541,6 +541,18 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
     return [top("[data-status-row]"), top("[data-task-detail] textarea"), top("[data-task-key-fields]"), top("[data-task-files]")];
   });
   check("the card reads: statuses, title, the project's own fields, description, files", cardOrder[0] >= 0 && cardOrder[0] < cardOrder[1] && (cardOrder[2] < 0 || cardOrder[1] < cardOrder[2]) && cardOrder[1] < cardOrder[3] && (await alice.locator("[data-task-status]").isVisible()) === false && (await alice.locator("[data-task-side-blocks] [data-mentioned-on]").count()) === 1, JSON.stringify(cardOrder));
+  // The project's own permissions: the owner says who may do an action; the usual rule comes back with a reset.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
+  await alice.locator("[data-project-permissions] > summary").click();
+  await alice.locator('[data-permission="transition"] [data-permission-role="editor"]').uncheck();
+  await alice.locator('[data-permission="transition"] [data-permission-assignee]').check();
+  const moveRule = () => sql("select array_to_string(p.roles, ',') || '|' || p.assignee || '|' || p.reporter from public.task_permissions p join public.task_projects t on t.id = p.project_id where t.key = 'MAR' and p.action = 'transition'");
+  check("the project's owner lets only the assignee move tasks", await until(() => moveRule() === "|true|false", 15000), moveRule());
+  check("…and still moves them herself (owners always may)", sql(`select public.task_action_allowed((select id from public.task_projects where key = 'MAR'), 'transition', null::public.tasks, (select id from public.profiles where email = 'alice@alpha.test'))`) === "t");
+  await alice.locator('[data-permission="transition"] [data-permission-reset]').click();
+  check("…and the usual rule comes back", await until(() => sql("select count(*) from public.task_permissions p join public.task_projects t on t.id = p.project_id where t.key = 'MAR'") === "0", 15000));
+  await alice.keyboard.press("Escape");
   // A task repeats: every N days, weeks, months or years; the daily job makes the copies.
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
   await alice.locator("[data-task-repeat-open]").click();

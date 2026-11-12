@@ -75,6 +75,20 @@ export async function setTaskRecurrence(taskId: string, rule: RecurrenceRule | n
   return call<{ next_on?: string }>("set_task_recurrence", { target_task: taskId, rule });
 }
 
+// The project's own permissions: who may do each action ({} rows: the usual rules).
+export type PermissionRow = { action: string; roles: string[]; groups: string[]; members: string[]; reporter: boolean; assignee: boolean };
+export async function loadTaskPermissions(projectId: string): Promise<PermissionRow[]> {
+  const supabase = await writeClient();
+  if (!supabase) return [];
+  const { data } = await supabase.from("task_permissions").select("action, roles, groups, members, reporter, assignee").eq("project_id", projectId);
+  return (data ?? []) as PermissionRow[];
+}
+
+// Who may do an action; null: back to the usual rule.
+export async function setTaskPermission(projectId: string, action: string, holders: Omit<PermissionRow, "action"> | null) {
+  return call("set_task_permission", { target_project: projectId, wanted: action, holders });
+}
+
 // A link kept with a task next to its files.
 export async function addTaskWebLink(taskId: string, title: string, url: string) {
   return call<{ id: string }>("add_task_web_link", { target_task: taskId, new_title: title, new_url: url.trim() });

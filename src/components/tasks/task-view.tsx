@@ -4,7 +4,7 @@ import { canComment, canEdit, linkedTasks, type ProjectView } from "@/lib/tasks-
 import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "./task-relations";
 import type { TaskFileView, TaskWebLink } from "./task-files";
-import { TaskDetail, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
+import { TaskDetail, type TaskCan, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
 import type { TimeEntry } from "./time-log";
 import type { TaskRecurrence } from "./recurrence";
 import { TaskSnapshot, type TaskSnapshotData } from "./task-snapshot";
@@ -106,6 +106,9 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
   }
   // How the task repeats (read apart: a database a step behind has no such table yet).
   const { data: recurrence } = await db.from("task_recurrences").select("every_n, unit, weekdays, next_on, until").eq("task_id", task.id).maybeSingle();
+  // What this reader may do with the task by the project's permissions (a database a step
+  // behind has no such function: then the role decides, as before).
+  const { data: allowed } = await db.rpc("my_task_permissions", { target_task: task.id });
   const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -147,6 +150,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       importedNames={importedNames}
       webLinks={(webLinks ?? []) as TaskWebLink[]}
       time={time}
+      permissions={allowed && typeof allowed === "object" ? (allowed as Partial<TaskCan>) : undefined}
       recurrence={(recurrence as TaskRecurrence | null) ?? null}
       fileLimits={{ fileMb: view.project.file_limit_mb ?? 4, zipMb: view.project.zip_limit_mb ?? 4 }}
     />

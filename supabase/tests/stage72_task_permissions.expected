@@ -1,0 +1,12 @@
+usual — the editor edits: true, moves: true, makes a task: true, sets permissions: forbidden
+usual — the commenter edits: forbidden, moves: forbidden, makes a task: forbidden, what he may: {"edit": false, "link": false, "assign": false, "create": false, "delete": false, "schedule": false, "transition": false}
+rules set: true true true true true, an unknown action: invalid, a stranger as a holder: invalid, a role that is not one: invalid
+the editor edits: forbidden, moves: forbidden, moves through an update: forbidden, sets a date (still his): true, assigns: forbidden, many at once: forbidden
+the assignee moves: true, edits: forbidden
+the commenter makes a task: true, edits it as its author: true, what he may with it: {"edit": true, "link": false, "assign": false, "create": true, "delete": false, "schedule": false, "transition": false}
+the unit's member moves: true, assigns a commenter: not_assignable, assigns an editor: true, edits: forbidden, deletes: forbidden
+the owner edits and moves: true
+a stranger sees rules: 0, sets one: forbidden, asks what he may: false
+reset: true
+the editor edits again: true, rules he sees: 4
+psql: ERROR:  permission denied for table task_permissions
