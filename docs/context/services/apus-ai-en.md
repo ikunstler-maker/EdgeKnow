@@ -23,7 +23,8 @@ AI for the whole company at no cost to the product owner: the team connects its 
 |---|---|
 | **Wika** | drafts, answers with links, translation |
 | **Nodo** | diagram from text |
-| **Visio, Toker** | transcription of meetings and voice messages |
+| **Visio** | transcription and summary of meetings |
+| **Toker** | automatic voice-message transcription (read in meetings, find via global search); short summary of a long thread. With the team's own AI key; not available in secret rooms (Toker stage 6) |
 | **All services** | automations between them |
 
 ## 4. Open questions

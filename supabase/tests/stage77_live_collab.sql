@@ -7,41 +7,41 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000076a1', 'alice@live.test', now()),
- ('00000000-0000-0000-0000-0000000076b1', 'bob@live.test', now()),
- ('00000000-0000-0000-0000-0000000076d1', 'dora@live.test', now()),
- ('00000000-0000-0000-0000-0000000076f1', 'vera@live.test', now()),
- ('00000000-0000-0000-0000-0000000076c1', 'carol@other-live.test', now()),
- ('00000000-0000-0000-0000-0000000076e1', 'gwen@client-live.test', now());
+ ('00000000-0000-0000-0000-0000000077a1', 'alice@live.test', now()),
+ ('00000000-0000-0000-0000-0000000077b1', 'bob@live.test', now()),
+ ('00000000-0000-0000-0000-0000000077d1', 'dora@live.test', now()),
+ ('00000000-0000-0000-0000-0000000077f1', 'vera@live.test', now()),
+ ('00000000-0000-0000-0000-0000000077c1', 'carol@other-live.test', now()),
+ ('00000000-0000-0000-0000-0000000077e1', 'gwen@client-live.test', now());
 update public.platform_settings set open_registration = true;
 set role authenticated;
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076a1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077a1';
 select public.create_workspace('Live') ->> 'id' as ws \gset
 select public.add_workspace_domain(:'ws', 'live.test') ->> 'ok' as ignored \gset
 select public.invite_member(:'ws', 'gwen@client-live.test', 'guest', null) ->> 'ok' as ignored \gset
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076b1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077b1';
 select public.join_workspaces() ->> 'ok' as ignored \gset
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076d1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077d1';
 select public.join_workspaces() ->> 'ok' as ignored \gset
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076f1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077f1';
 select public.join_workspaces() ->> 'ok' as ignored \gset
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076e1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077e1';
 select public.join_workspaces() ->> 'ok' as ignored \gset
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076c1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077c1';
 select public.create_workspace('Other live') ->> 'id' as other \gset
 reset role;
 update public.platform_settings set open_registration = false, email_domain_proof = true, require_team_database = false;
 
 -- Bob makes a deck, a design and a map; the workspace views them, Dora edits, Gwen (guest) views the deck.
 set role authenticated;
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000076b1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000077b1';
 select public.create_service_object(:'ws', 'slides', 'deck', 'Deck', '{}') ->> 'id' as deck \gset
 select public.create_service_object(:'ws', 'boards', 'design', 'Design', '{}') ->> 'id' as design \gset
 select public.create_service_object(:'ws', 'nodes', 'mindmap', 'Map', '{}') ->> 'id' as map \gset
 select public.set_service_object_workspace_role(:'deck', 'viewer') ->> 'ok' as ignored \gset
 select public.set_service_object_workspace_role(:'design', 'commenter') ->> 'ok' as ignored \gset
-select public.set_service_object_member_role(:'deck', '00000000-0000-0000-0000-0000000076d1', 'editor') ->> 'ok' as ignored \gset
-select public.set_service_object_member_role(:'deck', '00000000-0000-0000-0000-0000000076e1', 'viewer') ->> 'ok' as ignored \gset
+select public.set_service_object_member_role(:'deck', '00000000-0000-0000-0000-0000000077d1', 'editor') ->> 'ok' as ignored \gset
+select public.set_service_object_member_role(:'deck', '00000000-0000-0000-0000-0000000077e1', 'viewer') ->> 'ok' as ignored \gset
 reset role;
 
 -- What a person may do on a topic: read, send changes ("doc"), presence and cursors ("room").
@@ -57,12 +57,12 @@ begin
   execute 'reset role';
   return r;
 end $$;
-\set alice '00000000-0000-0000-0000-0000000076a1'
-\set bob '00000000-0000-0000-0000-0000000076b1'
-\set dora '00000000-0000-0000-0000-0000000076d1'
-\set vera '00000000-0000-0000-0000-0000000076f1'
-\set carol '00000000-0000-0000-0000-0000000076c1'
-\set gwen '00000000-0000-0000-0000-0000000076e1'
+\set alice '00000000-0000-0000-0000-0000000077a1'
+\set bob '00000000-0000-0000-0000-0000000077b1'
+\set dora '00000000-0000-0000-0000-0000000077d1'
+\set vera '00000000-0000-0000-0000-0000000077f1'
+\set carol '00000000-0000-0000-0000-0000000077c1'
+\set gwen '00000000-0000-0000-0000-0000000077e1'
 
 select 'switch off, bob (owner of the deck): ' || pg_temp.can(:'bob', :'deck');
 
@@ -105,13 +105,13 @@ insert into realtime.messages (topic, extension) values ('live:' || :'deck' || '
 set role authenticated;
 select set_config('realtime.topic', 'live:' || :'deck' || ':doc', false) as ignored \gset
 set request.jwt.claim.sub = :'vera';
-select 'vera reads the deck channel: ' || count(*) from realtime.messages;
+select 'vera reads the deck channel: ' || count(*) from realtime.messages where topic = 'live:' || :'deck' || ':doc';
 select 'vera sends a change (refused):';
 insert into realtime.messages (topic, extension) values ('live:' || :'deck' || ':doc', 'broadcast');
 set request.jwt.claim.sub = :'dora';
 insert into realtime.messages (topic, extension) values ('live:' || :'deck' || ':doc', 'broadcast') returning 'dora sends a change: ok';
 set request.jwt.claim.sub = :'carol';
-select 'carol reads the deck channel: ' || count(*) from realtime.messages;
+select 'carol reads the deck channel: ' || count(*) from realtime.messages where topic = 'live:' || :'deck' || ':doc';
 reset role;
 
 -- In the bin: closed for everyone. Switch off: closed again.

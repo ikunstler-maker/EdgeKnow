@@ -1,0 +1,6 @@
+bob writes: true, in secret: true
+psql: ERROR:  permission denied for table chat_messages
+alice (owner) sees: team-general, reads: 1
+alice deletes secret: forbidden
+zed (not a member) sees: 0, writes: forbidden
+signals: true, with text: 0
