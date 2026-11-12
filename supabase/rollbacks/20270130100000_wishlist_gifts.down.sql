@@ -1,4 +1,4 @@
--- Undo 20270129100000_wishlist_gifts.
+-- Undo 20270130100000_wishlist_gifts.
 create or replace function public.calendar_forget_member()
 returns trigger
 language plpgsql
