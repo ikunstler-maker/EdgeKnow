@@ -302,6 +302,14 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator('[data-edit-field="Гео"] [data-field-width]').selectOption("half");
   await alice.locator('[data-edit-field="Гео"]').getByRole("button", { name: "Зберегти" }).click();
   check("…and edited there: half the width", await until(() => sql("select width from public.task_fields where name = 'Гео'") === "half", 15000));
+  // …and drawn so: the field takes half of the fields' block, not all of it.
+  const drawnShare = async () => {
+    const field = await alice.locator('[data-key-field="Гео"]').boundingBox().catch(() => null);
+    const block = await alice.locator("[data-task-key-fields]").boundingBox();
+    return field && block ? field.width / block.width : 1;
+  };
+  for (let i = 0; i < 50 && (await drawnShare()) >= 0.6; i++) await alice.waitForTimeout(300);
+  check("…and drawn half as wide", (await drawnShare()) < 0.6, String(await drawnShare()));
   sql("delete from public.task_fields where name in ('Гео', 'Гео (копія)', 'Хронометраж')");
   sql("update public.tasks t set custom = coalesce((select jsonb_object_agg(e.key, e.value) from jsonb_each(t.custom) e where exists (select 1 from public.task_fields f where f.id::text = e.key)), '{}'::jsonb) where t.custom <> '{}'::jsonb");
 
@@ -1001,6 +1009,16 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
       fields: [],
       users: [{ accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }],
       roles: [{ name: "Developers", users: ["u-alice", "u-gone"] }, { name: "Empty role", users: [] }],
+      // The project's permission scheme as the tracker gives it, and the site's groups it names.
+      scheme: { name: "Old scheme", permissions: [
+        { permission: "CREATE_ISSUES", holder: { type: "projectRole", parameter: "10002", projectRole: { id: 10002, name: "Developers" } } },
+        { permission: "EDIT_ISSUES", holder: { type: "group", value: "g-design", group: { name: "Old designers", groupId: "g-design" } } },
+        { permission: "TRANSITION_ISSUES", holder: { type: "assignee" } },
+        { permission: "TRANSITION_ISSUES", holder: { type: "reporter" } },
+        { permission: "DELETE_ISSUES", holder: { type: "user", value: "u-gone" } },
+        { permission: "MANAGE_WATCHERS", holder: { type: "anyone" } },
+      ] },
+      groups: [{ id: "g-design", name: "Old designers", users: ["u-alice", "u-gone"] }],
       issues: [
         issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01", worklog: { total: 1, worklogs: [{ id: "w1", author: { accountId: "u-gone", displayName: "Gone Person" }, timeSpentSeconds: 7200, started: "2025-03-02T10:00:00.000+0000" }] }, attachment: [
           { id: "900", filename: "spec.bin", mimeType: "application/x-design", size: bigFile.length, author: { accountId: "u-gone", displayName: "Gone Person" }, created: "2025-03-02T09:00:00.000+0000" },
@@ -1029,11 +1047,35 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("the tracker's key is kept encrypted, and people are matched by email", kept === "t" && (await alice.locator("[data-import-people-found]").innerText()).includes("1 з 1"), kept);
   const roleRows = await alice.locator("[data-import-roles] select").evaluateAll((els) => els.map((el) => el.value).join(","));
   check("the tracker's roles that have people are offered a role of ours", roleRows === "editor", roleRows);
+  // The tracker's permission scheme: its group is offered as a new unit, and the table says who will do what.
+  const schemeCell = (action) => alice.locator(`[data-import-scheme-row="${action}"] td`).nth(1).innerText();
+  check(
+    "the tracker's permission scheme is shown before anything is written: who will do what, and what is left out",
+    (await alice.locator('[data-import-scheme="carry"]').isChecked()) &&
+      (await alice.locator("[data-import-scheme-groups] select").inputValue()) === "new" &&
+      (await alice.locator("[data-import-scheme-row]").count()) === 19 &&
+      (await schemeCell("create")) === "Редагує задачі" &&
+      (await schemeCell("edit")).includes("Old designers") &&
+      (await schemeCell("transition")) === "Автор задачі, Виконавець задачі" &&
+      (await schemeCell("delete")) === "лише власники проєкту" &&
+      (await alice.locator('[data-import-scheme-note="permission_unsupported"]').count()) === 1 &&
+      (await alice.locator('[data-import-scheme-note="person_not_member"]').count()) === 1 &&
+      sql("select count(*) from public.workspace_groups where name = 'Old designers'") === "0",
+    `${await schemeCell("create")} | ${await schemeCell("edit")} | ${await schemeCell("transition")} | ${await schemeCell("delete")}`,
+  );
   await alice.locator("[data-import-to-preview]").click();
   await alice.locator('[data-import-preview-task="OLD-1"]').waitFor({ timeout: 30000 });
   check("the dry run shows the first tasks, and nothing is written yet", (await alice.locator("[data-import-preview-task]").count()) === 3 && sql("select count(*) from public.task_projects where key = 'OLD'") === "0");
   await alice.locator("[data-import-start]").click();
   await alice.locator('[data-import-run="done"]').waitFor({ timeout: 60000 });
+  // The scheme became the project's permissions, and the group a unit with its people who are members.
+  const oldRule = (action, what) => sql(`select ${what} from public.task_permissions x where x.action = '${action}' and x.project_id = (select id from public.task_projects where key = 'OLD')`);
+  const carried = [sql("select count(*) from public.task_permissions where project_id = (select id from public.task_projects where key = 'OLD')"), oldRule("create", "array_to_string(x.roles, ',')"), oldRule("edit", "(select string_agg(g.name, ',') from public.workspace_groups g where g.id = any (x.groups))"), oldRule("transition", "x.reporter::text || x.assignee::text"), oldRule("delete", "cardinality(x.members) + cardinality(x.groups) + cardinality(x.roles)")].join(" ");
+  const unitPeople = sql("select string_agg(split_part(pr.email, '@', 1), ',') from public.workspace_group_members gm join public.workspace_groups g on g.id = gm.group_id join public.profiles pr on pr.id = gm.user_id where g.name = 'Old designers'");
+  check("the tracker's permissions move in as the project's own, and its group as a unit", carried === "19 editor Old designers truetrue 0" && unitPeople === "alice" && (await alice.locator("[data-import-report-permissions]").innerText()).includes("19") && (await alice.locator("[data-import-report-permissions-failed]").count()) === 0, `${carried} / ${unitPeople}`);
+  // The steps below go by the usual rules again.
+  sql("delete from public.task_permissions where project_id = (select id from public.task_projects where key = 'OLD')");
+  sql("delete from public.workspace_groups where name = 'Old designers'");
   const old = "(select id from public.task_projects where key = 'OLD')";
   const moved = sql(`select string_agg(t.number || ':' || s.name || ':' || t.type, ',' order by t.number) || ' next ' || (select next_number from public.task_projects where key = 'OLD') from public.tasks t join public.task_statuses s on s.id = t.status_id where t.project_id = ${old}`);
   check("tasks move in with their numbers, columns and types", moved === "1:Backlog:epic,2:In Review:task,5:Released:task next 6" && (await alice.locator("[data-import-all-moved]").count()) === 1, moved);

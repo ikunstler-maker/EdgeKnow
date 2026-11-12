@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import { workspacePath } from "@/lib/paths";
 import { TASK_PRIORITIES, TASK_TYPES, personLabel } from "@/lib/tasks";
-import { OUR_ROLES, parseTrackerLink, suggestPriority, suggestRole, suggestType, type OurPriority, type OurRole, type OurType } from "@/lib/tracker-convert";
+import { OUR_ROLES, PERMISSION_ACTIONS, parseTrackerLink, schemeToPermissions, suggestPriority, suggestRole, suggestType, type OurPriority, type OurRole, type OurType, type SchemeNote } from "@/lib/tracker-convert";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState, ImportTarget } from "@/lib/tracker/types";
 import { trackerConnect, trackerForget, trackerGaps, trackerOutline, trackerPreview, trackerRefresh, trackerRetryFiles, trackerStart, trackerState, trackerStep, type ImportGap } from "@/app/task-import-actions";
 import { Button, buttonClass, inputClass } from "@/components/ui/button";
@@ -263,6 +263,9 @@ function firstPlan(outline: ImportOutline): ImportPlan {
     priorities: Object.fromEntries(outline.priorities.map((name) => [name, suggestPriority(name)])),
     people: outline.ours.people,
     roles: Object.fromEntries((outline.roles ?? []).map((role) => [role.name, suggestRole(role.name)])),
+    permissions: Boolean(outline.scheme),
+    // A group stands for the unit of the same name, or becomes a new one.
+    groups: Object.fromEntries((outline.scheme?.groups ?? []).map((group) => [group.id, (outline.ours.units ?? []).find((u) => u.name.trim().toLowerCase() === group.name.trim().toLowerCase())?.id ?? "new"])),
     fields: outline.fields.filter((f) => f.id !== start?.id).map((f) => f.id),
     startField: start?.id ?? null,
   };
@@ -442,6 +445,8 @@ function PlanForm({ outline, plan, setPlan, pending, onBack, onNext }: { outline
         </Group>
       )}
 
+      <SchemePlan outline={outline} plan={plan} setPlan={setPlan} />
+
       <Group title={m.fields}>
         {outline.fields.length === 0 ? (
           <p className="text-sm text-muted">{m.noFields}</p>
@@ -562,6 +567,9 @@ function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onRe
           {(progress.timeEntries ?? 0) > 0 && <p data-import-report-time>{m.report.time(progress.timeEntries ?? 0)}</p>}
           {(progress.files ?? 0) + (progress.filesKept ?? 0) > 0 && <p data-import-report-files>{m.report.files((progress.files ?? 0) + (progress.filesKept ?? 0), megabytes(progress.fileBytes ?? 0))}</p>}
           {(progress.people ?? 0) > 0 && <p data-import-report-people>{m.report.people(progress.people ?? 0, progress.seated ?? 0)}</p>}
+          {progress.permissions !== undefined && <p data-import-report-permissions>{m.scheme.report(progress.permissions, progress.units ?? 0)}</p>}
+          {progress.permissionError && progress.permissionError !== "no_scheme" && <p className="text-danger" data-import-report-permissions-failed>{m.scheme.failed(progress.permissionError)}</p>}
+          {(progress.permissionNotes ?? []).length > 0 && <SchemeNotes notes={progress.permissionNotes ?? []} />}
           {progress.updated > 0 && <p>{m.report.updated(progress.updated)}</p>}
           <p>{m.report.parents(progress.parents)}</p>
           <p>{m.report.links(progress.links)}</p>
@@ -615,6 +623,100 @@ function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onRe
         )}
       </div>
     </section>
+  );
+}
+
+// The tracker's permission scheme: carry it or not, what its groups become, and who will be
+// able to do what (nothing is written until the move starts).
+function SchemePlan({ outline, plan, setPlan }: { outline: ImportOutline; plan: ImportPlan; setPlan: (plan: ImportPlan) => void }) {
+  const s = m.scheme;
+  const scheme = outline.scheme ?? null;
+  const carried = useMemo(() => {
+    if (!scheme) return null;
+    // A unit that is yet to be made stands under its group's own id until then.
+    const groups = Object.fromEntries(scheme.groups.map((group) => [group.id, plan.groups?.[group.id] === "new" ? `new:${group.id}` : (plan.groups?.[group.id] ?? null)]));
+    return schemeToPermissions(scheme, outline.roles ?? [], { roles: plan.roles ?? {}, people: plan.people, groups });
+  }, [scheme, outline.roles, plan.roles, plan.people, plan.groups]);
+  if (!scheme || !carried) {
+    return (
+      <Group title={s.title}>
+        <p className="text-xs text-muted" data-import-scheme="none">
+          {s.none}
+        </p>
+      </Group>
+    );
+  }
+  const units = outline.ours.units ?? [];
+  const unitName = (id: string) => (id.startsWith("new:") ? s.newUnitMark(scheme.groups.find((g) => `new:${g.id}` === id)?.name ?? "") : (units.find((u) => u.id === id)?.name ?? "—"));
+  const memberName = (id: string) => {
+    const member = outline.ours.members.find((x) => x.id === id);
+    return member ? personLabel(member) : "—";
+  };
+  const p = k.permissions;
+  return (
+    <Group title={s.title}>
+      <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-0">
+        <input type="checkbox" checked={plan.permissions === true} onChange={(e) => setPlan({ ...plan, permissions: e.target.checked })} className="h-5 w-5 md:h-4 md:w-4" data-import-scheme="carry" />
+        {s.carry(scheme.name)}
+      </label>
+      <p className="text-xs text-muted">{s.hint}</p>
+      {plan.permissions && (
+        <>
+          {scheme.groups.length > 0 && (
+            <div className="space-y-1" data-import-scheme-groups>
+              <h3 className="text-xs font-medium">{s.groups}</h3>
+              <p className="text-xs text-muted">{s.groupsHint}</p>
+              <Pairs
+                items={scheme.groups.map((group) => ({ id: group.id, name: group.unread ? s.groupUnread(group.name) : s.groupPeople(group.name, group.users.length) }))}
+                value={Object.fromEntries(scheme.groups.map((group) => [group.id, plan.groups?.[group.id] ?? ""]))}
+                options={[{ value: "", label: s.skipGroup }, { value: "new", label: s.newUnit }, ...units.map((unit) => ({ value: unit.id, label: unit.name }))]}
+                onChange={(groups) => setPlan({ ...plan, groups: Object.fromEntries(Object.entries(groups).map(([id, unit]) => [id, unit || null])) })}
+              />
+            </div>
+          )}
+          <div className="overflow-x-auto" data-import-scheme-table>
+            <h3 className="text-xs font-medium">{s.table}</h3>
+            <table className="mt-1 w-full text-left text-xs">
+              <thead className="text-muted">
+                <tr>
+                  <th className="py-1 pr-3 font-normal">{s.action}</th>
+                  <th className="py-1 font-normal">{s.who}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(carried.rows).map(([action, row]) => {
+                  const who = [...row.roles.map((role) => k.roles[role] ?? role), ...row.groups.map(unitName), ...row.members.map(memberName), ...(row.reporter ? [p.reporter] : []), ...(row.assignee ? [p.assignee] : [])];
+                  return (
+                    <tr key={action} className="border-t border-border align-top" data-import-scheme-row={action}>
+                      <td className="py-1 pr-3">{p.actions[action] ?? action}</td>
+                      <td className="py-1">{who.length ? who.join(", ") : <span className="text-muted">{s.ownersOnly}</span>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {carried.notes.length > 0 && <SchemeNotes notes={carried.notes} />}
+        </>
+      )}
+    </Group>
+  );
+}
+
+// What of the scheme is not carried, or is carried differently, and why.
+function SchemeNotes({ notes }: { notes: SchemeNote[] }) {
+  const s = m.scheme;
+  return (
+    <details className="text-xs text-muted" data-import-scheme-notes={notes.length}>
+      <summary className="flex min-h-11 cursor-pointer items-center md:min-h-0">{s.left(notes.length)}</summary>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5">
+        {notes.map((note, i) => (
+          <li key={i} data-import-scheme-note={note.reason}>
+            {s.reasons[note.reason]?.(k.permissions.actions[PERMISSION_ACTIONS[note.permission] ?? ""] ?? note.permission, note.what) ?? `${note.reason}: ${note.permission}`}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

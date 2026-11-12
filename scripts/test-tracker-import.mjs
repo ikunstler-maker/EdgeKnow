@@ -2,7 +2,7 @@
 // statuses, numbers, links — without a network or a database.
 // Run: node --experimental-strip-types --no-warnings scripts/test-tracker-import.mjs
 import assert from "node:assert/strict";
-import { documentToBlocks, parseWorklogs, toTimeItem, documentToText, parseComments, parseMoves, toActivityItem, matchPeople, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
+import { documentToBlocks, parseWorklogs, toTimeItem, documentToText, parseComments, parseMoves, toActivityItem, matchPeople, parseGrant, schemeToPermissions, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
 
 const text = (t, marks) => ({ type: "text", text: t, ...(marks ? { marks } : {}) });
 const doc = {
@@ -191,3 +191,61 @@ console.log("comments and status history: ok");
   ] });
 }
 console.log("time entries: ok");
+
+// The tracker's permission scheme → rows of our project permissions (Rukh Д-3).
+{
+  const raw = [
+    { permission: "CREATE_ISSUES", holder: { type: "projectRole", parameter: "10002", projectRole: { id: 10002, name: "Developers" } } },
+    { permission: "CREATE_ISSUES", holder: { type: "applicationRole" } },
+    { permission: "EDIT_ISSUES", holder: { type: "projectRole", value: "10001", projectRole: { name: "Administrators" } } },
+    { permission: "EDIT_ISSUES", holder: { type: "group", value: "g-1", parameter: "designers", group: { name: "designers", groupId: "g-1" } } },
+    { permission: "EDIT_ISSUES", holder: { type: "group", value: "g-2", group: { name: "partners", groupId: "g-2" } } },
+    { permission: "DELETE_ISSUES", holder: { type: "user", parameter: "u1", user: { accountId: "u1" } } },
+    { permission: "DELETE_ISSUES", holder: { type: "user", value: "u9" } },
+    { permission: "TRANSITION_ISSUES", holder: { type: "assignee" } },
+    { permission: "TRANSITION_ISSUES", holder: { type: "reporter" } },
+    { permission: "TRANSITION_ISSUES", holder: { type: "projectLead" } },
+    { permission: "ADD_COMMENTS", holder: { type: "projectRole", projectRole: { name: "Watchers" } } },
+    { permission: "DELETE_ALL_COMMENTS", holder: { type: "userCustomField", parameter: "customfield_10010" } },
+    { permission: "MANAGE_WATCHERS", holder: { type: "anyone" } },
+    { permission: "BROWSE_PROJECTS", holder: { type: "anyone" } },
+    { holder: { type: "anyone" } },
+  ];
+  const grants = raw.flatMap((g) => parseGrant(g) ?? []);
+  assert.equal(grants.length, 14);
+  assert.deepEqual(grants[0], { permission: "CREATE_ISSUES", holder: { type: "role", name: "Developers" } });
+  assert.deepEqual(grants[3], { permission: "EDIT_ISSUES", holder: { type: "group", id: "g-1", name: "designers" } });
+  assert.deepEqual(grants[6], { permission: "DELETE_ISSUES", holder: { type: "user", id: "u9" } });
+  const scheme = { name: "Default", grants, groups: [{ id: "g-1", name: "designers", users: ["u1"] }, { id: "g-2", name: "partners", users: [] }] };
+  const roles = [{ name: "Administrators", users: ["u1"] }, { name: "Developers", users: ["u1", "u2"] }, { name: "Watchers", users: ["u3", "u9"], groups: ["g-1"] }];
+  const { rows, notes } = schemeToPermissions(scheme, roles, { roles: { Administrators: "owner", Developers: "editor", Watchers: null }, people: { u1: "member-1", u3: "member-3", u9: null }, groups: { "g-1": "unit-1", "g-2": null } });
+  // A row for every action of ours: the scheme decides them all.
+  assert.equal(Object.keys(rows).length, 19);
+  assert.deepEqual(rows.create, { roles: ["editor", "commenter", "viewer"], groups: [], members: [], reporter: false, assignee: false });
+  // A tracker role that is "owner" here needs no row of its own; a left-out group is noted.
+  assert.deepEqual(rows.edit, { roles: [], groups: ["unit-1"], members: [], reporter: false, assignee: false });
+  assert.deepEqual(rows.delete.members, ["member-1"]);
+  assert.deepEqual(rows.transition, { roles: [], groups: [], members: [], reporter: true, assignee: true });
+  // A tracker role without a role of ours: its people and groups by name.
+  assert.deepEqual(rows.comment_add, { roles: [], groups: ["unit-1"], members: ["member-3"], reporter: false, assignee: false });
+  // Granted to nobody we can carry, or to nobody at all: the project's owners only.
+  assert.deepEqual(rows.comment_delete_any, { roles: [], groups: [], members: [], reporter: false, assignee: false });
+  assert.deepEqual(rows.time_log, { roles: [], groups: [], members: [], reporter: false, assignee: false });
+  const said = (reason, permission) => notes.filter((n) => n.reason === reason && (!permission || n.permission === permission)).length;
+  assert.equal(said("anyone", "CREATE_ISSUES"), 1);
+  assert.equal(said("group_skipped", "EDIT_ISSUES"), 1);
+  assert.equal(said("person_not_member", "DELETE_ISSUES"), 1);
+  assert.equal(said("person_not_member", "ADD_COMMENTS"), 1);
+  assert.equal(said("role_people_only", "ADD_COMMENTS"), 1);
+  assert.equal(said("holder_unsupported", "DELETE_ALL_COMMENTS"), 1);
+  assert.equal(said("permission_unsupported", "MANAGE_WATCHERS"), 1);
+  // Seeing the project follows the roles: neither a row nor a note.
+  assert.equal(said("permission_unsupported", "BROWSE_PROJECTS"), 0);
+  assert.equal(said("nobody", "WORK_ON_ISSUES"), 1);
+  assert.equal(said("nobody", "CREATE_ISSUES"), 0);
+  // More than 50 people on one action: the first 50, with a note.
+  const many = schemeToPermissions({ name: "", groups: [], grants: Array.from({ length: 60 }, (_, i) => ({ permission: "LINK_ISSUES", holder: { type: "user", id: `p${i}` } })) }, [], { roles: {}, groups: {}, people: Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`p${i}`, `m${i}`])) });
+  assert.equal(many.rows.link.members.length, 50);
+  assert.equal(many.notes.filter((n) => n.reason === "too_many" && n.permission === "LINK_ISSUES").length, 1);
+}
+console.log("permission scheme: ok");

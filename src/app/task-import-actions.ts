@@ -8,12 +8,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { decrypt, encrypt } from "@/lib/drive/secret-box";
 import { filesHome } from "@/lib/drive/task-files";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/tasks";
-import { dataClient, writeClient } from "@/lib/team-db/data";
+import { dataClient, syncWorkspaceNow, writeClient } from "@/lib/team-db/data";
 import { TrackerError, trackerApi, type TrackerAccess } from "@/lib/tracker/api";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState } from "@/lib/tracker/types";
 import { moveFilesStep, newFileWork, type FileWork } from "@/lib/tracker/files";
-import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toActivityItem, toImportItem, toTimeItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
+import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, schemeToPermissions, suggestPriority, toActivityItem, toImportItem, toTimeItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerRole, type TrackerScheme, type TrackerStatus } from "@/lib/tracker-convert";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 
 // Moving tasks in from another tracker (Rukh Р-3а). Only the workspace's owner and
@@ -92,7 +93,7 @@ export async function trackerConnect(shortId: string, link: string, projectKey: 
 
 async function ourSide(shortId: string, workspaceId: string) {
   const db = await dataClient(shortId);
-  const [{ data: projects }, { data: columns }, { data: memberRows }] = await Promise.all([
+  const [{ data: projects }, { data: columns }, { data: memberRows }, { data: unitRows }] = await Promise.all([
     db.from("task_projects").select("id, key, name").eq("workspace_id", workspaceId).is("archived_at", null).order("name"),
     db.from("task_statuses").select("id, project_id, name, category, position, board_id").eq("workspace_id", workspaceId).is("board_id", null).order("position"),
     db
@@ -101,6 +102,7 @@ async function ourSide(shortId: string, workspaceId: string) {
       .eq("workspace_id", workspaceId)
       .eq("status", "active")
       .overrideTypes<{ user_id: string; role: string; profile: { name: string | null; email: string } | null }[], { merge: false }>(),
+    db.from("workspace_groups").select("id, name").eq("workspace_id", workspaceId).order("name"),
   ]);
   const members: Person[] = (memberRows ?? [])
     .flatMap((m) => (m.profile ? [{ id: m.user_id, name: m.profile.name, email: m.profile.email, guest: m.role === "guest" }] : []))
@@ -108,6 +110,7 @@ async function ourSide(shortId: string, workspaceId: string) {
   type Column = { id: string; project_id: string; name: string; category: string };
   return {
     members,
+    units: (unitRows ?? []) as { id: string; name: string }[],
     projects: ((projects ?? []) as { id: string; key: string; name: string }[]).map((p) => ({
       ...p,
       columns: ((columns ?? []) as Column[]).filter((c) => c.project_id === p.id).map((c) => ({ id: c.id, name: c.name, category: c.category })),
@@ -137,6 +140,8 @@ export async function trackerOutline(shortId: string, importId: string): Promise
     const sample = await api.issues(access, row.source_project, null, PAGE, allFields.map((f) => f.id));
     const filled = (id: string) => sample.issues.some((issue) => issue.raw[id] !== null && issue.raw[id] !== undefined && issue.raw[id] !== "");
     const ours = await ourSide(shortId, ctx.workspace.id);
+    // The scheme is a help too: a key that may not read it moves the tasks all the same.
+    const scheme = await api.scheme(access, row.source_project, roles).catch(() => null);
     return {
       ok: true,
       outline: {
@@ -149,6 +154,7 @@ export async function trackerOutline(shortId: string, importId: string): Promise
         priorities,
         users,
         roles: roles.filter((r) => r.users.length > 0),
+        scheme: scheme && scheme.grants.length > 0 ? scheme : null,
         fields: allFields.filter((f) => filled(f.id)).slice(0, 30),
         ours: { ...ours, people: matchPeople(users, ours.members) },
       },
@@ -158,7 +164,7 @@ export async function trackerOutline(shortId: string, importId: string): Promise
   }
 }
 
-function checkedPlan(plan: ImportPlan, members: Person[]): ImportPlan | null {
+function checkedPlan(plan: ImportPlan, members: Person[], units: { id: string }[]): ImportPlan | null {
   const memberIds = new Set(members.map((m) => m.id));
   const target = plan.target;
   if (target.kind === "merge" ? !UUID.test(target.projectId) : !KEY.test(target.key) || !target.name.trim() || target.name.length > 80) return null;
@@ -167,7 +173,10 @@ function checkedPlan(plan: ImportPlan, members: Person[]): ImportPlan | null {
   for (const [id, member] of Object.entries(plan.people ?? {})) people[id] = member && memberIds.has(member) ? member : null;
   const roles: Record<string, OurRole | null> = {};
   for (const [name, role] of Object.entries(plan.roles ?? {}).slice(0, 30)) roles[name] = role && OUR_ROLES.includes(role) ? role : null;
-  return { ...plan, people, roles, fields: [...new Set(plan.fields ?? [])].slice(0, 30) };
+  const unitIds = new Set(units.map((u) => u.id));
+  const groups: Record<string, string | null> = {};
+  for (const [id, unit] of Object.entries(plan.groups ?? {}).slice(0, 30)) groups[id] = unit === "new" || (unit && unitIds.has(unit)) ? unit : null;
+  return { ...plan, people, roles, groups, permissions: plan.permissions === true, fields: [...new Set(plan.fields ?? [])].slice(0, 30) };
 }
 
 // Step 4: the first three tasks as they will look here (nothing is written yet).
@@ -176,7 +185,7 @@ export async function trackerPreview(shortId: string, importId: string, plan: Im
   const row = ctx && (await rowOf(ctx.admin, ctx.workspace.id, importId));
   if (!ctx || !row) return fail("forbidden");
   const ours = await ourSide(shortId, ctx.workspace.id);
-  const checked = checkedPlan(plan, ours.members);
+  const checked = checkedPlan(plan, ours.members, ours.units);
   if (!checked) return fail("invalid");
   try {
     const api = trackerApi();
@@ -284,6 +293,48 @@ async function prepareProject(db: SupabaseClient, workspaceId: string, plan: Imp
   return { ok: true as const, projectId, statusMap, fieldMap };
 }
 
+// The tracker's permission scheme becomes the project's permissions (Rukh Д-3). Units are
+// made and filled, and every row is written, as the person: by their own rights, through
+// the same functions as by hand. A failure here never stops the move of tasks.
+async function carryScheme(db: SupabaseClient, workspaceId: string, projectId: string, plan: ImportPlan, roles: TrackerRole[], scheme: TrackerScheme | null, units: { id: string; name: string }[]): Promise<Pick<ImportProgress, "permissions" | "units" | "permissionNotes" | "permissionError">> {
+  if (!scheme || scheme.grants.length === 0) return { permissionError: "no_scheme" };
+  type Result = { ok?: boolean; id?: string; error?: string } | null;
+  const central = await createClient();
+  const chosen: Record<string, string | null> = {};
+  let made = 0;
+  let touched = false;
+  for (const group of scheme.groups) {
+    const want = plan.groups?.[group.id] ?? null;
+    if (!want) continue;
+    let unit = want === "new" ? (units.find((u) => u.name.trim().toLowerCase() === group.name.trim().toLowerCase())?.id ?? null) : want;
+    if (!unit) {
+      const { data } = await central.rpc("create_workspace_group", { ws: workspaceId, new_name: group.name.trim().slice(0, 60) });
+      unit = (data as Result)?.ok ? ((data as Result)?.id ?? null) : null;
+      if (!unit) continue;
+      made += 1;
+      touched = true;
+    }
+    chosen[group.id] = unit;
+    // The group's people who are members here join the unit (guests and strangers don't).
+    for (const user of group.users) {
+      const member = plan.people[user];
+      if (!member) continue;
+      const { data } = await central.rpc("set_workspace_group_member", { ws: workspaceId, target_group: unit, member, included: true });
+      if ((data as Result)?.ok) touched = true;
+    }
+  }
+  // A team's own database learns of the new units before the rows that name them.
+  if (touched) await syncWorkspaceNow(workspaceId);
+  const { rows, notes } = schemeToPermissions(scheme, roles, { roles: plan.roles ?? {}, people: plan.people, groups: chosen });
+  let written = 0;
+  for (const [action, holders] of Object.entries(rows)) {
+    const { data } = await db.rpc("set_task_permission", { target_project: projectId, wanted: action, holders });
+    if (!(data as Result)?.ok) return { permissions: written, units: made, permissionNotes: notes, permissionError: (data as Result)?.error ?? "unknown" };
+    written += 1;
+  }
+  return { permissions: written, units: made, permissionNotes: notes };
+}
+
 // Step 5: the plan is applied (project, columns, fields) and the move starts.
 export async function trackerStart(shortId: string, importId: string, plan: ImportPlan): Promise<ActionResult<{ projectKey: string }>> {
   const ctx = await gate(shortId);
@@ -293,7 +344,7 @@ export async function trackerStart(shortId: string, importId: string, plan: Impo
   const db = await writeClient(shortId);
   if (!db) return fail("team_setup");
   const ours = await ourSide(shortId, ctx.workspace.id);
-  const checked = checkedPlan(plan, ours.members);
+  const checked = checkedPlan(plan, ours.members, ours.units);
   if (!checked) return fail("invalid");
   try {
     const api = trackerApi();
@@ -336,6 +387,10 @@ export async function trackerStart(shortId: string, importId: string, plan: Impo
       if (!result?.ok) return fail("unknown");
       progress.people = (progress.people ?? 0) + (result.people ?? 0);
       progress.seated = (progress.seated ?? 0) + (result.seated ?? 0);
+    }
+    if (checked.permissions) {
+      const carried = await carryScheme(db, ctx.workspace.id, prepared.projectId, checked, roles, await api.scheme(access, row.source_project, roles).catch(() => null), ours.units);
+      Object.assign(progress, carried);
     }
     const { error } = await ctx.admin
       .from("task_imports")
