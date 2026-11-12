@@ -82,12 +82,13 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
-## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 1a in review
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 1b in review
 Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
 - 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — DONE (#168).
 - 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Tables + RLS approved 2026-11-12 (decision "Toker, етап 1").
-  - 1a DB: 6 tables, functions, two role rights, realtime signals (ids only, private topics), guests see people of their channels, move between databases — in review.
-  - 1b main screen: left panel, channel stream, composer, create/settings, members, live updates.
+  - 1a DB: 6 tables, functions, two role rights, realtime signals (ids only, private topics), guests see people of their channels, move between databases — DONE (#169).
+  - 1b main screen: own channel column with categories, stream, composer, create/settings, members, browse, categories (admins), live updates (central: realtime; team DB: 5 s polling) — in review.
+  - Later: realtime for team databases (browser needs the team project's URL/key + team token — separate approval).
   - 1c threads in the right panel, reactions (wiki emoji picker), pins, mentions (+ bell notifications), unread.
   - Later: Drive backup of chat tables.
 - 2. Direct & group messages; files and voice messages (magic-byte check, access-checked serving); search; drafts, scheduled send, per-channel notifications, quiet hours.
@@ -130,6 +131,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
   - 3б busy time from an outside calendar by its feed address (decision 2027-01-31) — DONE (#139). Needs `CALENDAR_TOKEN_KEY` in Vercel (owner); until then the section says "not set up yet".
   - Later for 3б: several addresses per person; own outside busy time in the month and list views (today: the week only).
   - 3в sign-in with a provider — architecture decided (2027-02-01), **code on hold until the owner's separate OK**: first watch 3а and 3б in use; the owner sets up the permissions and the app review in the provider's console. Strictly minimal access (busy time without details from the primary calendar + writing only into the app's own "Doba" calendar); 3в-1 sign-in and busy time, 3в-2 Doba events into the "Doba" calendar; on disconnect ask whether to delete that calendar and always revoke the token at the provider; `calendar_connections` gets new fields, new central `calendar_external_links`; PRO mark.
+- Profile card (owner, 2026-11-12; decision 2026-11-12) — step 1 in review: job title, department and team from units, own name and photo, birthday set from a colleague's profile by who manages time off (no year). Step 2: wishlist editor (items with text, links, images, price; gradients, effects, emoji background pattern; draft → publish). Step 3: wishlist preview cards in the profile with "for the birthday on …", past ones collapsed, festive button in the home birthdays block, "I'll give this" (hidden from the birthday person).
 - Birthdays (owner, 2026-11-12; decision 2026-11-12) — in review: kept per person and workspace; day and month to colleagues, the year to the person and HR only; calendar mark every year, a festive but quiet block under the home greeting (today + next 7 days), the bell on the day for the person's units. Later: a greeting card or a shared congratulation thread; birthdays in the member card of workspace settings.
 - Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 
