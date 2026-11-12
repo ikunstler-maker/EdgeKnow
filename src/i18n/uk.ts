@@ -1445,6 +1445,14 @@ export const uk = {
       groups: { overdue: "Прострочені", today: "Сьогодні", week: "Найближчі 7 днів", later: "Пізніше", none: "Без терміну" } as Record<string, string>,
       also: "де я співвиконавець чи відповідальний",
     },
+    fileLimits: {
+      title: "Розмір вкладень",
+      file: "Найбільший файл, МБ",
+      zip: "Найбільший архів ZIP, МБ",
+      save: "Зберегти",
+      reset: "Повернути 4 МБ",
+      hint: "Звичайно 4 МБ. Можна підняти до 250 МБ (архів ZIP — до 10 240 МБ). Файли понад 4 МБ зберігаються лише на Google Drive команди; уже прикріплених зміна ліміту не чіпає.",
+    },
     importPeople: {
       title: "Люди з трекера",
       hint: (free: number, total: number) => `Не прив'язано: ${free} з ${total}. Прив'яжіть людину до учасника — її задачі стануть його задачами. Можна пересадити на іншого: задачі перейдуть слідом.`,
@@ -1574,6 +1582,7 @@ export const uk = {
       open: "Відкрити посилання",
     },
     files: {
+      dropHintLarge: (file: number, zip: number) => `або перетягніть файли сюди (до ${file} МБ, архів ZIP — до ${zip} МБ)`,
       filter: "Показати",
       kinds: { all: "Усі", image: "Зображення", video: "Відео", audio: "Аудіо", text: "Документи й текст", archive: "Архіви", other: "Інше" } as Record<string, string>,
       views: { tiles: "Плиткою", list: "Списком" },
@@ -1590,6 +1599,7 @@ export const uk = {
       download: "Завантажити",
       byOn: (who: string, when: string) => `${who}, ${when}`,
       errors: {
+        no_drive: "Для файлів понад 4 МБ потрібен підключений Google Drive команди.",
         drive_error: "EdgeKnow більше не має доступу до Google Диска workspace. Власник workspace має підключити його знову в «Налаштуваннях» → «Сховище».",
         too_large: "Файл більший за 4 МБ.",
         invalid_file: "Такий файл не підтримується. Можна: зображення, PDF, текст, CSV, документи (DOCX), таблиці (XLSX), презентації (PPTX) і ZIP.",

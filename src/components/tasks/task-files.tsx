@@ -61,6 +61,7 @@ export function TaskFiles({
   taskId,
   files,
   links = [],
+  limits = { fileMb: 4, zipMb: 4 },
   members,
   me,
   canEdit,
@@ -69,6 +70,8 @@ export function TaskFiles({
   taskId: string;
   files: TaskFileView[];
   links?: TaskWebLink[];
+  // The project's largest attachment and largest ZIP archive, in MB (4: the usual limit).
+  limits?: { fileMb: number; zipMb: number };
   members: Person[];
   me: string;
   canEdit: boolean;
@@ -134,6 +137,33 @@ export function TaskFiles({
   };
   const href = (id: string, download = false) => `/api/tasks/files/${id}?ws=${shortId}${download ? "&download" : ""}`;
 
+  // Sends a large file part by part; returns the error's name, or null when it is all there.
+  async function uploadLarge(body: Blob, name: string, type: string): Promise<string | null> {
+    const query = `ws=${shortId}&task=${taskId}&name=${encodeURIComponent(name)}&size=${body.size}&type=${encodeURIComponent(type || "application/octet-stream")}`;
+    const begun = (await fetch(`/api/tasks/files/large?${query}`, { method: "POST" })
+      .then((r) => r.json())
+      .catch(() => null)) as { ok?: boolean; error?: string; id?: string; part?: number } | null;
+    if (!begun?.ok || !begun.id || !begun.part) return begun?.error ?? "upload_failed";
+    let offset = 0;
+    let tries = 0;
+    while (offset < body.size) {
+      setBusy(`${name} · ${Math.floor((offset / body.size) * 100)}%`);
+      const answer = (await fetch(`/api/tasks/files/large?ws=${shortId}&id=${begun.id}&offset=${offset}`, { method: "PUT", body: body.slice(offset, offset + begun.part) })
+        .then((r) => r.json())
+        .catch(() => null)) as { ok?: boolean; error?: string; done?: boolean; offset?: number } | null;
+      // A part lost on the way is sent again (the server tells where it stands).
+      if (!answer) {
+        if (++tries > 3) return "upload_failed";
+        continue;
+      }
+      if (!answer.ok || typeof answer.offset !== "number") return answer.error ?? "upload_failed";
+      tries = 0;
+      offset = answer.offset;
+      if (answer.done) break;
+    }
+    return null;
+  }
+
   async function upload(list: FileList | File[]) {
     setError(null);
     for (const original of Array.from(list)) {
@@ -152,8 +182,15 @@ export function TaskFiles({
           // Sent as it is; the size check below still applies.
         }
       }
+      // Over 4 MB: in parts to the team's Drive, where the project's limit allows it.
       if (body.size > MAX) {
-        setError(`${original.name}: ${f.errors.too_large}`);
+        const limit = (type === "application/zip" ? limits.zipMb : limits.fileMb) * 1024 * 1024;
+        if (body.size > limit) {
+          setError(`${original.name}: ${f.errors.too_large}`);
+          continue;
+        }
+        const failed = await uploadLarge(body, name, type);
+        if (failed) setError(`${original.name}: ${f.errors[failed] ?? t.tasks.errors[failed] ?? t.common.unknownError}`);
         continue;
       }
       const response = await fetch(`/api/tasks/files?ws=${shortId}&task=${taskId}&name=${encodeURIComponent(name)}`, {
@@ -311,7 +348,7 @@ export function TaskFiles({
       )}
       {canEdit && (
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-          <input ref={input} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && void upload(e.target.files).then(() => (e.target.value = ""))} aria-label={f.attach} />
+          <input ref={input} type="file" multiple accept={limits.fileMb > 4 ? undefined : ACCEPT} className="hidden" onChange={(e) => e.target.files && void upload(e.target.files).then(() => (e.target.value = ""))} aria-label={f.attach} />
           <button type="button" disabled={busy !== null} onClick={() => input.current?.click()} className="min-h-11 rounded-md border border-border px-3 hover:bg-surface disabled:opacity-60 md:min-h-9">
             <Icon name="paperclip" className="mr-1 inline" />
             {f.attach}
@@ -320,7 +357,7 @@ export function TaskFiles({
             <Icon name="link" className="mr-1 inline" />
             {f.links.add}
           </button>
-          <span className="text-xs text-muted">{busy ? f.uploading(busy) : f.dropHint}</span>
+          <span className="text-xs text-muted">{busy ? f.uploading(busy) : limits.fileMb > 4 || limits.zipMb > 4 ? f.dropHintLarge(limits.fileMb, limits.zipMb) : f.dropHint}</span>
         </div>
       )}
       {canEdit && linking && (

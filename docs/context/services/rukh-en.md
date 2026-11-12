@@ -75,6 +75,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 ### Files, comments, history
 - Files up to 4 MB (images, PDF, office documents, ZIP) in the workspace's single storage.
 - Comments with mentions; full change history.
+- Larger attachments (package 4-2): a workspace admin sets the project's limit (up to 250 MB, ZIP up to 10 GB); a file over 4 MB goes in parts to the team's Google Drive.
 
 ### Notification rules
 - The project owner sets: event (a column of a type or a specific one, assignee or due date change, comment) → whom to tell (assignee, author, owners, people, units).

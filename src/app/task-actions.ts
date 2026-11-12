@@ -64,6 +64,11 @@ export async function projectTimeReport(projectId: string, from: string | null, 
   return Array.isArray(data) ? (data as TimeReportRow[]) : [];
 }
 
+// A workspace admin sets the project's largest attachment and largest ZIP archive (MB).
+export async function setProjectFileLimits(projectId: string, fileMb: number, zipMb: number) {
+  return call("set_project_file_limits", { target_project: projectId, file_mb: Math.round(fileMb), zip_mb: Math.round(zipMb) });
+}
+
 // A link kept with a task next to its files.
 export async function addTaskWebLink(taskId: string, title: string, url: string) {
   return call<{ id: string }>("add_task_web_link", { target_task: taskId, new_title: title, new_url: url.trim() });

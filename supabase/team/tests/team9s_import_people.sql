@@ -104,3 +104,15 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
 select 'someone removed sees time: ' || count(*) || ', writes: ' || (public.save_task_time((select id from public.task_time_entries limit 1), null, 5, current_date, null) ->> 'error') from public.task_time_entries;
 reset role;
+-- 4-2: a larger attachment starts only after a workspace admin raised the project's limit.
+set role authenticated;
+:as_bob;
+select 'bob starts 20 MB at the usual limit: ' || (public.begin_large_task_file((select id from public.tasks where external_key = 'SEA-1'), 'clip.mp4', 'video/mp4', 20971520) ->> 'error')
+  || ', raises the limit: ' || (public.set_project_file_limits(:'project', 50, 50) ->> 'error');
+reset role;
+set role authenticated;
+:as_alice;
+select 'alice raises the limit: ' || (public.set_project_file_limits(:'project', 50, 50) ->> 'ok')
+  || ', starts 20 MB: ' || ((public.begin_large_task_file((select id from public.tasks where external_key = 'SEA-1'), 'clip.mp4', 'video/mp4', 20971520) ->> 'id') is not null)::text
+  || ', reads where uploads stand: ' || (select count(*) from public.task_files where large);
+reset role;

@@ -21,3 +21,5 @@ someone removed sees links: 0
 the server brings time: 1
 alice writes time: true, sees minutes: 120
 someone removed sees time: 0, writes: forbidden
+bob starts 20 MB at the usual limit: too_large, raises the limit: forbidden
+alice raises the limit: true, starts 20 MB: true, reads where uploads stand: 0
