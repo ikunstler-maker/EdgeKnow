@@ -1,7 +1,6 @@
--- Profile: job title, departments and teams, own name and picture, and the birthday set
--- from a person's profile by who manages time off (decision 2026-11-12).
--- The data part is the same in supabase/team/migrations/0068_member_profile.sql.
--- Rollback: supabase/rollbacks/20270123100000_member_profile.down.sql
+-- Profile: job title, departments and teams in a team's own database
+-- (as supabase/migrations/20270124100000_member_profile.sql; names and pictures stay central).
+-- Rollback: supabase/team/rollbacks/0069_member_profile.down.sql
 
 -- A job title per person and workspace, next to the start date and the birthday.
 alter table public.leave_member_settings
@@ -131,88 +130,3 @@ grant execute on function
   public.set_member_job_title(uuid, uuid, text),
   public.set_member_birthday_date(uuid, uuid, integer, integer)
 to authenticated;
-
--- Own name and picture: once a person sets them, signing in no longer overwrites them.
-alter table public.profiles
-  add column name_custom   boolean not null default false,
-  add column avatar_custom boolean not null default false;
-
-create or replace function public.sync_profile_from_auth_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  insert into public.profiles (id, email, name, avatar_url)
-  values (
-    new.id,
-    lower(new.email),
-    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
-    new.raw_user_meta_data ->> 'avatar_url'
-  )
-  on conflict (id) do update
-    set email      = excluded.email,
-        name       = case when profiles.name_custom then profiles.name else excluded.name end,
-        avatar_url = case when profiles.avatar_custom then profiles.avatar_url else excluded.avatar_url end;
-  return new;
-end;
-$$;
-
--- The person's own name (1–80 characters); empty goes back to the name from sign-in.
-create function public.set_my_name(new_name text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  clean text := nullif(btrim(regexp_replace(coalesce(new_name, ''), '\s+', ' ', 'g')), '');
-begin
-  if auth.uid() is null then
-    return public.page_error('forbidden');
-  end if;
-  if char_length(coalesce(clean, '')) > 80 then
-    return public.page_error('invalid');
-  end if;
-  update public.profiles p
-  set name = coalesce(clean, (select coalesce(u.raw_user_meta_data ->> 'full_name', u.raw_user_meta_data ->> 'name') from auth.users u where u.id = p.id)),
-      name_custom = clean is not null
-  where p.id = auth.uid();
-  return jsonb_build_object('ok', true);
-end;
-$$;
-
--- The person's own picture, uploaded by the server to the private "avatars" bucket and
--- served by /api/avatar/<id> to people who share a workspace with them. The version
--- changes the address so browsers fetch the new one; null goes back to the sign-in picture.
-create function public.set_my_avatar(version text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  if auth.uid() is null then
-    return public.page_error('forbidden');
-  end if;
-  if version is not null and version !~ '^[0-9a-z]{1,20}$' then
-    return public.page_error('invalid');
-  end if;
-  update public.profiles p
-  set avatar_url = case when version is null
-                        then (select u.raw_user_meta_data ->> 'avatar_url' from auth.users u where u.id = p.id)
-                        else '/api/avatar/' || p.id || '?v=' || version end,
-      avatar_custom = version is not null
-  where p.id = auth.uid();
-  return jsonb_build_object('ok', true);
-end;
-$$;
-
-revoke execute on function public.set_my_name(text), public.set_my_avatar(text) from public, anon;
-grant execute on function public.set_my_name(text), public.set_my_avatar(text) to authenticated;
-
--- Pictures: private, small, images only; only the server (service role) reads and writes.
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('avatars', 'avatars', false, 524288, array['image/webp', 'image/png', 'image/jpeg'])
-on conflict (id) do nothing;

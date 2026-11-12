@@ -6,16 +6,16 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
- ('00000000-0000-0000-0000-0000000076a1', 'alice@card.test', now(), '{"full_name": "Alice Google"}'),
- ('00000000-0000-0000-0000-0000000076b1', 'bob@card.test', now(), '{"full_name": "Bob Google", "avatar_url": "https://img.test/bob.png"}'),
- ('00000000-0000-0000-0000-0000000076c1', 'carol@card.test', now(), '{}'),
- ('00000000-0000-0000-0000-0000000076e1', 'gwen@client-card.test', now(), '{}'),
- ('00000000-0000-0000-0000-0000000076f1', 'eve@other-card.test', now(), '{}');
-\set alice '00000000-0000-0000-0000-0000000076a1'
-\set bob '00000000-0000-0000-0000-0000000076b1'
-\set carol '00000000-0000-0000-0000-0000000076c1'
-\set gwen '00000000-0000-0000-0000-0000000076e1'
-\set eve '00000000-0000-0000-0000-0000000076f1'
+ ('00000000-0000-0000-0000-0000000077a1', 'alice@card.test', now(), '{"full_name": "Alice Google"}'),
+ ('00000000-0000-0000-0000-0000000077b1', 'bob@card.test', now(), '{"full_name": "Bob Google", "avatar_url": "https://img.test/bob.png"}'),
+ ('00000000-0000-0000-0000-0000000077c1', 'carol@card.test', now(), '{}'),
+ ('00000000-0000-0000-0000-0000000077e1', 'gwen@client-card.test', now(), '{}'),
+ ('00000000-0000-0000-0000-0000000077f1', 'eve@other-card.test', now(), '{}');
+\set alice '00000000-0000-0000-0000-0000000077a1'
+\set bob '00000000-0000-0000-0000-0000000077b1'
+\set carol '00000000-0000-0000-0000-0000000077c1'
+\set gwen '00000000-0000-0000-0000-0000000077e1'
+\set eve '00000000-0000-0000-0000-0000000077f1'
 \set card 'public.member_card(:''ws'', :''bob'')'
 update public.platform_settings set open_registration = true;
 set role authenticated;

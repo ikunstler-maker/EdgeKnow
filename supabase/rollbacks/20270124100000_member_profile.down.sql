@@ -1,4 +1,4 @@
--- Undo 20270123100000_member_profile.
+-- Undo 20270124100000_member_profile.
 -- Uploaded pictures stay in storage (like files on Drive); an empty bucket goes.
 delete from storage.buckets b where b.id = 'avatars' and not exists (select 1 from storage.objects o where o.bucket_id = 'avatars');
 drop function public.set_my_avatar(text);

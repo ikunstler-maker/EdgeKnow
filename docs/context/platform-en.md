@@ -100,6 +100,7 @@ The core gives every service people, access, storage, search, notifications and 
 | `service_objects` and their access tables | service objects |
 | `object_collections`, `object_collection_items` | collections |
 | `object_files`, `attachments` | files |
+| `chat_categories`, `chat_category_access`, `chat_channels`, `chat_channel_members`, `chat_messages`, `chat_reactions` | Toker: categories, channels, people, messages, reactions (see the Toker card) |
 | `notifications`, `notification_prefs` | notifications (links: task, page, calendar event, time-off request) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: events, their people, working days and time zone |
 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_holidays`, `leave_member_settings` | Doba: time-off policies, the balance ledger, requests, holidays, start dates |

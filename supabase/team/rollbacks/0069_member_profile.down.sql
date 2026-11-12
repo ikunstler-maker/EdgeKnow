@@ -1,4 +1,4 @@
--- Undo 0068_member_profile.
+-- Undo 0069_member_profile.
 drop function public.set_member_birthday_date(uuid, uuid, integer, integer);
 drop function public.set_member_job_title(uuid, uuid, text);
 drop function public.member_card(uuid, uuid);

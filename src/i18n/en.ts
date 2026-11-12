@@ -3922,6 +3922,8 @@ export const en: Dictionary = {
         invite: "Invite people",
         manage_structure: "Manage the company structure",
         manage_leave: "Manage time off (policies, balances, approvals)",
+        create_open_channels: "Create open chat channels",
+        create_closed_channels: "Create closed chat channels",
       } as Record<string, string>,
       level: "Level for what is open to the whole workspace",
       noCeiling: "As opened (no limit)",
