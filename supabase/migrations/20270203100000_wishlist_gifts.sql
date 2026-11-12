@@ -2,8 +2,8 @@
 -- chip in; colleagues who see the wishlist see who, its owner never. The owner is warned
 -- before removing a wish someone means to give; removing it, or the whole wishlist, tells
 -- the people taking part in the bell.
--- The same in supabase/team/migrations/0075_wishlist_gifts.sql.
--- Rollback: supabase/rollbacks/20270201100000_wishlist_gifts.down.sql
+-- The same in supabase/team/migrations/0076_wishlist_gifts.sql.
+-- Rollback: supabase/rollbacks/20270203100000_wishlist_gifts.down.sql
 
 -- "I'll give this": per wish, one person gives it and others may chip in. Seen by the
 -- people who see the wishlist — never by its owner (a surprise stays a surprise).
