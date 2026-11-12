@@ -33,6 +33,29 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-d",
+    version: "0.36.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: облік часу й «Мої задачі»", en: "Rukh: time tracking and \"My tasks\"" },
+    items: [
+      { id: "time-log", type: "added", scope: "tasks", title: { uk: "Облік часу в задачах: вмикається в проєкті, з вибором, хто бачить записи.", en: "Time tracking on tasks: turned on per project, with a choice of who sees the entries." } },
+      { id: "time-import", type: "added", scope: "tasks", title: { uk: "Записи часу переносяться з іншого трекера.", en: "Time entries come over from another tracker." } },
+      { id: "my-tasks", type: "added", scope: "tasks", title: { uk: "«Мої задачі»: відкриті задачі з усіх проєктів за термінами.", en: "\"My tasks\": open tasks from every project by due date." } },
+    ],
+  },
+  {
+    id: "2026-11-12-c",
+    version: "0.35.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: оновлене вікно задачі", en: "Rukh: the task window, rearranged" },
+    items: [
+      { id: "card-order", type: "visual", scope: "tasks", title: { uk: "Статуси над назвою, власні поля під нею, файли під описом; підзадачі й зв'язки — у властивостях.", en: "Statuses over the title, own fields under it, files under the description; subtasks and links in the properties." } },
+      { id: "card-files", type: "improved", scope: "tasks", title: { uk: "Файли плиткою або списком, із фільтром за видом.", en: "Files as tiles or a list, with a filter by kind." } },
+      { id: "card-links", type: "added", scope: "tasks", title: { uk: "До задачі можна додати посилання на файл чи сторінку.", en: "A link to a file or a page can be kept with a task." } },
+      { id: "card-priority", type: "visual", scope: "tasks", title: { uk: "У списку пріоритетів — іконки.", en: "Priorities are listed with their marks." } },
+    ],
+  },
+  {
     id: "2026-11-12-b",
     version: "0.34.0",
     date: "2026-11-12",

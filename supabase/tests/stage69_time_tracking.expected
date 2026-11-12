@@ -1,0 +1,20 @@
+tracking off: forbidden, bob turns it on: forbidden
+the owner turns it on: true, a bad choice: invalid
+bob writes: true, nothing: invalid, next year: invalid
+carl changes bob's: forbidden, removes bob's: forbidden, changes his own: true
+owners only — carl sees: 60
+owners only — bob (the assignee) sees: 90
+owners only — the owner sees: 150
+with the assignee — bob sees: 150
+with the assignee — carl sees: 60
+everyone — carl sees: 150
+psql: ERROR:  permission denied for table task_time_entries
+a stranger sees: 0, writes: forbidden, removes: forbidden, reads the report: null
+the owner corrects bob's: true
+report: 69b1 120 min in 1; 69c1 60 min in 1
+bob reads the report: null
+psql: ERROR:  permission denied for function import_task_time
+imported: 1, again: 1
+kept: 1 of 300 min, 2024-03-04, the project tracks time: true
+seat with time: true
+the tracker's time is carl's: 69c1

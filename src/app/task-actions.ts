@@ -42,6 +42,37 @@ export async function seatImportPerson(personId: string, memberId: string | null
   return call<{ assigned: number; reported: number }>("seat_import_person", { target_person: personId, member: memberId });
 }
 
+// Time spent on a task: a new entry (entryId null) or a change of one.
+export async function saveTaskTime(taskId: string, entryId: string | null, minutes: number, date: string, note: string) {
+  return call<{ id: string }>("save_task_time", { target_task: taskId, target_entry: entryId, spent_minutes: Math.round(minutes), spent_date: date, new_note: note });
+}
+
+export async function deleteTaskTime(entryId: string) {
+  return call("delete_task_time", { target_entry: entryId });
+}
+
+// The project's owner: time tracking on or off, and who sees the entries.
+export async function setProjectTimeTracking(projectId: string, enabled: boolean, visibility: string) {
+  return call("set_project_time_tracking", { target_project: projectId, enabled, visibility });
+}
+
+export type TimeReportRow = { user_id: string | null; name: string; minutes: number; tasks: number };
+export async function projectTimeReport(projectId: string, from: string | null, to: string | null): Promise<TimeReportRow[]> {
+  const supabase = await writeClient();
+  if (!supabase) return [];
+  const { data } = await supabase.rpc("project_time_report", { target_project: projectId, date_from: from, date_to: to });
+  return Array.isArray(data) ? (data as TimeReportRow[]) : [];
+}
+
+// A link kept with a task next to its files.
+export async function addTaskWebLink(taskId: string, title: string, url: string) {
+  return call<{ id: string }>("add_task_web_link", { target_task: taskId, new_title: title, new_url: url.trim() });
+}
+
+export async function deleteTaskWebLink(linkId: string) {
+  return call("delete_task_web_link", { target_link: linkId });
+}
+
 export async function createTaskProject(ws: string, name: string, key: string, icon: string | null) {
   const s = t.tasks.defaultStatuses;
   return call<{ id: string; key: string }>("create_task_project", {

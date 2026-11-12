@@ -559,6 +559,7 @@ function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onRe
         <div className="mt-3 space-y-1 text-sm" data-import-report>
           <p>{m.report.created(progress.created)}</p>
           {(progress.comments ?? 0) + (progress.moves ?? 0) > 0 && <p data-import-report-activity>{m.report.activity(progress.comments ?? 0, progress.moves ?? 0)}</p>}
+          {(progress.timeEntries ?? 0) > 0 && <p data-import-report-time>{m.report.time(progress.timeEntries ?? 0)}</p>}
           {(progress.files ?? 0) + (progress.filesKept ?? 0) > 0 && <p data-import-report-files>{m.report.files((progress.files ?? 0) + (progress.filesKept ?? 0), megabytes(progress.fileBytes ?? 0))}</p>}
           {(progress.people ?? 0) > 0 && <p data-import-report-people>{m.report.people(progress.people ?? 0, progress.seated ?? 0)}</p>}
           {progress.updated > 0 && <p>{m.report.updated(progress.updated)}</p>}

@@ -271,7 +271,35 @@ export function documentToText(value: unknown): string {
 
 export type TrackerComment = { id: string; author: TrackerUser | null; body: unknown; created: string; updated: string | null };
 export type TrackerMove = { id: string; author: TrackerUser | null; from: string | null; to: string; at: string };
-export type TrackerActivity = { key: string; comments: TrackerComment[]; moves: TrackerMove[] };
+// Time someone wrote down on the task in the tracker.
+export type TrackerWorklog = { id: string; author: TrackerUser | null; seconds: number; started: string; note: unknown };
+export type TrackerActivity = { key: string; comments: TrackerComment[]; moves: TrackerMove[]; worklogs?: TrackerWorklog[] };
+export type ImportTimeItem = { external_key: string; entries: { external_id: string; author_ext: string | null; minutes: number; spent_on: string; note: string | null }[] };
+
+export function parseWorklogs(value: unknown): TrackerWorklog[] {
+  return (Array.isArray(value) ? value : []).flatMap((raw) => {
+    const log = obj(raw);
+    const id = str(log.id);
+    const started = str(log.started);
+    const seconds = typeof log.timeSpentSeconds === "number" ? log.timeSpentSeconds : 0;
+    if (!id || !/^\d{4}-\d{2}-\d{2}/.test(started) || seconds <= 0) return [];
+    return [{ id, author: parseUser(log.author), seconds, started, note: log.comment ?? null }];
+  });
+}
+
+// The day is the one the tracker shows (the entry's own time zone), not turned into ours.
+export function toTimeItem(activity: TrackerActivity): ImportTimeItem {
+  return {
+    external_key: activity.key,
+    entries: (activity.worklogs ?? []).map((log) => ({
+      external_id: log.id.slice(0, 100),
+      author_ext: log.author?.id ?? null,
+      minutes: Math.max(1, Math.round(log.seconds / 60)),
+      spent_on: log.started.slice(0, 10),
+      note: documentToText(log.note).slice(0, 500) || null,
+    })),
+  };
+}
 export type ImportActivityItem = {
   external_key: string;
   comments: { external_id: string; author_ext: string | null; body: string; created_at: string; edited_at: string | null }[];

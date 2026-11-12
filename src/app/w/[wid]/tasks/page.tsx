@@ -45,6 +45,10 @@ export default async function TasksHome({ params }: PageProps<"/w/[wid]/tasks">)
           </h1>
           <p className="truncate text-xs text-muted">{workspace.name}</p>
         </div>
+        <Link href={workspacePath(workspace.shortId, "/tasks/mine")} className={buttonClass("ghost")} data-open-my-tasks>
+          <Icon name="user" />
+          <span className="hidden sm:inline">{t.tasks.mine.open}</span>
+        </Link>
         {isWorkspaceAdmin(workspace) && (
           <Link href={workspacePath(workspace.shortId, "/tasks/import")} className={buttonClass("ghost")} data-open-import>
             <Icon name="download" />

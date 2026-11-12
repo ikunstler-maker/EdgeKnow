@@ -182,7 +182,9 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await openCard.locator('[data-people="assignee"]').click();
   await alice.locator(`[data-person-option="${colleagueId2}"]`).click();
   await alice.waitForTimeout(800);
-  await openCard.locator("[data-task-priority-field]").selectOption("high");
+  // The priority is a list with each priority's own mark.
+  await openCard.locator("[data-task-priority-field]").click();
+  await alice.locator('[data-task-priority-option="high"]').click();
   await alice.waitForTimeout(800);
   const taskRow = () => sql("select s.category || ' ' || coalesce(t.assignee_id::text, '-') || ' ' || t.priority from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("the task's fields change in place", taskRow() === `doing ${colleagueId2} high`, taskRow());
@@ -241,6 +243,23 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForTimeout(1500);
   const values = sql("select (select string_agg(f.name || '=' || coalesce(f.options -> 0 ->> 'label', '') || (t.custom -> f.id::text)::text, ',' order by f.position) from public.task_fields f where f.project_id = t.project_id and t.custom ? f.id::text) from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 1");
   check("…and a task gets values in them", /^Формат=Відео".+",Погоджено=true$/.test(values), values);
+  // The project's owner puts the card's fields in order by dragging (the order is the project's).
+  const fieldOrder = () => sql("select string_agg(f.name, ',' order by f.position) from public.task_fields f join public.task_projects p on p.id = f.project_id where p.key = 'MAR'");
+  const dragField = async (name, onto) => {
+    const from = await alice.locator(`[data-key-field="${name}"] [data-key-field-handle]`).boundingBox();
+    const to = await alice.locator(`[data-key-field="${onto}"]`).boundingBox();
+    if (!from || !to) return;
+    await alice.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await alice.mouse.down();
+    await alice.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2 + 10, { steps: 3 });
+    await alice.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+    await alice.mouse.up();
+  };
+  await dragField("Погоджено", "Формат");
+  check("the project's owner reorders the card's fields by dragging", await until(() => fieldOrder() === "Погоджено,Формат", 15000), fieldOrder());
+  await alice.waitForTimeout(800);
+  await dragField("Формат", "Погоджено");
+  check("…and back", await until(() => fieldOrder() === "Формат,Погоджено", 15000), fieldOrder());
   // An admin adds a field right in the task, without the fields page.
   await alice.locator("[data-quick-add-field]").click();
   await alice.getByRole("form", { name: "Додати поле" }).getByLabel("Назва").fill("Inline");
@@ -476,6 +495,49 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
   await alice.locator("[data-task-files] input[type=file]").setInputFiles(pdf);
   await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 15000 });
+  // Time tracking: off until the project's owner turns it on; then a person logs time.
+  check("a task shows no time until the project tracks it", (await alice.locator("[data-task-time]").count()) === 0);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR`);
+  await alice.getByRole("button", { name: "Доступ і налаштування" }).click();
+  await alice.locator("[data-time-enable]").check();
+  check("the project's owner turns time tracking on", await until(() => sql("select time_tracking || ' ' || time_visibility from public.task_projects where key = 'MAR'") === "true assignee", 15000));
+  await alice.locator("[data-time-visibility]").selectOption("owners");
+  await until(() => sql("select time_visibility from public.task_projects where key = 'MAR'") === "owners", 15000);
+  await alice.keyboard.press("Escape");
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  await alice.locator("[data-task-time-add]").click();
+  await alice.locator("[data-task-time-amount]").fill("1 год 30 хв");
+  await alice.locator("[data-task-time-save]").click();
+  const logged = () => sql(`select coalesce(sum(minutes), 0) from public.task_time_entries where task_id = ${marTask(2)}`);
+  await until(() => logged() === "90", 15000);
+  // The card shows the new total once the page has the saved entry.
+  const totalShown = await alice.locator("[data-task-time-total]", { hasText: "1 год 30 хв" }).waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+  check("a person writes down the time spent on a task", logged() === "90" && totalShown, `${logged()} / ${await alice.locator("[data-task-time-total]").innerText().catch(() => "")}`);
+  // «Мої задачі»: the person's open tasks from every project.
+  await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+  await alice.locator("[data-open-my-tasks]").click();
+  await alice.waitForURL(/\/tasks\/mine$/);
+  const mine = await alice.locator("[data-my-task]").count();
+  const expectedMine = sql(`select count(*) from public.tasks t join public.task_statuses s on s.id = t.status_id join public.task_projects p on p.id = t.project_id where t.assignee_id = (select id from public.profiles where email = 'alice@alpha.test') and t.deleted_at is null and t.done_at is null and s.category <> 'done' and p.archived_at is null and not t.private`);
+  check("“My tasks” lists the person's open tasks from every project", mine >= Number(expectedMine) && (mine > 0 || (await alice.locator("[data-my-tasks-none]").count()) === 1), `${mine} vs ${expectedMine}`);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 20000 }).catch(() => {});
+  // Files show as tiles or as a list (kept in this browser); a link is kept next to them.
+  await alice.locator('[data-task-file="brief.pdf"]').waitFor({ timeout: 20000 }).catch(() => {});
+  const tiles = await alice.locator("[data-task-files-tiles]").count();
+  await alice.locator('[data-task-files-view="list"]').click();
+  check("a task's files show as tiles, or as a list", tiles === 1 && (await alice.locator('[data-task-files-list] [data-task-file="brief.pdf"]').count()) === 1);
+  await alice.locator("[data-task-web-link-open]").click();
+  await alice.locator("[data-task-web-link-url]").fill("https://example.com/spec");
+  await alice.locator("[data-task-web-link-title]").fill("Spec elsewhere");
+  await alice.locator("[data-task-web-link-save]").click();
+  await alice.locator('[data-task-web-link="Spec elsewhere"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("a link is kept with the task next to its files", sql("select title || ' ' || url from public.task_web_links") === "Spec elsewhere https://example.com/spec" && (await alice.locator('[data-task-web-link="Spec elsewhere"] a').getAttribute("href")) === "https://example.com/spec");
+  const cardOrder = await alice.evaluate(() => {
+    const top = (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
+    return [top("[data-status-row]"), top("[data-task-detail] textarea"), top("[data-task-key-fields]"), top("[data-task-files]")];
+  });
+  check("the card reads: statuses, title, the project's own fields, description, files", cardOrder[0] >= 0 && cardOrder[0] < cardOrder[1] && (cardOrder[2] < 0 || cardOrder[1] < cardOrder[2]) && cardOrder[1] < cardOrder[3] && (await alice.locator("[data-task-status]").isVisible()) === false && (await alice.locator("[data-task-side-blocks] [data-mentioned-on]").count()) === 1, JSON.stringify(cardOrder));
   check("a task file goes to the workspace's one storage (its Drive)", marFile() === "drive:wiki", marFile());
   check("…with no Drive of anyone's own", (await alice.getByRole("link", { name: /Підключити мій Google Диск/ }).count()) === 0);
   const fileId = sql(`select id from public.task_files where task_id = ${marTask(2)} and name = 'brief.pdf'`);
@@ -839,7 +901,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
       users: [{ accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }],
       roles: [{ name: "Developers", users: ["u-alice", "u-gone"] }, { name: "Empty role", users: [] }],
       issues: [
-        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01", attachment: [
+        issue(1, { summary: "Old epic", description: text("Moved text"), status: statuses[0], issuetype: { id: "10" }, assignee: { accountId: "u-alice", displayName: "Alice", emailAddress: "alice@alpha.test" }, reporter: { accountId: "u-gone", displayName: "Gone Person" }, labels: ["legacy"], duedate: "2026-12-01", worklog: { total: 1, worklogs: [{ id: "w1", author: { accountId: "u-gone", displayName: "Gone Person" }, timeSpentSeconds: 7200, started: "2025-03-02T10:00:00.000+0000" }] }, attachment: [
           { id: "900", filename: "spec.bin", mimeType: "application/x-design", size: bigFile.length, author: { accountId: "u-gone", displayName: "Gone Person" }, created: "2025-03-02T09:00:00.000+0000" },
           { id: "901", filename: "lost.txt", mimeType: "text/plain", size: 5, created: "2025-03-02T09:00:00.000+0000" },
           { id: "902", filename: "giant.mov", mimeType: "video/quicktime", size: 300 * 1024 * 1024, created: "2025-03-02T09:00:00.000+0000" },
@@ -899,6 +961,8 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   const pulled = () => sql(`select (select count(*) from public.task_files f join public.tasks t on t.id = f.task_id where t.project_id = ${old} and f.external_id is not null) || ' ' || (select string_agg(g.name, ',') from public.task_import_gaps g where g.project_id = ${old} and g.resolved_at is null)`);
   check("pulling again brings the file that was refused and keeps the rest", await until(() => pulled() === "2 giant.mov", 40000), pulled());
   await alice.locator('[data-import-run="done"]').waitFor({ timeout: 30000 }).catch(() => {});
+  const movedTime = sql(`select count(*) || ' ' || sum(e.minutes) || ' ' || min(e.spent_on::text) || ' ' || (select time_tracking from public.task_projects where key = 'OLD') from public.task_time_entries e join public.tasks t on t.id = e.task_id where t.project_id = ${old}`);
+  check("…with the time people wrote down there (the project then tracks time)", movedTime === "1 120 2025-03-02 true", movedTime);
   check("…telling nobody about it", sql(`select count(*) from public.notifications n join public.tasks t on t.id = n.task_id where t.project_id = ${old}`) === "0");
   await alice.locator("[data-import-open-project]").click();
   await alice.waitForURL(/\/tasks\/OLD$/);

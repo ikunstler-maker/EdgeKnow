@@ -79,3 +79,28 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
 select 'someone removed finds: ' || coalesce(public.find_task_by_key(:'ws', 'SEA-1')::text, 'nothing');
 reset role;
+-- Links kept with a task: whoever may edit it adds them; a removed member sees none.
+set role authenticated;
+:as_alice;
+select 'alice adds a link: ' || (public.add_task_web_link((select id from public.tasks where external_key = 'SEA-1'), 'Board', 'https://example.com/board') ->> 'ok')
+  || ', a bad one: ' || (public.add_task_web_link((select id from public.tasks where external_key = 'SEA-1'), 'x', 'ftp://example.com') ->> 'error');
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
+select 'someone removed sees links: ' || count(*) from public.task_web_links;
+reset role;
+-- 4-1: time on tasks — the server brings the tracker's entries; a member writes their own
+-- once the project tracks time; someone removed sees none.
+set role service_role;
+select 'the server brings time: ' || (public.import_task_time(:'project', jsonb_build_array(jsonb_build_object('external_key', 'SEA-1', 'entries', jsonb_build_array(
+  jsonb_build_object('external_id', 'w1', 'author_ext', 'u2', 'minutes', 120, 'spent_on', '2024-02-02'))))) ->> 'entries');
+reset role;
+set role authenticated;
+:as_alice;
+select 'alice writes time: ' || ((public.save_task_time((select id from public.tasks where external_key = 'SEA-1'), null, 30, current_date, 'Check') ->> 'id') is not null)::text
+  || ', sees minutes: ' || (select sum(minutes) from public.task_time_entries);
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
+select 'someone removed sees time: ' || count(*) || ', writes: ' || (public.save_task_time((select id from public.task_time_entries limit 1), null, 5, current_date, null) ->> 'error') from public.task_time_entries;
+reset role;

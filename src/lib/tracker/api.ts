@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { numberOfKey, parseComments, parseField, parseFiles, parseIssue, parseMoves, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerFile, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
+import { numberOfKey, parseComments, parseField, parseFiles, parseIssue, parseMoves, parseWorklogs, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerFile, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
 
 // Reading another tracker (Rukh Р-3а): the cloud tracker's own API, called only from
 // the server with the person's access key. Nothing is ever written to the tracker.
@@ -187,14 +187,14 @@ const cloud: TrackerApi = {
     return { body: response.body, ranged: response.status === 206 };
   },
   async activity(access, key, cursor, size, since) {
-    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC", since), maxResults: size, fields: ["comment"], expand: "changelog", ...(cursor ? { nextPageToken: cursor } : {}) }));
+    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC", since), maxResults: size, fields: ["comment", "worklog"], expand: "changelog", ...(cursor ? { nextPageToken: cursor } : {}) }));
     const items: TrackerActivity[] = [];
     for (const raw of list(page.issues)) {
       const issue = obj(raw);
       const issueKey = String(issue.key ?? "");
       if (!issueKey) continue;
       // The search gives the first comments and history entries; long ones are read in full.
-      const rest = async (kind: "comment" | "changelog", listKey: "comments" | "values") => {
+      const rest = async (kind: "comment" | "changelog" | "worklog", listKey: "comments" | "values" | "worklogs") => {
         const all: unknown[] = [];
         for (let at = 0; at < 1000; at += 100) {
           const part = obj(await call(access, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/${kind}?startAt=${at}&maxResults=100`));
@@ -208,7 +208,9 @@ const cloud: TrackerApi = {
       const changelog = obj(issue.changelog);
       const comments = Number(comment.total ?? 0) > list(comment.comments).length ? await rest("comment", "comments") : list(comment.comments);
       const histories = !Array.isArray(changelog.histories) || Number(changelog.total ?? 0) > list(changelog.histories).length ? await rest("changelog", "values") : list(changelog.histories);
-      items.push({ key: issueKey, comments: parseComments(comments), moves: parseMoves(histories) });
+      const worklog = obj(obj(issue.fields).worklog);
+      const worklogs = Number(worklog.total ?? 0) > list(worklog.worklogs).length ? await rest("worklog", "worklogs") : list(worklog.worklogs);
+      items.push({ key: issueKey, comments: parseComments(comments), moves: parseMoves(histories), worklogs: parseWorklogs(worklogs) });
     }
     return { items, next: typeof page.nextPageToken === "string" && page.nextPageToken ? page.nextPageToken : null };
   },
@@ -278,7 +280,7 @@ function fake(dir: string): TrackerApi {
       return {
         items: raw.slice(from, from + size).map((value) => {
           const issue = obj(value);
-          return { key: String(issue.key), comments: parseComments(obj(obj(issue.fields).comment).comments), moves: parseMoves(obj(issue.changelog).histories) };
+          return { key: String(issue.key), comments: parseComments(obj(obj(issue.fields).comment).comments), moves: parseMoves(obj(issue.changelog).histories), worklogs: parseWorklogs(obj(obj(issue.fields).worklog).worklogs) };
         }),
         next: from + size < raw.length ? String(from + size) : null,
       };
