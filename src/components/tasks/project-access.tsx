@@ -247,8 +247,14 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
 // Time tracking: off or on, who sees the entries, and the time by person for the last 30 days.
 function TimeSettings({ project, members, run, pending }: { project: { id: string; time_tracking?: boolean; time_visibility?: string }; members: Person[]; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
   const w = t.tasks.time;
-  const on = project.time_tracking === true;
-  const visibility = project.time_visibility ?? "assignee";
+  // Shown at once; the project's own values follow when the server has answered.
+  const [chosen, setChosen] = useState<{ from: typeof project; on: boolean; visibility: string } | null>(null);
+  const on = chosen && chosen.from === project ? chosen.on : project.time_tracking === true;
+  const visibility = chosen && chosen.from === project ? chosen.visibility : (project.time_visibility ?? "assignee");
+  const set = (nextOn: boolean, nextVisibility: string) => {
+    setChosen({ from: project, on: nextOn, visibility: nextVisibility });
+    run(() => setProjectTimeTracking(project.id, nextOn, nextVisibility));
+  };
   const [report, setReport] = useState<TimeReportRow[] | null>(null);
   useEffect(() => {
     if (!on) return;
@@ -263,14 +269,14 @@ function TimeSettings({ project, members, run, pending }: { project: { id: strin
     <section className="space-y-2 border-t border-border pt-4" data-time-settings>
       <h3 className="text-sm font-medium">{w.settings}</h3>
       <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-8">
-        <input type="checkbox" checked={on} disabled={pending} onChange={(e) => run(() => setProjectTimeTracking(project.id, e.target.checked, visibility))} className="h-5 w-5 md:h-4 md:w-4" data-time-enable />
+        <input type="checkbox" checked={on} disabled={pending} onChange={(e) => set(e.target.checked, visibility)} className="h-5 w-5 md:h-4 md:w-4" data-time-enable />
         {w.enable}
       </label>
       {on && (
         <>
           <label className="flex flex-col gap-1 text-sm">
             {w.visibility}
-            <select value={visibility} disabled={pending} onChange={(e) => run(() => setProjectTimeTracking(project.id, true, e.target.value))} className={selectClass} data-time-visibility>
+            <select value={visibility} disabled={pending} onChange={(e) => set(true, e.target.value)} className={selectClass} data-time-visibility>
               {(["owners", "assignee", "all"] as const).map((value) => (
                 <option key={value} value={value}>
                   {w.visibilityOptions[value]}
