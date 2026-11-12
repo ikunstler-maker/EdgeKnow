@@ -1,0 +1,25 @@
+bob writes to carol: true
+carol opens hers with bob — the same: true
+carol reads: 1
+carol's list names it by bob: true
+alice (owner) sees it: 0, reads: 0, deletes it: forbidden
+dan sees it: 0, writes: forbidden
+a third person into the pair: direct_pair, renaming it: forbidden, with oneself only: invalid_people, with a stranger: not_found
+the guest writes to alice (owner): true, to dan (never met): not_found
+dan writes to the guest: true
+another group with the same people is new: true
+bob hides the earlier history: true
+bob adds alice: true
+alice reads: After alice, reactions: 0, reacts to the hidden one: forbidden, replies to it: not_found
+carol (there from the start) reads: 2
+bob shows alice the history: true
+alice now reads: 2
+bob adds the guest, history shown for her: true
+the guest reads: 2
+carol (not managing) hides history: forbidden
+up to 50 people: too_many
+the pair's history setting: forbidden
+a stranger sees conversations: 0
+the channel shows history by default; dan added without it: true, carol with it: true
+dan reads: 0
+carol reads: 1

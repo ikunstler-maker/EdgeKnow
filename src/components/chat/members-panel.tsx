@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { t } from "@/i18n";
 import type { ChatChannel, ChatMember, ChatPerson } from "@/lib/chat";
-import { addMembers, loadMembers, removeMember, setMemberRole } from "@/app/chat-actions";
+import { addMembers, loadMembers, removeMember, setMemberHistory, setMemberRole } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass, inputClass } from "@/components/ui/button";
 
@@ -35,6 +35,8 @@ export function MembersPanel({
   const [members, setMembers] = useState<ChatMember[] | null>(null);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  // Someone about to be added while the earlier history is hidden: show it to them?
+  const [asking, setAsking] = useState<ChatPerson | null>(null);
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
   const reload = useCallback(async () => setMembers(await loadMembers(shortId, channel.id)), [shortId, channel.id]);
@@ -52,9 +54,19 @@ export function MembersPanel({
   );
   const invited = new Set((members ?? []).filter((m) => m.invited).map((m) => m.user_id));
   const candidates = query.trim()
-    ? people.filter((p) => !invited.has(p.id) && (!p.guest || canManage) && p.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8)
+    ? people
+        .filter((p) => !invited.has(p.id) && (!p.guest || canManage || channel.visibility === "direct") && p.name.toLowerCase().includes(query.trim().toLowerCase()))
+        .slice(0, 8)
     : [];
   const unit = channel.unit_id ? units.find((u) => u.id === channel.unit_id) : undefined;
+  // A conversation of two takes nobody more (a new group conversation is opened instead).
+  const pair = channel.visibility === "direct" && (channel.people?.length ?? 0) <= 2;
+  const hidesHistory = channel.visibility !== "open" && !channel.history_visible;
+  const add = (person: ChatPerson, showHistory: boolean | null) => {
+    setQuery("");
+    setAsking(null);
+    void run(() => addMembers(shortId, channel.id, [person.id], showHistory));
+  };
 
   const run = async (action: () => Promise<{ ok: boolean; error?: string }>) => {
     setBusy(true);
@@ -76,7 +88,24 @@ export function MembersPanel({
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {channel.visibility === "open" && <p className="mb-3 text-xs text-muted">{c().openNote}</p>}
         {unit && <p className="mb-3 text-xs text-muted">{c().unitNote(unit.name)}</p>}
-        {!guest && !channel.archived_at && (
+        {pair && <p className="mb-3 text-xs text-muted">{c().pairNote}</p>}
+        {asking && (
+          <div role="alertdialog" aria-label={t.chat.history.ask(asking.name)} className="mb-3 rounded-lg border border-border bg-surface p-3 text-sm" data-chat-history-ask>
+            <p className="mb-2">{t.chat.history.ask(asking.name)}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => add(asking, true)} className="min-h-11 rounded-md bg-accent px-3 text-sm text-white md:min-h-8" data-chat-history-yes>
+                {t.chat.history.show}
+              </button>
+              <button type="button" onClick={() => add(asking, false)} className="min-h-11 rounded-md border border-border px-3 text-sm md:min-h-8" data-chat-history-no>
+                {t.chat.history.onlyNew}
+              </button>
+              <button type="button" onClick={() => setAsking(null)} className="min-h-11 rounded-md px-3 text-sm text-muted md:min-h-8">
+                {t.common.cancel}
+              </button>
+            </div>
+          </div>
+        )}
+        {(!guest || channel.visibility === "direct") && !channel.archived_at && !pair && (
           <div className="mb-3">
             <input
               type="search"
@@ -94,10 +123,7 @@ export function MembersPanel({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => {
-                        setQuery("");
-                        void run(() => addMembers(shortId, channel.id, [p.id]));
-                      }}
+                      onClick={() => (hidesHistory ? setAsking(p) : add(p, null))}
                       className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-hover md:min-h-8"
                     >
                       <Icon name="plus" size={14} />
@@ -121,7 +147,20 @@ export function MembersPanel({
                   <span className="min-w-0 flex-1 truncate text-sm">{person?.name ?? t.chat.formerMember}</span>
                   {person?.guest && <span className="text-[10px] uppercase text-muted">{t.chat.guest}</span>}
                   {m.role === "owner" && <span className="text-xs text-muted">{c().owner}</span>}
-                  {canManage && m.invited && !person?.guest && (
+                  {m.history_from && canManage && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void run(() => setMemberHistory(shortId, channel.id, m.user_id, true))}
+                      aria-label={t.chat.history.showFor(person?.name ?? t.chat.formerMember)}
+                      title={t.chat.history.showFor(person?.name ?? t.chat.formerMember)}
+                      className={iconButtonClass("ghost")}
+                      data-chat-show-history
+                    >
+                      <Icon name="history" size={15} />
+                    </button>
+                  )}
+                  {canManage && m.invited && !person?.guest && channel.visibility !== "direct" && (
                     <button
                       type="button"
                       disabled={busy}
@@ -133,7 +172,7 @@ export function MembersPanel({
                       <Icon name="shield" size={15} />
                     </button>
                   )}
-                  {canManage && (
+                  {canManage && !pair && (
                     <button
                       type="button"
                       disabled={busy}

@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import {
   MESSAGE_PAGE,
+  channelTitle,
   mentionsIn,
   mergeMessages,
   type ChatCategory,
   type ChatChannel,
+  type ChatFile,
   type ChatLive,
   type ChatMessage,
   type ChatPerson,
@@ -18,6 +20,7 @@ import {
   editMessage,
   joinChannel,
   loadChat,
+  loadFiles,
   loadMessages,
   loadMessagesById,
   loadPinned,
@@ -30,11 +33,11 @@ import {
 } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
-import { ChannelList } from "./channel-list";
+import { ChannelList, channelIcon } from "./channel-list";
 import { Composer, MessageStream, type MessageActions } from "./message-stream";
 import { MembersPanel } from "./members-panel";
 import { PinsPanel, ThreadPanel } from "./side-panels";
-import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog } from "./chat-dialogs";
+import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, NewDirectDialog } from "./chat-dialogs";
 import { useChatLive, type ChatSignal } from "./use-chat-live";
 
 const c = () => t.chat;
@@ -62,7 +65,7 @@ export type ChatScreenProps = {
   failed: boolean;
 };
 
-type Dialog = "create" | "settings" | "browse" | "categories" | null;
+type Dialog = "create" | "direct" | "settings" | "browse" | "categories" | null;
 type Panel = { kind: "members" } | { kind: "pins" } | { kind: "thread"; id: string } | null;
 type Stream = { messages: ChatMessage[]; hasMore: boolean; loaded: boolean };
 
@@ -85,6 +88,7 @@ export function ChatScreen(props: ChatScreenProps) {
   const [streams, setStreams] = useState<Record<string, Stream>>({});
   const [threads, setThreads] = useState<Record<string, ChatMessage[] | null>>({});
   const [reactionRows, setReactionRows] = useState<Record<string, ChatReaction[]>>({});
+  const [fileRows, setFileRows] = useState<Record<string, ChatFile[]>>({});
   const [pins, setPins] = useState<ChatMessage[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<Set<string>>(new Set());
@@ -96,13 +100,33 @@ export function ChatScreen(props: ChatScreenProps) {
 
   const people = useMemo(() => new Map(props.people.map((p) => [p.id, p])), [props.people]);
   const reactions = useMemo(() => new Map(Object.entries(reactionRows)), [reactionRows]);
+  const files = useMemo(() => new Map(Object.entries(fileRows)), [fileRows]);
   const active = channels.find((ch) => ch.id === activeId) ?? null;
   const stream = activeId ? streams[activeId] : undefined;
   const canManage = Boolean(active && (admin || active.role === "owner"));
   const canWrite = Boolean(active && !active.archived_at);
   const threadId = panel?.kind === "thread" ? panel.id : null;
+  const titleOf = (ch: ChatChannel) => channelTitle(ch, people, me, c().direct.alone, c().formerMember);
+  const activeTitle = active ? titleOf(active) : "";
 
   // ---------------------------------------------------------------- reading
+
+  // Files of messages that have them (once per message; they don't change).
+  const known = useRef(new Set<string>());
+  const fetchFiles = useCallback(
+    async (messages: ChatMessage[]) => {
+      const wanted = messages.filter((m) => m.file_count > 0 && !m.deleted_at && !known.current.has(m.id)).map((m) => m.id);
+      if (!wanted.length) return;
+      wanted.forEach((id) => known.current.add(id));
+      const rows = await loadFiles(shortId, wanted);
+      setFileRows((all) => {
+        const next = { ...all };
+        for (const id of wanted) next[id] = rows.filter((f) => f.message_id === id);
+        return next;
+      });
+    },
+    [shortId],
+  );
 
   const fetchReactions = useCallback(
     async (ids: string[]) => {
@@ -119,6 +143,7 @@ export function ChatScreen(props: ChatScreenProps) {
   );
 
   const putMessages = useCallback((channelId: string, rows: ChatMessage[]) => {
+    void fetchFiles(rows);
     const top = rows.filter((m) => !m.thread_root_id);
     const replies = rows.filter((m) => m.thread_root_id);
     if (top.length)
@@ -132,7 +157,7 @@ export function ChatScreen(props: ChatScreenProps) {
         for (const r of replies) if (next[r.thread_root_id!]) next[r.thread_root_id!] = mergeMessages(next[r.thread_root_id!] ?? [], [r]);
         return next;
       });
-  }, []);
+  }, [fetchFiles]);
 
   const refreshList = useCallback(async () => {
     const fresh = await loadChat(shortId, workspaceId);
@@ -157,8 +182,9 @@ export function ChatScreen(props: ChatScreenProps) {
         };
       });
       void fetchReactions(page.map((m) => m.id));
+      void fetchFiles(page);
     },
-    [shortId, fetchReactions],
+    [shortId, fetchReactions, fetchFiles],
   );
 
   const loadOlder = useCallback(async () => {
@@ -174,15 +200,19 @@ export function ChatScreen(props: ChatScreenProps) {
       [activeId]: { messages: mergeMessages(all[activeId]?.messages ?? [], page), hasMore: page.length === MESSAGE_PAGE, loaded: true },
     }));
     void fetchReactions(page.map((m) => m.id));
-  }, [activeId, loading, streams, shortId, fetchReactions]);
+    void fetchFiles(page);
+  }, [activeId, loading, streams, shortId, fetchReactions, fetchFiles]);
 
   const reloadThread = useCallback(
     async (rootId: string) => {
       const replies = await loadThread(shortId, rootId);
       setThreads((all) => ({ ...all, [rootId]: replies ?? [] }));
-      if (replies) void fetchReactions(replies.map((m) => m.id));
+      if (replies) {
+        void fetchReactions(replies.map((m) => m.id));
+        void fetchFiles(replies);
+      }
     },
-    [shortId, fetchReactions],
+    [shortId, fetchReactions, fetchFiles],
   );
 
   const reloadPins = useCallback(async () => {
@@ -302,7 +332,7 @@ export function ChatScreen(props: ChatScreenProps) {
 
   // ---------------------------------------------------------------- writing
 
-  const send = async (body: string, rootId: string | null = null) => {
+  const send = async (body: string, fileIds: string[], rootId: string | null = null) => {
     if (!active) return;
     const channelId = active.id;
     const temp = temporary();
@@ -319,11 +349,12 @@ export function ChatScreen(props: ChatScreenProps) {
       pinned_at: null,
       reply_count: 0,
       last_reply_at: null,
+      file_count: 0,
     };
     setPending((set) => new Set(set).add(temp));
     if (rootId) setThreads((all) => ({ ...all, [rootId]: [...(all[rootId] ?? []), optimistic] }));
     else setStreams((all) => ({ ...all, [channelId]: { ...(all[channelId] ?? { hasMore: false, loaded: true }), messages: [...(all[channelId]?.messages ?? []), optimistic] } }));
-    const result = await postMessage(shortId, channelId, body, rootId, mentionsIn(body, props.people));
+    const result = await postMessage(shortId, channelId, body, rootId, mentionsIn(body, props.people), fileIds);
     const rows = result.ok ? await loadMessagesById(shortId, rootId ? [result.id, rootId] : [result.id]) : [];
     setPending((set) => {
       const next = new Set(set);
@@ -442,6 +473,9 @@ export function ChatScreen(props: ChatScreenProps) {
           onCreate={() => setDialog("create")}
           onBrowse={() => setDialog("browse")}
           onCategories={() => setDialog("categories")}
+          people={people}
+          me={me}
+          onNewDirect={() => setDialog("direct")}
         />
       </aside>
 
@@ -452,9 +486,9 @@ export function ChatScreen(props: ChatScreenProps) {
               <button type="button" onClick={() => setShowList(true)} aria-label={c().back} className={`${iconButtonClass("ghost")} md:hidden`}>
                 <Icon name="arrow-left" size={18} />
               </button>
-              <Icon name={active.visibility === "closed" ? "lock" : "hash"} size={16} className="ml-1 shrink-0 text-muted" />
+              <Icon name={channelIcon(active)} size={16} className="ml-1 shrink-0 text-muted" />
               <div className="min-w-0 flex-1 px-1">
-                <h2 className="truncate text-sm font-semibold">{active.name}</h2>
+                <h2 className="truncate text-sm font-semibold">{activeTitle}</h2>
                 {(active.topic || unit) && (
                   <p className="truncate text-xs text-muted">
                     {unit ? `${c().unitChannel(unit.name)}${active.topic ? " · " : ""}` : ""}
@@ -487,14 +521,17 @@ export function ChatScreen(props: ChatScreenProps) {
               pendingIds={pending}
               onLoadOlder={loadOlder}
               highlight={highlight}
-              empty={<p className="py-10 text-center text-sm text-muted">{c().emptyChannel(active.name)}</p>}
+              files={files}
+              shortId={shortId}
+              empty={<p className="py-10 text-center text-sm text-muted">{active.visibility === "direct" ? c().direct.empty(activeTitle) : c().emptyChannel(active.name)}</p>}
             />
             <Composer
-              placeholder={c().composer(active.name)}
+              placeholder={active.visibility === "direct" ? c().direct.composer(activeTitle) : c().composer(active.name)}
               people={props.people}
               disabled={false}
               note={composerNote}
-              onSend={(body) => void send(body)}
+              onSend={(body, fileIds) => void send(body, fileIds)}
+              upload={canWrite && active.joined ? { shortId, channelId: active.id } : null}
               draft={drafts[active.id] ?? ""}
               onDraft={(value) => setDrafts((d) => ({ ...d, [active.id]: value }))}
             />
@@ -539,7 +576,7 @@ export function ChatScreen(props: ChatScreenProps) {
           {panel.kind === "thread" && (
             <ThreadPanel
               key={panel.id}
-              channelName={active.name}
+              channelName={activeTitle}
               root={threadRoot}
               replies={threads[panel.id] ?? null}
               people={people}
@@ -548,7 +585,10 @@ export function ChatScreen(props: ChatScreenProps) {
               actions={actions}
               pendingIds={pending}
               note={composerNote}
-              onSend={(body) => void send(body, panel.id)}
+              onSend={(body, fileIds) => void send(body, fileIds, panel.id)}
+              files={files}
+              shortId={shortId}
+              upload={canWrite ? { shortId, channelId: active.id } : null}
               onClose={() => setPanel(null)}
             />
           )}
@@ -575,6 +615,7 @@ export function ChatScreen(props: ChatScreenProps) {
         <ChannelSettingsDialog
           shortId={shortId}
           channel={active}
+          title={activeTitle}
           categories={categories}
           units={props.units}
           canManage={canManage}
@@ -585,6 +626,19 @@ export function ChatScreen(props: ChatScreenProps) {
             setActiveId(null);
             setShowList(true);
             await refreshList();
+          }}
+        />
+      )}
+      {dialog === "direct" && (
+        <NewDirectDialog
+          shortId={shortId}
+          workspaceId={workspaceId}
+          people={props.people.filter((p) => p.id !== me)}
+          onClose={() => setDialog(null)}
+          onOpened={async (id) => {
+            setDialog(null);
+            await refreshList();
+            select(id);
           }}
         />
       )}

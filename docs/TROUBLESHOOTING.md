@@ -70,6 +70,16 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Fix: delete the test's own tombstones at its end.
 - Seen: 2026-11-03
 
+## Two PRs took the same migration number — DB
+- Symptom: a merge conflict (or none) and two files `2027…_x.sql` / team `00NN_x.sql` with the same number; the CLI keys migrations by the number, so the second one would count as already applied.
+- Fix: before merging, `git fetch origin main` and compare `ls supabase/migrations | tail`, `ls supabase/team/migrations | tail`; renumber yours above main's (and its rollback, header comments, tests, card/decision references). Test files and their user ids must not repeat either.
+- Seen: 2026-11-12 (#170 vs #174)
+
+## plpgsql trigger: "record new has no field …" — DB
+- Symptom: one trigger function for several tables fails on a field another table has, even inside an `if tg_table_name = …` branch with `and`.
+- Fix: put the field in its own nested `if`, or read it as `to_jsonb(new) ->> 'field'`.
+- Seen: 2026-11-12
+
 ## CI / e2e
 ## e2e `getByText` counts 2 instead of 1 — e2e
 - Symptom: a check expecting one match fails although the UI is right.

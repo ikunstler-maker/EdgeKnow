@@ -1,0 +1,17 @@
+a page as a file: invalid_file, 11 MB: invalid_file, a voice of 6 minutes: invalid_file, a pdf as an image: invalid_file
+carol (not in the channel) registers a file there: forbidden
+carol sends bob's file elsewhere: invalid_files
+bob sees his unsent files: 2
+a file not stored yet can't be sent: invalid_files
+files only, no text: 2 true
+sent twice: invalid_files
+carol (added) sees the files: note.ogg:voice, report.pdf:file
+alice (owner, not in it) sees files: 0
+a stranger sees files: 0
+bob deletes the message: true
+files left: 0
+their storage is queued for removal: 2
+unsent and older than a day go: 1
+1 removed
+a group of 51: invalid_people, of 50 (strangers): not_found
+over the limit: quota_exceeded
