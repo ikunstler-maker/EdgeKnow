@@ -635,6 +635,37 @@ export async function birthdayChecks() {
   await bob.goto(`${APP}/w/${alphaShort}`);
   check("someone from another workspace sees no birthdays", (await bob.locator("[data-home-birthdays]").count()) === 0);
 
+  // A wishlist for this birthday: made from the profile, a draft only its owner sees,
+  // published to Alice; an outsider never sees it; copy refused while it exists; deleted.
+  await own.goto(`${APP}/w/${alphaShort}/profile`);
+  await own.locator("[data-wishlist-create]").click();
+  await own.waitForURL(/\/wishlists\/[0-9a-f-]{36}$/, { timeout: 15000 });
+  const wishlistUrl = own.url();
+  await own.locator("[data-wishlist-title]").fill("Birthday ideas");
+  await own.locator("[data-add-item]").click();
+  await own.locator("[data-item-title]").fill("Moka pot");
+  await own.locator("[data-add-link]").click();
+  await own.locator("[data-item-link]").fill("https://shop.example.com/moka");
+  const wishes = () => sql(`select title || '|' || (data -> 'items' -> 0 ->> 'title') || '|' || (data ->> 'published') from public.service_objects where service = 'wishlists' and owner_id = '${colleagueId}'`);
+  check("the wishlist saves by itself", await until(() => wishes() === "Birthday ideas|Moka pot|false", 15000), wishes());
+  await alice.goto(wishlistUrl);
+  check("a draft is hidden from colleagues, even the workspace owner", (await alice.locator("[data-wishlist-view]").count()) === 0);
+  await own.locator("[data-wishlist-publish]").click();
+  check("published", await until(() => wishes().endsWith("|true"), 15000), wishes());
+  await alice.goto(wishlistUrl);
+  check("a colleague sees the published wishlist with its wish and safe link",
+    (await alice.locator("[data-wishlist-item]", { hasText: "Moka pot" }).count()) === 1 &&
+    (await alice.locator('[data-wishlist-item] a[rel*="noopener"][target="_blank"]').count()) === 1 &&
+    (await alice.locator("[data-wishlist-editor]").count()) === 0);
+  await bob.goto(wishlistUrl).catch(() => {});
+  check("an outsider never sees it", (await bob.locator("[data-wishlist-view]").count()) === 0);
+  await own.locator("[data-wishlist-copy]").click();
+  check("copy for the same birthday is refused with a reason", await until(async () => (await own.getByRole("alert").count()) === 1, 15000));
+  await own.locator("[data-wishlist-delete]").click();
+  await own.locator("[data-wishlist-delete-confirm]").click();
+  await own.waitForURL(/\/profile$/, { timeout: 15000 });
+  check("the owner deletes it", sql(`select count(*) from public.service_objects where service = 'wishlists' and owner_id = '${colleagueId}'`) === "0");
+
   // Hidden by the person: gone from the home screen.
   await own.goto(`${APP}/w/${alphaShort}/profile`);
   await form.waitFor({ timeout: 15000 });
