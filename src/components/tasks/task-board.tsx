@@ -71,6 +71,8 @@ export function TaskBoard({
   blocked: blockedList,
   me,
   canEdit,
+  canMove = canEdit,
+  canCreate = canEdit,
   isOwner,
   initialBoard = null,
 }: {
@@ -86,6 +88,9 @@ export function TaskBoard({
   blocked: string[];
   me: string;
   canEdit: boolean;
+  // By the project's permissions: dragging tasks between columns, and making tasks (absent: as canEdit).
+  canMove?: boolean;
+  canCreate?: boolean;
   isOwner: boolean;
   initialBoard?: string | null;
 }) {
@@ -314,7 +319,7 @@ export function TaskBoard({
                 <Icon name="columns" size={18} />
               </button>
             )}
-            {canEdit && statuses.length > 0 && (
+            {canCreate && statuses.length > 0 && (
               <button type="button" className={uiButton("primary")} onClick={() => setNewTaskIn(statuses[0].id)} data-new-task-top>
                 <Icon name="plus" />
                 {t.tasks.newTask.title}
@@ -404,8 +409,9 @@ export function TaskBoard({
                     total={boardRows.filter((task) => task.status_id === status.id).length}
                     projectId={project.id}
                     canEdit={canEdit}
+                    canMove={canMove}
                     isOwner={isOwner && lane.id === lanes[0].id}
-                    showQuickAdd={canEdit && lane.id === lanes[0].id}
+                    showQuickAdd={canCreate && lane.id === lanes[0].id}
                     onNewTask={() => setNewTaskIn(status.id)}
                     drafts={lane.id === lanes[0].id ? drafts.drafts.filter((d) => (d.fields.status_id ?? statuses[0]?.id) === status.id).map((d) => (
                       <DraftCard key={d.id} draft={d} onRetry={() => drafts.retry(d.id)} onDismiss={() => drafts.dismiss(d.id)} />
@@ -426,6 +432,7 @@ export function TaskBoard({
                         progress={progress.get(task.id)}
                         blocked={blocked.has(task.id)}
                         canEdit={canEdit}
+                        canMove={canMove}
                         onPriority={(priority) => {
                           const before = tasks;
                           setTasks(tasks.map((x) => (x.id === task.id ? { ...x, priority } : x)));
@@ -561,6 +568,7 @@ function BoardColumn({
   total,
   projectId,
   canEdit,
+  canMove,
   isOwner,
   showQuickAdd,
   onNewTask,
@@ -586,6 +594,7 @@ function BoardColumn({
   total: number;
   projectId: string;
   canEdit: boolean;
+  canMove: boolean;
   isOwner: boolean;
   showQuickAdd: boolean;
   onNewTask: () => void;
@@ -594,7 +603,7 @@ function BoardColumn({
   run: (action: () => Promise<ActionResult>, rollback?: () => void) => void;
   render: (task: TaskRow) => React.ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `column:${lane}:${status.id}`, data: { status: status.id }, disabled: !canEdit });
+  const { setNodeRef, isOver } = useDroppable({ id: `column:${lane}:${status.id}`, data: { status: status.id }, disabled: !canMove });
   const [menu, setMenu] = useState(false);
   // A long column draws its first cards; the rest come on demand.
   const [limit, setLimit] = useState(COLUMN_PAGE);
@@ -719,6 +728,7 @@ function BoardCard({
   progress,
   blocked,
   canEdit,
+  canMove,
   onPriority,
   onAssignee,
 }: {
@@ -733,10 +743,11 @@ function BoardCard({
   progress?: { done: number; total: number };
   blocked: boolean;
   canEdit: boolean;
+  canMove: boolean;
   onPriority?: (priority: TaskPriority) => void;
   onAssignee?: (assignee: string | null) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canEdit || !!task.snapshot });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id, disabled: !canMove || !!task.snapshot });
   // The priority mark and the avatar open a small list to change them in place.
   const [menu, setMenu] = useState<{ kind: "priority" | "assignee"; anchor: HTMLElement } | null>(null);
   const today = new Date().toISOString().slice(0, 10);

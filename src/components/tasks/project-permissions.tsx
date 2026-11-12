@@ -6,12 +6,30 @@ import { personLabel, type Person } from "@/lib/tasks";
 import { loadTaskPermissions, setTaskPermission, type PermissionRow } from "@/app/task-actions";
 
 const p = t.tasks.permissions;
-export const PERMISSION_ACTIONS = ["create", "edit", "delete", "assign", "be_assigned", "schedule", "transition", "link"] as const;
+// In groups, as the screen shows them.
+const GROUPS = [
+  { name: "tasks", actions: ["create", "edit", "delete", "assign", "be_assigned", "schedule", "transition", "link"] },
+  { name: "comments", actions: ["comment_add", "comment_edit_own", "comment_edit_any", "comment_delete_own", "comment_delete_any"] },
+  { name: "files", actions: ["file_add", "file_delete_own", "file_delete_any"] },
+  { name: "time", actions: ["time_log", "time_edit_own", "time_edit_any"] },
+] as const;
+const ALL_ROLES = ["editor", "commenter", "viewer"];
 const ROLES = ["editor", "commenter", "viewer"] as const;
 // The task's author and assignee mean something only for an action on a task that exists.
 const ON_A_TASK = (action: string) => action !== "create" && action !== "be_assigned";
 // With no row of its own an action follows the usual rule.
-const usual = (action: string): Omit<PermissionRow, "action"> => ({ roles: action === "be_assigned" ? ["editor", "commenter", "viewer"] : ["editor"], groups: [], members: [], reporter: false, assignee: false });
+const USUAL_ROLES: Record<string, string[]> = {
+  be_assigned: ALL_ROLES,
+  comment_edit_own: ALL_ROLES,
+  comment_delete_own: ALL_ROLES,
+  file_delete_own: ALL_ROLES,
+  time_edit_own: ALL_ROLES,
+  comment_add: ["editor", "commenter"],
+  comment_edit_any: [],
+  comment_delete_any: [],
+  time_edit_any: [],
+};
+const usual = (action: string): Omit<PermissionRow, "action"> => ({ roles: USUAL_ROLES[action] ?? ["editor"], groups: [], members: [], reporter: false, assignee: false });
 
 // Who may do what with the project's tasks, action by action: roles, units, named people,
 // the task's author, its assignee. The project's owners always may. Set by an owner.
@@ -42,8 +60,11 @@ export function ProjectPermissions({ projectId, members, groups }: { projectId: 
     <details className="border-t border-border pt-4" data-project-permissions>
       <summary className="min-h-11 cursor-pointer text-sm font-medium md:min-h-8">{p.title}</summary>
       <p className="mt-1 text-xs text-muted">{p.hint}</p>
+      {GROUPS.map((group) => (
+        <div key={group.name} data-permission-group-of={group.name}>
+          <h4 className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">{p.groups[group.name]}</h4>
       <ul className="mt-2 space-y-3">
-        {PERMISSION_ACTIONS.map((action) => {
+        {group.actions.map((action) => {
           const own = rows.find((r) => r.action === action);
           const now = own ?? { action, ...usual(action) };
           const set = (changes: Partial<Omit<PermissionRow, "action">>) => save(action, { roles: now.roles, groups: now.groups, members: now.members, reporter: now.reporter, assignee: now.assignee, ...changes });
@@ -103,6 +124,8 @@ export function ProjectPermissions({ projectId, members, groups }: { projectId: 
           );
         })}
       </ul>
+        </div>
+      ))}
       <p className="mt-2 text-xs text-muted">{p.owners}</p>
       {error && (
         <p role="alert" className="mt-1 text-sm text-danger">

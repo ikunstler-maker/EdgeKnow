@@ -4,7 +4,7 @@ import { canComment, canEdit, linkedTasks, type ProjectView } from "@/lib/tasks-
 import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "./task-relations";
 import type { TaskFileView, TaskWebLink } from "./task-files";
-import { TaskDetail, type TaskCan, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
+import { TaskDetail, type TaskComment, type TaskPermissions, type TaskEvent, type TaskOrigin } from "./task-detail";
 import type { TimeEntry } from "./time-log";
 import type { TaskRecurrence } from "./recurrence";
 import { TaskSnapshot, type TaskSnapshotData } from "./task-snapshot";
@@ -150,7 +150,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       importedNames={importedNames}
       webLinks={(webLinks ?? []) as TaskWebLink[]}
       time={time}
-      permissions={allowed && typeof allowed === "object" ? (allowed as Partial<TaskCan>) : undefined}
+      permissions={allowed && typeof allowed === "object" ? (allowed as TaskPermissions) : undefined}
       recurrence={(recurrence as TaskRecurrence | null) ?? null}
       fileLimits={{ fileMb: view.project.file_limit_mb ?? 4, zipMb: view.project.zip_limit_mb ?? 4 }}
     />

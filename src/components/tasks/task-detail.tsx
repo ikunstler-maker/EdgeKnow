@@ -43,6 +43,8 @@ const TaskDescription = dynamic(() => import("./task-description"), { ssr: false
 
 // What a person may do with one task.
 export type TaskCan = { edit: boolean; assign: boolean; schedule: boolean; transition: boolean; delete: boolean; link: boolean };
+// The database's own answer, action by action (my_task_permissions).
+export type TaskPermissions = Record<string, boolean>;
 export type TaskComment = { id: string; author_id: string | null; body: string; mentions: string[]; created_at: string; edited_at: string | null };
 // An imported task: its key and address in the old tracker, and people who aren't members here.
 export type TaskOrigin = { external_key: string | null; external_url: string | null; imported_reporter: string | null; imported_assignee: string | null };
@@ -108,7 +110,7 @@ export function TaskDetail({
   me: string;
   canEdit: boolean;
   // What the reader may do with this task by the project's permissions (absent: by the role, as before).
-  permissions?: Partial<TaskCan>;
+  permissions?: TaskPermissions;
   canComment: boolean;
   isOwner: boolean;
   moves?: ColumnMoves;
@@ -153,7 +155,12 @@ export function TaskDetail({
       if (result.ok) onOk?.();
       router.refresh();
     });
-  const can: TaskCan = { edit: canEdit, assign: canEdit, schedule: canEdit, transition: canEdit, delete: canEdit, link: canEdit, ...permissions };
+  // By the project's permissions where the database gave them, else by the role, as before.
+  const may = (action: string, usual: boolean) => permissions?.[action] ?? usual;
+  const can: TaskCan = { edit: may("edit", canEdit), assign: may("assign", canEdit), schedule: may("schedule", canEdit), transition: may("transition", canEdit), delete: may("delete", canEdit), link: may("link", canEdit) };
+  const own = (c: { author_id: string | null }) => c.author_id === me;
+  const canEditComment = (c: { author_id: string | null }) => may(own(c) ? "comment_edit_own" : "comment_edit_any", own(c));
+  const canDeleteComment = (c: { author_id: string | null }) => may(own(c) ? "comment_delete_own" : "comment_delete_any", own(c) || isOwner);
   const change = (changes: Record<string, unknown>) => run(() => updateTask(task.id, changes));
 
   if (task.deleted_at) {
@@ -336,7 +343,7 @@ export function TaskDetail({
           <div className="-mx-3 mt-2">
             <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={can.edit} />
           </div>
-          <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} limits={fileLimits} members={members} me={me} canEdit={canEdit} />
+          <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} limits={fileLimits} members={members} me={me} canEdit={may("file_add", canEdit)} canDeleteOwn={may("file_delete_own", true)} canDeleteAny={may("file_delete_any", canEdit)} />
         </div>
 
         <aside className="min-w-0 self-start rounded-xl border border-border p-3 text-sm @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1" aria-label={k.fields.heading} data-task-fields>
@@ -433,7 +440,7 @@ export function TaskDetail({
             </div>
           )}
 
-          {time && <TimeLog taskId={task.id} entries={time} estimate={task.estimate} members={members} importedNames={importedNames} me={me} canEdit={canEdit} isOwner={isOwner} />}
+          {time && <TimeLog taskId={task.id} entries={time} estimate={task.estimate} members={members} importedNames={importedNames} me={me} canEdit={may("time_log", canEdit)} canRemoveOwn={may("time_edit_own", true)} canRemoveAny={may("time_edit_any", isOwner)} />}
 
           <Recurrence taskId={task.id} rule={recurrence} canEdit={canEdit} />
 
@@ -528,22 +535,24 @@ export function TaskDetail({
                   ) : (
                     <p className="mt-1 whitespace-pre-wrap">{c.body}</p>
                   )}
-                  {editing?.id !== c.id && (c.author_id === me || isOwner) && (
+                  {editing?.id !== c.id && (canEditComment(c) || canDeleteComment(c)) && (
                     <div className="mt-2 flex gap-3 text-xs text-muted">
-                      {c.author_id === me && (
+                      {canEditComment(c) && (
                         <button type="button" onClick={() => setEditing({ id: c.id, body: c.body })} className="hover:text-foreground">
                           {k.editComment}
                         </button>
                       )}
-                      <button type="button" onClick={() => run(() => editTaskComment(c.id, null, true))} className="hover:text-danger">
-                        {k.deleteComment}
-                      </button>
+                      {canDeleteComment(c) && (
+                        <button type="button" onClick={() => run(() => editTaskComment(c.id, null, true))} className="hover:text-danger">
+                          {k.deleteComment}
+                        </button>
+                      )}
                     </div>
                   )}
                 </li>
               ))}
             </ul>
-            {canComment && (
+            {may("comment_add", canComment) && (
               <form
                 className="mt-3 flex flex-col gap-2"
                 onSubmit={(e) => {

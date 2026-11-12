@@ -30,3 +30,6 @@ alice lets only the author edit: true
 bob sets a permission: forbidden, may edit: false, edits: forbidden
 alice (an owner) edits: true, resets: true
 someone removed sees permissions: 0, sets one: forbidden
+alice lets nobody but owners comment: true
+bob comments: forbidden, on the board he may: {"create": true, "transition": true}
+alice comments: true, resets: true
