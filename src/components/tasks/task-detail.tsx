@@ -317,7 +317,7 @@ export function TaskDetail({
           )}
           <BlockedNotice links={links} />
           {(isOwner || applicable.length > 0) && (
-            <div className="mt-4 grid gap-x-6 gap-y-3 rounded-xl border border-border p-3 text-sm @xl:grid-cols-2" aria-label={k.customFields.heading} role="group" data-task-key-fields>
+            <div className="mt-4 grid gap-x-6 gap-y-3 rounded-xl border border-border p-3 text-sm @md:grid-cols-2" aria-label={k.customFields.heading} role="group" data-task-key-fields>
               <KeyFields
                 projectId={project.id}
                 fields={shownFields}
@@ -326,13 +326,13 @@ export function TaskDetail({
                 render={(field) => <FieldValue field={field} value={task.custom?.[field.id]} members={members} disabled={!can.edit || pending} onChange={(value) => change({ custom: { [field.id]: value } })} />}
               />
               {emptyFields.length > 3 && (
-                <button type="button" onClick={() => setAllFields(!allFields)} aria-expanded={allFields} className="min-h-11 self-start text-xs @xl:col-span-2 text-muted hover:text-foreground hover:underline md:min-h-8" data-more-fields>
+                <button type="button" onClick={() => setAllFields(!allFields)} aria-expanded={allFields} className="min-h-11 self-start text-xs @md:col-span-2 text-muted hover:text-foreground hover:underline md:min-h-8" data-more-fields>
                   <Icon name={allFields ? "chevron-up" : "chevron-down"} className="mr-1 inline" />
                   {allFields ? k.card.fewerFields : k.card.moreFields(emptyFields.length)}
                 </button>
               )}
               {isOwner && (
-                <div className="@xl:col-span-2">
+                <div className="@md:col-span-2">
                   <QuickAddField projectId={project.id} />
                 </div>
               )}

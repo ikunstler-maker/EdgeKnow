@@ -60,14 +60,14 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
       router.refresh();
     });
   // Half-wide fields stand two in a row; the rest take the whole row.
-  const span = (field: TaskField) => (field.width === "half" ? "" : "@xl:col-span-2");
+  const span = (field: TaskField) => (field.width === "half" ? "" : "@md:col-span-2");
 
   if (!canOrder) return <>{shown.map((field) => <div key={field.id} className={span(field)}>{render(field)}</div>)}</>;
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       {shown.map((field) =>
         editing === field.id ? (
-          <div key={field.id} className="@xl:col-span-2">
+          <div key={field.id} className="@md:col-span-2">
             <EditFieldForm projectId={projectId} field={field} onClose={() => setEditing(null)} />
           </div>
         ) : (
@@ -77,7 +77,7 @@ export function KeyFields({ projectId, fields, all, canOrder, render }: { projec
         ),
       )}
       {error && (
-        <p role="alert" className="text-sm text-danger @xl:col-span-2">
+        <p role="alert" className="text-sm text-danger @md:col-span-2">
           {error}
         </p>
       )}

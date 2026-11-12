@@ -90,6 +90,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - A column has a short name and a colour: on a computer the status in the task card is a row of such buttons (scrolls by wheel and drag), on a phone a list.
 - Project permissions (Д-1, 2026-11-12): for each action on tasks (create, edit, delete, assign, who may be assigned, dates, statuses, links) the owner says who may: roles, units, people, the author, the assignee; unset: the usual rules; the database enforces it.
 - Project permissions (Д-2): also comments, attachments and time, with "one's own" apart from "anyone's"; the board drags and makes tasks by the permissions.
+- Permissions from the tracker (Д-3): the import wizard reads the project's permission scheme, shows who will be able to do what before the move, and writes it into `task_permissions` as the person (through `set_task_permission`); tracker groups become units (existing, new or left out); a tracker role mapped to a role of ours is carried as that role, otherwise its people by name; project lead → owner; "anyone signed in" → everyone with access; a permission granted to nobody → owners only. What is not carried goes into the report (`progress.permissionNotes`). Code: `schemeToPermissions` in `src/lib/tracker-convert.ts`, `carryScheme` in `src/app/task-import-actions.ts`.
 
 ## 3. Planned
 

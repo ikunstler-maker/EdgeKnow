@@ -1,7 +1,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { numberOfKey, parseComments, parseField, parseFiles, parseIssue, parseMoves, parseWorklogs, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerFile, type TrackerIssue, type TrackerRole, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
+import { numberOfKey, parseComments, parseField, parseFiles, parseGrant, parseIssue, parseMoves, parseWorklogs, parseStatus, parseType, parseUser, type TrackerActivity, type TrackerField, type TrackerFile, type TrackerGroup, type TrackerIssue, type TrackerRole, type TrackerScheme, type TrackerStatus, type TrackerType, type TrackerUser } from "@/lib/tracker-convert";
 
 // Reading another tracker (Rukh Р-3а): the cloud tracker's own API, called only from
 // the server with the person's access key. Nothing is ever written to the tracker.
@@ -26,6 +26,8 @@ export interface TrackerApi {
   // The project's roles with the people who hold each directly (members of a group that
   // holds a role are not listed by the tracker here).
   roles(access: TrackerAccess, key: string): Promise<TrackerRole[]>;
+  // The project's permission scheme with the groups it names (and those its roles hold).
+  scheme(access: TrackerAccess, key: string, roles: TrackerRole[]): Promise<TrackerScheme>;
   count(access: TrackerAccess, key: string, since?: string | null): Promise<number>;
   lastNumber(access: TrackerAccess, key: string): Promise<number>;
   // Issues in the order of their keys; `fields`: custom field ids to bring along.
@@ -131,9 +133,45 @@ const cloud: TrackerApi = {
         const account = obj(obj(actor).actorUser).accountId;
         return typeof account === "string" && account ? [account] : [];
       });
-      roles.push({ name: name.slice(0, 120), users });
+      const groups = list(role.actors).flatMap((actor) => {
+        const group = obj(obj(actor).actorGroup).groupId;
+        return typeof group === "string" && group ? [group] : [];
+      });
+      roles.push({ name: name.slice(0, 120), users, groups });
     }
     return roles;
+  },
+  async scheme(access, key, roles) {
+    const raw = obj(await call(access, `/rest/api/3/project/${encodeURIComponent(key)}/permissionscheme?expand=permissions,group,projectRole,user`));
+    const grants = list(raw.permissions).flatMap((g) => parseGrant(g) ?? []).slice(0, 2000);
+    const named = new Map<string, string>();
+    for (const grant of grants) if (grant.holder.type === "group") named.set(grant.holder.id, grant.holder.name);
+    for (const role of roles) for (const id of role.groups ?? []) if (!named.has(id)) named.set(id, id);
+    const groups: TrackerGroup[] = [];
+    for (const [id, name] of [...named].slice(0, 30)) {
+      const group: TrackerGroup = { id, name, users: [] };
+      try {
+        for (let at = 0; at < 500; at += 50) {
+          const page = obj(await call(access, `/rest/api/3/group/member?groupId=${encodeURIComponent(id)}&startAt=${at}&maxResults=50`));
+          for (const raw of list(page.values)) {
+            const user = parseUser(raw);
+            if (user) group.users.push(user.id);
+          }
+          if (page.isLast !== false || list(page.values).length === 0) break;
+        }
+        // A group known only by its id (held through a role): its name comes with a search.
+        if (name === id) {
+          const found = list(obj(await call(access, `/rest/api/3/group/bulk?groupId=${encodeURIComponent(id)}`)).values)[0];
+          if (typeof obj(found).name === "string") group.name = String(obj(found).name).slice(0, 120);
+        }
+      } catch (error) {
+        // The key may read the scheme yet not the site's groups: the group stays, without people.
+        if (error instanceof TrackerError && error.code === "rate_limited") throw error;
+        group.unread = true;
+      }
+      groups.push(group);
+    }
+    return { name: String(raw.name ?? "").slice(0, 120), grants, groups };
   },
   async count(access, key, since) {
     return Number(obj(await call(access, "/rest/api/3/search/approximate-count", { jql: jql(key, "ASC", since).replace(/ ORDER BY.*$/, "") })).count) || 0;
@@ -246,8 +284,19 @@ function fake(dir: string): TrackerApi {
     users: async (access, key) => (project(access, key), list(read(access).users).flatMap((u) => parseUser(u) ?? [])),
     roles: async (access, key) => (
       project(access, key),
-      list(read(access).roles).flatMap((r) => (typeof obj(r).name === "string" ? [{ name: String(obj(r).name), users: list(obj(r).users).map(String) }] : []))
+      list(read(access).roles).flatMap((r) => (typeof obj(r).name === "string" ? [{ name: String(obj(r).name), users: list(obj(r).users).map(String), groups: list(obj(r).groups).map(String) }] : []))
     ),
+    // The stand-in keeps the scheme as the tracker gives it, and the groups with their people.
+    scheme: async (access, key) => {
+      project(access, key);
+      const raw = read(access).scheme;
+      if (!raw) throw new TrackerError("not_found");
+      return {
+        name: String(obj(raw).name ?? ""),
+        grants: list(obj(raw).permissions).flatMap((g) => parseGrant(g) ?? []),
+        groups: list(read(access).groups).map((g) => ({ id: String(obj(g).id), name: String(obj(g).name), users: list(obj(g).users).map(String), ...(obj(g).unread ? { unread: true } : {}) })),
+      };
+    },
     count: async (access, key, since) => (project(access, key), changed(list(read(access).issues), since).length),
     lastNumber: async (access, key) => Math.max(0, ...all(access, key).map((i) => numberOfKey(i.key) ?? 0)),
     files: async (access, key, cursor, size, since) => {

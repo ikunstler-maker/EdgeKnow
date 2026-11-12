@@ -9,7 +9,19 @@ export type OurFieldKind = "text" | "number" | "date" | "select" | "multiselect"
 
 export type TrackerUser = { id: string; name: string; email: string | null };
 // A role of the tracker's project and the ids of the people who hold it directly.
-export type TrackerRole = { name: string; users: string[] };
+export type TrackerRole = { name: string; users: string[]; groups?: string[] };
+// The tracker's permission scheme of a project: who is granted each permission.
+export type TrackerHolder =
+  | { type: "role"; name: string }
+  | { type: "group"; id: string; name: string }
+  | { type: "user"; id: string }
+  | { type: "reporter" | "assignee" | "lead" | "anyone" }
+  // Holders we have nothing like (a person named in a task's field, a help-desk customer).
+  | { type: "other"; name: string };
+export type TrackerGrant = { permission: string; holder: TrackerHolder };
+// A group of the tracker's site with its people (`unread`: the key may not list them).
+export type TrackerGroup = { id: string; name: string; users: string[]; unread?: boolean };
+export type TrackerScheme = { name: string; grants: TrackerGrant[]; groups: TrackerGroup[] };
 export type OurRole = "owner" | "editor" | "commenter" | "viewer";
 export const OUR_ROLES: OurRole[] = ["owner", "editor", "commenter", "viewer"];
 export type TrackerStatus = { id: string; name: string; category: OurCategory };
@@ -412,6 +424,145 @@ export function personRoles(roles: TrackerRole[], chosen: Record<string, OurRole
     }
   }
   return { ours, theirs };
+}
+
+// ---- The tracker's permission scheme → our project permissions (Rukh Д-3) --------------------
+
+// The tracker's permission → the action of ours it stands for.
+export const PERMISSION_ACTIONS: Record<string, string> = {
+  CREATE_ISSUES: "create",
+  EDIT_ISSUES: "edit",
+  DELETE_ISSUES: "delete",
+  ASSIGN_ISSUES: "assign",
+  ASSIGNABLE_USER: "be_assigned",
+  SCHEDULE_ISSUES: "schedule",
+  TRANSITION_ISSUES: "transition",
+  LINK_ISSUES: "link",
+  ADD_COMMENTS: "comment_add",
+  EDIT_OWN_COMMENTS: "comment_edit_own",
+  EDIT_ALL_COMMENTS: "comment_edit_any",
+  DELETE_OWN_COMMENTS: "comment_delete_own",
+  DELETE_ALL_COMMENTS: "comment_delete_any",
+  CREATE_ATTACHMENTS: "file_add",
+  DELETE_OWN_ATTACHMENTS: "file_delete_own",
+  DELETE_ALL_ATTACHMENTS: "file_delete_any",
+  WORK_ON_ISSUES: "time_log",
+  EDIT_OWN_WORKLOGS: "time_edit_own",
+  EDIT_ALL_WORKLOGS: "time_edit_any",
+};
+// Permissions that need no row of ours: seeing the project and running it follow the roles.
+const BY_ROLE = ["BROWSE_PROJECTS", "ADMINISTER_PROJECTS"];
+
+// One grant as the tracker gives it.
+export function parseGrant(raw: unknown): TrackerGrant | null {
+  const grant = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const holder = (grant.holder && typeof grant.holder === "object" ? grant.holder : {}) as Record<string, unknown>;
+  const inner = (key: string) => (holder[key] && typeof holder[key] === "object" ? holder[key] : {}) as Record<string, unknown>;
+  const text = (value: unknown) => (typeof value === "string" || typeof value === "number" ? String(value) : "");
+  const permission = text(grant.permission).toUpperCase().slice(0, 80);
+  if (!permission) return null;
+  const type = text(holder.type);
+  const value = text(holder.value) || text(holder.parameter);
+  if (type === "projectRole") {
+    const name = text(inner("projectRole").name);
+    return { permission, holder: name ? { type: "role", name: name.slice(0, 120) } : { type: "other", name: "projectRole" } };
+  }
+  if (type === "group") {
+    const id = text(inner("group").groupId) || value;
+    const name = text(inner("group").name) || text(holder.parameter) || id;
+    return { permission, holder: id ? { type: "group", id: id.slice(0, 200), name: name.slice(0, 120) } : { type: "other", name: "group" } };
+  }
+  if (type === "user") {
+    const id = text(inner("user").accountId) || value;
+    return { permission, holder: id ? { type: "user", id: id.slice(0, 200) } : { type: "other", name: "user" } };
+  }
+  if (type === "reporter" || type === "assignee") return { permission, holder: { type } };
+  if (type === "projectLead") return { permission, holder: { type: "lead" } };
+  // Anyone at all, or anyone who has signed in to the tracker.
+  if (type === "anyone" || type === "applicationRole") return { permission, holder: { type: "anyone" } };
+  return { permission, holder: { type: "other", name: (type || "unknown").slice(0, 60) } };
+}
+
+export type PermissionHolders = { roles: string[]; groups: string[]; members: string[]; reporter: boolean; assignee: boolean };
+// What could not be carried, or was carried wider than in the tracker: reason → what.
+export type SchemeNote = { reason: "permission_unsupported" | "holder_unsupported" | "group_skipped" | "person_not_member" | "role_people_only" | "anyone" | "nobody" | "too_many"; permission: string; what: string };
+export type SchemeChoice = {
+  // tracker role name → the role of ours its people get (null: none)
+  roles: Record<string, OurRole | null>;
+  // tracker user id → a member of ours
+  people: Record<string, string | null>;
+  // tracker group id → a unit of ours
+  groups: Record<string, string | null>;
+};
+
+// The scheme as rows of our permissions table: a row for every action of ours, also when
+// nobody is granted it or nobody could be carried (then only the project's owners may do
+// it, as nobody but the tracker's administrators could there).
+export function schemeToPermissions(scheme: TrackerScheme, roles: TrackerRole[], choice: SchemeChoice): { rows: Record<string, PermissionHolders>; notes: SchemeNote[] } {
+  const rows: Record<string, PermissionHolders> = {};
+  const notes: SchemeNote[] = [];
+  const noted = new Set<string>();
+  const note = (reason: SchemeNote["reason"], permission: string, what: string) => {
+    const key = `${reason}|${permission}|${what}`;
+    if (noted.has(key) || notes.length >= 200) return;
+    noted.add(key);
+    notes.push({ reason, permission, what: what.slice(0, 120) });
+  };
+  const groupName = new Map(scheme.groups.map((g) => [g.id, g.name]));
+  for (const action of new Set(Object.values(PERMISSION_ACTIONS))) rows[action] = { roles: [], groups: [], members: [], reporter: false, assignee: false };
+  const seen = new Set<string>();
+  for (const { permission, holder } of scheme.grants) {
+    const action = PERMISSION_ACTIONS[permission];
+    if (!action) {
+      if (!BY_ROLE.includes(permission)) note("permission_unsupported", permission, "");
+      continue;
+    }
+    seen.add(action);
+    const row = rows[action];
+    const add = (list: string[], value: string) => void (list.includes(value) || list.push(value));
+    const person = (id: string) => {
+      const member = choice.people[id] ?? null;
+      if (member) add(row.members, member);
+      else note("person_not_member", permission, "");
+    };
+    const group = (id: string) => {
+      const unit = choice.groups[id];
+      if (unit) add(row.groups, unit);
+      else note("group_skipped", permission, groupName.get(id) ?? id);
+    };
+    if (holder.type === "reporter") row.reporter = true;
+    else if (holder.type === "assignee") row.assignee = true;
+    else if (holder.type === "lead") continue;
+    else if (holder.type === "anyone") {
+      for (const role of ["editor", "commenter", "viewer"]) add(row.roles, role);
+      note("anyone", permission, "");
+    } else if (holder.type === "user") person(holder.id);
+    else if (holder.type === "group") group(holder.id);
+    else if (holder.type === "role") {
+      const mapped = choice.roles[holder.name] ?? null;
+      // The project's owners may do everything anyway.
+      if (mapped === "owner") continue;
+      if (mapped) add(row.roles, mapped);
+      else {
+        // A tracker role without a role of ours: its people and groups, one by one.
+        const role = roles.find((r) => r.name === holder.name);
+        for (const id of role?.users ?? []) person(id);
+        for (const id of role?.groups ?? []) group(id);
+        note("role_people_only", permission, holder.name);
+      }
+    } else if (holder.type === "other") note("holder_unsupported", permission, holder.name);
+  }
+  for (const [action, row] of Object.entries(rows)) {
+    // Granted to nobody in the tracker: only the project's owners here.
+    if (!seen.has(action)) note("nobody", Object.keys(PERMISSION_ACTIONS).find((p) => PERMISSION_ACTIONS[p] === action) ?? action, "");
+    for (const list of [row.groups, row.members]) {
+      if (list.length > 50) {
+        list.length = 50;
+        note("too_many", Object.keys(PERMISSION_ACTIONS).find((p) => PERMISSION_ACTIONS[p] === action) ?? action, "");
+      }
+    }
+  }
+  return { rows, notes };
 }
 
 // A sensible first guess for a tracker role by its name.

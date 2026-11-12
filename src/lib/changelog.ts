@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-j",
+    version: "0.42.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: дозволи переїжджають разом із задачами", en: "Rukh: permissions move in with the tasks" },
+    items: [
+      { id: "import-scheme", type: "added", scope: "tasks", title: { uk: "Майстер перенесення читає схему дозволів трекера й показує, хто що зможе, ще до перенесення.", en: "The import wizard reads the tracker's permission scheme and shows who will be able to do what before the move." } },
+      { id: "import-groups", type: "added", scope: "tasks", title: { uk: "Групи трекера стають підрозділами — наявними або новими.", en: "The tracker's groups become units, existing or new." } },
+    ],
+  },
+  {
     id: "2026-11-12-i",
     version: "0.41.0",
     date: "2026-11-12",
