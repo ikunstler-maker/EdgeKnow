@@ -1,0 +1,4 @@
+bob sets his title: true
+owner sets bob's birthday: true
+alice sees: {"ok": true, "teams": ["Night shift"], "birthday": {"day": 1, "month": 6}, "job_title": "Night lead", "departments": ["Ops"], "can_edit_title": true, "can_edit_birthday": true}
+zed sees: forbidden, sets: forbidden

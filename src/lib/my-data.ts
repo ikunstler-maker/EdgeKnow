@@ -122,6 +122,8 @@ export async function deleteMyAccount(userId: string): Promise<DeleteResult> {
   const result = cleaned as DeleteResult | null;
   if (error || !result) return { ok: false, error: "unknown" };
   if (!result.ok) return result;
+  // Their own picture goes too (best effort).
+  await admin.storage.from("avatars").remove([`${userId}/avatar`]).catch(() => null);
   const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
   if (deleteError) return { ok: false, error: "unknown" };
   return { ok: true };
