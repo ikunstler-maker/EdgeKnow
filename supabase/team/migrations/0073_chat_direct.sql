@@ -1,5 +1,5 @@
--- Toker conversations in a team's own database (as supabase/migrations/20270128100000_chat_direct.sql).
--- Rollback: supabase/team/rollbacks/0072_chat_direct.down.sql
+-- Toker conversations in a team's own database (as supabase/migrations/20270129100000_chat_direct.sql).
+-- Rollback: supabase/team/rollbacks/0073_chat_direct.down.sql
 
 -- Toker, stage 2a: conversations of two and group conversations, and what earlier
 -- history people added later see (decision 2026-11-12 "Toker, етап 2").

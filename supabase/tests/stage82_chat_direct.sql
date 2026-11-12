@@ -6,18 +6,18 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000081a1', 'alice@direct.test', now()),
- ('00000000-0000-0000-0000-0000000081b1', 'bob@direct.test', now()),
- ('00000000-0000-0000-0000-0000000081c1', 'carol@direct.test', now()),
- ('00000000-0000-0000-0000-0000000081d1', 'dan@direct.test', now()),
- ('00000000-0000-0000-0000-0000000081e1', 'gwen@client-direct.test', now()),
- ('00000000-0000-0000-0000-0000000081f1', 'eve@other-direct.test', now());
-\set alice '00000000-0000-0000-0000-0000000081a1'
-\set bob '00000000-0000-0000-0000-0000000081b1'
-\set carol '00000000-0000-0000-0000-0000000081c1'
-\set dan '00000000-0000-0000-0000-0000000081d1'
-\set gwen '00000000-0000-0000-0000-0000000081e1'
-\set eve '00000000-0000-0000-0000-0000000081f1'
+ ('00000000-0000-0000-0000-0000000082a1', 'alice@direct.test', now()),
+ ('00000000-0000-0000-0000-0000000082b1', 'bob@direct.test', now()),
+ ('00000000-0000-0000-0000-0000000082c1', 'carol@direct.test', now()),
+ ('00000000-0000-0000-0000-0000000082d1', 'dan@direct.test', now()),
+ ('00000000-0000-0000-0000-0000000082e1', 'gwen@client-direct.test', now()),
+ ('00000000-0000-0000-0000-0000000082f1', 'eve@other-direct.test', now());
+\set alice '00000000-0000-0000-0000-0000000082a1'
+\set bob '00000000-0000-0000-0000-0000000082b1'
+\set carol '00000000-0000-0000-0000-0000000082c1'
+\set dan '00000000-0000-0000-0000-0000000082d1'
+\set gwen '00000000-0000-0000-0000-0000000082e1'
+\set eve '00000000-0000-0000-0000-0000000082f1'
 update public.platform_settings set open_registration = true;
 set role authenticated;
 set request.jwt.claim.sub = :'alice';

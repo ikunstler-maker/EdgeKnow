@@ -1,4 +1,4 @@
--- Undo 0072_chat_direct.
+-- Undo 0073_chat_direct.
 drop function public.chat_set_member_history(uuid, uuid, boolean);
 drop function public.chat_set_history_visible(uuid, boolean);
 drop function public.chat_open_direct(uuid, uuid[]);
