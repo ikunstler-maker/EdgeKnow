@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/action-result";
 import { deleteRole, saveRole } from "@/app/workspace-actions";
 import { Icon } from "@/components/ui/icon";
 
-export const ROLE_PERMISSIONS = ["create_pages", "create_projects", "create_objects", "manage_collections", "manage_fields", "invite", "manage_structure", "manage_leave"] as const;
+export const ROLE_PERMISSIONS = ["create_pages", "create_projects", "create_objects", "manage_collections", "manage_fields", "invite", "manage_structure", "manage_leave", "create_open_channels", "create_closed_channels"] as const;
 export type RolePermission = (typeof ROLE_PERMISSIONS)[number];
 export type RoleItem = {
   id: string;
@@ -18,7 +18,7 @@ export type RoleItem = {
 
 const r = t.settings.roles;
 // What members could do before roles (the built-in member row starts from it).
-const MEMBER_DEFAULTS: RolePermission[] = ["create_pages", "create_objects", "manage_collections"];
+const MEMBER_DEFAULTS: RolePermission[] = ["create_pages", "create_objects", "manage_collections", "create_open_channels", "create_closed_channels"];
 const inputClass = "min-h-11 rounded-md border border-border bg-background px-3 text-base md:text-sm";
 const buttonClass = "min-h-11 rounded-md border border-border px-3 text-sm hover:bg-surface disabled:opacity-60";
 const primaryClass = "min-h-11 rounded-md bg-accent px-4 text-sm font-medium text-white disabled:opacity-60";

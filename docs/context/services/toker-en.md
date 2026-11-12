@@ -6,7 +6,7 @@
 
 Team chat next to the work: channels, direct messages, threads, voice rooms. Combines the structure of a work messenger with the sense of presence of a community app. The next big service by plan.
 
-- **State:** ⏳ planned. Stages approved (section 3); tables and access rules need a separate approval before code.
+- **State:** 🛠 stage 1a — database (tables, access rules, functions, realtime signals); no interface yet. Decision 2026-11-12 "Toker, етап 1".
 
 ## 2. Intent
 
@@ -56,7 +56,9 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - Real-time delivery through the database's realtime mechanism (Supabase Realtime).
 - A closed channel is seen only by its members; checked by the database.
 - Cross-platform on one codebase: web + PWA first, then desktop, then phones.
-- Draft tables for stage 1 (not approved): categories, channels, channel members, messages (threads included), reactions; notification settings live on channel members. Two migrations (central and team).
+- **Data (stage 1a):** `chat_categories` (folders; "restricted" — only for its people), `chat_category_access` (units and people of a restricted category), `chat_channels` (open/closed, unit, archive), `chat_channel_members` (added — `invited`; read mark and notifications — others' hidden), `chat_messages` (thread — one level; a deleted one stays as an empty row), `chat_reactions`. Migrations `supabase/migrations/20270123100000_chat.sql` and `supabase/team/migrations/0068_chat.sql`; tests `stage76_chat`, `team9u_chat`.
+- **Access:** `chat_can_see(channel, person)` — category open + (added; or open channel and not a guest; or closed unit channel and `unit_reaches`). Admins see a closed channel only as members. Changes only through `chat_*` functions (creating by role rights `create_open_channels` / `create_closed_channels`; at most 30 messages a minute).
+- **Realtime:** triggers send id-only signals to private topics `chat:<channel>` and `chat-user:<person>`; who may join — `chat_topic_allowed`.
 
 ## 5. Expected links
 
@@ -75,7 +77,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 ## 6. Open questions
 
 - Secret rooms: search, transcription, AI summaries and live chips do not work there; a lost key means lost history. Needs the owner's consent to these limits (before stage 5).
-- Unit channel: do people from nested units see it (recommendation — yes).
+- Mentions in the bell — PR 1c. Drive backup of chat — later.
 - Web Push key: serve the public part to the browser from the server, so the list of browser variables does not grow; the private part lives only in hosting settings.
 - Cost and limits of realtime in a team database.
 - Voice messages: storage and size.
