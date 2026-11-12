@@ -611,8 +611,8 @@ export async function birthdayChecks() {
   await form.locator("[data-birthday-year]").fill("1990");
   await form.locator("[data-birthday-save]").click();
   await form.locator("[data-birthday-note]").waitFor({ timeout: 15000 });
-  const kept = () => sql(`select concat_ws('-', birth_year, birth_month, birth_day, birthday_shown) from public.leave_member_settings where workspace_id = '${alphaId}' and user_id = '${colleagueId}'`);
-  check("a person sets their own birthday in the profile", kept() === `1990-${month}-${day}-true`, kept());
+  const kept = () => sql(`select concat_ws('-', birth_year, birth_month, birth_day, case when birthday_shown then 'shown' else 'hidden' end) from public.leave_member_settings where workspace_id = '${alphaId}' and user_id = '${colleagueId}'`);
+  check("a person sets their own birthday in the profile", kept() === `1990-${month}-${day}-shown`, kept());
 
   await alice.goto(`${APP}/w/${alphaShort}`);
   const block = alice.locator("[data-home-birthdays]");
@@ -622,10 +622,16 @@ export async function birthdayChecks() {
   check("the calendar list shows it", await until(async () => (await alice.locator("[data-list-birthdays] [data-birthday]").count()) >= 1, 15000));
   const { data: got } = await aliceClient.rpc("calendar_birthdays", { ws: alphaId, first_day: today, last_day: today });
   check("what a colleague gets carries no year", Array.isArray(got) && got.length >= 1 && !JSON.stringify(got).includes("1990"), JSON.stringify(got));
+  // The bell: only for people who share a unit with the person (the colleague is in one).
   sql(`delete from public.notifications where kind = 'birthday'`);
+  const heard = () => sql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id where n.kind = 'birthday' and u.email = 'alice@alpha.test'`);
+  await aliceClient.rpc("calendar_remind_me", { ws: alphaId });
+  check("no bell for someone outside the person's units", heard() === "0", heard());
+  const unit = sql(`select group_id from public.workspace_group_members where workspace_id = '${alphaId}' and user_id = '${colleagueId}' limit 1`);
+  sql(`insert into public.workspace_group_members (group_id, workspace_id, user_id) values ('${unit}', '${alphaId}', (select id from auth.users where email = 'alice@alpha.test'))`);
   const { error: bellError } = await aliceClient.rpc("calendar_remind_me", { ws: alphaId });
-  const heard = sql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id where n.kind = 'birthday' and u.email = 'alice@alpha.test'`);
-  check("the bell tells a colleague on the day", !bellError && heard === "1", `${bellError?.message ?? ""} ${heard}`);
+  check("the bell tells a colleague of the same unit on the day", !bellError && heard() === "1", `${bellError?.message ?? ""} ${heard()}`);
+  sql(`delete from public.workspace_group_members where group_id = '${unit}' and user_id = (select id from auth.users where email = 'alice@alpha.test')`);
   await bob.goto(`${APP}/w/${alphaShort}`);
   check("someone from another workspace sees no birthdays", (await bob.locator("[data-home-birthdays]").count()) === 0);
 
@@ -634,11 +640,11 @@ export async function birthdayChecks() {
   await form.waitFor({ timeout: 15000 });
   await form.locator("[data-birthday-shown]").uncheck();
   await form.locator("[data-birthday-save]").click();
-  await until(() => kept().endsWith("-false"), 15000);
+  await until(() => kept().endsWith("-hidden"), 15000);
   await alice.goto(`${APP}/w/${alphaShort}`);
   await alice.waitForTimeout(500);
   check("hidden by the person, colleagues no longer see it", (await alice.locator("[data-home-birthdays]").count()) === 0);
   await form.locator("[data-birthday-clear]").click();
-  check("the person removes it", await until(() => kept() === "true", 15000), kept());
+  check("the person removes it", await until(() => !/\d/.test(kept()), 15000), kept());
   await own.close();
 }
