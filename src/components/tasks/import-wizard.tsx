@@ -9,7 +9,7 @@ import { workspacePath } from "@/lib/paths";
 import { TASK_PRIORITIES, TASK_TYPES, personLabel } from "@/lib/tasks";
 import { OUR_ROLES, parseTrackerLink, suggestPriority, suggestRole, suggestType, type OurPriority, type OurRole, type OurType } from "@/lib/tracker-convert";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState, ImportTarget } from "@/lib/tracker/types";
-import { trackerConnect, trackerForget, trackerGaps, trackerOutline, trackerPreview, trackerRetryFiles, trackerStart, trackerState, trackerStep, type ImportGap } from "@/app/task-import-actions";
+import { trackerConnect, trackerForget, trackerGaps, trackerOutline, trackerPreview, trackerRefresh, trackerRetryFiles, trackerStart, trackerState, trackerStep, type ImportGap } from "@/app/task-import-actions";
 import { Button, buttonClass, inputClass } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { PriorityIcon, StatusDot, TypeIcon } from "./task-icons";
@@ -205,6 +205,15 @@ export function ImportWizard({ shortId, initial, configured }: { shortId: string
           moving={moving}
           pending={pending}
           onResume={() => (setError(null), setMoving(true))}
+          onRefresh={() =>
+            startTransition(async () => {
+              const result = await trackerRefresh(shortId, state.id);
+              if (!result.ok) return setError(errorText(result.error));
+              setError(null);
+              setState(await trackerState(shortId));
+              setMoving(true);
+            })
+          }
           onRetryFiles={() =>
             startTransition(async () => {
               const result = await trackerRetryFiles(shortId, state.id);
@@ -521,7 +530,7 @@ function Gaps({ shortId, projectKey, pending, onRetry }: { shortId: string; proj
   );
 }
 
-function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onForget, onAnother }: { shortId: string; state: ImportState; moving: boolean; pending: boolean; onResume: () => void; onRetryFiles: () => void; onForget: () => void; onAnother: () => void }) {
+function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onRefresh, onForget, onAnother }: { shortId: string; state: ImportState; moving: boolean; pending: boolean; onResume: () => void; onRetryFiles: () => void; onRefresh: () => void; onForget: () => void; onAnother: () => void }) {
   const progress: ImportProgress | null = state.progress;
   const done = state.state === "done";
   const share = progress ? (progress.phase === "tasks" ? Math.min(1, progress.seen / Math.max(1, progress.total)) : 1) : 0;
@@ -590,6 +599,12 @@ function RunView({ shortId, state, moving, pending, onResume, onRetryFiles, onFo
         {done && (
           <Button onClick={onAnother} disabled={pending} data-import-another>
             {m.another}
+          </Button>
+        )}
+        {done && (
+          <Button onClick={onRefresh} disabled={pending} title={m.refreshHint} data-import-refresh>
+            <Icon name="refresh" />
+            {m.refresh}
           </Button>
         )}
         {!moving && (

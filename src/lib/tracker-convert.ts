@@ -56,6 +56,10 @@ export type ImportMapping = {
   startField: string | null;
   // tracker user id → the role of ours their tracker roles map to (highest of them)
   personRoles?: Record<string, OurRole | null>;
+  // A catch-up run: only what changed in the tracker since this moment. And when the run
+  // now going began (it becomes the next run's "since").
+  since?: string | null;
+  runStarted?: string;
   // Where the move of files stands between steps (server only; see lib/tracker/files).
   fileWork?: unknown;
   // tracker user id → the names of their roles in the tracker's project

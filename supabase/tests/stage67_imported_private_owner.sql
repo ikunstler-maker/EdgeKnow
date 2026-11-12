@@ -39,3 +39,20 @@ select 'alice (the workspace owner) sees: ' || coalesce(string_agg(title, ', ' o
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000067c1';
 select 'carl (a project owner) sees: ' || coalesce(string_agg(title, ', ' order by number), 'nothing') from public.tasks where project_id = :'project';
 reset role;
+
+-- 3в: a task is found by its old key or its key here, only by those who may see it.
+update public.task_projects set key = 'HIDE' where id = :'project';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000067a1';
+select 'alice finds the old key: ' || coalesce(public.find_task_by_key(:'ws', 'hid-1')::text, 'nothing')
+  || ', the key here: ' || coalesce(public.find_task_by_key(:'ws', 'HIDE-1')::text, 'nothing')
+  || ', bob''s private one: ' || coalesce(public.find_task_by_key(:'ws', 'HIDE-2')::text, 'nothing')
+  || ', no such: ' || coalesce(public.find_task_by_key(:'ws', 'HID-99')::text, 'nothing');
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000067b1';
+select 'bob finds the restricted one: ' || coalesce(public.find_task_by_key(:'ws', 'HID-1')::text, 'nothing') || ', his own: ' || coalesce(public.find_task_by_key(:'ws', 'HIDE-2')::text, 'nothing');
+reset role;
+insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000067e1', 'eve@elsewhere.test', now());
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000067e1';
+select 'a stranger finds: ' || coalesce(public.find_task_by_key(:'ws', 'HID-1')::text, 'nothing');
+reset role;

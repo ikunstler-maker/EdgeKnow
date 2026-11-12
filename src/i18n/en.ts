@@ -1210,6 +1210,8 @@ export const en: Dictionary = {
       running: "Moving tasks…",
       linking: "Restoring subtasks and links…",
       activity: "Moving comments and history…",
+      refresh: "Update from the tracker",
+      refreshHint: "Brings only what changed in the tracker since the last move. One way: from the tracker to us.",
       movingFiles: "Moving files to Google Drive…",
       filesProgress: (files: number, mb: number) => `Files moved: ${files} (${mb} MB)`,
       gaps: {
@@ -1392,6 +1394,12 @@ export const en: Dictionary = {
       choosePerson: "Choose a member…",
       chooseGroup: "Choose a group…",
       admins: "The workspace owner and admins always manage the project.",
+    },
+    finder: {
+      label: "Find a task by its key or link",
+      placeholder: "A key (TMD-123) or a link from the old tracker",
+      open: "Open",
+      missing: "There is no such task here, or you have no access to it.",
     },
     importPeople: {
       title: "People from the tracker",

@@ -938,6 +938,33 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   check("…nor files; the seated person's file is the member's", filesAgain === "2 colleague", filesAgain);
   check("…nor comments and history; the seated person's comment is the member's", again === "1 1 colleague", again);
   check("running an import again changes tasks, never doubles them", sql(`select count(*) from public.tasks where project_id = (select id from public.task_projects where key = 'OLDER')`) === "3");
+  // «Оновити з трекера»: only what changed there since the last run comes again.
+  {
+    const { readFileSync } = await import("node:fs");
+    const data = JSON.parse(readFileSync(`${dir}/tracker.json`, "utf8"));
+    const soon = new Date(Date.now() + 60_000).toISOString().replace("Z", "+0000");
+    data.issues[1].fields.summary = "Old child, renamed there";
+    data.issues[1].fields.updated = soon;
+    data.issues.push({ key: "OLD-6", fields: { ...data.issues[2].fields, summary: "Made after the move", updated: soon, created: soon, assignee: null, security: null, resolutiondate: null } });
+    writeFileSync(`${dir}/tracker.json`, JSON.stringify(data));
+    sql(`update public.tasks set title = 'Kept as it is here' where external_key = 'OLD-1'`);
+    await alice.locator("[data-import-refresh]").click();
+    const refreshed = () => sql(`select string_agg(t.number || ':' || t.title, ', ' order by t.number) from public.tasks t where t.project_id = (select id from public.task_projects where key = 'OLDER') and t.number in (1, 2, 6)`);
+    check("updating from the tracker brings the new task and the changed one, and leaves the rest alone", await until(() => refreshed() === "1:Kept as it is here, 2:Old child, renamed there, 6:Made after the move", 60000), refreshed());
+    await alice.locator('[data-import-run="done"]').waitFor({ timeout: 60000 }).catch(() => {});
+    await alice.locator("[data-import-refresh]").waitFor({ timeout: 30000 }).catch(() => {});
+    // A task is found by its old key or a link from the tracker, though the project's key is another now.
+    await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+    await alice.locator("[data-task-finder-input]").fill("https://old-team.atlassian.net/browse/OLD-2?focusedCommentId=1");
+    await alice.locator("[data-task-finder-open]").click();
+    await alice.waitForURL(/\/tasks\/OLDER\/2$/, { timeout: 20000 }).catch(() => {});
+    check("an old link from the tracker opens the task here", alice.url().endsWith("/tasks/OLDER/2"), alice.url());
+    await alice.goto(`${APP}/w/${alphaShort}/tasks`);
+    await alice.locator("[data-task-finder-input]").fill("OLD-777");
+    await alice.locator("[data-task-finder-open]").click();
+    check("…and a key nobody has says so", (await alice.locator("[data-task-finder-missing]").waitFor({ timeout: 15000 }).then(() => true).catch(() => false)));
+    await alice.goto(`${APP}/w/${alphaShort}/tasks/import`);
+  }
   await alice.locator("[data-import-forget]").click();
   await alice.locator("[data-import-connect]").waitFor({ timeout: 20000 });
   check("the connection and its key can be deleted", sql("select count(*) from public.task_imports") === "0");

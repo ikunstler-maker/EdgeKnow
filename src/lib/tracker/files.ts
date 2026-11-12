@@ -102,7 +102,7 @@ export async function moveFilesStep(opts: {
       continue;
     }
     if (work.last) return { done: true };
-    const page = await api.files(access, opts.sourceProject, progress.cursor, PAGE);
+    const page = await api.files(access, opts.sourceProject, progress.cursor, PAGE, opts.mapping.since);
     progress.cursor = page.next;
     work.last = !page.next;
     const found = page.items.flatMap((item) => item.files.map((file) => ({ key: item.key, file })));

@@ -67,11 +67,14 @@ export const isFiltered = (filters: Filters) => JSON.stringify(filters) !== JSON
 
 export function applyFilters(tasks: TaskRow[], filters: Filters, ctx: { me: string; projectKey: string; statuses: TaskStatus[] }) {
   const q = filters.q.trim().toLowerCase();
+  // A pasted key or link from the old tracker ("TMD-123", ".../browse/TMD-123") finds the
+  // task with that number: imported tasks keep their numbers, whatever the project's key is now.
+  const pasted = Number(/[a-z][a-z0-9_]{1,19}-(\d{1,7})(?![a-z0-9-])/.exec(q)?.[1] ?? Number.NaN);
   const today = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * DAY).toISOString().slice(0, 10);
   const done = new Set(ctx.statuses.filter((s) => s.category === "done").map((s) => s.id));
   return tasks.filter((task) => {
-    if (q && !task.title.toLowerCase().includes(q) && !taskKey(ctx.projectKey, task.number).toLowerCase().includes(q)) return false;
+    if (q && !task.title.toLowerCase().includes(q) && !taskKey(ctx.projectKey, task.number).toLowerCase().includes(q) && task.number !== pasted) return false;
     if (filters.mine && task.assignee_id !== ctx.me) return false;
     if (filters.people.length && !filters.people.includes(task.assignee_id ?? "none")) return false;
     if (filters.recent && Date.now() - Date.parse(task.updated_at) > DAY) return false;

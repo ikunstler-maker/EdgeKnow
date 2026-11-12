@@ -59,6 +59,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - A task the tracker restricts comes over private; the project's owners see such a task too (owner's decision, 2026-11-11). Private tasks made here: only author, assignee, participants.
 - Comments and status history (3б): a separate phase, with the tracker's dates and authors; the author is a seat, and after seating the comments and history lines become the member's; time in a column counts from the tracker's history; a second run doubles nothing.
 - Files (3б): a separate phase; from the tracker to the team's Google Drive in parts (250 MB per file, ZIP up to 10 GB, any kind); served as a stream through our server; what did not come is in the wizard's "Not moved" list with "Pull again".
+- Catch-up and search (3в): "Update from the tracker" in the wizard brings only what changed since the last run (one way); the tasks page finds a task by its old key or a link from the tracker.
 
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.

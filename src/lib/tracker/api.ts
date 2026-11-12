@@ -26,16 +26,16 @@ export interface TrackerApi {
   // The project's roles with the people who hold each directly (members of a group that
   // holds a role are not listed by the tracker here).
   roles(access: TrackerAccess, key: string): Promise<TrackerRole[]>;
-  count(access: TrackerAccess, key: string): Promise<number>;
+  count(access: TrackerAccess, key: string, since?: string | null): Promise<number>;
   lastNumber(access: TrackerAccess, key: string): Promise<number>;
   // Issues in the order of their keys; `fields`: custom field ids to bring along.
-  issues(access: TrackerAccess, key: string, cursor: string | null, size: number, fields: string[]): Promise<IssuePage>;
+  issues(access: TrackerAccess, key: string, cursor: string | null, size: number, fields: string[], since?: string | null): Promise<IssuePage>;
   // The files attached to the same tasks, and one file's bytes from `offset` on
   // (`ranged` false: the tracker sent the whole file, the caller skips what it has).
-  files(access: TrackerAccess, key: string, cursor: string | null, size: number): Promise<{ items: { key: string; files: TrackerFile[] }[]; next: string | null }>;
+  files(access: TrackerAccess, key: string, cursor: string | null, size: number, since?: string | null): Promise<{ items: { key: string; files: TrackerFile[] }[]; next: string | null }>;
   fileStream(access: TrackerAccess, id: string, offset: number): Promise<{ body: ReadableStream<Uint8Array>; ranged: boolean }>;
   // The same tasks, page by page, with their comments and status changes.
-  activity(access: TrackerAccess, key: string, cursor: string | null, size: number): Promise<{ items: TrackerActivity[]; next: string | null }>;
+  activity(access: TrackerAccess, key: string, cursor: string | null, size: number, since?: string | null): Promise<{ items: TrackerActivity[]; next: string | null }>;
 }
 
 const BASE_FIELDS = ["summary", "description", "status", "issuetype", "priority", "assignee", "reporter", "creator", "security", "labels", "duedate", "timeoriginalestimate", "created", "updated", "resolutiondate", "parent", "issuelinks"];
@@ -72,7 +72,12 @@ async function call(access: TrackerAccess, path: string, body?: unknown): Promis
 
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const obj = (value: unknown): Record<string, unknown> => (value && typeof value === "object" ? (value as Record<string, unknown>) : {});
-const jql = (key: string, order: "ASC" | "DESC") => `project = "${key}" ORDER BY key ${order}`;
+// `since`: only what changed in the tracker from the day before that moment on (the
+// tracker compares dates in the asker's own time zone; a day's margin costs nothing, as a
+// task that comes twice is changed, not doubled).
+const dayBefore = (since: string) => new Date(Date.parse(since) - 86_400_000).toISOString().slice(0, 10);
+const jql = (key: string, order: "ASC" | "DESC", since?: string | null) =>
+  `project = "${key}"${since && !Number.isNaN(Date.parse(since)) ? ` AND updated >= "${dayBefore(since)}"` : ""} ORDER BY key ${order}`;
 
 const cloud: TrackerApi = {
   async me(access) {
@@ -130,24 +135,24 @@ const cloud: TrackerApi = {
     }
     return roles;
   },
-  async count(access, key) {
-    return Number(obj(await call(access, "/rest/api/3/search/approximate-count", { jql: `project = "${key}"` })).count) || 0;
+  async count(access, key, since) {
+    return Number(obj(await call(access, "/rest/api/3/search/approximate-count", { jql: jql(key, "ASC", since).replace(/ ORDER BY.*$/, "") })).count) || 0;
   },
   async lastNumber(access, key) {
     const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "DESC"), maxResults: 1, fields: ["summary"] }));
     return numberOfKey(String(obj(list(page.issues)[0]).key ?? "")) ?? 0;
   },
-  async issues(access, key, cursor, size, fields) {
+  async issues(access, key, cursor, size, fields, since) {
     const page = obj(
-      await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC"), maxResults: size, fields: [...BASE_FIELDS, ...fields], ...(cursor ? { nextPageToken: cursor } : {}) }),
+      await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC", since), maxResults: size, fields: [...BASE_FIELDS, ...fields], ...(cursor ? { nextPageToken: cursor } : {}) }),
     );
     return {
       issues: list(page.issues).flatMap((raw) => parseIssue(raw, access.site) ?? []),
       next: typeof page.nextPageToken === "string" && page.nextPageToken ? page.nextPageToken : null,
     };
   },
-  async files(access, key, cursor, size) {
-    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC"), maxResults: size, fields: ["attachment"], ...(cursor ? { nextPageToken: cursor } : {}) }));
+  async files(access, key, cursor, size, since) {
+    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC", since), maxResults: size, fields: ["attachment"], ...(cursor ? { nextPageToken: cursor } : {}) }));
     return {
       items: list(page.issues).flatMap((raw) => {
         const files = parseFiles(obj(obj(raw).fields).attachment);
@@ -181,8 +186,8 @@ const cloud: TrackerApi = {
     if (!response.ok || !response.body) throw new TrackerError("unreachable");
     return { body: response.body, ranged: response.status === 206 };
   },
-  async activity(access, key, cursor, size) {
-    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC"), maxResults: size, fields: ["comment"], expand: "changelog", ...(cursor ? { nextPageToken: cursor } : {}) }));
+  async activity(access, key, cursor, size, since) {
+    const page = obj(await call(access, "/rest/api/3/search/jql", { jql: jql(key, "ASC", since), maxResults: size, fields: ["comment"], expand: "changelog", ...(cursor ? { nextPageToken: cursor } : {}) }));
     const items: TrackerActivity[] = [];
     for (const raw of list(page.issues)) {
       const issue = obj(raw);
@@ -221,6 +226,8 @@ function fake(dir: string): TrackerApi {
     if (found.key !== key) throw new TrackerError("not_found");
     return found;
   };
+  // What changed since a moment (the stand-in compares exactly, without the day's margin).
+  const changed = (raw: unknown[], since?: string | null) => (since ? raw.filter((value) => Date.parse(String(obj(obj(value).fields).updated ?? "")) >= Date.parse(since)) : raw);
   const all = (access: TrackerAccess, key: string) => {
     project(access, key);
     return list(read(access).issues).flatMap((raw) => parseIssue(raw, access.site) ?? []);
@@ -239,11 +246,11 @@ function fake(dir: string): TrackerApi {
       project(access, key),
       list(read(access).roles).flatMap((r) => (typeof obj(r).name === "string" ? [{ name: String(obj(r).name), users: list(obj(r).users).map(String) }] : []))
     ),
-    count: async (access, key) => all(access, key).length,
+    count: async (access, key, since) => (project(access, key), changed(list(read(access).issues), since).length),
     lastNumber: async (access, key) => Math.max(0, ...all(access, key).map((i) => numberOfKey(i.key) ?? 0)),
-    files: async (access, key, cursor, size) => {
+    files: async (access, key, cursor, size, since) => {
       project(access, key);
-      const raw = list(read(access).issues);
+      const raw = changed(list(read(access).issues), since);
       const from = Number(cursor ?? 0);
       return {
         items: raw.slice(from, from + size).flatMap((value) => {
@@ -264,9 +271,9 @@ function fake(dir: string): TrackerApi {
       }
       return { body: new Blob([new Uint8Array(bytes.subarray(offset))]).stream() as ReadableStream<Uint8Array>, ranged: true };
     },
-    activity: async (access, key, cursor, size) => {
+    activity: async (access, key, cursor, size, since) => {
       project(access, key);
-      const raw = list(read(access).issues);
+      const raw = changed(list(read(access).issues), since);
       const from = Number(cursor ?? 0);
       return {
         items: raw.slice(from, from + size).map((value) => {
@@ -276,8 +283,9 @@ function fake(dir: string): TrackerApi {
         next: from + size < raw.length ? String(from + size) : null,
       };
     },
-    issues: async (access, key, cursor, size) => {
-      const issues = all(access, key);
+    issues: async (access, key, cursor, size, _fields, since) => {
+      project(access, key);
+      const issues = changed(list(read(access).issues), since).flatMap((raw) => parseIssue(raw, access.site) ?? []);
       const from = Number(cursor ?? 0);
       return { issues: issues.slice(from, from + size), next: from + size < issues.length ? String(from + size) : null };
     },

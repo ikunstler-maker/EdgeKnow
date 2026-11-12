@@ -1,4 +1,5 @@
 import { SERVICE_BRANDS } from "@/lib/services";
+import { OldKeyFinder } from "@/components/tasks/old-key-finder";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { t } from "@/i18n";
@@ -52,6 +53,7 @@ export default async function TasksHome({ params }: PageProps<"/w/[wid]/tasks">)
         )}
         {admin && <NewProjectButton workspaceId={workspace.id} shortId={workspace.shortId} />}
       </header>
+      {projects.length > 0 && <OldKeyFinder shortId={workspace.shortId} />}
       {projects.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">{admin ? t.tasks.noProjects : t.tasks.noProjectsMember}</p>
       ) : (
