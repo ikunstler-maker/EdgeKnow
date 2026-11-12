@@ -24,22 +24,23 @@ async function call<T extends object = object>(shortId: string, fn: string, args
 
 const UUID = /^[0-9a-f-]{36}$/;
 
-export type MyWishlist = { id: string; title: string; birthday: string; published: boolean };
+export type WishlistCard = { id: string; title: string; birthday: string; published: boolean; count: number; design: WishlistData["design"] };
 
-// One's own wishlists in this workspace, newest birthday first.
-export async function loadMyWishlists(shortId: string, workspaceId: string, userId: string): Promise<MyWishlist[]> {
+// A person's wishlists in this workspace that the viewer may see (all of one's own; a
+// colleague's published ones), newest birthday first.
+export async function loadWishlistsOf(shortId: string, workspaceId: string, person: string): Promise<WishlistCard[]> {
   const db = await dataClient(shortId);
   const { data } = await db
     .from("service_objects")
     .select("id, title, data")
     .eq("workspace_id", workspaceId)
     .eq("service", "wishlists")
-    .eq("owner_id", userId)
+    .eq("owner_id", person)
     .is("deleted_at", null);
   return ((data ?? []) as { id: string; title: string; data: unknown }[])
     .map((row) => {
       const d = readWishlist(row.data);
-      return { id: row.id, title: row.title, birthday: d.birthday, published: d.published };
+      return { id: row.id, title: row.title, birthday: d.birthday, published: d.published, count: d.items.length, design: d.design };
     })
     .sort((a, b) => b.birthday.localeCompare(a.birthday));
 }
@@ -122,4 +123,35 @@ export async function copyWishlist(shortId: string, id: string): Promise<ActionR
   }
   revalidatePath("/w/[wid]/profile", "page");
   return { ok: true, id: copyId };
+}
+
+export type WishlistGift = { item: string; kind: "gives" | "chips_in"; name: string; mine: boolean };
+
+// Who gives what — for colleagues only; the owner gets nothing (the database refuses).
+export async function loadWishlistGifts(shortId: string, id: string): Promise<WishlistGift[]> {
+  if (!UUID.test(id)) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("wishlist_gifts_of", { target: id });
+  const result = data as { ok: boolean; gifts?: WishlistGift[] } | null;
+  return result?.ok ? (result.gifts ?? []) : [];
+}
+
+// "I'll give this" (one person) or "I'll chip in" (any number).
+export async function giveWish(shortId: string, id: string, item: string, kind: "gives" | "chips_in") {
+  if (!UUID.test(id) || !/^[a-z0-9-]{1,40}$/.test(item) || (kind !== "gives" && kind !== "chips_in")) return { ok: false, error: "invalid" } as ActionResult;
+  return call(shortId, "wishlist_gift", { target: id, item, gift_kind: kind });
+}
+
+export async function ungiveWish(shortId: string, id: string, item: string) {
+  if (!UUID.test(id) || !/^[a-z0-9-]{1,40}$/.test(item)) return { ok: false, error: "invalid" } as ActionResult;
+  return call(shortId, "wishlist_ungift", { target: id, item });
+}
+
+// For the owner: which wishes somebody means to give (never who), to warn before removing.
+export async function loadClaimedWishes(shortId: string, id: string): Promise<string[]> {
+  if (!UUID.test(id)) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.rpc("wishlist_claimed_items", { target: id });
+  const result = data as { ok: boolean; items?: string[] } | null;
+  return result?.ok ? (result.items ?? []) : [];
 }

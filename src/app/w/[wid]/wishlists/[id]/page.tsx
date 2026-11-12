@@ -8,6 +8,7 @@ import { readWishlist } from "@/lib/wishlist";
 import { getWorkspace } from "@/lib/workspace";
 import { WishlistEditor } from "@/components/wishlists/wishlist-editor";
 import { WishlistView } from "@/components/wishlists/wishlist-view";
+import { loadWishlistGifts } from "@/app/wishlist-actions";
 import { Icon } from "@/components/ui/icon";
 
 export const metadata: Metadata = { title: `${t.wishlists.title} · ${t.app.name}` };
@@ -35,6 +36,7 @@ export default async function WishlistPage({ params }: PageProps<"/w/[wid]/wishl
   const mine = row.owner_id === user.id;
   const { data: owner } = await db.from("profiles").select("name, email").eq("id", row.owner_id).maybeSingle();
   const ownerName = (owner?.name as string | null) || (owner?.email as string | undefined) || "";
+  const gifts = mine ? null : await loadWishlistGifts(wid, row.id);
 
   return (
     <main className={`mx-auto w-full flex-1 space-y-4 px-4 py-6 md:py-8 ${mine ? "max-w-6xl" : "max-w-4xl"}`}>
@@ -45,7 +47,7 @@ export default async function WishlistPage({ params }: PageProps<"/w/[wid]/wishl
       {mine ? (
         <WishlistEditor shortId={workspace.shortId} id={row.id} initialTitle={row.title} initialData={wishlist} initialVersion={row.version} ownerName={ownerName} />
       ) : (
-        <WishlistView title={row.title} data={wishlist} shortId={workspace.shortId} ownerName={ownerName} />
+        <WishlistView title={row.title} data={wishlist} shortId={workspace.shortId} ownerName={ownerName} gifts={gifts ? { wishlistId: row.id, list: gifts } : undefined} />
       )}
     </main>
   );

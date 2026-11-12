@@ -206,6 +206,14 @@ const STAGES: Stage[] = [
     files: "task-files",
   },
   {
+    // "I'll give this" on wishlists (service objects "wishlists").
+    name: "wishlist gifts",
+    table: "wishlist_gifts",
+    columns: "id, workspace_id, wishlist_id, item_id, user_id, kind, created_at",
+    order: "id",
+    onConflict: "id",
+  },
+  {
     name: "board sessions",
     table: "board_sessions",
     columns: "object_id, workspace_id, votes_per_person, voting_open, timer_ends_at, timer_seconds, updated_by, updated_at",
@@ -350,14 +358,14 @@ const STAGES: Stage[] = [
   {
     name: "notifications",
     table: "notifications",
-    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, event_at, leave_request_id, chat_message_id, created_at, read_at",
+    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, event_at, leave_request_id, chat_message_id, detail, created_at, read_at",
     order: "id",
     onConflict: "id",
   },
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions", "chat_categories", "chat_category_access", "chat_channels", "chat_channel_members", "chat_messages", "chat_reactions", "chat_files"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "wishlist_gifts", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions", "chat_categories", "chat_category_access", "chat_channels", "chat_channel_members", "chat_messages", "chat_reactions", "chat_files"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -458,7 +466,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["chat_files", "chat_messages", "chat_channels", "chat_category_access", "chat_categories", "notifications", "calendar_external_busy", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
+const BY_ID = ["wishlist_gifts", "chat_files", "chat_messages", "chat_channels", "chat_category_access", "chat_categories", "notifications", "calendar_external_busy", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();
