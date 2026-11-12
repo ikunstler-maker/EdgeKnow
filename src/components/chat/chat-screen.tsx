@@ -411,6 +411,7 @@ export function ChatScreen(props: ChatScreenProps) {
       if (panel?.kind === "pins") void reloadPins();
     },
     onThread: (id) => setPanel({ kind: "thread", id }),
+    comments: active?.post_policy === "chosen",
   };
 
   const join = async () => {
@@ -430,7 +431,8 @@ export function ChatScreen(props: ChatScreenProps) {
 
   // ---------------------------------------------------------------- layout
 
-  const composerNote = !active
+  // Replies in threads are open to everyone who may write; the stream itself may be for publishers only.
+  const threadNote = !active
     ? null
     : active.archived_at
       ? c().archivedNote
@@ -444,6 +446,7 @@ export function ChatScreen(props: ChatScreenProps) {
             </span>
           )
         : null;
+  const composerNote = threadNote ?? (active && active.joined && !active.can_publish ? c().publish.onlyChosen : null);
   const unit = active?.unit_id ? props.units.find((u) => u.id === active.unit_id) : undefined;
   const threadRoot = threadId ? (stream?.messages.find((m) => m.id === threadId) ?? null) : null;
   const panelButton = (kind: "members" | "pins", icon: "users" | "pin", label: string) => (
@@ -584,7 +587,7 @@ export function ChatScreen(props: ChatScreenProps) {
               reactions={reactions}
               actions={actions}
               pendingIds={pending}
-              note={composerNote}
+              note={threadNote}
               onSend={(body, fileIds) => void send(body, fileIds, panel.id)}
               files={files}
               shortId={shortId}

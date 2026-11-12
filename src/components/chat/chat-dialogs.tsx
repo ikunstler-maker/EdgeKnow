@@ -18,6 +18,7 @@ import {
   setCategoryAccess,
   setHistoryVisible,
   setNotify,
+  setPostPolicy,
   updateChannel,
 } from "@/app/chat-actions";
 import { Dialog } from "@/components/ui/dialog";
@@ -251,6 +252,21 @@ export function ChannelSettingsDialog({
               <span className="block text-xs text-muted">{c().history.settingHint}</span>
             </span>
           </label>
+        )}
+
+        {canManage && !channel.archived_at && channel.visibility !== "direct" && (
+          <Field label={c().publish.setting} hint={channel.post_policy === "chosen" ? c().publish.settingHint : undefined}>
+            <select
+              value={channel.post_policy}
+              disabled={busy}
+              onChange={(e) => run(() => setPostPolicy(shortId, channel.id, e.target.value as "everyone" | "chosen"))}
+              className={selectClass}
+              data-chat-post-policy
+            >
+              <option value="everyone">{c().publish.everyone}</option>
+              <option value="chosen">{c().publish.chosen}</option>
+            </select>
+          </Field>
         )}
 
         {channel.joined && (
