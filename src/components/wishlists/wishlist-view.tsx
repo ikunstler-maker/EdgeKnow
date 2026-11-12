@@ -1,7 +1,9 @@
 import type { CSSProperties } from "react";
 import { dateLocale, t } from "@/i18n";
 import { LIGHT_GRADIENTS, WISHLIST_GRADIENTS, patternImage, wishlistImageSrc, type WishlistData } from "@/lib/wishlist";
+import type { WishlistGift } from "@/app/wishlist-actions";
 import { Icon } from "@/components/ui/icon";
+import { GiftBar } from "./gift-bar";
 
 const w = t.wishlists;
 
@@ -46,7 +48,14 @@ function Sparks({ kind, accent }: { kind: "sparkles" | "confetti"; accent: strin
 
 // The wishlist page as everyone sees it: the gradient, the emoji pattern, the effect,
 // the greeting and the wishes. The editor shows this same view live.
-export function WishlistView({ title, data, shortId, ownerName }: { title: string; data: WishlistData; shortId: string; ownerName: string }) {
+export function WishlistView({ title, data, shortId, ownerName, gifts }: {
+  title: string;
+  data: WishlistData;
+  shortId: string;
+  ownerName: string;
+  // For colleagues: who gives what (never passed to the owner).
+  gifts?: { wishlistId: string; list: WishlistGift[] };
+}) {
   const { design } = data;
   const light = LIGHT_GRADIENTS.includes(design.gradient);
   const text = light ? "text-slate-900" : "text-white";
@@ -69,6 +78,7 @@ export function WishlistView({ title, data, shortId, ownerName }: { title: strin
         <h1 className="mt-2 break-words text-3xl font-bold tracking-tight sm:text-4xl">{title || w.untitled(ownerName)}</h1>
         {data.intro && <p className={`mx-auto mt-3 max-w-xl whitespace-pre-line break-words text-base ${muted}`}>{data.intro}</p>}
       </header>
+      {gifts && data.items.length > 0 && <p className={`relative mt-4 text-center text-xs ${muted}`}>{w.surprise}</p>}
       {data.items.length === 0 ? (
         <p className={`relative mt-8 text-center text-sm ${muted}`}>{w.empty}</p>
       ) : (
@@ -104,6 +114,16 @@ export function WishlistView({ title, data, shortId, ownerName }: { title: strin
                       </a>
                     ))}
                   </div>
+                )}
+                {gifts && (
+                  <GiftBar
+                    shortId={shortId}
+                    wishlistId={gifts.wishlistId}
+                    item={item.id}
+                    gifts={gifts.list.filter((g) => g.item === item.id)}
+                    light={light}
+                    accent={design.accent}
+                  />
                 )}
               </div>
             </li>

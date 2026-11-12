@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
-import { copyWishlist, deleteWishlist, saveWishlist, setWishlistPublished } from "@/app/wishlist-actions";
+import { copyWishlist, deleteWishlist, loadClaimedWishes, saveWishlist, setWishlistPublished } from "@/app/wishlist-actions";
 import { workspacePath } from "@/lib/paths";
 import { WISHLIST_EFFECTS, WISHLIST_GRADIENTS, WISHLIST_LIMITS, isWebLink, wishlistImageSrc, type WishlistData, type WishlistGradient, type WishlistItem, type WishlistPattern } from "@/lib/wishlist";
 import { EmojiPicker } from "@/components/pages/emoji-picker";
@@ -217,6 +217,21 @@ export function WishlistEditor({ shortId, id, initialTitle, initialData, initial
       if (!result.ok) return setError(result.error === "exists" ? w.errors.copyExists : (w.errors[result.error] ?? w.errors.unknown));
       router.push(workspacePath(shortId, `/wishlists/${result.id}`));
     });
+  // Before a wish goes: if somebody means to give it, ask first (they'll be told).
+  const [claimedRemoval, setClaimedRemoval] = useState<string | null>(null);
+  const [claimedAny, setClaimedAny] = useState(false);
+  const dropItem = (itemId: string) => setItems(data.items.filter((x) => x.id !== itemId));
+  const askRemoveItem = (itemId: string) =>
+    act(async () => {
+      const claimed = await loadClaimedWishes(shortId, id);
+      if (claimed.includes(itemId)) setClaimedRemoval(itemId);
+      else dropItem(itemId);
+    });
+  const askDelete = () =>
+    act(async () => {
+      setClaimedAny((await loadClaimedWishes(shortId, id)).length > 0);
+      setConfirmDelete(true);
+    });
   const remove = () =>
     act(async () => {
       const result = await deleteWishlist(shortId, id);
@@ -247,7 +262,7 @@ export function WishlistEditor({ shortId, id, initialTitle, initialData, initial
             <button type="button" className={buttonClass("primary")} disabled={pending || !valid} onClick={() => publish(true)} data-wishlist-publish>{w.publish}</button>
           )}
           <button type="button" className={buttonClass("ghost")} disabled={pending} onClick={copy} data-wishlist-copy><Icon name="copy" size={14} />{w.copy}</button>
-          <button type="button" className={buttonClass("danger")} disabled={pending} onClick={() => setConfirmDelete(true)} data-wishlist-delete><Icon name="trash" size={14} />{w.delete}</button>
+          <button type="button" className={buttonClass("danger")} disabled={pending} onClick={askDelete} data-wishlist-delete><Icon name="trash" size={14} />{w.delete}</button>
         </div>
         {error && <p role="alert" className="w-full text-sm text-danger">{error}</p>}
       </div>
@@ -274,7 +289,7 @@ export function WishlistEditor({ shortId, id, initialTitle, initialData, initial
                     shortId={shortId}
                     wishlistId={id}
                     onChange={(patch) => setItems(data.items.map((x) => (x.id === item.id ? { ...x, ...patch } : x)))}
-                    onRemove={() => setItems(data.items.filter((x) => x.id !== item.id))}
+                    onRemove={() => askRemoveItem(item.id)}
                     onMove={(to) => move(i, to)}
                   />
                 </div>
@@ -366,6 +381,31 @@ export function WishlistEditor({ shortId, id, initialTitle, initialData, initial
           }
         >
           <p className="text-sm">{w.deleteText}</p>
+          {claimedAny && <p className="mt-2 text-sm font-medium" data-wishlist-claimed-warning>{w.claimedDeleteText}</p>}
+        </Dialog>
+      )}
+      {claimedRemoval && (
+        <Dialog
+          title={w.claimedTitle}
+          onClose={() => setClaimedRemoval(null)}
+          footer={
+            <>
+              <button type="button" className={buttonClass("ghost")} onClick={() => setClaimedRemoval(null)}>{t.common.cancel}</button>
+              <button
+                type="button"
+                className={buttonClass("danger")}
+                onClick={() => {
+                  dropItem(claimedRemoval);
+                  setClaimedRemoval(null);
+                }}
+                data-wish-remove-anyway
+              >
+                {w.removeAnyway}
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm">{w.claimedText}</p>
         </Dialog>
       )}
     </div>

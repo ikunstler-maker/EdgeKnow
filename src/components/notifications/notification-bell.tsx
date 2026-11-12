@@ -31,6 +31,7 @@ function hrefOf(shortId: string, item: NotificationItem) {
   if (item.event) return workspacePath(shortId, `/calendar?event=${item.event.id}`);
   if (item.leave) return workspacePath(shortId, `/calendar/time-off?tab=${item.leave.mine ? "mine" : item.leave.deputy ? "team" : "inbox"}`);
   if (item.birthday) return workspacePath(shortId, `/calendar?view=list&date=${item.birthday.day}`);
+  if (item.wishlist?.wishlist_id) return workspacePath(shortId, `/wishlists/${item.wishlist.wishlist_id}`);
   if (item.chat)
     return workspacePath(shortId, `/chat?c=${item.chat.channel_id}${item.chat.thread_root_id ? `&t=${item.chat.thread_root_id}` : ""}&m=${item.chat.id}`);
   return null;
@@ -51,6 +52,7 @@ function subjectOf(item: NotificationItem) {
   if (item.leave) return `${item.leave.person} · ${leaveDates(item.leave)} · ${t.timeOff.status[item.leave.status] ?? ""}`;
   if (item.birthday) return `${item.birthday.person} · ${leaveDay(item.birthday.day)}`;
   if (item.chat) return `#${item.chat.channel} · ${item.chat.excerpt}`;
+  if (item.wishlist) return [item.wishlist.item, item.wishlist.wishlist ?? t.wishlists.title].filter(Boolean).join(" · ");
   if (item.event && item.kind === "event_reminder")
     return `${item.event.title} · ${new Date(item.event.starts_at).toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })}`;
   if (item.event) return item.event.cancelled ? `${item.event.title} · ${t.calendar.details.cancelled}` : item.event.title;
