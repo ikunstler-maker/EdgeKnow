@@ -509,7 +509,10 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.locator("[data-task-time-amount]").fill("1 год 30 хв");
   await alice.locator("[data-task-time-save]").click();
   const logged = () => sql(`select coalesce(sum(minutes), 0) from public.task_time_entries where task_id = ${marTask(2)}`);
-  check("a person writes down the time spent on a task", await until(() => logged() === "90", 15000) && (await alice.locator("[data-task-time-total]").innerText()).includes("1 год 30 хв"), logged());
+  await until(() => logged() === "90", 15000);
+  // The card shows the new total once the page has the saved entry.
+  const totalShown = await alice.locator("[data-task-time-total]", { hasText: "1 год 30 хв" }).waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+  check("a person writes down the time spent on a task", logged() === "90" && totalShown, `${logged()} / ${await alice.locator("[data-task-time-total]").innerText().catch(() => "")}`);
   // «Мої задачі»: the person's open tasks from every project.
   await alice.goto(`${APP}/w/${alphaShort}/tasks`);
   await alice.locator("[data-open-my-tasks]").click();
