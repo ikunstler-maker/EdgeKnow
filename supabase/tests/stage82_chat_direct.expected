@@ -17,7 +17,7 @@ alice now reads: 2
 bob adds the guest, history shown for her: true
 the guest reads: 2
 carol (not managing) hides history: forbidden
-up to 8 people: too_many
+up to 50 people: too_many
 the pair's history setting: forbidden
 a stranger sees conversations: 0
 the channel shows history by default; dan added without it: true, carol with it: true
