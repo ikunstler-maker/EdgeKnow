@@ -51,7 +51,7 @@ function subjectOf(item: NotificationItem) {
   if (item.page) return item.page.title || t.pages.untitled;
   if (item.leave) return `${item.leave.person} · ${leaveDates(item.leave)} · ${t.timeOff.status[item.leave.status] ?? ""}`;
   if (item.birthday) return `${item.birthday.person} · ${leaveDay(item.birthday.day)}`;
-  if (item.chat) return `#${item.chat.channel} · ${item.chat.excerpt}`;
+  if (item.chat) return `${item.chat.channel ? `#${item.chat.channel}` : t.chat.direct.title} · ${item.chat.excerpt}`;
   if (item.wishlist) return [item.wishlist.item, item.wishlist.wishlist ?? t.wishlists.title].filter(Boolean).join(" · ");
   if (item.event && item.kind === "event_reminder")
     return `${item.event.title} · ${new Date(item.event.starts_at).toLocaleTimeString(dateLocale(), { hour: "2-digit", minute: "2-digit" })}`;

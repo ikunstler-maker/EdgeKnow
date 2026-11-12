@@ -82,16 +82,20 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
-## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 1c in review
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 2a in review
 Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
 - 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — DONE (#168).
 - 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Tables + RLS approved 2026-11-12 (decision "Toker, етап 1").
   - 1a DB: 6 tables, functions, two role rights, realtime signals (ids only, private topics), guests see people of their channels, move between databases — DONE (#169).
   - 1b main screen: own channel column with categories, stream, composer, create/settings, members, browse, categories (admins), live updates (central: realtime; team DB: 5 s polling) — DONE (#171).
   - Later: realtime for team databases (browser needs the team project's URL/key + team token — separate approval).
-  - 1c threads in the right panel, reactions (wiki emoji picker), pins, mentions with "@" suggestions, bell kinds chat_mention / chat_reply (`notifications.chat_message_id`) — in review.
+  - 1c threads in the right panel, reactions (wiki emoji picker), pins, mentions with "@" suggestions, bell kinds chat_mention / chat_reply (`notifications.chat_message_id`) — DONE (#174).
   - Later: Drive backup of chat tables.
-- 2. Direct & group messages; files and voice messages (magic-byte check, access-checked serving); search; drafts, scheduled send, per-channel notifications, quiet hours.
+- 2. Plan approved 2026-11-12 (decision "Toker, етап 2").
+  - 2a direct conversations (pair: one per pair; group: up to 8, people can be added) + "new members see the earlier history" for closed channels and groups (DB-enforced `history_from`) — in review.
+  - 2b attachments: compressed photo, file as is (≤10 MB), link card, voice ≤5 min; magic bytes; access-checked serving.
+  - 2c search (+ global search), drafts on the device, scheduled send (published with the bell's check).
+  - Later: file from shared storage — with Vault (Google picker needs a new key/scope → approval).
 - 3. Links: live chips (no rights → "No access" badge), message → Rukh task / Wika note / Doba event, Questa surveys in a channel, Doba "On leave" status + time-off approval button.
 - 4. Retention (workspace + per channel), "My data" export, Web Push (VAPID; key → approval), PWA.
 - 5. Secret rooms: on-device encryption (Web Crypto); limits → owner's consent.
@@ -191,7 +195,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
 
 ## Known gaps / follow-ups
-- Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — in review.
+- Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.
 - Open registration is a switch in the platform panel (turns on "own database first").
