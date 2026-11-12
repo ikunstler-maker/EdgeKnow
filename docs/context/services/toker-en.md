@@ -6,7 +6,7 @@
 
 Team chat next to the work: channels, direct messages, threads, voice rooms. Combines the structure of a work messenger with the sense of presence of a community app. The next big service by plan.
 
-- **State:** 🛠 stage 1a — database (tables, access rules, functions, realtime signals); no interface yet. Decision 2026-11-12 "Toker, етап 1".
+- **State:** 🛠 stage 1: database (1a) and main screen (1b) — channels, categories, stream, composer, members, live updates. Threads, reactions, pins, mentions — 1c. Decisions 2026-11-12 "Toker, етап 1", "Toker, PR 1б".
 
 ## 2. Intent
 
@@ -58,6 +58,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - Cross-platform on one codebase: web + PWA first, then desktop, then phones.
 - **Data (stage 1a):** `chat_categories` (folders; "restricted" — only for its people), `chat_category_access` (units and people of a restricted category), `chat_channels` (open/closed, unit, archive), `chat_channel_members` (added — `invited`; read mark and notifications — others' hidden), `chat_messages` (thread — one level; a deleted one stays as an empty row), `chat_reactions`. Migrations `supabase/migrations/20270123100000_chat.sql` and `supabase/team/migrations/0068_chat.sql`; tests `stage76_chat`, `team9u_chat`.
 - **Access:** `chat_can_see(channel, person)` — category open + (added; or open channel and not a guest; or closed unit channel and `unit_reaches`). Admins see a closed channel only as members. Changes only through `chat_*` functions (creating by role rights `create_open_channels` / `create_closed_channels`; at most 30 messages a minute).
+- **Screen (1b):** `src/app/w/[wid]/chat/page.tsx` → `src/components/chat/chat-screen.tsx` (left column `channel-list.tsx`, stream and composer `message-stream.tsx`, `members-panel.tsx`, dialogs `chat-dialogs.tsx`, live signals `use-chat-live.ts`); server actions `src/app/chat-actions.ts`; types `src/lib/chat.ts`. Channel address — `?c=<id>`. Central database — realtime signals; team database — 5 s polling.
 - **Realtime:** triggers send id-only signals to private topics `chat:<channel>` and `chat-user:<person>`; who may join — `chat_topic_allowed`.
 
 ## 5. Expected links
