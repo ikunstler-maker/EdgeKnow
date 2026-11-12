@@ -18,7 +18,7 @@ Own video calls inside the ecosystem — from chat channels, calendar events and
 
 | Service | Link |
 |---|---|
-| **Toker** | call from a channel |
+| **Toker** | call from a channel; persistent "Sit nearby" voice rooms in Toker's left panel: click to join in the background, see who is there, share the screen in one click without a calendar meeting (Toker stage 6) |
 | **Doba** | meeting in the calendar |
 | **Rukh** | follow-up tasks |
 | **Apus AI** | transcription and summary |

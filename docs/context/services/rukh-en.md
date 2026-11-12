@@ -104,7 +104,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | Move from another tracker, step 3в | planned (owner approved) | one-way catch-up while the team moves; search by the old key and link |
 | Import from an export file (CSV) | later | for other trackers |
 | Notifications when the site is closed (push) | planned | needs a key in hosting settings |
-| Link with chat (Toker) | after chat | task from a message, notifications to a channel |
+| Link with chat (Toker) | after chat (Toker stage 3) | task from a message or a selected fragment with an automatic link back to the thread; the task shows the message link; status and assignee can be changed from a live chip in chat (task rights checked; no rights — a "No access" badge without the title); notifications to a channel |
 | Smart chips in fields and description | owner's request | |
 
 ## 4. Data
@@ -145,7 +145,8 @@ The tables exist in both the central and the team database.
 | **Kadry** (presentations) | task card and project task list on a slide |
 | **Core** | notifications (bell), analytics (created, done, overdue), search, units as rule recipients and board owners, file storage |
 | **Doba** | tasks with a due date show on the calendar (mine or all the person can read; read-only there). The calendar calls `project_tasks` for every project, so it follows the task visibility rules by itself — private tasks included |
-| **Toker, Spilno** | planned links; no details yet |
+| **Toker** | task from a message ↔ link to the thread; status change from a chip in chat (see "Planned") |
+| **Spilno** | planned links; no details yet |
 
 ## 6. Key files
 
