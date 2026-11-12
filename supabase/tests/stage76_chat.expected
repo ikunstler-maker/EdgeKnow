@@ -1,0 +1,78 @@
+bob, the same name again: name_taken, an open channel of a unit: invalid_unit, a unit of another workspace: invalid_unit, an empty name: invalid_name
+hank (no right), open: forbidden, closed: true
+the guest creates: forbidden
+a stranger creates: forbidden
+bob makes a category: forbidden
+access of a unit: true, of a stranger: not_found
+dan creates in the restricted category: forbidden, in an open one: true
+bob adds carol to secret: true
+bob adds the guest to general: true
+bob adds dan to leads-room: no_category_access
+carol (in secret, not its owner) adds the guest there: forbidden
+alice (owner) sees: dan-proj, general, leads-room
+bob (EU) sees: dan-proj, eu-team, general, leads-room, secret
+carol (leads Sales) sees: dan-proj, eu-team, general, leads-room, secret
+dan (no unit) sees: dan-proj, eu-team, general
+dan sees categories: Projects
+dan reads category access: 0
+the guest sees: general
+the guest sees categories: 0
+a stranger sees: nothing
+alice reads category access: 1
+mentions kept in general: true, in secret: true
+the body is trimmed: Hello all
+a reply to a reply: not_found, a thread from another channel: not_found
+thread of hello: 1 true
+dan writes to secret: forbidden
+dan reads secret: 0
+dan edits bob's message: forbidden, deletes it: forbidden
+the guest writes to general: true
+the guest reads general: 3
+a stranger writes: forbidden
+a stranger reads: 0
+psql: ERROR:  permission denied for table chat_messages
+psql: ERROR:  permission denied for table chat_messages
+psql: ERROR:  permission denied for table chat_reactions
+psql: ERROR:  permission denied for table chat_channel_members
+psql: ERROR:  permission denied for table chat_channel_members
+columns bob reads about others: 2
+bob edits his: true
+edited: Hello everyone true true
+bob pins it: true
+reaction: true, a word: invalid_reaction, with a joiner: true, again (taken back): false
+carol reacts: true
+dan reacts in secret: forbidden
+dan sees reactions: 2
+carol deletes her reply: true
+thread after: 0
+the reply is a blank stub: true true
+bob (owner of general) deletes the guest's message: true
+carol's list: dan-proj joined=false unread=0 mentioned=false; eu-team joined=true unread=0 mentioned=false; general joined=false unread=0 mentioned=false; leads-room joined=false unread=0 mentioned=false; secret joined=true unread=1 mentioned=true
+carol joins general: true
+carol marks secret read: true
+carol mutes general: true, a wrong level: invalid_level
+carol's list after: eu-team unread=0 notify=all; general unread=0 notify=mentions; secret unread=0 notify=all
+a stranger's list: []
+carol renames secret: forbidden
+bob renames secret: true, to a taken name: name_taken, into the restricted category: forbidden
+bob makes carol an owner: true
+bob leaves secret: true
+bob sees secret after leaving: 0
+carol, the last owner, steps down: last_owner
+carol archives secret: true, writes there: archived, still reads: 1
+alice (admin, not in it) deletes secret: forbidden
+alice deletes the category with a channel: not_empty, an empty one: true
+alice (admin) deletes a message in general: true
+signals of general: 19, any with text: 0
+carol joins the topic of secret: true
+carol joins her own topic: true
+carol joins bob's topic: 0
+dan joins the topic of secret: 0
+a broken topic: 0
+bob sees eu-team: 1
+bob leaves EU: true
+bob sees eu-team now: 0, leads-room: 0
+the guest sees bob: true, dan: false, carol (wrote in general): true
+the guest after her access ended sees: nothing, reads: 0
+alice removes carol: true
+carol's chat rows after leaving: 0

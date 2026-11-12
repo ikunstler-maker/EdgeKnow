@@ -3903,6 +3903,8 @@ export const uk = {
         invite: "Запрошувати людей",
         manage_structure: "Керувати структурою компанії",
         manage_leave: "Керувати відпустками (правила, баланси, погодження)",
+        create_open_channels: "Створювати відкриті канали в чаті",
+        create_closed_channels: "Створювати закриті канали в чаті",
       } as Record<string, string>,
       level: "Рівень для відкритого всьому воркспейсу",
       noCeiling: "Як відкрито (без обмеження)",
