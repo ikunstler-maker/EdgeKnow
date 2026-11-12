@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { personLabel, type Person } from "@/lib/tasks";
-import { setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject } from "@/app/task-actions";
+import { projectTimeReport, setProjectTimeTracking, setTaskProjectGroupRole, setTaskProjectMemberRole, updateTaskProject, type TimeReportRow } from "@/app/task-actions";
 import { setTaskProjectKey } from "@/app/task-import-actions";
 import { Icon } from "@/components/ui/icon";
 import { ImportPeople } from "./import-people";
@@ -30,7 +30,7 @@ export function ProjectAccessButton({
   access,
   members,
 }: {
-  project: { id: string; name: string; key: string };
+  project: { id: string; name: string; key: string; time_tracking?: boolean; time_visibility?: string };
   access: ProjectAccess;
   members: Person[];
 }) {
@@ -46,7 +46,7 @@ export function ProjectAccessButton({
   );
 }
 
-function AccessDialog({ project, access, members, onClose }: { project: { id: string; name: string; key: string }; access: ProjectAccess; members: Person[]; onClose: () => void }) {
+function AccessDialog({ project, access, members, onClose }: { project: { id: string; name: string; key: string; time_tracking?: boolean; time_visibility?: string }; access: ProjectAccess; members: Person[]; onClose: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -221,6 +221,7 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
             </section>
           )}
 
+          <TimeSettings project={project} members={members} run={run} pending={pending} />
           <ImportPeople projectId={project.id} members={members} />
           <ProjectKeyForm project={project} />
 
@@ -240,6 +241,61 @@ function AccessDialog({ project, access, members, onClose }: { project: { id: st
       </div>
     </div>,
     document.body,
+  );
+}
+
+// Time tracking: off or on, who sees the entries, and the time by person for the last 30 days.
+function TimeSettings({ project, members, run, pending }: { project: { id: string; time_tracking?: boolean; time_visibility?: string }; members: Person[]; run: (action: () => Promise<ActionResult>) => void; pending: boolean }) {
+  const w = t.tasks.time;
+  const on = project.time_tracking === true;
+  const visibility = project.time_visibility ?? "assignee";
+  const [report, setReport] = useState<TimeReportRow[] | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    let live = true;
+    const from = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    void projectTimeReport(project.id, from, null).then((rows) => live && setReport(rows));
+    return () => {
+      live = false;
+    };
+  }, [on, project.id]);
+  return (
+    <section className="space-y-2 border-t border-border pt-4" data-time-settings>
+      <h3 className="text-sm font-medium">{w.settings}</h3>
+      <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-8">
+        <input type="checkbox" checked={on} disabled={pending} onChange={(e) => run(() => setProjectTimeTracking(project.id, e.target.checked, visibility))} className="h-5 w-5 md:h-4 md:w-4" data-time-enable />
+        {w.enable}
+      </label>
+      {on && (
+        <>
+          <label className="flex flex-col gap-1 text-sm">
+            {w.visibility}
+            <select value={visibility} disabled={pending} onChange={(e) => run(() => setProjectTimeTracking(project.id, true, e.target.value))} className={selectClass} data-time-visibility>
+              {(["owners", "assignee", "all"] as const).map((value) => (
+                <option key={value} value={value}>
+                  {w.visibilityOptions[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-xs text-muted">{w.ownHint}</p>
+          {report && (
+            <div className="text-sm" data-time-report>
+              <p className="text-xs text-muted">{w.report}</p>
+              {report.length === 0 ? (
+                <p className="text-xs text-muted">{w.reportNone}</p>
+              ) : (
+                <ul className="mt-1 space-y-0.5">
+                  {report.map((row, i) => (
+                    <li key={row.user_id ?? `seat-${i}`}>{w.reportRow(row.user_id ? personLabel(members.find((m) => m.id === row.user_id)) || t.tasks.someone : row.name ? t.tasks.importer.fromTracker(row.name) : t.tasks.someone, w.duration(row.minutes), row.tasks)}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 

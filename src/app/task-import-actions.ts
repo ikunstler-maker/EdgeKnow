@@ -13,7 +13,7 @@ import { dataClient, writeClient } from "@/lib/team-db/data";
 import { TrackerError, trackerApi, type TrackerAccess } from "@/lib/tracker/api";
 import type { ImportOutline, ImportPlan, ImportPreview, ImportProgress, ImportState } from "@/lib/tracker/types";
 import { moveFilesStep, newFileWork, type FileWork } from "@/lib/tracker/files";
-import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toActivityItem, toImportItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
+import { OUR_ROLES, matchPeople, parseTrackerLink, personRoles, suggestPriority, toActivityItem, toImportItem, toTimeItem, toPersonItems, type OurRole, type ImportItem, type ImportMapping, type ImportRelation, type OurFieldKind, type TrackerIssue, type TrackerStatus } from "@/lib/tracker-convert";
 import { getWorkspace, isWorkspaceAdmin } from "@/lib/workspace";
 
 // Moving tasks in from another tracker (Rukh Р-3а). Only the workspace's owner and
@@ -401,8 +401,9 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
       const made = page.items.map((activity) => toActivityItem(activity, row.mapping));
       for (const one of made) for (const note of new Set(one.problems)) progress.notes[note] = (progress.notes[note] ?? 0) + 1;
       const items = made.map((one) => one.item).filter((item) => item.comments.length || item.moves.length);
-      if (items.length) {
-        const authors = page.items.flatMap((a) => [...a.comments.map((c) => c.author), ...a.moves.map((m) => m.author)].flatMap((u) => (u ? [u] : [])));
+      const times = page.items.map(toTimeItem).filter((item) => item.entries.length);
+      if (items.length || times.length) {
+        const authors = page.items.flatMap((a) => [...a.comments.map((c) => c.author), ...a.moves.map((m) => m.author), ...(a.worklogs ?? []).map((w) => w.author)].flatMap((u) => (u ? [u] : [])));
         const people = toPersonItems(authors, row.mapping);
         if (people.length) await home.rows.rpc("import_people", { target_project: row.project_id, items: people });
         // Tasks with long histories go in small portions.
@@ -415,6 +416,11 @@ export async function trackerStep(shortId: string, importId: string): Promise<Ac
           }
           progress.comments = (progress.comments ?? 0) + (result.comments ?? 0);
           progress.moves = (progress.moves ?? 0) + (result.moves ?? 0);
+        }
+        // Time people wrote down on these tasks.
+        for (let at = 0; at < times.length; at += 20) {
+          const { data } = await home.rows.rpc("import_task_time", { target_project: row.project_id, items: times.slice(at, at + 20) });
+          progress.timeEntries = (progress.timeEntries ?? 0) + ((data as { entries?: number } | null)?.entries ?? 0);
         }
       }
       progress.cursor = page.next;

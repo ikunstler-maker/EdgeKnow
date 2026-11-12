@@ -9,6 +9,7 @@ import { dateLocale, t } from "@/i18n";
 import { StatusButtons, moveAllowed } from "./status-buttons";
 import { PriorityPicker } from "./priority-picker";
 import { KeyFields } from "./key-fields";
+import { TimeLog, type TimeEntry } from "./time-log";
 import type { TaskWebLink } from "./task-files";
 import type { ActionResult } from "@/lib/action-result";
 import {
@@ -78,6 +79,7 @@ export function TaskDetail({
   origin = null,
   importedNames = {},
   webLinks = [],
+  time = null,
 }: {
   taskKey: string;
   shortId: string;
@@ -108,6 +110,8 @@ export function TaskDetail({
   // Comment or history line id → the tracker's name of whoever wrote it (not tied to a member yet).
   importedNames?: Record<string, string>;
   webLinks?: TaskWebLink[];
+  // Time entries the reader may see; null where the project doesn't track time.
+  time?: TimeEntry[] | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -416,6 +420,8 @@ export function TaskDetail({
               {task.private && <span className="text-xs text-muted">{k.privacy.privateHint}</span>}
             </div>
           )}
+
+          {time && <TimeLog taskId={task.id} entries={time} estimate={task.estimate} members={members} importedNames={importedNames} me={me} canEdit={canEdit} isOwner={isOwner} />}
 
           {columnTime.length > 0 && (
             <div className="mt-3 border-t border-border px-2 pt-3" data-column-time>

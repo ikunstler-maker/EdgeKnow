@@ -62,6 +62,12 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - Files (3б): a separate phase; from the tracker to the team's Google Drive in parts (250 MB per file, ZIP up to 10 GB, any kind); served as a stream through our server; what did not come is in the wizard's "Not moved" list with "Pull again".
 - Catch-up and search (3в): "Update from the tracker" in the wizard brings only what changed since the last run (one way); the tasks page finds a task by its old key or a link from the tracker.
 
+### Time tracking and "My tasks" (package 4-1, 2026-11-12)
+- The project's owner turns time tracking on and says who sees the entries (owners; they and the assignee; everyone who sees the task); a person always sees their own.
+- In the card: "Spent", what is left of the estimate, the entries, a form to log time; in the project's settings a per-person total for 30 days.
+- The tracker's time entries come over and follow the person's seat.
+- "My tasks" (`/tasks/mine`): the person's open tasks from every project by due date.
+
 ### Hierarchy and links
 - Subtasks and epic tasks; "Done N of M" bar; subtasks from the description's checklist.
 - Links between workspace tasks: blocks, relates, duplicates.
@@ -115,6 +121,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | `task_import_people` | люди трекера як місця: ім'я, пошта, ролі, до кого прив'язано |
 | `task_import_gaps` | що не перейшло з трекера (файли) і чому |
 | `task_web_links` | посилання, збережені із задачею поруч із файлами |
+| `task_time_entries` | записи витраченого часу (людина або «місце» з трекера, хвилини, дата) |
 | `task_rules` | notification rules and rules between boards |
 | `task_imports` (central database only, server only) | a move from another tracker: its address, the encrypted access key, the mapping, progress and report |
 

@@ -18,3 +18,6 @@ alice finds by the old key: {"number": 1, "project_key": "SEA"}
 someone removed finds: nothing
 alice adds a link: true, a bad one: invalid_url
 someone removed sees links: 0
+the server brings time: 1
+alice writes time: true, sees minutes: 120
+someone removed sees time: 0, writes: forbidden

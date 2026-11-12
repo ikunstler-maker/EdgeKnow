@@ -5,6 +5,7 @@ import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, typ
 import type { ProjectTask, TaskLinkView } from "./task-relations";
 import type { TaskFileView, TaskWebLink } from "./task-files";
 import { TaskDetail, type TaskComment, type TaskEvent, type TaskOrigin } from "./task-detail";
+import type { TimeEntry } from "./time-log";
 import { TaskSnapshot, type TaskSnapshotData } from "./task-snapshot";
 
 const EVENT_COLUMNS = "id, actor_id, field, old_value, new_value, created_at";
@@ -89,6 +90,19 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
   }
   // Links kept with the task (read apart: a database a step behind has no such table yet).
   const { data: webLinks } = await db.from("task_web_links").select("id, title, url, added_by").eq("task_id", task.id).order("created_at");
+  // Time entries, where the project tracks time (the database shows only those this reader may see).
+  let time: TimeEntry[] | null = null;
+  if (view.project.time_tracking) {
+    const { data: rows } = await db.from("task_time_entries").select("id, user_id, minutes, spent_on, note, author_slot").eq("task_id", task.id).order("spent_on", { ascending: false }).order("created_at", { ascending: false });
+    const list = (rows ?? []) as (TimeEntry & { author_slot: string | null })[];
+    time = list.map((e) => ({ id: e.id, user_id: e.user_id, minutes: e.minutes, spent_on: e.spent_on, note: e.note }));
+    const slots = list.filter((e) => !e.user_id && e.author_slot);
+    if (slots.length) {
+      const { data: seats } = await db.from("task_import_people").select("id, name").in("id", [...new Set(slots.map((e) => e.author_slot!))]);
+      const nameOf = new Map(((seats ?? []) as { id: string; name: string }[]).map((x) => [x.id, x.name]));
+      for (const e of slots) if (nameOf.has(e.author_slot!)) importedNames[e.id] = nameOf.get(e.author_slot!)!;
+    }
+  }
   const spent = columnTimes(task, (moves ?? []) as StatusMove[], view.statuses, view.project.time_last_column === true);
   // The other task of each link, as this reader may see it.
   const linkRows = (links ?? []) as TaskLink[];
@@ -129,6 +143,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       origin={(origin as TaskOrigin | null) ?? null}
       importedNames={importedNames}
       webLinks={(webLinks ?? []) as TaskWebLink[]}
+      time={time}
     />
   );
 }

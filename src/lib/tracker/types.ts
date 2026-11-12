@@ -70,6 +70,8 @@ export type ImportProgress = {
   // Comments and status changes brought with their dates and authors.
   comments?: number;
   moves?: number;
+  // Time entries brought from the tracker.
+  timeEntries?: number;
   // Files put on the team's Drive, their size in bytes, those already there from an
   // earlier run, and those that could not come (they are listed apart).
   files?: number;

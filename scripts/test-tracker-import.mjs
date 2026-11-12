@@ -2,7 +2,7 @@
 // statuses, numbers, links — without a network or a database.
 // Run: node --experimental-strip-types --no-warnings scripts/test-tracker-import.mjs
 import assert from "node:assert/strict";
-import { documentToBlocks, documentToText, parseComments, parseMoves, toActivityItem, matchPeople, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
+import { documentToBlocks, parseWorklogs, toTimeItem, documentToText, parseComments, parseMoves, toActivityItem, matchPeople, personRoles, suggestRole, toPersonItems, numberOfKey, parseField, parseIssue, parseTrackerLink, parseStatus, parseType, suggestPriority, suggestStatus, suggestType, toImportItem } from "../src/lib/tracker-convert.ts";
 
 const text = (t, marks) => ({ type: "text", text: t, ...(marks ? { marks } : {}) });
 const doc = {
@@ -176,3 +176,18 @@ console.log("people, roles and restricted tasks: ok");
   assert.deepEqual(made.item.moves.map((m) => [m.external_id, m.from_status, m.to_status]), [["h1", "todo", "doing"], ["h2", "doing", "done"]], "moves in the order of time; a status we have no column for is left out");
 }
 console.log("comments and status history: ok");
+
+// Time written down in the tracker.
+{
+  const logs = parseWorklogs([
+    { id: "w1", author: { accountId: "u2", displayName: "Bo" }, timeSpentSeconds: 5400, started: "2024-03-04T23:30:00.000+0200", comment: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Layout" }] }] } },
+    { id: "w2", timeSpentSeconds: 20, started: "2024-03-05T10:00:00.000+0000" },
+    { id: "w3", timeSpentSeconds: 0, started: "2024-03-05T10:00:00.000+0000" },
+    { id: "w4", timeSpentSeconds: 60 },
+  ]);
+  assert.deepEqual(toTimeItem({ key: "K-1", comments: [], moves: [], worklogs: logs }), { external_key: "K-1", entries: [
+    { external_id: "w1", author_ext: "u2", minutes: 90, spent_on: "2024-03-04", note: "Layout" },
+    { external_id: "w2", author_ext: null, minutes: 1, spent_on: "2024-03-05", note: null },
+  ] });
+}
+console.log("time entries: ok");
