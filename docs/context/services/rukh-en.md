@@ -34,7 +34,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - **Frozen columns and snapshot:** whoever sees a task only as a snapshot opens a read-only page as of the freezing moment.
 
 ### Fields, templates
-- **Custom project fields:** text, number, select, multi-select, checkbox, toggle, date, colour, link, person. Field hint; drag order; a field can be added right from a task.
+- **Custom project fields:** text, number, select, multi-select, checkbox, toggle, date, colour, link, person, duration (hours, minutes, seconds; kept in seconds), language, geo and currency (several codes from built-in lists in `src/lib/field-lists.ts`, the full name in a hint), plus two layout kinds without a value: heading and divider. Lists take an own value ("Other", stored as `other:<text>`). Multi-choice is a drop-down with tick boxes; a reader sees only the chosen ones as chips. A field is full or half width. Field hint; drag order; a field can be added, edited, copied (`copy_task_field`) and removed right from a task.
 - **Task templates:** project (made by owners) and personal.
 
 ### Task screen (updated 2026-11-11, steps Р-1 and Р-2)

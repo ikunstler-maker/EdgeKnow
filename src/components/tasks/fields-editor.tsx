@@ -5,7 +5,7 @@ import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, useDraggable, u
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
-import { FIELD_KINDS, TASK_TYPES, type FieldKind, type FieldOption, type TaskField, type TaskType } from "@/lib/tasks";
+import { FIELD_KINDS, LAYOUT_KINDS, TASK_TYPES, type FieldKind, type FieldOption, type TaskField, type TaskType } from "@/lib/tasks";
 import { deleteTaskField, saveTaskField } from "@/app/task-actions";
 import { Icon } from "@/components/ui/icon";
 import { TypeIcon } from "./task-icons";
@@ -18,7 +18,7 @@ const PALETTE = ["#94a3b8", "#f87171", "#fb923c", "#facc15", "#4ade80", "#2dd4bf
 
 const newOptionId = () => Math.random().toString(36).slice(2, 10);
 
-type Draft = { id: string | null; name: string; kind: FieldKind; options: FieldOption[]; required: boolean; types: TaskType[]; hint: string };
+type Draft = { id: string | null; name: string; kind: FieldKind; options: FieldOption[]; required: boolean; types: TaskType[]; hint: string; width: "full" | "half" };
 const toDraft = (field: TaskField): Draft => ({
   id: field.id,
   name: field.name,
@@ -27,6 +27,7 @@ const toDraft = (field: TaskField): Draft => ({
   required: field.required,
   types: field.task_types ?? [],
   hint: field.hint ?? "",
+  width: field.width ?? "full",
 });
 
 // The project owner's list of fields: name, kind, list items with colours,
@@ -84,6 +85,7 @@ export function FieldsEditor({ projectId, fields: saved }: { projectId: string; 
           required: d.required,
           task_types: d.types,
           hint: d.hint.trim(),
+              width: d.width,
         }),
       () => setDraft(null),
     );
@@ -139,7 +141,7 @@ export function FieldsEditor({ projectId, fields: saved }: { projectId: string; 
           <button
             type="button"
             className={buttonClass}
-            onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "" })}
+            onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "", width: "full" })}
           >
             <Icon name="plus" className="mr-1 inline" />
             {f.add}
@@ -185,7 +187,7 @@ export function QuickAddField({ projectId, nested = false }: { projectId: string
       <button
         type="button"
         className={`${buttonClass} justify-self-start`}
-        onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "" })}
+        onClick={() => setDraft({ id: null, name: "", kind: "text", options: [{ id: newOptionId(), label: "", color: PALETTE[6] }], required: false, types: [], hint: "", width: "full" })}
         data-quick-add-field
       >
         <Icon name="plus" className="mr-1 inline" />
@@ -213,6 +215,7 @@ export function QuickAddField({ projectId, nested = false }: { projectId: string
               required: d.required,
               task_types: d.types,
               hint: d.hint.trim(),
+              width: d.width,
             });
             if (!result.ok) return setError(t.tasks.errors[result.error] ?? t.common.unknownError);
             setError(null);
@@ -258,7 +261,7 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
         </label>
         <label className="flex flex-col gap-1">
           {f.kind}
-          <select value={draft.kind} disabled={!isNew} aria-label={f.kind} onChange={(e) => set({ kind: e.target.value as FieldKind })} className={inputClass}>
+          <select value={draft.kind} disabled={!isNew} aria-label={f.kind} onChange={(e) => set({ kind: e.target.value as FieldKind, ...(e.target.value === "divider" && !draft.name.trim() ? { name: f.dividerName } : {}) })} className={inputClass} data-field-kind>
             {FIELD_KINDS.map((kind) => (
               <option key={kind} value={kind}>
                 {f.kinds[kind]}
@@ -272,6 +275,14 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
       <label className="flex flex-col gap-1">
         {f.hint}
         <input value={draft.hint} onChange={(e) => set({ hint: e.target.value })} maxLength={300} placeholder={f.hintPlaceholder} className={inputClass} data-field-hint-input />
+      </label>
+
+      <label className="flex flex-col gap-1">
+        {f.width}
+        <select value={draft.width} onChange={(e) => set({ width: e.target.value as "full" | "half" })} className={inputClass} data-field-width>
+          <option value="full">{f.widths.full}</option>
+          <option value="half">{f.widths.half}</option>
+        </select>
       </label>
 
       {LISTS.includes(draft.kind) && (
@@ -336,7 +347,7 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
         <p className="text-xs text-muted">{f.typesHint}</p>
       </fieldset>
 
-      <label className="flex min-h-11 items-center gap-2 md:min-h-9">
+      <label className={`flex min-h-11 items-center gap-2 md:min-h-9 ${LAYOUT_KINDS.includes(draft.kind) ? "hidden" : ""}`}>
         <input type="checkbox" checked={draft.required} onChange={(e) => set({ required: e.target.checked })} className="h-5 w-5" />
         {f.required}
         <span className="text-xs text-muted">— {f.requiredHint}</span>
@@ -351,5 +362,42 @@ function DraftForm({ draft, setDraft, onSave, pending, nested = false }: { draft
         </button>
       </div>
     </Wrapper>
+  );
+}
+
+// A field's own settings, edited right where the field is shown (the task card).
+export function EditFieldForm({ projectId, field, onClose }: { projectId: string; field: TaskField; onClose: () => void }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft>(toDraft(field));
+  return (
+    <div className="space-y-2" data-edit-field={field.name}>
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <DraftForm
+        draft={draft}
+        setDraft={(next) => (next ? setDraft(next) : onClose())}
+        pending={pending}
+        onSave={(d) =>
+          startTransition(async () => {
+            const result = await saveTaskField(projectId, field.id, {
+              name: d.name,
+              options: LISTS.includes(d.kind) ? d.options.filter((o) => o.label.trim()) : [],
+              required: LAYOUT_KINDS.includes(d.kind) ? false : d.required,
+              task_types: d.types,
+              hint: d.hint.trim(),
+              width: d.width,
+            });
+            if (!result.ok) return setError(t.tasks.errors[result.error] ?? t.common.unknownError);
+            onClose();
+            router.refresh();
+          })
+        }
+      />
+    </div>
   );
 }

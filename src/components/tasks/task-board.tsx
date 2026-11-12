@@ -1,5 +1,6 @@
 "use client";
 
+import { durationText, isOther, otherText } from "@/lib/field-lists";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -861,9 +862,13 @@ function BoardCard({
               {field.kind === "select" || field.kind === "multiselect" ? (
                 (Array.isArray(value) ? value : [value]).map((id) => (
                   <span key={String(id)} className="rounded-md px-1.5 py-0.5 text-white" style={{ background: chosen(id)?.color ?? "var(--accent)" }}>
-                    {chosen(id)?.label}
+                    {chosen(id)?.label ?? (isOther(String(id)) ? otherText(String(id)) : "")}
                   </span>
                 ))
+              ) : field.kind === "duration" ? (
+                durationText(Number(value))
+              ) : Array.isArray(value) ? (
+                value.map((v) => (isOther(String(v)) ? otherText(String(v)) : String(v))).join(", ")
               ) : field.kind === "color" ? (
                 <span className="inline-block h-3 w-5 rounded" style={{ background: String(value) }} />
               ) : field.kind === "checkbox" || field.kind === "toggle" ? (

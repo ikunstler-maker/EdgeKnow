@@ -40,8 +40,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - Package 4, last: sprints (the team does not use them).
 - **Access rights one to one with the tracker's permission scheme (owner, 2026-11-12: "all permissions are needed, prepare a plan; anything non-standard is added later").** Plan sent to the owner, waits for her OK on the DB list. Three PRs:
   - Д-1: a project's permission table for tasks (create, edit, delete, assign and who may be assigned, dates, move, link), enforced by the database, with a settings screen — DONE (#162).
-  - Д-2: the same for comments (add; edit/delete own and anyone's), attachments and links (add; delete own and anyone's) and time (log; change own and anyone's); the board drags and adds tasks by the permissions — in review. Left by role: the list's bulk bar, quick priority/assignee on a board card, templates; "make private" stays with the author.
+  - Д-2: the same for comments (add; edit/delete own and anyone's), attachments and links (add; delete own and anyone's) and time (log; change own and anyone's); the board drags and adds tasks by the permissions — DONE. Left by role: the list's bulk bar, quick priority/assignee on a board card, templates; "make private" stays with the author.
   - Д-3: reading the tracker's scheme in the import wizard, tracker groups → our units, a report of what could not be carried.
+  - More kinds of own fields (duration, heading, divider, language/geo/currency code lists with "Other", width, copy/edit in a task; decision 2026-11-12) — in review. Left: the lists of countries, languages and currencies are built in (not editable per team); an own value in a single-choice list is asked in a browser prompt.
   - Not carried: workflow conditions and validators, field-level settings, notification schemes; issue security levels stay "private task".
 - Later still: bulk actions on the board; not shipping done tasks to the board at all (today all tasks load, 50 a column are drawn).
 - Small, later: vacation mark next to a person in the task (from Doba); "Done" strike-through is gone by design.

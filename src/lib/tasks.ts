@@ -73,8 +73,10 @@ export type TaskRow = {
   entered_at?: string;
 };
 
-export type FieldKind = "text" | "longtext" | "number" | "select" | "multiselect" | "checkbox" | "toggle" | "date" | "color" | "url" | "person";
-export const FIELD_KINDS: FieldKind[] = ["text", "longtext", "number", "select", "multiselect", "checkbox", "toggle", "date", "color", "url", "person"];
+export type FieldKind = "text" | "longtext" | "number" | "duration" | "select" | "multiselect" | "language" | "geo" | "currency" | "checkbox" | "toggle" | "date" | "color" | "url" | "person" | "heading" | "divider";
+export const FIELD_KINDS: FieldKind[] = ["text", "longtext", "number", "duration", "select", "multiselect", "language", "geo", "currency", "checkbox", "toggle", "date", "color", "url", "person", "heading", "divider"];
+// Fields that only shape the card: they hold no value.
+export const LAYOUT_KINDS: FieldKind[] = ["heading", "divider"];
 export type FieldOption = { id: string; label: string; color?: string | null };
 export type TaskField = {
   id: string;
@@ -85,6 +87,8 @@ export type TaskField = {
   task_types: TaskType[] | null;
   position: number;
   hint?: string | null;
+  // As wide as the card, or half of it (two in a row).
+  width?: "full" | "half";
 };
 // What a board card can show; the project's own fields join by id.
 export const CARD_FIELDS = ["key", "type", "priority", "assignee", "reporter", "labels", "due", "start", "created", "updated", "estimate", "subtasks"] as const;
