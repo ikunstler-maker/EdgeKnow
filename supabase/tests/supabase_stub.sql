@@ -35,3 +35,15 @@ create function storage.foldername(name text) returns text[] language sql immuta
   select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
 $$;
 grant execute on function storage.foldername(text) to anon, authenticated;
+-- Realtime: the table whose policies decide who may join a private channel and send on it,
+-- and the topic of the channel being checked (Realtime sets it for each check).
+create schema realtime;
+grant usage on schema realtime to anon, authenticated;
+create table realtime.messages (
+  id uuid primary key default gen_random_uuid(), topic text not null, extension text not null,
+  payload jsonb, event text, private boolean default true, inserted_at timestamp default now()
+);
+alter table realtime.messages enable row level security;
+grant select, insert on realtime.messages to authenticated;
+create function realtime.topic() returns text language sql stable as $$ select nullif(current_setting('realtime.topic', true), '') $$;
+grant execute on function realtime.topic() to anon, authenticated;

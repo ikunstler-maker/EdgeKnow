@@ -34,6 +34,12 @@ The core gives every service people, access, storage, search, notifications and 
 - Access like pages: owner, admins, whole workspace, people, units.
 - Bordy, Nodo, Sota, Kadry and Questa are built on it. A new "file-like" service starts from it.
 
+### Live co-editing (layer of the core; phase 1 since 2026-11-12)
+- The workspace owner's switch (`workspaces.live_collab`, copied to a team database). Phase 1 covers presentations and Bordy files.
+- Per document two private Supabase Realtime channels: `live:<id>:doc` (Yjs changes; only owners and editors send) and `live:<id>:room` (presence, cursors, "Follow"; viewers' cursors only with the document's switch `service_objects.live_viewer_cursors`). The database decides: `live_channel_allowed` in the policies on `realtime.messages`; in a team database it also checks that the pass is ours and for this workspace.
+- The browser gets the database address, its public key and a pass (central: the person's session token; team: our 10-minute pass) from `liveSession` (`src/app/live-actions.ts`, `liveConnection` in `src/lib/team-db/data.ts`) and renews it every 2 minutes — each renewal re-checks rights in the channels.
+- The document stays JSON in `service_objects` with the version check; one editor (the leader) saves. Code: `src/lib/live/` (`doc-sync.ts` JSON ↔ Yjs, `use-live-doc.ts`), `src/components/live/`. A new service joins by giving its list shape (`ListSpec`) and adding its service to `live_channel_allowed`.
+
 ### Navigation
 - **Start page**: service tiles in four categories (mark, name, one-line description, recent items or "Create").
 - **Left panel** (top to bottom): the workspace name opens the workspace and account menu (other workspaces, profile, settings, theme, language, "What's new", help, sign-out); a dock of pinned services and a button for the list of all services by category (Ctrl/Cmd+E; pins are kept in the browser); search, notifications; the current section's content (in Rukh: projects and boards, no tasks); at the bottom the bin and Apus. Resizable; collapses to a slim rail (button or Ctrl/Cmd+\; kept in the browser).
@@ -96,7 +102,8 @@ The core gives every service people, access, storage, search, notifications and 
 | `workspace_domains`, `workspace_domain_claims`, `invitations` | domains and invitations |
 | `team_databases` | connected team databases |
 | `drive_connections`, `drive_accounts` | Google Drive |
-| `service_objects` and their access tables | service objects |
+| `service_objects` and their access tables | service objects (`live_viewer_cursors`: viewers' cursors in live co-editing) |
+| `realtime.messages` (Supabase's own) | only our policies: who joins and sends on live channels |
 | `object_collections`, `object_collection_items` | collections |
 | `object_files`, `attachments` | files |
 | `notifications`, `notification_prefs` | notifications (links: task, page, calendar event, time-off request) |

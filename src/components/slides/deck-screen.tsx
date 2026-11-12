@@ -10,12 +10,16 @@ import { ObjectAccessButton, type ObjectAccess } from "@/components/access/objec
 import { saveDeck, setDeckGroupRole, setDeckMemberRole, setDeckWorkspaceRole, trashDeck } from "@/app/slide-actions";
 import { DeckEditor } from "./deck-editor";
 import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
+import { LivePresence, liveMenu } from "@/components/live/live-presence";
+import { DECK_SPEC } from "@/lib/live/doc-sync";
+import { useLiveDoc } from "@/lib/live/use-live-doc";
 
 const s = t.slides;
 
 // One presentation: its name, the save status, access and the editor. Changes are
 // saved about a second after the last one; a save that finds a newer version stops
-// and asks to reload (as tables do).
+// and asks to reload (as tables do). With real-time co-editing on, the room shares every
+// change and one editor (the leader) saves for everyone.
 export function DeckScreen({
   shortId,
   id,
@@ -45,6 +49,7 @@ export function DeckScreen({
   const pending = useRef<{ title: string | null; data: Deck | null } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
+  const liveRef = useRef<ReturnType<typeof useLiveDoc<Deck>> | null>(null);
 
   const flush = useCallback(async () => {
     if (saving.current) return;
@@ -56,6 +61,7 @@ export function DeckScreen({
       const result = await saveDeck(shortId, id, next.title, next.data, version.current).catch(() => null);
       if (result?.ok) {
         version.current = result.version;
+        liveRef.current?.saved(result.version);
         setStatus("saved");
         setError(null);
         continue;
@@ -102,7 +108,21 @@ export function DeckScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
-  const editable = canEdit && status !== "conflict";
+  const live = useLiveDoc<Deck>({
+    shortId,
+    objectId: id,
+    spec: DECK_SPEC,
+    initial,
+    initialTitle,
+    versionRef: version,
+    pageCanEdit: canEdit,
+    onTitle: setTitle,
+    onSave: (data, name) => schedule({ data, title: name }),
+  });
+  useEffect(() => {
+    liveRef.current = live;
+  });
+  const editable = live.canEdit && status !== "conflict";
   return (
     <StudioShell
       service="slides"
@@ -113,7 +133,7 @@ export function DeckScreen({
         canEdit
           ? (value) => {
               setTitle(value);
-              schedule({ title: value });
+              if (!live.changeTitle(value)) schedule({ title: value });
             }
           : undefined
       }
@@ -123,6 +143,7 @@ export function DeckScreen({
       savingLabel={s.saving}
       savedLabel={s.saved}
       center={undefined}
+      presence={<LivePresence live={live} />}
       files={[
         { label: s.print.button, icon: "download" as const, onSelect: () => void open("/print"), attrs: { "data-print": "" } },
         { label: s.print.withNotes, icon: "file-text" as const, onSelect: () => void open("/print?notes=1"), attrs: { "data-print-notes": "" } },
@@ -145,6 +166,7 @@ export function DeckScreen({
       }
       primary={{ label: s.player.show, icon: "play", onSelect: () => void open("/play"), attrs: { "data-play": "" } }}
       more={[
+        ...liveMenu(live),
         { label: s.player.presenter, icon: "monitor" as const, onSelect: () => void open("/play?presenter=1"), attrs: { "data-presenter-open": "" } },
         ...(canEdit
           ? [
@@ -163,7 +185,7 @@ export function DeckScreen({
       ]}
       notices={<StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
     >
-      <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={editable} onChange={(deck) => schedule({ data: deck })} onPlay={(n) => void open(`/play?at=${n}`)} />
+      <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={editable} onChange={(deck) => schedule({ data: deck })} onPlay={(n) => void open(`/play?at=${n}`)} live={live} />
     </StudioShell>
   );
 }

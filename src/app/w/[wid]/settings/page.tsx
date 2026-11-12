@@ -113,6 +113,8 @@ export default async function WorkspaceSettingsPage({
 
   const supabase = await createClient();
   const teamData = await dataClient(workspace.shortId);
+  const settingsRow =
+    tab === "general" ? (await supabase.from("workspaces").select("private_tasks_admin, live_collab").eq("id", workspace.id).maybeSingle()).data : null;
   // Each query is limited by RLS to this workspace and to admins.
   const [members, domains, invitations, log, storage, departed] = await Promise.all([
     tab === "general" || tab === "people"
@@ -293,9 +295,8 @@ export default async function WorkspaceSettingsPage({
           <>
             <GeneralPanel
               workspace={workspace}
-              privateTasksAdmin={
-                (await supabase.from("workspaces").select("private_tasks_admin").eq("id", workspace.id).maybeSingle()).data?.private_tasks_admin === true
-              }
+              privateTasksAdmin={settingsRow?.private_tasks_admin === true}
+              liveCollab={settingsRow?.live_collab === true}
               members={memberItems.filter((m) => m.userId !== user.id && m.role !== "guest")}
             />
             {/* An admin (for example a former owner) can step away too; only the owner can't. */}

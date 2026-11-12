@@ -159,7 +159,7 @@ const STAGES: Stage[] = [
   {
     name: "service objects",
     table: "service_objects",
-    columns: "id, workspace_id, service, kind, title, icon, data, search_text, version, owner_id, created_by, workspace_role, created_at, updated_at, updated_by, deleted_at, deleted_by",
+    columns: "id, workspace_id, service, kind, title, icon, data, search_text, version, owner_id, created_by, workspace_role, live_viewer_cursors, created_at, updated_at, updated_by, deleted_at, deleted_by",
     order: "id",
     onConflict: "id",
   },
