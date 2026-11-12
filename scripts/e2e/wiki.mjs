@@ -1045,7 +1045,25 @@ check("own profile shows statistics, private by default",
 const { cookies: peerCookies } = await sessionCookies("colleague@alpha.test");
 const peer = await newPage(peerCookies);
 await peer.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`);
-check("a private profile is hidden from colleagues", (await peer.getByText("Профіль недоступний").count()) === 1);
+check("a private profile shows colleagues the card but not the statistics",
+  (await peer.locator("[data-profile-header]").count()) === 1 && (await peer.locator("[data-stats-hidden]").count()) === 1 && (await peer.getByText("Символів написано").count()) === 0);
+// Job title and own name: set on the card, seen by a colleague, kept over sign-in.
+await alice.locator("[data-title-edit]").click();
+await alice.getByLabel("Посада").fill("Head of docs");
+await alice.getByLabel("Посада").press("Enter");
+await alice.getByText("Head of docs").waitFor({ timeout: 15000 });
+await alice.locator("[data-name-edit]").click();
+await alice.getByLabel("Ім'я").fill("Alice Docs");
+await alice.getByLabel("Ім'я").press("Enter");
+await alice.getByRole("heading", { name: "Alice Docs" }).waitFor({ timeout: 15000 });
+check("own name is kept as custom", sql(`select name || ' ' || name_custom from public.profiles where id = '${aliceId}'`) === "Alice Docs true");
+await peer.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`);
+check("a colleague sees the job title and the new name", (await peer.getByText("Head of docs").count()) === 1 && (await peer.getByRole("heading", { name: "Alice Docs" }).count()) === 1);
+check("a colleague can't change someone else's job title", (await peer.locator("[data-title-edit]").count()) === 0);
+await alice.locator("[data-name-edit]").click();
+await alice.getByLabel("Ім'я").fill("");
+await alice.getByLabel("Ім'я").press("Enter");
+await alice.waitForFunction(() => !document.querySelector("[data-profile-header] input"));
 await alice.getByRole("radio", { name: /Усі учасники workspace/ }).check();
 await alice.getByText("Посилання на профіль:").waitFor();
 await alice.waitForFunction(() => !document.querySelector("input[name=profile-visibility]:disabled"));
@@ -1054,7 +1072,7 @@ check("profile shown to the workspace", shown === "workspace", shown);
 await peer.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`);
 check("colleague sees a shown profile", (await peer.getByText("Символів написано").count()) === 1);
 await bob.goto(`${APP}/w/${alphaShort}/profile/${aliceId}`).catch(() => {});
-check("outsider never sees the profile", (await bob.getByText("Символів написано").count()) === 0);
+check("outsider never sees the profile", (await bob.getByText("Символів написано").count()) === 0 && (await bob.locator("[data-profile-header]").count()) === 0);
 await alice.getByRole("radio", { name: /Тільки я/ }).check();
 await alice.waitForFunction(() => !document.querySelector("input[name=profile-visibility]:disabled"));
 
