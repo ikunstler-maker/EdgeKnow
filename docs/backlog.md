@@ -38,7 +38,11 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - Package 4-3: repeating tasks every N days/weeks (chosen weekdays)/months/years, copies made by the daily job, the next one at once when a copy is done early — in review.
   - Found, not fixed (separate task suggested): a task's `done_at` is not set when it is moved to a done column on the board or by the status buttons, so analytics of finished tasks miss it.
   - Package 4, last: sprints (the team does not use them).
-- **Must come later (owner, 2026-11-11): access rights carried over one to one from the tracker's permission scheme,** so anyone can move from it comfortably — today only "who sees and edits the project, with which role" is planned.
+- **Access rights one to one with the tracker's permission scheme (owner, 2026-11-12: "all permissions are needed, prepare a plan; anything non-standard is added later").** Plan sent to the owner, waits for her OK on the DB list. Three PRs:
+  - Д-1: a project's permission table (actions × holders: our four roles, units, named members, the task's author, its assignee) with today's behaviour as the default; the database enforces it for tasks (create, edit, delete, assign and who may be assigned, set dates, move between columns, link, make private); a settings screen.
+  - Д-2: the same for comments (add; edit/delete own and anyone's), attachments (add; delete own and anyone's) and time (log; edit/delete own and anyone's).
+  - Д-3: reading the tracker's scheme in the import wizard, tracker groups → our units, a report of what could not be carried.
+  - Not carried: workflow conditions and validators, field-level settings, notification schemes; issue security levels stay "private task".
 - Later still: bulk actions on the board; not shipping done tasks to the board at all (today all tasks load, 50 a column are drawn).
 - Small, later: vacation mark next to a person in the task (from Doba); "Done" strike-through is gone by design.
 
