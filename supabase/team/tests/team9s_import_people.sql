@@ -126,3 +126,23 @@ set role service_role;
 select 'the server makes copies: ' || (public.run_task_recurrences() ->> 'made');
 reset role;
 select 'copies in the project: ' || count(*) || ', next in ' || (select next_on - current_date from public.task_recurrences) || ' days' from public.tasks where project_id = :'project' and title = 'Open';
+-- Д-1: a project's own permissions; the owner sets them, the database enforces them.
+set role authenticated;
+:as_alice;
+select 'alice lets only the author edit: ' || (public.set_task_permission(:'project', 'edit', '{"roles": [], "reporter": true}') ->> 'ok');
+reset role;
+set role authenticated;
+:as_bob;
+select 'bob sets a permission: ' || (public.set_task_permission(:'project', 'edit', '{"roles": ["viewer"]}') ->> 'error')
+  || ', may edit: ' || public.task_permits((select id from public.tasks where external_key = 'SEA-1'), 'edit')
+  || ', edits: ' || coalesce(public.update_task((select id from public.tasks where external_key = 'SEA-1'), '{"title": "Bob was here"}') ->> 'error', 'done');
+reset role;
+set role authenticated;
+:as_alice;
+select 'alice (an owner) edits: ' || (public.update_task((select id from public.tasks where external_key = 'SEA-1'), '{"title": "Open"}') ->> 'ok')
+  || ', resets: ' || (public.set_task_permission(:'project', 'edit', null) ->> 'ok');
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000d7'; set request.jwt.claims = '{"iss":"https://wiki.test/oidc","role":"authenticated","sub":"00000000-0000-0000-0000-0000000000d7","email":"gone@team.test"}';
+select 'someone removed sees permissions: ' || count(*) || ', sets one: ' || (public.set_task_permission(:'project', 'edit', '{"roles": ["viewer"]}') ->> 'error') from public.task_permissions;
+reset role;

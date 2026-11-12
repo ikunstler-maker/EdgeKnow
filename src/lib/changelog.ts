@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-12-g",
+    version: "0.39.0",
+    date: "2026-11-12",
+    summaryTitle: { uk: "Rukh: дозволи проєкту", en: "Rukh: project permissions" },
+    items: [
+      { id: "permissions", type: "added", scope: "tasks", title: { uk: "Для кожної дії із задачами можна задати, хто її виконує: ролі, підрозділи, люди, автор чи виконавець.", en: "For each action on tasks a project can say who may do it: roles, units, people, the author or the assignee." } },
+    ],
+  },
+  {
     id: "2026-11-12-f",
     version: "0.38.0",
     date: "2026-11-12",
