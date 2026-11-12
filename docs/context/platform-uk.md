@@ -108,7 +108,7 @@
 | `object_collections`, `object_collection_items` | колекції |
 | `object_files`, `attachments` | файли |
 | `chat_categories`, `chat_category_access`, `chat_channels`, `chat_channel_members`, `chat_messages`, `chat_reactions` | Toker: категорії, канали, люди, повідомлення, реакції (див. картку Toker) |
-| `notifications`, `notification_prefs` | сповіщення (посилання: задача, сторінка, подія календаря, заявка на відсутність) |
+| `notifications`, `notification_prefs` | сповіщення (посилання: задача, сторінка, подія календаря, заявка на відсутність, повідомлення чату) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: події, їхні учасники, робочі дні й часовий пояс |
 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_holidays`, `leave_member_settings` | Doba: правила відсутностей, журнал балансів, заявки, свята, дати початку роботи |
 | `calendar_external_busy`, `calendar_connections` (лише центральна) | Doba: зайняті проміжки із зовнішнього календаря людини (лише початок і кінець); адреса календаря, зашифрована, закрита для всіх |

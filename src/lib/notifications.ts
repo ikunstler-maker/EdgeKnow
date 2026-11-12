@@ -1,7 +1,7 @@
 // Notifications (package 8) and project rules (package 7): shapes shared by the
 // server actions and the screens.
 
-export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due", "event_invite", "event_request", "event_answer", "event_change", "event_reminder", "leave_request", "leave_decision", "leave_deputy", "leave_info", "birthday"] as const;
+export const NOTIFICATION_KINDS = ["mention", "assigned", "comment", "rule", "due", "event_invite", "event_request", "event_answer", "event_change", "event_reminder", "leave_request", "leave_decision", "leave_deputy", "leave_info", "birthday", "chat_mention", "chat_reply"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 export type NotificationItem = {
@@ -18,6 +18,8 @@ export type NotificationItem = {
   leave?: { id: string; person: string; start_date: string; end_date: string; status: string; mine: boolean; deputy: boolean } | null;
   // A colleague's birthday: whose and which day (while it may still be seen).
   birthday?: { person: string; day: string } | null;
+  // A chat message: its channel and the start of its text (while it may still be seen).
+  chat?: { id: string; channel_id: string; channel: string; thread_root_id: string | null; excerpt: string } | null;
 };
 export type NotificationList = { unread: number; items: NotificationItem[] };
 

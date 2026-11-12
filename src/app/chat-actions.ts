@@ -2,7 +2,7 @@
 
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
-import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatNotify } from "@/lib/chat";
+import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatNotify, type ChatReaction } from "@/lib/chat";
 
 // Toker: the screen's reads and changes. The database decides who sees and does
 // what (chat_* functions, row level security); these only forward to wherever the
@@ -53,6 +53,36 @@ export async function loadMessagesById(shortId: string, messageIds: string[]): P
   const supabase = await dataClient(shortId);
   const { data } = await supabase.from("chat_messages").select(MESSAGE_COLUMNS).in("id", wanted);
   return (data ?? []) as ChatMessage[];
+}
+
+// A thread: its replies, oldest first (at most the latest 500).
+export async function loadThread(shortId: string, rootId: string): Promise<ChatMessage[] | null> {
+  if (!UUID.test(rootId)) return null;
+  const supabase = await dataClient(shortId);
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("thread_root_id", rootId)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) return null;
+  return ((data ?? []) as ChatMessage[]).reverse();
+}
+
+// Pinned messages of a channel, newest pin first.
+export async function loadPinned(shortId: string, channelId: string): Promise<ChatMessage[]> {
+  if (!UUID.test(channelId)) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.from("chat_messages").select(MESSAGE_COLUMNS).eq("channel_id", channelId).not("pinned_at", "is", null).order("pinned_at", { ascending: false }).limit(50);
+  return (data ?? []) as ChatMessage[];
+}
+
+export async function loadReactions(shortId: string, messageIds: string[]): Promise<ChatReaction[]> {
+  const wanted = ids(messageIds).slice(0, 200);
+  if (!wanted.length) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.from("chat_reactions").select("message_id, user_id, emoji, created_at").in("message_id", wanted).order("created_at").limit(5000);
+  return (data ?? []) as ChatReaction[];
 }
 
 export async function loadMembers(shortId: string, channelId: string): Promise<ChatMember[]> {
@@ -129,12 +159,20 @@ export async function setNotify(shortId: string, channelId: string, level: ChatN
 
 // ---------------------------------------------------------------- messages
 
-export async function postMessage(shortId: string, channelId: string, body: string, threadRootId: string | null = null) {
-  return call<{ id: string }>(shortId, "chat_post_message", { ch: channelId, new_body: body, thread_root: threadRootId, mention_ids: null });
+export async function postMessage(shortId: string, channelId: string, body: string, threadRootId: string | null = null, mentions: string[] = []) {
+  return call<{ id: string }>(shortId, "chat_post_message", { ch: channelId, new_body: body, thread_root: threadRootId, mention_ids: ids(mentions) });
 }
 
-export async function editMessage(shortId: string, messageId: string, body: string) {
-  return call(shortId, "chat_edit_message", { msg: messageId, new_body: body, mention_ids: null });
+export async function editMessage(shortId: string, messageId: string, body: string, mentions: string[] = []) {
+  return call(shortId, "chat_edit_message", { msg: messageId, new_body: body, mention_ids: ids(mentions) });
+}
+
+export async function pinMessage(shortId: string, messageId: string, pinned: boolean) {
+  return call(shortId, "chat_pin_message", { msg: messageId, pinned });
+}
+
+export async function toggleReaction(shortId: string, messageId: string, emoji: string) {
+  return call<{ on: boolean }>(shortId, "chat_toggle_reaction", { msg: messageId, reaction: emoji });
 }
 
 export async function deleteMessage(shortId: string, messageId: string) {

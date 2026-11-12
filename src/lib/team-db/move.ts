@@ -342,7 +342,7 @@ const STAGES: Stage[] = [
   {
     name: "notifications",
     table: "notifications",
-    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, event_at, leave_request_id, created_at, read_at",
+    columns: "id, workspace_id, user_id, kind, actor_id, task_id, page_id, status_id, event_id, event_at, leave_request_id, chat_message_id, created_at, read_at",
     order: "id",
     onConflict: "id",
   },
