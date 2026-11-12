@@ -75,7 +75,11 @@ export type EventFields = {
 
 // `outside`: the viewer's own slot read from their outside calendar (marked for them only).
 export type BusySlot = { user_id: string; starts_at: string; ends_at: string; all_day: boolean; outside?: boolean };
-export type CalendarSettings = { work_days: number[]; time_zone: string };
+export type CalendarSettings = { work_days: number[]; time_zone: string; show_birthdays?: boolean };
+// Someone's birthday on a day the viewer may see (never the year).
+export type Birthday = { user_id: string; name: string; day: string; mine: boolean };
+// One's own birthday as kept, with the year (shown to oneself and to who manages time off only).
+export type MyBirthday = { month: number | null; day: number | null; year: number | null; shown: boolean; workspace_on: boolean };
 export type CalendarPerson = { id: string; name: string; guest: boolean };
 export type CancelledEvent = { id: string; title: string; starts_at: string; all_day: boolean; deleted_at: string; organizer_id: string | null; visibility: EventVisibility };
 

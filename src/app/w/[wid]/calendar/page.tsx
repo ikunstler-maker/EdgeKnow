@@ -22,7 +22,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
   const [user, db] = await Promise.all([getCurrentUser(), dataClient(wid)]);
   const guest = workspace.role === "guest";
   const [{ data: settings }, { data: groups }, { data: members }] = await Promise.all([
-    db.from("calendar_settings").select("work_days, time_zone").eq("workspace_id", workspace.id).maybeSingle(),
+    db.from("calendar_settings").select("work_days, time_zone, show_birthdays").eq("workspace_id", workspace.id).maybeSingle(),
     // Units, to invite a whole one to an event.
     guest ? Promise.resolve({ data: [] }) : db.from("workspace_groups").select("id, name, parent_id").eq("workspace_id", workspace.id),
     // A guest invites nobody, so needs no list of people.

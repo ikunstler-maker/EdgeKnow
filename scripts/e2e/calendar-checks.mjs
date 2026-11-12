@@ -595,3 +595,50 @@ export async function outsideChecks() {
   await alice.locator('[data-outside-calendar="off"]').waitFor({ timeout: 15000 });
   check("disconnected: the address and every slot are gone", rows() === "0" && sql(`select count(*) from public.calendar_connections`) === "0");
 }
+
+// Birthdays: a colleague sets their own in the profile (with a year); Alice sees day and
+// month on the home screen and in the calendar, never the year; the bell names the
+// colleague on the day; a person from another workspace sees nothing; hiding works.
+export async function birthdayChecks() {
+  const today = sql(`select public.workspace_today('${alphaId}')`);
+  const [, month, day] = today.split("-").map(Number);
+  const own = await newPage(colleagueCookies);
+  await own.goto(`${APP}/w/${alphaShort}/profile`);
+  const form = own.locator("[data-my-birthday]");
+  await form.waitFor({ timeout: 15000 });
+  await form.locator("[data-birthday-day]").fill(String(day));
+  await form.locator("[data-birthday-month]").selectOption(String(month));
+  await form.locator("[data-birthday-year]").fill("1990");
+  await form.locator("[data-birthday-save]").click();
+  await form.locator("[data-birthday-note]").waitFor({ timeout: 15000 });
+  const kept = () => sql(`select concat_ws('-', birth_year, birth_month, birth_day, birthday_shown) from public.leave_member_settings where workspace_id = '${alphaId}' and user_id = '${colleagueId}'`);
+  check("a person sets their own birthday in the profile", kept() === `1990-${month}-${day}-true`, kept());
+
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  const block = alice.locator("[data-home-birthdays]");
+  check("the home screen shows today's birthday under the greeting", await until(async () => (await block.locator("[data-home-birthday-today]").count()) === 1, 15000));
+  check("…without the year", !(await block.innerText()).includes("1990"));
+  await alice.goto(`${APP}/w/${alphaShort}/calendar?view=list&date=${today}`);
+  check("the calendar list shows it", await until(async () => (await alice.locator("[data-list-birthdays] [data-birthday]").count()) >= 1, 15000));
+  const { data: got } = await aliceClient.rpc("calendar_birthdays", { ws: alphaId, first_day: today, last_day: today });
+  check("what a colleague gets carries no year", Array.isArray(got) && got.length >= 1 && !JSON.stringify(got).includes("1990"), JSON.stringify(got));
+  sql(`delete from public.notifications where kind = 'birthday'`);
+  const { error: bellError } = await aliceClient.rpc("calendar_remind_me", { ws: alphaId });
+  const heard = sql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id where n.kind = 'birthday' and u.email = 'alice@alpha.test'`);
+  check("the bell tells a colleague on the day", !bellError && heard === "1", `${bellError?.message ?? ""} ${heard}`);
+  await bob.goto(`${APP}/w/${alphaShort}`);
+  check("someone from another workspace sees no birthdays", (await bob.locator("[data-home-birthdays]").count()) === 0);
+
+  // Hidden by the person: gone from the home screen.
+  await own.goto(`${APP}/w/${alphaShort}/profile`);
+  await form.waitFor({ timeout: 15000 });
+  await form.locator("[data-birthday-shown]").uncheck();
+  await form.locator("[data-birthday-save]").click();
+  await until(() => kept().endsWith("-false"), 15000);
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  await alice.waitForTimeout(500);
+  check("hidden by the person, colleagues no longer see it", (await alice.locator("[data-home-birthdays]").count()) === 0);
+  await form.locator("[data-birthday-clear]").click();
+  check("the person removes it", await until(() => kept() === "true", 15000), kept());
+  await own.close();
+}

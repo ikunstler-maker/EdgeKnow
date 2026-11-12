@@ -1,0 +1,32 @@
+bob, 31 April: invalid, 29 Feb 1990: invalid, born next century: invalid, 29 Feb 1988: true
+bob reads his own: {"ok": true, "day": 29, "year": 1988, "month": 2, "shown": true, "workspace_on": true}
+bob sets carol's: forbidden
+hr sets carol's (with a year): true, the guest's: invalid, a stranger's: invalid
+hr reads the year of carol: 1985
+dan sets his, hidden: true
+the guest sets hers: forbidden
+alice sees: bob 2031-02-28, carol 2031-06-15, bob 2032-02-29
+alice (owner, manages time off) reads the rows: 3
+a year in what alice gets: false
+dan sees (his own hidden one too): bob 2031-02-28, carol 2031-06-15, dan 2031-06-16, bob 2032-02-29
+dan reads the rows: 1
+the guest sees: nothing
+a stranger sees: nothing
+a stranger reads: forbidden
+a range of five years: 0
+bob turns birthdays off: forbidden
+alice turns them off: true
+alice now sees: nothing
+bob still sees his own: bob 2031-02-28, bob 2032-02-29
+on again: true
+bob (carol's unit) hears about: carol
+asking again adds: 0
+alice (no shared unit) hears about: nobody
+carol hears about herself: 0
+the guest hears: 0
+bob mutes birthdays: true
+after carol hides it, bob's bell names: nobody
+dan clears his: true
+dan's now: none
+alice removes bob: true
+bob's birthday after leaving: none

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { dateLocale, t } from "@/i18n";
-import { cancelEvent, loadBusy, loadCalendar, loadCalendarTasks } from "@/app/calendar-actions";
+import { cancelEvent, loadBirthdays, loadBusy, loadCalendar, loadCalendarTasks } from "@/app/calendar-actions";
 import {
   DAY_MS,
   TASKS_PER_DAY,
@@ -20,6 +20,7 @@ import {
   startOfDay,
   startOfWeek,
   weekdayOf,
+  type Birthday,
   type BusySlot,
   type CalendarEvent,
   type CalendarPerson,
@@ -128,6 +129,7 @@ export function CalendarScreen({
   const [outsideTick, setOutsideTick] = useState(0);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   // Rukh tasks with a due date: mine by default; the choice is kept on this device.
   const taskMode = useSyncExternalStore(watchTaskMode, readTaskMode, () => "mine" as TaskMode);
   const [tasks, setTasks] = useState<CalendarTask[]>([]);
@@ -230,6 +232,9 @@ export function CalendarScreen({
     });
     loadHolidays(shortId, workspaceId, firstDay, lastDay).then((list) => {
       if (live) setHolidays(list);
+    });
+    loadBirthdays(shortId, workspaceId, firstDay, lastDay).then((list) => {
+      if (live) setBirthdays(list);
     });
     return () => {
       live = false;
@@ -447,6 +452,7 @@ export function CalendarScreen({
             events={events}
             absences={absences}
             holidays={holidays}
+            birthdays={birthdays}
             tasks={shownTasks}
             timeOffHref={timeOffHref}
             workDays={settings.work_days}
@@ -471,6 +477,7 @@ export function CalendarScreen({
             busy={shownBusy}
             absences={absences}
             holidays={holidays}
+            birthdays={birthdays}
             tasks={shownTasks}
             taskHref={taskHref}
             timeOffHref={timeOffHref}
@@ -485,7 +492,7 @@ export function CalendarScreen({
             onEvent={openEvent}
           />
         ) : (
-          <ListView from={range.from} events={events} absences={absences} tasks={shownTasks} taskHref={taskHref} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={openEvent} onRestore={restore} />
+          <ListView from={range.from} events={events} absences={absences} birthdays={birthdays} tasks={shownTasks} taskHref={taskHref} timeOffHref={timeOffHref} cancelled={cancelled} loading={state === "loading"} onEvent={openEvent} onRestore={restore} />
         )}
       </div>
 
@@ -534,6 +541,7 @@ export function CalendarScreen({
           onSaved={(next) => {
             setSettings(next);
             setShowSettings(false);
+            reload();
           }}
           onClose={() => setShowSettings(false)}
         />
@@ -597,6 +605,21 @@ function WaitingChip({ request, name, onOpen }: { request: MyLeaveRequest; name:
     </button>
   );
 }
+
+// Someone's birthday: festive, yet quiet beside the events.
+function BirthdayChip({ birthday }: { birthday: Birthday }) {
+  return (
+    <div
+      className="flex min-w-0 items-center gap-1 truncate rounded border border-accent/30 bg-accent/5 px-1 text-xs leading-5 text-accent"
+      title={c.birthdays.of(birthday.name)}
+      data-birthday={birthday.name}
+    >
+      <Icon name="gift" size={12} />
+      <span className="truncate">{birthday.mine ? c.birthdays.mine : birthday.name}</span>
+    </div>
+  );
+}
+const birthdaysOn = (birthdays: Birthday[], day: Date) => birthdays.filter((b) => b.day === dayKey(day));
 
 function AbsenceChip({ absence, href, onOpen }: { absence: Absence; href: string; onOpen?: (id: string) => void }) {
   // My own absence opens here (to withdraw it); a colleague's leads to the team list.
@@ -679,6 +702,7 @@ function MonthView({
   events,
   absences,
   holidays,
+  birthdays,
   tasks,
   timeOffHref,
   workDays,
@@ -696,6 +720,7 @@ function MonthView({
   events: CalendarEvent[];
   absences: Absence[];
   holidays: Holiday[];
+  birthdays: Birthday[];
   tasks: CalendarTask[];
   timeOffHref: string;
   workDays: number[];
@@ -760,6 +785,9 @@ function MonthView({
                 </p>
               )}
               <div className="hidden space-y-0.5 sm:block">
+                {birthdaysOn(birthdays, day).map((birthday) => (
+                  <BirthdayChip key={birthday.user_id} birthday={birthday} />
+                ))}
                 {waitingOn(myRequests, day).map((request) => (
                   <WaitingChip key={request.id} request={request} name={policyName(request.policy_id)} onOpen={onMyAbsence} />
                 ))}
@@ -799,6 +827,7 @@ function WeekView({
   busy,
   absences,
   holidays,
+  birthdays,
   tasks,
   taskHref,
   timeOffHref,
@@ -819,6 +848,7 @@ function WeekView({
   busy: BusySlot[];
   absences: Absence[];
   holidays: Holiday[];
+  birthdays: Birthday[];
   tasks: CalendarTask[];
   taskHref: (task: CalendarTask) => string;
   timeOffHref: string;
@@ -917,6 +947,9 @@ function WeekView({
                 onPick({ kind: "days", first: dayKey(day), last: dayKey(day) });
               }}
             >
+              {birthdaysOn(birthdays, day).map((birthday) => (
+                <BirthdayChip key={birthday.user_id} birthday={birthday} />
+              ))}
               {whole.map((event) => (
                 <EventChip key={eventKey(event)} event={event} onOpen={onEvent} withTime={false} />
               ))}
@@ -1078,6 +1111,7 @@ function ListView({
   from,
   events,
   absences,
+  birthdays,
   tasks,
   taskHref,
   timeOffHref,
@@ -1089,6 +1123,7 @@ function ListView({
   from: Date;
   events: CalendarEvent[];
   absences: Absence[];
+  birthdays: Birthday[];
   tasks: CalendarTask[];
   taskHref: (task: CalendarTask) => string;
   timeOffHref: string;
@@ -1148,6 +1183,20 @@ function ListView({
             ))}
           </ul>
           {tasks.length > 40 && <p className="mt-1 text-xs text-muted">{c.tasks.more(tasks.length - 40)}</p>}
+        </section>
+      )}
+      {birthdays.length > 0 && (
+        <section className="mt-6" data-list-birthdays>
+          <h3 className="mb-1 text-sm font-medium text-muted">{c.birthdays.title}</h3>
+          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {birthdays.slice(0, 40).map((birthday) => (
+              <li key={`${birthday.user_id}-${birthday.day}`} className="flex min-h-11 items-center gap-2 rounded-md border border-accent/30 bg-accent/5 px-2 text-sm" data-birthday={birthday.name}>
+                <Icon name="gift" size={14} className="text-accent" />
+                <span className="min-w-0 flex-1 truncate">{birthday.mine ? c.birthdays.mine : birthday.name}</span>
+                <span className="shrink-0 text-xs text-muted">{new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(fromDayKey(birthday.day))}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
       {absences.length > 0 && (

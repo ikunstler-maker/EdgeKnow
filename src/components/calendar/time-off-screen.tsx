@@ -23,6 +23,7 @@ import {
   setStartDate,
 } from "@/app/time-off-actions";
 import type { CalendarPerson } from "@/lib/calendar";
+import { loadMemberBirthdays, saveMemberBirthday } from "@/app/calendar-actions";
 import { workspacePath } from "@/lib/paths";
 import {
   LEAVE_ACCRUALS,
@@ -700,6 +701,7 @@ function Settings({
   const s = o.settings;
   const [editing, setEditing] = useState<{ id: string | null; fields: LeavePolicyFields } | null>(null);
   const [sheet, setSheet] = useState<BalanceSheet | null>(null);
+  const [birthdays, setBirthdays] = useState<Record<string, { month: number; day: number; year: number | null }>>({});
   const [adjusting, setAdjusting] = useState<{ person: string; policy: string } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -720,6 +722,7 @@ function Settings({
   useEffect(() => {
     let live = true;
     loadBalanceSheet(shortId, workspaceId, year).then((result) => live && result.ok && setSheet(result));
+    loadMemberBirthdays(shortId, workspaceId).then((list) => live && setBirthdays(list));
     return () => {
       live = false;
     };
@@ -804,6 +807,7 @@ function Settings({
                 <tr className="bg-surface text-left text-muted">
                   <th className="px-3 py-2 font-normal">{s.person}</th>
                   <th className="px-3 py-2 font-normal">{s.startedOn}</th>
+                  <th className="px-3 py-2 font-normal">{t.calendar.birthdays.column}</th>
                   {active.map((p) => (
                     <th key={p.id} className="px-3 py-2 font-normal">
                       {p.name}
@@ -828,6 +832,14 @@ function Settings({
                         aria-label={`${s.startedOn}: ${person.name}`}
                         className="min-h-11 rounded-md border border-border bg-background px-2 text-sm md:min-h-9"
                         data-start-date
+                      />
+                    </td>
+                    <td className="px-3 py-1">
+                      <BirthdayCell
+                        key={JSON.stringify(birthdays[person.id] ?? null)}
+                        name={person.name}
+                        value={birthdays[person.id] ?? null}
+                        onSave={(value) => act(() => saveMemberBirthday(shortId, workspaceId, person.id, value), t.calendar.birthdays.saved)}
                       />
                     </td>
                     {active.map((p) => {
@@ -1126,5 +1138,45 @@ function AdjustDialog({
         </div>
       </form>
     </Shell>
+  );
+}
+
+// A member's birthday as "dd.mm" or "dd.mm.yyyy" (who manages time off); empty removes it.
+function BirthdayCell({
+  name,
+  value,
+  onSave,
+}: {
+  name: string;
+  value: { month: number; day: number; year: number | null } | null;
+  onSave: (value: { month: number | null; day: number | null; year: number | null }) => Promise<boolean>;
+}) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const shown = value ? `${pad(value.day)}.${pad(value.month)}${value.year ? `.${value.year}` : ""}` : "";
+  const [text, setText] = useState(shown);
+  const [bad, setBad] = useState(false);
+  const commit = () => {
+    const raw = text.trim();
+    if (raw === shown) return;
+    if (!raw) return void onSave({ month: null, day: null, year: null });
+    const match = /^(\d{1,2})[./-](\d{1,2})(?:[./-](\d{4}))?$/.exec(raw);
+    if (!match) return setBad(true);
+    setBad(false);
+    void onSave({ day: Number(match[1]), month: Number(match[2]), year: match[3] ? Number(match[3]) : null });
+  };
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={text}
+      placeholder={t.calendar.birthdays.cellHint}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && commit()}
+      aria-label={`${t.calendar.birthdays.column}: ${name}`}
+      aria-invalid={bad || undefined}
+      className={`min-h-11 w-32 rounded-md border bg-background px-2 text-sm md:min-h-9 ${bad ? "border-danger" : "border-border"}`}
+      data-member-birthday={name}
+    />
   );
 }
