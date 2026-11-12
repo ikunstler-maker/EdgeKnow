@@ -1,0 +1,12 @@
+carol's bell: chat_mention:Hi carol and dan, chat_mention:Secret for carol, not dan
+dan's bell: chat_mention:Hi carol and dan
+dan silences general: true
+bob's bell (a reply to his message): chat_reply:Reply to bob
+bob edits, adding alice: true
+alice's bell: chat_mention:Hi carol, dan and alice
+alice mutes chat mentions: true
+dan's bell (silenced the channel): chat_mention:Hi carol, dan and alice
+alice's bell after muting: chat_mention:Hi carol, dan and alice
+bob deletes the first message: true
+carol's bell after: chat_mention:hidden, chat_mention:Secret for carol, not dan
+a wrong kind muted: invalid

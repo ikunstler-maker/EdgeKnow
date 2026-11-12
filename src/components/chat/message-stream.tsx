@@ -2,34 +2,52 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { dateLocale, t } from "@/i18n";
-import { MAX_MESSAGE, type ChatMessage, type ChatPerson } from "@/lib/chat";
-import { Icon } from "@/components/ui/icon";
+import { MAX_MESSAGE, groupReactions, mentionPattern, type ChatMessage, type ChatPerson, type ChatReaction } from "@/lib/chat";
+import { Icon, type IconName } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
+import { EmojiPicker } from "@/components/pages/emoji-picker";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
 const GROUP_MS = 5 * 60_000;
 const URL_RE = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
 
-// Plain text with links (only http and https become links).
-function MessageText({ body }: { body: string }) {
+// Mentions inside a piece of plain text, as highlighted "@Name".
+function withMentions(text: string, names: string[], key: string): ReactNode[] {
+  for (const name of names) {
+    const match = mentionPattern(name).exec(text);
+    if (match) {
+      const before = text.slice(0, match.index);
+      const after = text.slice(match.index + match[0].length);
+      return [
+        ...withMentions(before, names, `${key}a`),
+        <span key={`${key}m`} className="rounded bg-accent/15 px-0.5 font-medium text-accent">{match[0]}</span>,
+        ...withMentions(after, names, `${key}b`),
+      ];
+    }
+  }
+  return text ? [<Fragment key={key}>{text}</Fragment>] : [];
+}
+
+// Plain text with links (only http and https) and highlighted mentions.
+function MessageText({ body, names }: { body: string; names: string[] }) {
   const parts = body.split(URL_RE);
   return (
     <>
       {parts.map((part, i) =>
         i % 2 === 1 ? (
-          <a key={i} href={part} target="_blank" rel="noopener noreferrer nofollow" className="text-accent underline underline-offset-2 break-all">
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-accent underline underline-offset-2">
             {part}
           </a>
         ) : (
-          <Fragment key={i}>{part}</Fragment>
+          <Fragment key={i}>{withMentions(part, names, String(i))}</Fragment>
         ),
       )}
     </>
   );
 }
 
-function Avatar({ person, size = 32 }: { person: ChatPerson | undefined; size?: number }) {
+export function Avatar({ person, size = 32 }: { person: ChatPerson | undefined; size?: number }) {
   const name = person?.name ?? "?";
   if (person?.avatarUrl) {
     // eslint-disable-next-line @next/next/no-img-element
@@ -53,32 +71,46 @@ const dayLabel = (iso: string) => {
   return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "long", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
 };
 
-// The channel's stream: older pages on scrolling up, kept at the bottom while new
-// messages arrive (unless the person scrolled up to read).
+export type MessageActions = {
+  // Off in an archived channel or for someone only reading it.
+  canWrite: boolean;
+  canModerate: boolean;
+  onEdit: (id: string, body: string) => Promise<boolean>;
+  onDelete: (id: string) => void;
+  onReact: (id: string, emoji: string) => void;
+  onPin: (id: string, pinned: boolean) => void;
+  // Absent inside a thread (replies have no threads of their own).
+  onThread?: (id: string) => void;
+};
+
+// The channel's stream (or a thread's replies): older pages on scrolling up, kept at
+// the bottom while new messages arrive (unless the person scrolled up to read).
 export function MessageStream({
   messages,
   people,
   me,
-  canModerate,
+  reactions,
+  actions,
   hasMore,
   loading,
   pendingIds,
   onLoadOlder,
-  onEdit,
-  onDelete,
   empty,
+  header,
+  highlight,
 }: {
   messages: ChatMessage[];
   people: Map<string, ChatPerson>;
   me: string;
-  canModerate: boolean;
+  reactions: Map<string, ChatReaction[]>;
+  actions: MessageActions;
   hasMore: boolean;
   loading: boolean;
   pendingIds: Set<string>;
   onLoadOlder: () => void;
-  onEdit: (id: string, body: string) => Promise<boolean>;
-  onDelete: (id: string) => void;
   empty: ReactNode;
+  header?: ReactNode;
+  highlight?: string | null;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -86,6 +118,8 @@ export function MessageStream({
   const firstId = messages[0]?.id;
   const lastId = messages[messages.length - 1]?.id;
   const [editing, setEditing] = useState<string | null>(null);
+  const [picker, setPicker] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  const everyone = [...people.values()];
 
   // New at the bottom: follow if the person was at the bottom. Older pages added on
   // top: keep the same message in view.
@@ -102,6 +136,12 @@ export function MessageStream({
     previousHeight.current = el.scrollHeight;
   }, [firstId, lastId, messages.length]);
 
+  // A message asked for (a pin, the bell): into view.
+  useEffect(() => {
+    if (!highlight) return;
+    scroller.current?.querySelector(`[data-chat-message="${highlight}"]`)?.scrollIntoView({ block: "center" });
+  }, [highlight, messages.length]);
+
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
@@ -110,8 +150,15 @@ export function MessageStream({
     if (el.scrollTop < 120 && hasMore && !loading) onLoadOlder();
   };
 
+  const tool = (icon: IconName, label: string, onClick: (anchor: HTMLElement) => void, pressed?: boolean) => (
+    <button type="button" onClick={(e) => onClick(e.currentTarget)} aria-label={label} title={label} aria-pressed={pressed} className={iconButtonClass("ghost")}>
+      <Icon name={icon} size={15} />
+    </button>
+  );
+
   return (
     <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-2 py-3 md:px-4" data-chat-stream role="log" aria-live="polite" aria-label={c().messages}>
+      {header}
       {hasMore && (
         <div className="flex justify-center py-2">
           <button type="button" onClick={onLoadOlder} disabled={loading} className="min-h-11 rounded-md px-3 text-sm text-muted hover:text-foreground md:min-h-8">
@@ -123,10 +170,18 @@ export function MessageStream({
       {messages.map((m, i) => {
         const prev = messages[i - 1];
         const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString();
-        const grouped = !newDay && prev && prev.author_id === m.author_id && !prev.deleted_at && Date.parse(m.created_at) - Date.parse(prev.created_at) < GROUP_MS;
+        const grouped =
+          !newDay && prev && prev.author_id === m.author_id && !prev.deleted_at && !prev.reply_count && Date.parse(m.created_at) - Date.parse(prev.created_at) < GROUP_MS;
         const author = m.author_id ? people.get(m.author_id) : undefined;
         const mine = m.author_id === me;
         const pending = pendingIds.has(m.id);
+        const toMe = m.mentions.includes(me) && !m.deleted_at;
+        const names = m.mentions
+          .map((id) => people.get(id)?.name)
+          .filter((name): name is string => Boolean(name))
+          .sort((a, b) => b.length - a.length);
+        const signs = m.deleted_at ? [] : groupReactions(reactions.get(m.id) ?? []);
+        const live = !m.deleted_at && !pending && editing !== m.id;
         return (
           <Fragment key={m.id}>
             {newDay && (
@@ -137,10 +192,12 @@ export function MessageStream({
               </div>
             )}
             <article
-              className={`group relative flex gap-3 rounded-lg px-2 hover:bg-hover/60 ${grouped ? "py-0.5" : "mt-2 py-1"} ${pending ? "opacity-60" : ""}`}
+              className={`group relative flex gap-3 rounded-lg px-2 outline-none hover:bg-hover/60 focus-visible:bg-hover/60 ${grouped ? "py-0.5" : "mt-2 py-1"} ${
+                pending ? "opacity-60" : ""
+              } ${toMe ? "border-l-2 border-accent bg-accent/5" : ""} ${highlight === m.id ? "ring-2 ring-accent/50" : ""}`}
               data-chat-message={m.id}
               // A tap (no hover on a phone) shows the message's actions.
-              tabIndex={!m.deleted_at && (mine || canModerate) ? 0 : undefined}
+              tabIndex={live ? 0 : undefined}
             >
               <div className="w-8 shrink-0">{!grouped && <Avatar person={author} />}</div>
               <div className="min-w-0 flex-1">
@@ -151,111 +208,235 @@ export function MessageStream({
                     <time dateTime={m.created_at} className="text-xs text-muted">{time(m.created_at)}</time>
                   </header>
                 )}
+                {m.pinned_at && !m.deleted_at && (
+                  <p className="flex items-center gap-1 text-xs text-muted">
+                    <Icon name="pin" size={12} />
+                    {c().pinned}
+                  </p>
+                )}
                 {m.deleted_at ? (
                   <p className="text-sm italic text-muted">{c().deleted}</p>
                 ) : editing === m.id ? (
                   <EditBox
                     initial={m.body}
+                    people={everyone}
                     onCancel={() => setEditing(null)}
                     onSave={async (body) => {
-                      if (await onEdit(m.id, body)) setEditing(null);
+                      if (await actions.onEdit(m.id, body)) setEditing(null);
                     }}
                   />
                 ) : (
                   <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                    <MessageText body={m.body} />
+                    <MessageText body={m.body} names={names} />
                     {m.edited_at && <span className="ml-1 text-xs text-muted">{c().edited}</span>}
                   </p>
                 )}
                 {pending && <p className="text-xs text-muted">{c().sending}</p>}
-              </div>
-              {!m.deleted_at && !pending && editing !== m.id && (mine || canModerate) && (
-                <div className="absolute -top-3 right-2 hidden gap-0.5 rounded-lg border border-border bg-overlay p-0.5 shadow-sm group-focus-within:flex group-hover:flex">
-                  {mine && (
-                    <button type="button" onClick={() => setEditing(m.id)} aria-label={c().edit} title={c().edit} className={iconButtonClass("ghost")}>
-                      <Icon name="edit" size={15} />
-                    </button>
-                  )}
-                  <button type="button" onClick={() => onDelete(m.id)} aria-label={c().delete} title={c().delete} className={iconButtonClass("ghost")}>
-                    <Icon name="trash" size={15} />
+                {signs.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1" data-chat-reactions>
+                    {signs.map((r) => {
+                      const on = r.users.includes(me);
+                      const who = r.users.map((id) => people.get(id)?.name ?? c().formerMember).join(", ");
+                      return (
+                        <button
+                          key={r.emoji}
+                          type="button"
+                          disabled={!actions.canWrite}
+                          onClick={() => actions.onReact(m.id, r.emoji)}
+                          aria-pressed={on}
+                          aria-label={c().reactionBy(r.emoji, who)}
+                          title={who}
+                          className={`inline-flex min-h-8 items-center gap-1 rounded-full border px-2 text-sm md:min-h-6 ${on ? "border-accent/60 bg-accent/10" : "border-border hover:border-border-strong"}`}
+                        >
+                          <span>{r.emoji}</span>
+                          <span className="text-xs text-muted">{r.users.length}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {m.reply_count > 0 && actions.onThread && !m.thread_root_id && (
+                  <button
+                    type="button"
+                    onClick={() => actions.onThread?.(m.id)}
+                    className="mt-1 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-accent hover:underline md:min-h-6"
+                    data-chat-replies
+                  >
+                    <Icon name="comment" size={13} />
+                    {c().replies(m.reply_count)}
                   </button>
+                )}
+              </div>
+              {live && (actions.canWrite || mine || actions.canModerate) && (
+                <div className="absolute -top-3 right-2 hidden gap-0.5 rounded-lg border border-border bg-overlay p-0.5 shadow-sm group-focus-within:flex group-hover:flex" data-chat-tools>
+                  {actions.canWrite && tool("smile", c().react, (anchor) => setPicker({ id: m.id, anchor }))}
+                  {actions.canWrite && actions.onThread && !m.thread_root_id && tool("comment", c().replyInThread, () => actions.onThread?.(m.id))}
+                  {actions.canWrite && tool("pin", m.pinned_at ? c().unpin : c().pin, () => actions.onPin(m.id, !m.pinned_at), Boolean(m.pinned_at))}
+                  {mine && actions.canWrite && tool("edit", c().edit, () => setEditing(m.id))}
+                  {(mine || actions.canModerate) && tool("trash", c().delete, () => actions.onDelete(m.id))}
                 </div>
               )}
             </article>
           </Fragment>
         );
       })}
+      {picker && (
+        <EmojiPicker
+          anchor={picker.anchor}
+          current={null}
+          title={c().react}
+          onPick={(emoji) => {
+            if (emoji) actions.onReact(picker.id, emoji);
+          }}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </div>
   );
 }
 
-function EditBox({ initial, onSave, onCancel }: { initial: string; onSave: (body: string) => void; onCancel: () => void }) {
+function EditBox({ initial, people, onSave, onCancel }: { initial: string; people: ChatPerson[]; onSave: (body: string) => void; onCancel: () => void }) {
   const [value, setValue] = useState(initial);
   return (
     <div className="mt-1">
-      <AutoTextarea
-        value={value}
-        onChange={setValue}
-        label={c().edit}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onCancel();
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            if (value.trim()) onSave(value);
-          }
-        }}
-        autoFocus
-      />
+      <MentionTextarea value={value} onChange={setValue} people={people} label={c().edit} onSubmit={() => value.trim() && onSave(value)} onEscape={onCancel} autoFocus />
       <p className="mt-1 text-xs text-muted">{c().editHint}</p>
     </div>
   );
 }
 
-function AutoTextarea({
+// A growing text field with "@" suggestions of people: Enter sends (or picks the
+// highlighted person), Shift+Enter starts a new line, Esc closes the list or cancels.
+function MentionTextarea({
   value,
   onChange,
-  onKeyDown,
+  people,
   label,
   placeholder,
   disabled,
   autoFocus,
+  onSubmit,
+  onEscape,
 }: {
   value: string;
   onChange: (value: string) => void;
-  onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
+  people: ChatPerson[];
   label: string;
   placeholder?: string;
   disabled?: boolean;
   autoFocus?: boolean;
+  onSubmit: () => void;
+  onEscape?: () => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [query, setQuery] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
   }, [value]);
+
+  const suggestions = query === null ? [] : people.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
+  const readQuery = (text: string, caret: number) => {
+    const match = /(^|\s)@([^\s@]{0,30})$/u.exec(text.slice(0, caret));
+    setQuery(match ? match[2] : null);
+    setIndex(0);
+  };
+  const pick = (person: ChatPerson) => {
+    const el = ref.current;
+    const caret = el?.selectionStart ?? value.length;
+    const before = value.slice(0, caret).replace(/@([^\s@]{0,30})$/u, `@${person.name} `);
+    onChange(before + value.slice(caret));
+    setQuery(null);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(before.length, before.length);
+    });
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (suggestions.length) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setIndex((i) => (i + (e.key === "ArrowDown" ? 1 : suggestions.length - 1)) % suggestions.length);
+        return;
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey) {
+        e.preventDefault();
+        pick(suggestions[index] ?? suggestions[0]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setQuery(null);
+        return;
+      }
+    }
+    if (e.key === "Escape") onEscape?.();
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+
   return (
-    <textarea
-      ref={ref}
-      rows={1}
-      value={value}
-      maxLength={MAX_MESSAGE}
-      onChange={(e) => onChange(e.target.value)}
-      onKeyDown={onKeyDown}
-      aria-label={label}
-      placeholder={placeholder}
-      disabled={disabled}
-      autoFocus={autoFocus}
-      className="block max-h-60 min-h-11 w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-base outline-none focus:border-border-strong md:text-sm"
-    />
+    <div className="relative">
+      {suggestions.length > 0 && (
+        <ul role="listbox" aria-label={c().mentionList} className="absolute bottom-full left-0 z-20 mb-1 w-64 max-w-full rounded-lg border border-border bg-overlay p-1 shadow-lg" data-chat-mention-list>
+          {suggestions.map((p, i) => (
+            <li key={p.id} role="option" aria-selected={i === index}>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  pick(p);
+                }}
+                className={`flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm md:min-h-8 ${i === index ? "bg-hover" : "hover:bg-hover"}`}
+              >
+                <Avatar person={p} size={20} />
+                <span className="flex-1 truncate">{p.name}</span>
+                {p.guest && <span className="text-[10px] uppercase text-muted">{c().guest}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <textarea
+        ref={ref}
+        rows={1}
+        value={value}
+        maxLength={MAX_MESSAGE}
+        onChange={(e) => {
+          onChange(e.target.value);
+          readQuery(e.target.value, e.target.selectionStart ?? e.target.value.length);
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => setQuery(null)}
+        aria-label={label}
+        placeholder={placeholder}
+        disabled={disabled}
+        autoFocus={autoFocus}
+        className="block max-h-60 min-h-11 w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-base outline-none focus:border-border-strong md:text-sm"
+      />
+    </div>
   );
 }
 
-// The field at the bottom: Enter sends, Shift+Enter starts a new line. A draft per
-// channel survives switching channels (in this tab).
-export function Composer({ channelName, disabled, note, onSend, draft, onDraft }: {
-  channelName: string;
+// The field at the bottom: Enter sends, Shift+Enter starts a new line, "@" mentions
+// someone. A draft per channel survives switching channels (in this tab).
+export function Composer({
+  placeholder,
+  people,
+  disabled,
+  note,
+  onSend,
+  draft,
+  onDraft,
+}: {
+  placeholder: string;
+  people: ChatPerson[];
   disabled: boolean;
   note: ReactNode;
   onSend: (body: string) => void;
@@ -275,26 +456,25 @@ export function Composer({ channelName, disabled, note, onSend, draft, onDraft }
       ) : (
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
-            <AutoTextarea
-              value={draft}
-              onChange={onDraft}
-              label={c().composer(channelName)}
-              placeholder={c().composer(channelName)}
-              disabled={disabled}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-            />
+            <MentionTextarea value={draft} onChange={onDraft} people={people} label={placeholder} placeholder={placeholder} disabled={disabled} onSubmit={send} />
           </div>
-          <button type="button" onClick={send} disabled={disabled || !draft.trim()} aria-label={c().send} title={c().send} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-white disabled:opacity-50">
+          <button
+            type="button"
+            onClick={send}
+            disabled={disabled || !draft.trim()}
+            aria-label={c().send}
+            title={c().send}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-white disabled:opacity-50"
+          >
             <Icon name="send" size={18} />
           </button>
         </div>
       )}
-      {draft.length > MAX_MESSAGE - 200 && <p className="mt-1 text-right text-xs text-muted">{draft.length} / {MAX_MESSAGE}</p>}
+      {draft.length > MAX_MESSAGE - 200 && (
+        <p className="mt-1 text-right text-xs text-muted">
+          {draft.length} / {MAX_MESSAGE}
+        </p>
+      )}
     </div>
   );
 }

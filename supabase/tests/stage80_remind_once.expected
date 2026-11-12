@@ -1,0 +1,9 @@
+the lock is taken first: true
+first call adds: 1
+the second: 0
+in the bell: 1
+alice mutes event reminders: true
+with event reminders muted, the birthday still comes: 1
+in the bell: 1
+muting birthdays too: true
+with both muted: 0

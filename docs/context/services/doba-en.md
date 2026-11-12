@@ -31,7 +31,7 @@ The team's shared calendar and time-off management in one place: events and meet
 - Changing or cancelling asks **what**: "only this event" (that day gets its own time and texts), "this and the following" (the old series ends the day before, a new one with the same people and answers starts there; "N times" passes on what is left), "all" (a new time or rule resets the days changed one by one).
 - An answer ("going / not going") is for the whole series.
 - **Free/busy** and the calendar read days through one function: a cancelled day is nowhere and frees the time, a moved day is busy where it went.
-- **Reminder** per event (set by the organizer): 10 minutes, an hour or a day before. It reaches the bell while the site is open — there is no scheduler; a due reminder is made when the bell asks for news, once per event and start. Anyone can mute the kind.
+- **Reminder** per event (set by the organizer): 10 minutes, an hour or a day before. It reaches the bell while the site is open — there is no scheduler; a due reminder is made when the bell asks for news, once per event and start (calls for one person run one after another — a lock in `calendar_remind_me`, 2026-11-12). Anyone can mute the kind; birthdays stay on.
 
 ### Links with the rest of the platform (phase 2b)
 - **Rukh due dates:** a switch "no tasks / my tasks / all I can see" (default mine; kept on the device). Open tasks and those done within 14 days, on the due day only; read-only here, a click opens the task. At most three cards a day, then a "+N" counter that opens them all; the month shows one "tasks: N" row.
