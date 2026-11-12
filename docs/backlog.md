@@ -190,6 +190,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
 
 ## Known gaps / follow-ups
+- Doba: `calendar_remind_me` inserts reminders/birthdays with check-then-insert; two calls at once (bell poll + another) can add a duplicate (seen as a flaky e2e check, PR #171). Fix: per-person advisory lock or unique index (DB change → owner approval).
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.
 - Open registration is a switch in the platform panel (turns on "own database first").
