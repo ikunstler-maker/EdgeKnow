@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import {
   MESSAGE_PAGE,
+  mentionsIn,
   mergeMessages,
   type ChatCategory,
   type ChatChannel,
   type ChatLive,
   type ChatMessage,
   type ChatPerson,
+  type ChatReaction,
 } from "@/lib/chat";
 import {
   deleteMessage,
@@ -18,14 +20,20 @@ import {
   loadChat,
   loadMessages,
   loadMessagesById,
+  loadPinned,
+  loadReactions,
+  loadThread,
   markRead,
+  pinMessage,
   postMessage,
+  toggleReaction,
 } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
 import { ChannelList } from "./channel-list";
-import { Composer, MessageStream } from "./message-stream";
+import { Composer, MessageStream, type MessageActions } from "./message-stream";
 import { MembersPanel } from "./members-panel";
+import { PinsPanel, ThreadPanel } from "./side-panels";
 import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog } from "./chat-dialogs";
 import { useChatLive, type ChatSignal } from "./use-chat-live";
 
@@ -48,15 +56,22 @@ export type ChatScreenProps = {
   initialChannels: ChatChannel[];
   initialCategories: ChatCategory[];
   initialChannel: string | null;
+  // From the bell: a thread to open, a message to show.
+  initialThread: string | null;
+  initialMessage: string | null;
   failed: boolean;
 };
 
 type Dialog = "create" | "settings" | "browse" | "categories" | null;
+type Panel = { kind: "members" } | { kind: "pins" } | { kind: "thread"; id: string } | null;
+type Stream = { messages: ChatMessage[]; hasMore: boolean; loaded: boolean };
 
 const errorText = (code: string) => (c().errors as Record<string, string>)[code] ?? c().errors.unknown;
+const temporary = (): string => `pending-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
-// Toker: channels on the left, the chosen channel's stream in the middle, its people
-// on the right. The database decides everything; this keeps the screen in step.
+// Toker: channels on the left, the chosen channel's stream in the middle, a thread,
+// the pins or the people on the right. The database decides everything; this keeps
+// the screen in step.
 export function ChatScreen(props: ChatScreenProps) {
   const { shortId, workspaceId, me, admin, live } = props;
   const [channels, setChannels] = useState(props.initialChannels);
@@ -67,20 +82,57 @@ export function ChatScreen(props: ChatScreenProps) {
   );
   // On a phone: the list or the stream (the stream once a channel is picked).
   const [showList, setShowList] = useState(!props.initialChannel);
-  const [streams, setStreams] = useState<Record<string, { messages: ChatMessage[]; hasMore: boolean; loaded: boolean }>>({});
+  const [streams, setStreams] = useState<Record<string, Stream>>({});
+  const [threads, setThreads] = useState<Record<string, ChatMessage[] | null>>({});
+  const [reactionRows, setReactionRows] = useState<Record<string, ChatReaction[]>>({});
+  const [pins, setPins] = useState<ChatMessage[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [showMembers, setShowMembers] = useState(false);
+  const [panel, setPanel] = useState<Panel>(props.initialThread ? { kind: "thread", id: props.initialThread } : null);
+  const [highlight, setHighlight] = useState<string | null>(props.initialMessage);
   const [error, setError] = useState<string | null>(props.failed ? c().errors.load : null);
 
   const people = useMemo(() => new Map(props.people.map((p) => [p.id, p])), [props.people]);
+  const reactions = useMemo(() => new Map(Object.entries(reactionRows)), [reactionRows]);
   const active = channels.find((ch) => ch.id === activeId) ?? null;
   const stream = activeId ? streams[activeId] : undefined;
   const canManage = Boolean(active && (admin || active.role === "owner"));
+  const canWrite = Boolean(active && !active.archived_at);
+  const threadId = panel?.kind === "thread" ? panel.id : null;
 
   // ---------------------------------------------------------------- reading
+
+  const fetchReactions = useCallback(
+    async (ids: string[]) => {
+      const wanted = ids.filter((id) => !id.startsWith("pending-"));
+      if (!wanted.length) return;
+      const rows = await loadReactions(shortId, wanted);
+      setReactionRows((all) => {
+        const next = { ...all };
+        for (const id of wanted) next[id] = rows.filter((r) => r.message_id === id);
+        return next;
+      });
+    },
+    [shortId],
+  );
+
+  const putMessages = useCallback((channelId: string, rows: ChatMessage[]) => {
+    const top = rows.filter((m) => !m.thread_root_id);
+    const replies = rows.filter((m) => m.thread_root_id);
+    if (top.length)
+      setStreams((all) => {
+        const current = all[channelId];
+        return current ? { ...all, [channelId]: { ...current, messages: mergeMessages(current.messages, top) } } : all;
+      });
+    if (replies.length)
+      setThreads((all) => {
+        const next = { ...all };
+        for (const r of replies) if (next[r.thread_root_id!]) next[r.thread_root_id!] = mergeMessages(next[r.thread_root_id!] ?? [], [r]);
+        return next;
+      });
+  }, []);
 
   const refreshList = useCallback(async () => {
     const fresh = await loadChat(shortId, workspaceId);
@@ -104,8 +156,9 @@ export function ChatScreen(props: ChatScreenProps) {
           },
         };
       });
+      void fetchReactions(page.map((m) => m.id));
     },
-    [shortId],
+    [shortId, fetchReactions],
   );
 
   const loadOlder = useCallback(async () => {
@@ -120,7 +173,22 @@ export function ChatScreen(props: ChatScreenProps) {
       ...all,
       [activeId]: { messages: mergeMessages(all[activeId]?.messages ?? [], page), hasMore: page.length === MESSAGE_PAGE, loaded: true },
     }));
-  }, [activeId, loading, streams, shortId]);
+    void fetchReactions(page.map((m) => m.id));
+  }, [activeId, loading, streams, shortId, fetchReactions]);
+
+  const reloadThread = useCallback(
+    async (rootId: string) => {
+      const replies = await loadThread(shortId, rootId);
+      setThreads((all) => ({ ...all, [rootId]: replies ?? [] }));
+      if (replies) void fetchReactions(replies.map((m) => m.id));
+    },
+    [shortId, fetchReactions],
+  );
+
+  const reloadPins = useCallback(async () => {
+    if (!activeId) return;
+    setPins(await loadPinned(shortId, activeId));
+  }, [shortId, activeId]);
 
   // The chosen channel: its messages, and the address shows it (no page reload).
   useEffect(() => {
@@ -131,13 +199,34 @@ export function ChatScreen(props: ChatScreenProps) {
     try {
       const url = new URL(window.location.href);
       url.searchParams.set("c", activeId);
+      url.searchParams.delete("m");
+      if (threadId) url.searchParams.set("t", threadId);
+      else url.searchParams.delete("t");
       window.history.replaceState(window.history.state, "", url);
     } catch {
       // The address just doesn't follow.
     }
-    // Loading once per channel switch is intended.
+    // Loading once per channel (or thread) switch is intended.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [activeId, threadId]);
+
+  // The open thread: its replies (and its top message, which may be older than the page).
+  useEffect(() => {
+    if (!threadId || !activeId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void reloadThread(threadId);
+    if (!streams[activeId]?.messages.some((m) => m.id === threadId))
+      void loadMessagesById(shortId, [threadId]).then((rows) => {
+        const root = rows.find((m) => m.channel_id === activeId);
+        if (root) setStreams((all) => ({ ...all, [activeId]: { ...(all[activeId] ?? { hasMore: true, loaded: false }), messages: mergeMessages(all[activeId]?.messages ?? [], [root]) } }));
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, activeId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (panel?.kind === "pins") void reloadPins();
+  }, [panel?.kind, reloadPins]);
 
   // Read: whatever the person has open in a visible tab.
   const lastMarked = useRef<string | null>(null);
@@ -165,35 +254,25 @@ export function ChatScreen(props: ChatScreenProps) {
   const onSignal = useCallback(
     (signal: ChatSignal) => {
       if (signal.kind === "message") {
-        // Replies live in threads (next step); the stream shows top messages only.
-        if (signal.channelId === activeId && !signal.threadRootId) {
-          void loadMessagesById(shortId, [signal.id]).then((rows) =>
-            setStreams((all) => {
-              const current = all[signal.channelId];
-              if (!current) return all;
-              return { ...all, [signal.channelId]: { ...current, messages: mergeMessages(current.messages, rows) } };
-            }),
-          );
-        }
-        if (signal.channelId !== activeId) refreshListSoon();
-        else if (signal.threadRootId) void loadMessagesById(shortId, [signal.threadRootId]).then((rows) =>
-          setStreams((all) => {
-            const current = all[signal.channelId];
-            return current ? { ...all, [signal.channelId]: { ...current, messages: mergeMessages(current.messages, rows) } } : all;
-          }),
-        );
+        if (signal.channelId !== activeId) return refreshListSoon();
+        const wanted = signal.threadRootId ? [signal.id, signal.threadRootId] : [signal.id];
+        void loadMessagesById(shortId, wanted).then((rows) => putMessages(signal.channelId, rows));
+        if (signal.threadRootId && signal.threadRootId === threadId) void reloadThread(threadId);
+        if (panel?.kind === "pins") void reloadPins();
+      } else if (signal.kind === "reaction") {
+        if (signal.channelId === activeId) void fetchReactions([signal.messageId]);
       } else {
         refreshListSoon();
       }
     },
-    [activeId, shortId, refreshListSoon],
+    [activeId, threadId, panel?.kind, shortId, putMessages, reloadThread, reloadPins, fetchReactions, refreshListSoon],
   );
 
   const joinedIds = useMemo(() => channels.filter((ch) => ch.joined && !ch.archived_at).map((ch) => ch.id), [channels]);
   const listened = useMemo(() => (activeId && !joinedIds.includes(activeId) ? [...joinedIds, activeId] : joinedIds), [joinedIds, activeId]);
   const { connected } = useChatLive(live, me, listened, onSignal);
 
-  // Polling: always for the list now and then; for the open channel while no live signals.
+  // Polling: always for the list now and then; for the open channel (and thread) while no live signals.
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refreshList();
@@ -203,32 +282,35 @@ export function ChatScreen(props: ChatScreenProps) {
   useEffect(() => {
     if (connected || !activeId) return;
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void loadLatest(activeId);
+      if (document.visibilityState !== "visible") return;
+      void loadLatest(activeId);
+      if (threadId) void reloadThread(threadId);
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [connected, activeId, loadLatest]);
+  }, [connected, activeId, threadId, loadLatest, reloadThread]);
   // Back to the tab: catch up at once.
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       void refreshList();
       if (activeId) void loadLatest(activeId);
+      if (threadId) void reloadThread(threadId);
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [activeId, refreshList, loadLatest]);
+  }, [activeId, threadId, refreshList, loadLatest, reloadThread]);
 
   // ---------------------------------------------------------------- writing
 
-  const send = async (body: string) => {
+  const send = async (body: string, rootId: string | null = null) => {
     if (!active) return;
     const channelId = active.id;
-    const temp = `pending-${Date.now()}`;
+    const temp = temporary();
     const optimistic: ChatMessage = {
       id: temp,
       channel_id: channelId,
       author_id: me,
-      thread_root_id: null,
+      thread_root_id: rootId,
       body,
       mentions: [],
       created_at: new Date().toISOString(),
@@ -239,42 +321,65 @@ export function ChatScreen(props: ChatScreenProps) {
       last_reply_at: null,
     };
     setPending((set) => new Set(set).add(temp));
-    setStreams((all) => ({ ...all, [channelId]: { ...(all[channelId] ?? { hasMore: false, loaded: true }), messages: [...(all[channelId]?.messages ?? []), optimistic] } }));
-    const result = await postMessage(shortId, channelId, body);
-    const rows = result.ok ? await loadMessagesById(shortId, [result.id]) : [];
+    if (rootId) setThreads((all) => ({ ...all, [rootId]: [...(all[rootId] ?? []), optimistic] }));
+    else setStreams((all) => ({ ...all, [channelId]: { ...(all[channelId] ?? { hasMore: false, loaded: true }), messages: [...(all[channelId]?.messages ?? []), optimistic] } }));
+    const result = await postMessage(shortId, channelId, body, rootId, mentionsIn(body, props.people));
+    const rows = result.ok ? await loadMessagesById(shortId, rootId ? [result.id, rootId] : [result.id]) : [];
     setPending((set) => {
       const next = new Set(set);
       next.delete(temp);
       return next;
     });
-    setStreams((all) => {
-      const current = all[channelId];
-      if (!current) return all;
-      return { ...all, [channelId]: { ...current, messages: mergeMessages(current.messages.filter((m) => m.id !== temp), rows) } };
-    });
+    if (rootId) setThreads((all) => ({ ...all, [rootId]: (all[rootId] ?? []).filter((m) => m.id !== temp) }));
+    else
+      setStreams((all) => {
+        const current = all[channelId];
+        return current ? { ...all, [channelId]: { ...current, messages: current.messages.filter((m) => m.id !== temp) } } : all;
+      });
+    putMessages(channelId, rows);
     if (!result.ok) {
       setError(errorText(result.error));
-      setDrafts((d) => ({ ...d, [channelId]: d[channelId] || body }));
+      if (!rootId) setDrafts((d) => ({ ...d, [channelId]: d[channelId] || body }));
     }
   };
 
-  const edit = async (id: string, body: string) => {
-    const result = await editMessage(shortId, id, body);
-    if (!result.ok) {
-      setError(errorText(result.error));
-      return false;
-    }
-    const rows = await loadMessagesById(shortId, [id]);
-    if (activeId) setStreams((all) => ({ ...all, [activeId]: { ...all[activeId], messages: mergeMessages(all[activeId]?.messages ?? [], rows) } }));
-    return true;
+  const reloadOne = async (id: string) => {
+    if (!activeId) return;
+    putMessages(activeId, await loadMessagesById(shortId, [id]));
   };
 
-  const remove = async (id: string) => {
-    if (!window.confirm(c().deleteConfirm)) return;
-    const result = await deleteMessage(shortId, id);
-    if (!result.ok) return setError(errorText(result.error));
-    const rows = await loadMessagesById(shortId, [id]);
-    if (activeId) setStreams((all) => ({ ...all, [activeId]: { ...all[activeId], messages: mergeMessages(all[activeId]?.messages ?? [], rows) } }));
+  const actions: MessageActions = {
+    canWrite,
+    canModerate: canManage,
+    onEdit: async (id, body) => {
+      const result = await editMessage(shortId, id, body, mentionsIn(body, props.people));
+      if (!result.ok) {
+        setError(errorText(result.error));
+        return false;
+      }
+      await reloadOne(id);
+      return true;
+    },
+    onDelete: async (id) => {
+      if (!window.confirm(c().deleteConfirm)) return;
+      const result = await deleteMessage(shortId, id);
+      if (!result.ok) return setError(errorText(result.error));
+      const root = [...Object.values(threads)].flat().find((m) => m?.id === id)?.thread_root_id;
+      if (activeId) putMessages(activeId, await loadMessagesById(shortId, root ? [id, root] : [id]));
+      void fetchReactions([id]);
+    },
+    onReact: async (id, emoji) => {
+      const result = await toggleReaction(shortId, id, emoji);
+      if (!result.ok) return setError(errorText(result.error));
+      void fetchReactions([id]);
+    },
+    onPin: async (id, pinned) => {
+      const result = await pinMessage(shortId, id, pinned);
+      if (!result.ok) return setError(errorText(result.error));
+      await reloadOne(id);
+      if (panel?.kind === "pins") void reloadPins();
+    },
+    onThread: (id) => setPanel({ kind: "thread", id }),
   };
 
   const join = async () => {
@@ -287,7 +392,9 @@ export function ChatScreen(props: ChatScreenProps) {
   const select = (id: string) => {
     setActiveId(id);
     setShowList(false);
-    setShowMembers(false);
+    setPanel(null);
+    setPins(null);
+    setHighlight(null);
   };
 
   // ---------------------------------------------------------------- layout
@@ -307,6 +414,20 @@ export function ChatScreen(props: ChatScreenProps) {
           )
         : null;
   const unit = active?.unit_id ? props.units.find((u) => u.id === active.unit_id) : undefined;
+  const threadRoot = threadId ? (stream?.messages.find((m) => m.id === threadId) ?? null) : null;
+  const panelButton = (kind: "members" | "pins", icon: "users" | "pin", label: string) => (
+    <button
+      type="button"
+      onClick={() => setPanel((p) => (p?.kind === kind ? null : { kind }))}
+      aria-pressed={panel?.kind === kind}
+      aria-label={label}
+      title={label}
+      className={iconButtonClass(panel?.kind === kind ? "subtle" : "ghost")}
+      data-chat-panel={kind}
+    >
+      <Icon name={icon} size={18} />
+    </button>
+  );
 
   return (
     <div className="flex h-[calc(100dvh-3.25rem)] w-full min-w-0 overflow-hidden md:h-dvh" data-chat>
@@ -341,17 +462,8 @@ export function ChatScreen(props: ChatScreenProps) {
                   </p>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setShowMembers((v) => !v)}
-                aria-pressed={showMembers}
-                aria-label={c().members.title}
-                title={c().members.title}
-                className={iconButtonClass(showMembers ? "subtle" : "ghost")}
-                data-chat-members-toggle
-              >
-                <Icon name="users" size={18} />
-              </button>
+              {panelButton("pins", "pin", c().pins)}
+              {panelButton("members", "users", c().members.title)}
               <button type="button" onClick={() => setDialog("settings")} aria-label={c().settings.title} title={c().settings.title} className={iconButtonClass("ghost")} data-chat-settings>
                 <Icon name="settings" size={18} />
               </button>
@@ -368,20 +480,21 @@ export function ChatScreen(props: ChatScreenProps) {
               messages={stream?.messages ?? []}
               people={people}
               me={me}
-              canModerate={canManage}
+              reactions={reactions}
+              actions={actions}
               hasMore={stream?.hasMore ?? false}
               loading={loading || !stream?.loaded}
               pendingIds={pending}
               onLoadOlder={loadOlder}
-              onEdit={edit}
-              onDelete={remove}
+              highlight={highlight}
               empty={<p className="py-10 text-center text-sm text-muted">{c().emptyChannel(active.name)}</p>}
             />
             <Composer
-              channelName={active.name}
+              placeholder={c().composer(active.name)}
+              people={props.people}
               disabled={false}
               note={composerNote}
-              onSend={send}
+              onSend={(body) => void send(body)}
               draft={drafts[active.id] ?? ""}
               onDraft={(value) => setDrafts((d) => ({ ...d, [active.id]: value }))}
             />
@@ -395,19 +508,50 @@ export function ChatScreen(props: ChatScreenProps) {
         )}
       </main>
 
-      {active && showMembers && (
-        <aside className="fixed inset-0 z-40 flex flex-col bg-background md:static md:z-auto md:w-72 md:shrink-0 md:border-l md:border-border" data-chat-members>
-          <MembersPanel
-            shortId={shortId}
-            channel={active}
-            people={props.people}
-            units={props.units}
-            canManage={canManage}
-            guest={props.guest}
-            onClose={() => setShowMembers(false)}
-            onChanged={refreshList}
-            onError={(code) => setError(errorText(code))}
-          />
+      {active && panel && (
+        <aside className="fixed inset-0 z-40 flex flex-col bg-background md:static md:z-auto md:w-80 md:shrink-0 md:border-l md:border-border" data-chat-side>
+          {panel.kind === "members" && (
+            <MembersPanel
+              shortId={shortId}
+              channel={active}
+              people={props.people}
+              units={props.units}
+              canManage={canManage}
+              guest={props.guest}
+              onClose={() => setPanel(null)}
+              onChanged={refreshList}
+              onError={(code) => setError(errorText(code))}
+            />
+          )}
+          {panel.kind === "pins" && (
+            <PinsPanel
+              pins={pins}
+              people={people}
+              canUnpin={canWrite}
+              onOpen={(m) => {
+                setHighlight(m.id);
+                if (!stream?.messages.some((x) => x.id === m.id)) putMessages(active.id, [m]);
+              }}
+              onUnpin={(id) => void actions.onPin(id, false)}
+              onClose={() => setPanel(null)}
+            />
+          )}
+          {panel.kind === "thread" && (
+            <ThreadPanel
+              key={panel.id}
+              channelName={active.name}
+              root={threadRoot}
+              replies={threads[panel.id] ?? null}
+              people={people}
+              me={me}
+              reactions={reactions}
+              actions={actions}
+              pendingIds={pending}
+              note={composerNote}
+              onSend={(body) => void send(body, panel.id)}
+              onClose={() => setPanel(null)}
+            />
+          )}
         </aside>
       )}
 

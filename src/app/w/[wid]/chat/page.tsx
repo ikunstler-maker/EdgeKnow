@@ -38,7 +38,8 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/w/[
   const people: ChatPerson[] = (members ?? [])
     .map((m) => ({ id: m.user_id, name: m.profile?.name || m.profile?.email || "—", avatarUrl: m.profile?.avatar_url ?? null, guest: m.role === "guest" }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  const channel = typeof query.c === "string" && /^[0-9a-f-]{36}$/.test(query.c) ? query.c : null;
+  const id = (value: string | string[] | undefined) => (typeof value === "string" && /^[0-9a-f-]{36}$/.test(value) ? value : null);
+  const channel = id(query.c);
 
   return (
     <ChatScreen
@@ -55,6 +56,8 @@ export default async function ChatPage({ params, searchParams }: PageProps<"/w/[
       initialChannels={chat?.channels ?? []}
       initialCategories={chat?.categories ?? []}
       initialChannel={channel}
+      initialThread={channel ? id(query.t) : null}
+      initialMessage={channel ? id(query.m) : null}
       failed={!chat}
     />
   );

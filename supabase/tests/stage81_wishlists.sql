@@ -6,16 +6,16 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000079a1', 'alice@wish.test', now()),
- ('00000000-0000-0000-0000-0000000079b1', 'bob@wish.test', now()),
- ('00000000-0000-0000-0000-0000000079c1', 'carol@wish.test', now()),
- ('00000000-0000-0000-0000-0000000079e1', 'gwen@client-wish.test', now()),
- ('00000000-0000-0000-0000-0000000079f1', 'eve@other-wish.test', now());
-\set alice '00000000-0000-0000-0000-0000000079a1'
-\set bob '00000000-0000-0000-0000-0000000079b1'
-\set carol '00000000-0000-0000-0000-0000000079c1'
-\set gwen '00000000-0000-0000-0000-0000000079e1'
-\set eve '00000000-0000-0000-0000-0000000079f1'
+ ('00000000-0000-0000-0000-0000000081a1', 'alice@wish.test', now()),
+ ('00000000-0000-0000-0000-0000000081b1', 'bob@wish.test', now()),
+ ('00000000-0000-0000-0000-0000000081c1', 'carol@wish.test', now()),
+ ('00000000-0000-0000-0000-0000000081e1', 'gwen@client-wish.test', now()),
+ ('00000000-0000-0000-0000-0000000081f1', 'eve@other-wish.test', now());
+\set alice '00000000-0000-0000-0000-0000000081a1'
+\set bob '00000000-0000-0000-0000-0000000081b1'
+\set carol '00000000-0000-0000-0000-0000000081c1'
+\set gwen '00000000-0000-0000-0000-0000000081e1'
+\set eve '00000000-0000-0000-0000-0000000081f1'
 \set seen '(select count(*) from public.service_objects where id = :''wl'')'
 update public.platform_settings set open_registration = true;
 set role authenticated;

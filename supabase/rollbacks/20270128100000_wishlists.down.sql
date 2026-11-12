@@ -1,4 +1,4 @@
--- Undo 0071_wishlists. Wishlists themselves are deleted (their pictures go with the daily cleanup).
+-- Undo 20270128100000_wishlists. Wishlists themselves are deleted (their pictures go with the daily cleanup).
 drop index public.service_objects_wishlist_once;
 delete from public.service_objects where service = 'wishlists';
 create or replace function public.save_service_object(target_object uuid, new_title text, new_data jsonb, base_version integer)
@@ -65,7 +65,14 @@ begin
   if (select count(*) from public.object_files f where f.object_id = target_object) >= 500 then
     return public.page_error('too_many_files');
   end if;
-  -- A team's own storage: its project's plan sets the limit.
+  -- EdgeKnow's storage has the workspace's limit (wiki images and task files count too).
+  if not exists (select 1 from public.drive_connections c where c.workspace_id = object.workspace_id and c.active and c.status = 'ok') and
+     (select coalesce(sum(a.bytes), 0) from public.attachments a where a.workspace_id = object.workspace_id and a.storage_backend = 'supabase')
+     + (select coalesce(sum(f.bytes), 0) from public.task_files f where f.workspace_id = object.workspace_id and f.storage_backend in ('pending', 'supabase'))
+     + (select coalesce(sum(f.bytes), 0) from public.object_files f where f.workspace_id = object.workspace_id and f.storage_backend in ('pending', 'supabase'))
+     + file_bytes > (select w.storage_limit_mb::bigint * 1048576 from public.workspaces w where w.id = object.workspace_id) then
+    return public.page_error('quota_exceeded');
+  end if;
   path := object.workspace_id || '/objects/' || target_object || '/' || new_id;
   insert into public.object_files (id, workspace_id, object_id, name, mime_type, bytes, storage_path, uploaded_by)
   values (new_id, object.workspace_id, target_object, btrim(file_name), file_type, file_bytes, path, auth.uid());
@@ -90,7 +97,10 @@ begin
   if not guest and not public.role_allows(ws, 'create_objects') then
     return public.page_error('forbidden');
   end if;
-
+  -- "Own database first": as for pages.
+  if not public.central_pages_allowed(ws) then
+    return public.page_error('team_database_required');
+  end if;
   -- Company apps (Obriy): only the workspace's owner and admins add them.
   if target_service = 'apps' and not public.is_workspace_admin(ws) then
     return public.page_error('forbidden');

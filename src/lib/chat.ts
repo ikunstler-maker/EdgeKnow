@@ -42,6 +42,8 @@ export type ChatMessage = {
   last_reply_at: string | null;
 };
 
+export type ChatReaction = { message_id: string; user_id: string; emoji: string; created_at: string };
+
 export type ChatMember = { user_id: string; role: "owner" | "member"; invited: boolean };
 
 export type ChatCategoryAccess = { group_id: string | null; user_id: string | null };
@@ -71,4 +73,21 @@ export function groupChannels(channels: ChatChannel[], categories: ChatCategory[
     .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name))
     .map((category) => ({ category, channels: channels.filter((c) => c.category_id === category.id).sort(order) }));
   return { loose, groups };
+}
+
+// Reactions of one message, grouped by sign, in the order they first appeared.
+export function groupReactions(rows: ChatReaction[]) {
+  const groups = new Map<string, string[]>();
+  for (const r of rows) groups.set(r.emoji, [...(groups.get(r.emoji) ?? []), r.user_id]);
+  return [...groups.entries()].map(([emoji, users]) => ({ emoji, users }));
+}
+
+const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// "@Name" followed by the end, a space or punctuation (so "@Ann" is not inside "@Anna").
+export const mentionPattern = (name: string) => new RegExp(`@${escapeRe(name)}(?=$|[\\s.,!?:;)\\]])`, "u");
+
+// Mentions written as "@Name": the people whose name is in the text (at most 50).
+export function mentionsIn(body: string, people: { id: string; name: string }[]) {
+  if (!body.includes("@")) return [];
+  return [...new Set(people.filter((p) => p.name && mentionPattern(p.name).test(body)).map((p) => p.id))].slice(0, 50);
 }
