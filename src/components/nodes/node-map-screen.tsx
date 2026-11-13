@@ -10,6 +10,9 @@ import { saveNodeMap, setNodeMapGroupRole, setNodeMapMemberRole, setNodeMapWorks
 import { useRouter } from "next/navigation";
 import { workspacePath } from "@/lib/paths";
 import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
+import { LivePresence, liveMenu } from "@/components/live/live-presence";
+import { useLiveDoc, type LiveDoc } from "@/lib/live/use-live-doc";
+import { MAP_SPEC } from "@/lib/live/doc-sync";
 
 const MindMapCanvas = dynamic(() => import("./mind-map-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
 const DiagramCanvas = dynamic(() => import("@/components/editor/diagram-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">…</p> });
@@ -49,6 +52,7 @@ export function NodeMapScreen({
   const pending = useRef<{ title: string | null; data: unknown } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
+  const liveRef = useRef<LiveDoc<MapData> | null>(null);
 
   const queued = () => pending.current;
   const flush = useCallback(async () => {
@@ -61,6 +65,7 @@ export function NodeMapScreen({
       const result = await saveNodeMap(shortId, id, next.title, next.data, version.current).catch(() => null);
       if (result?.ok) {
         version.current = result.version;
+        liveRef.current?.saved(result.version);
         setStatus("saved");
         continue;
       }
@@ -96,12 +101,36 @@ export function NodeMapScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
+  // Real-time co-editing of mind maps (phase 3, CORE-4): the room shares every change; one
+  // editor (the leader) saves for everyone. Flows are not live yet.
+  const [initialMap] = useState(map);
+  const live = useLiveDoc<MapData>({
+    shortId,
+    objectId: id,
+    spec: MAP_SPEC,
+    initial: initialMap,
+    initialTitle,
+    versionRef: version,
+    pageCanEdit: canEdit,
+    onTitle: setTitle,
+    onSave: (data, name) => schedule({ data, title: name }),
+    disabled: kind === "flow",
+  });
+  useEffect(() => {
+    liveRef.current = live;
+  });
+  const { bind } = live;
+  useEffect(() => {
+    bind((next) => setMap(next));
+  }, [bind]);
+
   const changeMap = (next: MapData) => {
+    const before = map;
     setMap(next);
-    schedule({ data: next });
+    if (!live.change(before, next, true)) schedule({ data: next });
   };
 
-  const editable = canEdit && status !== "conflict";
+  const editable = live.canEdit && status !== "conflict";
   // The diagram takes a height in pixels: all the room under the bar and its own toolbar.
   const flowBox = useRef<HTMLDivElement>(null);
   const [flowHeight, setFlowHeight] = useState(640);
@@ -124,7 +153,7 @@ export function NodeMapScreen({
         canEdit
           ? (value) => {
               setTitle(value);
-              schedule({ title: value });
+              if (!live.changeTitle(value)) schedule({ title: value });
             }
           : undefined
       }
@@ -134,6 +163,7 @@ export function NodeMapScreen({
       savingLabel={n.saving}
       savedLabel={n.saved}
       center={undefined}
+      presence={<LivePresence live={live} />}
       files={[]}
       access={
         access && (
@@ -153,6 +183,7 @@ export function NodeMapScreen({
       }
       primary={undefined}
       more={[
+        ...liveMenu(live),
         ...(canEdit
           ? [
               {
@@ -182,7 +213,7 @@ export function NodeMapScreen({
           />
         </div>
       ) : (
-        <MindMapCanvas shortId={shortId} map={map} editable={editable} onChange={changeMap} onLocalChange={setMap} />
+        <MindMapCanvas shortId={shortId} map={map} editable={editable} onChange={changeMap} onLocalChange={setMap} live={live} />
       )}
     </StudioShell>
   );

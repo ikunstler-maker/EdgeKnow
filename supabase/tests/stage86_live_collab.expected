@@ -9,7 +9,7 @@ gwen, guest viewer: read true, doc false, presence true, cursor false
 vera, commenter on the design: read true, doc false, presence true, cursor false
 gwen, guest without the design: read false, doc false, presence false, cursor false
 carol, other workspace: read false, doc false, presence false, cursor false
-bob, a map (not in phase 1): read false, doc false, presence false, cursor false
+bob, a map (phase 3): read true, doc true, presence true, cursor true
 vera (viewer) shows viewers' cursors: {"ok": false, "error": "forbidden"}
 dora (editor) shows viewers' cursors: {"ok": true}
 carol (outsider) hides them: {"ok": false, "error": "forbidden"}

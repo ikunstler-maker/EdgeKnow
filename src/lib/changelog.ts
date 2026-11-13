@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-live-maps",
+    version: "0.52.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Карти Nodo — разом наживо", en: "Nodo maps, live together" },
+    items: [
+      { id: "live-maps", type: "added", scope: "nodes", title: { uk: "Ментальні карти редагуються разом: зміни, курсори й «Стежити за людиною», як у презентаціях.", en: "Mind maps are edited together: changes, cursors and \"Follow\", as in presentations." } },
+    ],
+  },
+  {
     id: "2026-11-13-chips-step3",
     version: "0.51.1",
     date: "2026-11-13",

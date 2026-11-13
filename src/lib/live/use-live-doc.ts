@@ -113,9 +113,12 @@ export function useLiveDoc<T extends object>({
   pageCanEdit,
   onTitle,
   onSave,
+  disabled = false,
 }: {
   shortId: string;
   objectId: string;
+  // Never live (a kind of document the room doesn't cover, e.g. a Nodo flow).
+  disabled?: boolean;
   spec: ListSpec;
   initial: T;
   initialTitle: string;
@@ -445,6 +448,7 @@ export function useLiveDoc<T extends object>({
       await client.current?.realtime.setAuth(session.token).catch(() => {});
     };
 
+    if (disabled) return;
     void start();
     refresh = setInterval(() => void renew(), REFRESH_MS);
     const onLeave = () => {
@@ -462,7 +466,7 @@ export function useLiveDoc<T extends object>({
     };
     // One connection per document and person.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shortId, objectId, pageCanEdit]);
+  }, [shortId, objectId, pageCanEdit, disabled]);
 
   // ---- What the editor calls -------------------------------------------------------
   const change = useCallback(
