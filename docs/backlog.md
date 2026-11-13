@@ -86,7 +86,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
-## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 2d in review
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 2c in review
 Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
 - 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — DONE (#168).
 - 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Tables + RLS approved 2026-11-12 (decision "Toker, етап 1").
@@ -98,9 +98,10 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - 2. Plan approved 2026-11-12 (decision "Toker, етап 2").
   - 2a direct conversations (pair: one per pair; group: up to 8, people can be added) + "new members see the earlier history" for closed channels and groups (DB-enforced `history_from`) — DONE (#176).
   - 2b attachments: compressed photo, file as is (≤10 MB), link card, voice ≤5 min; magic bytes; access-checked serving; groups up to 50 — DONE (#177).
-  - 2d channel setting "who publishes" — everyone or owners + chosen people; others read, react and comment in threads; voice player as a block matrix (owner's mock) with smooth progress and real levels — in review.
+  - 2d channel setting "who publishes" — everyone or owners + chosen people; others read, react and comment in threads; voice player as a block matrix (owner's mock) with smooth progress and real levels — DONE (#179).
   - Voice player: "Transcribe" (with Apus, stage 6) and "Task" (with Rukh links, stage 3) buttons from the mock.
-  - 2c search (+ global search), drafts on the device, scheduled send (published with the bell's check).
+  - 2c search (chat panel + global search), drafts on the device, scheduled send (published with the bell's check) — in review.
+  - Later: files in scheduled messages; search index (trigram) if chats grow large.
   - Later: file from shared storage — with Vault (Google picker needs a new key/scope → approval).
 - 3. Links: live chips (no rights → "No access" badge), message → Rukh task / Wika note / Doba event, Questa surveys in a channel, Doba "On leave" status + time-off approval button.
 - 4. Retention (workspace + per channel), "My data" export, Web Push (VAPID; key → approval), PWA.
