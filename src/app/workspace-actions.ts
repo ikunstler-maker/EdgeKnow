@@ -7,6 +7,7 @@ import { workspacePath } from "@/lib/paths";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncWorkspaceNow, writeClient } from "@/lib/team-db/data";
+import { syncVaultSharesLater } from "@/lib/drive/vault-shares";
 
 // Permission checks and audit logging live in the database functions; these
 // actions forward the call and refresh the screens that show the result.
@@ -101,7 +102,10 @@ export async function revokeInvitation(ws: string, invitationId: string) {
 }
 
 export async function setMemberRole(ws: string, member: string, role: string) {
-  return callWorkspaceRpc("set_member_role", { ws, member, new_role: role });
+  const result = await callWorkspaceRpc("set_member_role", { ws, member, new_role: role });
+  // A guest has no Vault, nor its files on the Drive (VAULT-2b).
+  if (result.ok) syncVaultSharesLater(ws);
+  return result;
 }
 
 export async function removeMember(ws: string, member: string) {
@@ -109,6 +113,8 @@ export async function removeMember(ws: string, member: string) {
   // Their own Drive no longer takes new task files here; files still on it stay
   // readable while the access lasts (and can be copied later).
   if (result.ok) await createAdminClient()?.from("drive_accounts").update({ active: false }).eq("workspace_id", ws).eq("user_id", member).eq("purpose", "personal");
+  // Vault files on the team's Drive are taken back from them (VAULT-2b).
+  if (result.ok) syncVaultSharesLater(ws);
   return result;
 }
 

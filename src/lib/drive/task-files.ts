@@ -29,13 +29,14 @@ export type TaskFileRow = {
 // folder, its own table.
 // Chat files (chat_files) too, in their own bucket.
 // Vault's own files (vault_items, `vault: true`) too, in their own bucket.
-export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string; channel_id?: string; vault?: boolean };
+// (An earlier version of a Vault file: `vaultVersion`, in vault_versions, the same bucket.)
+export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string; channel_id?: string; vault?: boolean; vaultVersion?: boolean };
 export const OBJECT_FILE_COLUMNS =
   "id, workspace_id, object_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
-const tableOf = (row: StoredFile) => (row.vault ? "vault_items" : row.channel_id ? "chat_files" : row.object_id ? "object_files" : "task_files");
+const tableOf = (row: StoredFile) => (row.vaultVersion ? "vault_versions" : row.vault ? "vault_items" : row.channel_id ? "chat_files" : row.object_id ? "object_files" : "task_files");
 export const CHAT_BUCKET = "chat-files";
 export const VAULT_BUCKET = "vault-files";
-const bucketOf = (row: StoredFile) => (row.vault ? VAULT_BUCKET : row.channel_id ? CHAT_BUCKET : TASK_BUCKET);
+const bucketOf = (row: StoredFile) => (row.vault || row.vaultVersion ? VAULT_BUCKET : row.channel_id ? CHAT_BUCKET : TASK_BUCKET);
 
 export const CHAT_FILE_COLUMNS =
   "id, workspace_id, channel_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";

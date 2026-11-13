@@ -4290,6 +4290,7 @@ export const en: Dictionary = {
       remove: "Remove access",
       owner: "owner",
       viewOnly: "Only people who can edit change access.",
+      driveFailed: (emails: string) => `Not opened on Google Drive (no Google account, or the Drive refused): ${emails}. They have it in Vault.`,
     },
     limit: {
       title: "Largest file in Vault",

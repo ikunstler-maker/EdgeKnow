@@ -1,0 +1,9 @@
+psql: ERROR:  permission denied for function vault_drive_wanted
+at the top: alice reader, bob writer, carol reader
+bob restricts it: true, gives carol editing: true
+restricted: bob writer, carol writer
+carol gone: bob writer
+in the bin: 0
+alice (no role on it) reads the failures: forbidden
+psql: ERROR:  permission denied for table vault_drive_shares
+bob: ["nogoogle@vaultdrive.test"]
