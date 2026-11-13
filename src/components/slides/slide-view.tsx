@@ -10,7 +10,9 @@ import { EMBED_ICON } from "@/components/slides/tool-icons";
 export type EmbedMode = "placeholder" | "view" | "live" | "setup";
 
 // Draws a slide (the editor's canvas, thumbnails and, later, the player use the same).
-export const imageUrl = (shortId: string, imageId: string) => `/api/boards/files/${imageId}?ws=${shortId}`;
+// A show through its link (KADRY-1) passes "public/<workspace>/<key>": pictures come through the link's route.
+export const imageUrl = (shortId: string, imageId: string) =>
+  shortId.startsWith("public/") ? `/api/s/files/${shortId.slice(7)}/${imageId}` : `/api/boards/files/${imageId}?ws=${shortId}`;
 
 // Ids inside one SVG must be unique; the prefix keeps canvas and thumbnails apart.
 const gid = (prefix: string, node: SlideNode) => `${prefix}g-${node.id}`;

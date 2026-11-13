@@ -40,6 +40,8 @@ export type Interaction = {
 // A live object of another service on a slide (step П-3б), read with the viewer's access.
 export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map", "wishlist", "file", "chip"] as const;
 export type EmbedKind = (typeof EMBED_KINDS)[number];
+export const BUILD_EFFECTS = ["fade", "rise", "zoom"] as const;
+export type BuildEffect = (typeof BUILD_EFFECTS)[number];
 // chip (UI-4): `link` is a workspace link drawn as a chip with its live title (only the link is kept).
 export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary"; link?: string };
 
@@ -68,6 +70,8 @@ export type SlideNode = {
   imageId?: string;
   // Look (step П-2)
   opacity?: number; // 0..1
+  // KADRY-1: appears in the show on a click, in the slide's order of objects.
+  build?: BuildEffect;
   gradient?: Gradient; // over fill when set
   dash?: "solid" | "dash" | "dot";
   radius?: number | [number, number, number, number]; // TL, TR, BR, BL
@@ -205,6 +209,7 @@ function readLook(node: Record<string, unknown>): Partial<SlideNode> {
   if (typeof node.lineHeight === "number") out.lineHeight = clamp(node.lineHeight, 0.6, 4);
   if (node.vAlign === "top" || node.vAlign === "middle" || node.vAlign === "bottom") out.vAlign = node.vAlign;
   if (node.hidden === true) out.hidden = true;
+  if ((BUILD_EFFECTS as readonly unknown[]).includes(node.build)) out.build = node.build as BuildEffect;
   if (node.locked === true) out.locked = true;
   if (typeof node.groupId === "string") out.groupId = node.groupId;
   const e = node.embed as Record<string, unknown> | undefined;

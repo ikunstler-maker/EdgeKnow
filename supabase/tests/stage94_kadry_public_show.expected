@@ -1,0 +1,13 @@
+bob (editor of the workspace) turns it on: forbidden
+eve (stranger): not_found
+a board is not a deck: not_found
+alice (owner) turns it on: true
+alice sees the key: 1
+bob does not: 0
+anon may read a show: false, signed-in people: false
+through the key: Launch deck
+a made-up key: not_found
+off: false
+the key while off: not_found
+a new key: true, the old one: not_found, the new one: Launch deck
+in the bin: not_found

@@ -191,6 +191,15 @@ const STAGES: Stage[] = [
     onConflict: "object_id",
     replace: true,
   },
+  // KADRY-1: a deck's show link (its key moves with it, so the link keeps working).
+  {
+    name: "deck show links",
+    table: "deck_public_links",
+    columns: "object_id, workspace_id, token, enabled, updated_by, updated_at",
+    order: "object_id",
+    onConflict: "object_id",
+    replace: true,
+  },
   { name: "collections", table: "object_collections", columns: "id, workspace_id, service, name, position, created_by, created_at", order: "id", onConflict: "id" },
   {
     name: "collection entries",
@@ -405,7 +414,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "wishlist_gifts", "task_wishlist_links", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_web_links", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions", "chat_categories", "chat_category_access", "chat_channels", "chat_channel_members", "chat_messages", "chat_reactions", "chat_files", "chat_scheduled", "vault_items", "vault_access", "vault_group_access", "vault_settings", "vault_versions"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "deck_public_links", "survey_responses", "survey_respondents", "object_files", "wishlist_gifts", "task_wishlist_links", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_web_links", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions", "chat_categories", "chat_category_access", "chat_channels", "chat_channel_members", "chat_messages", "chat_reactions", "chat_files", "chat_scheduled", "vault_items", "vault_access", "vault_group_access", "vault_settings", "vault_versions"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
