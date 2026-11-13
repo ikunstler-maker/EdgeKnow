@@ -759,7 +759,9 @@ export const uk = {
     embeds: {
       add: "Вставка",
       title: "Вставити з інших сервісів",
-      kinds: { task: "Задача", tasks: "Задачі проєкту", sheet: "Таблиця або діаграма", page: "Сторінка вікі", survey: "Опитування", board: "Дошка", map: "Майнд-карта", wishlist: "ВішЛіст", file: "Файл із Vault" } as Record<string, string>,
+      kinds: { task: "Задача", tasks: "Задачі проєкту", sheet: "Таблиця або діаграма", page: "Сторінка вікі", survey: "Опитування", board: "Дошка", map: "Майнд-карта", wishlist: "ВішЛіст", file: "Файл із Vault", chip: "Чип (посилання)" } as Record<string, string>,
+      chipPick: "Обрати, на що посилатися",
+      chipChange: "Змінити",
       noAccess: "Немає доступу",
       findTask: "Знайти задачу: назва або ключ",
       pickPage: "Виберіть сторінку",
@@ -1645,6 +1647,8 @@ export const uk = {
       } as Record<string, string>,
     },
     customFields: {
+      chip: "Чип",
+      chipHint: "Вставити посилання на сторінку, задачу, таблицю, дошку чи файл — під полем буде чип з актуальною назвою",
       other: "Інше",
       otherPrompt: "Впишіть своє значення",
       durationParts: { h: "год", m: "хв", s: "с" } as Record<string, string>,

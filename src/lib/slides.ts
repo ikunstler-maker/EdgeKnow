@@ -38,9 +38,10 @@ export type Interaction = {
 };
 
 // A live object of another service on a slide (step П-3б), read with the viewer's access.
-export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map", "wishlist", "file"] as const;
+export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map", "wishlist", "file", "chip"] as const;
 export type EmbedKind = (typeof EMBED_KINDS)[number];
-export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary" };
+// chip (UI-4): `link` is a workspace link drawn as a chip with its live title (only the link is kept).
+export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary"; link?: string };
 
 export type Gradient = { kind: "linear" | "radial"; angle: number; stops: { offset: number; color: string }[] };
 export type Shadow = { x: number; y: number; blur: number; color: string };
@@ -214,6 +215,7 @@ function readLook(node: Record<string, unknown>): Partial<SlideNode> {
       ...(typeof e.chartId === "string" ? { chartId: e.chartId.slice(0, 80) } : {}),
       ...(e.mine === true ? { mine: true } : {}),
       ...(e.view === "summary" ? { view: "summary" as const } : {}),
+      ...(e.kind === "chip" && typeof e.link === "string" && /^https?:\/\//.test(e.link) ? { link: e.link.slice(0, 500) } : {}),
     };
   }
   if (typeof node.zoom === "number") out.zoom = clamp(node.zoom, 0.5, 6);

@@ -31,8 +31,8 @@ import {
   type NodeColor,
 } from "@/lib/nodes";
 import { Icon } from "@/components/ui/icon";
-import { ServiceIcon } from "@/components/services/service-icon";
-import { cellChipOf, onCellChips, rememberCellChip } from "@/components/sheets/sheet-chips";
+import { rememberCellChip } from "@/components/sheets/sheet-chips";
+import { LinkChip } from "@/components/editor/link-chip";
 import { ChipPicker } from "@/components/sheets/chip-picker";
 
 const n = t.nodes;
@@ -73,38 +73,8 @@ const MapNodeView = memo(function MapNodeView({ id, data }: NodeProps<Node<NodeV
   );
 });
 
-// A linked thing under the node's text (UI-3): its live title with the viewer's access.
-function NodeChip({ link }: { link?: string }) {
-  const pages = useOptionalPages();
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const off = onCellChips(() => setTick((x) => x + 1));
-    return () => {
-      off();
-    };
-  }, []);
-  if (!link || !pages) return null;
-  const chip = cellChipOf(link, pages.workspace.shortId, pages.workspace.id);
-  if (!chip) return null;
-  if (chip.state !== "ok")
-    return (
-      <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-muted" data-node-chip={chip.state}>
-        {chip.state === "none" ? <Icon name="lock" size={12} /> : null}
-        {chip.state === "none" ? t.editor.chips.noAccess : "…"}
-      </span>
-    );
-  return (
-    <a
-      href={chip.href}
-      onClick={(e) => e.stopPropagation()}
-      className="nodrag mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground hover:bg-surface"
-      data-node-chip={chip.title}
-    >
-      {chip.service === "home" ? <Icon name="gift" size={12} /> : <ServiceIcon serviceId={chip.service} size={12} />}
-      <span className="truncate">{chip.title || t.editor.chips.untitledObject}</span>
-    </a>
-  );
-}
+// A linked thing under the node's text (UI-3).
+const NodeChip = ({ link }: { link?: string }) => <LinkChip link={link} className="mt-1" attr="data-node-chip" />;
 
 const nodeTypes = { map: MapNodeView };
 

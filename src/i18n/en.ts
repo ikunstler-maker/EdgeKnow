@@ -750,7 +750,9 @@ export const en: Dictionary = {
     embeds: {
       add: "Embed",
       title: "Embed from other services",
-      kinds: { task: "Task", tasks: "Project tasks", sheet: "Table or chart", page: "Wiki page", survey: "Survey", board: "Whiteboard", map: "Mind map", wishlist: "Wishlist", file: "File from Vault" } as Record<string, string>,
+      kinds: { task: "Task", tasks: "Project tasks", sheet: "Table or chart", page: "Wiki page", survey: "Survey", board: "Whiteboard", map: "Mind map", wishlist: "Wishlist", file: "File from Vault", chip: "Chip (link)" } as Record<string, string>,
+      chipPick: "Choose what to link",
+      chipChange: "Change",
       noAccess: "No access",
       findTask: "Find a task: title or key",
       pickPage: "Pick a page",
@@ -1636,6 +1638,8 @@ export const en: Dictionary = {
       } as Record<string, string>,
     },
     customFields: {
+      chip: "Chip",
+      chipHint: "Insert a link to a page, task, table, board or file — a chip with its current title shows under the field",
       other: "Other",
       otherPrompt: "Write your own value",
       durationParts: { h: "h", m: "min", s: "s" } as Record<string, string>,

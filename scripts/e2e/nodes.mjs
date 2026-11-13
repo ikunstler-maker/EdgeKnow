@@ -396,6 +396,17 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-player]").waitFor({ timeout: 20000 });
   await alice.locator("[data-embed-page]").first().waitFor({ timeout: 15000 }).catch(() => {});
   check("…and shows the card in the show", (await alice.locator("[data-embed-page]").count()) >= 1);
+  // UI-4: a chip on a slide — any page, task, table, board or file, with its live title.
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-embed-add]").click();
+  await alice.locator('[data-embed-kind="chip"]').click();
+  await alice.locator("[data-embed-chip-pick]").first().click({ timeout: 15000 });
+  await alice.locator("[data-chip-picker-item]").first().click({ timeout: 15000 });
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const chipLinks = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'slides') s, jsonb_array_elements(s -> 'nodes') n where o.id = '${deckId}' and n #>> '{embed,kind}' = 'chip' and n #>> '{embed,link}' like 'http%/w/${alphaShort}/%'`);
+  check("a slide takes a chip (the link only)", await until(() => chipLinks() === "1", 15000), chipLinks());
+  check("…drawn with the linked thing's name", await alice.locator("[data-slide-chip]").first().waitFor({ timeout: 15000 }).then(async () => !["loading", "none"].includes(await alice.locator("[data-slide-chip]").first().getAttribute("data-slide-chip")), () => false));
 }
 
 // --- Design (steps Д-1…Д-4): a frame with a shape inside, auto layout, the prototype player ------
