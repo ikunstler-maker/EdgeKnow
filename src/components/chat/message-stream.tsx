@@ -98,6 +98,8 @@ export type MessageActions = {
   onThread?: (id: string) => void;
   // A channel where chosen people publish: threads read as comments, offered under each post.
   comments?: boolean;
+  // A task, note or event from the message (or the selected part of it); absent for guests.
+  onCreateFrom?: (message: ChatMessage, kind: "task" | "note" | "event", text: string) => void;
 };
 
 // The channel's stream (or a thread's replies): older pages on scrolling up, kept at
@@ -140,6 +142,7 @@ export function MessageStream({
   const lastId = messages[messages.length - 1]?.id;
   const [editing, setEditing] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  const [making, setMaking] = useState<{ message: ChatMessage; text: string; anchor: HTMLElement } | null>(null);
   const everyone = [...people.values()];
   const host = useHost();
 
@@ -292,19 +295,56 @@ export function MessageStream({
                   </button>
                 )}
               </div>
-              {live && (actions.canWrite || mine || actions.canModerate) && (
+              {live && (actions.canWrite || mine || actions.canModerate || actions.onCreateFrom) && (
                 <div className="absolute -top-3 right-2 hidden gap-0.5 rounded-lg border border-border bg-overlay p-0.5 shadow-sm group-focus-within:flex group-hover:flex" data-chat-tools>
                   {actions.canWrite && tool("smile", c().react, (anchor) => setPicker({ id: m.id, anchor }))}
                   {actions.canWrite && actions.onThread && !m.thread_root_id && tool("comment", actions.comments ? c().publish.comment : c().replyInThread, () => actions.onThread?.(m.id))}
                   {actions.canWrite && tool("pin", m.pinned_at ? c().unpin : c().pin, () => actions.onPin(m.id, !m.pinned_at), Boolean(m.pinned_at))}
                   {mine && actions.canWrite && tool("edit", c().edit, () => setEditing(m.id))}
                   {(mine || actions.canModerate) && tool("trash", c().delete, () => actions.onDelete(m.id))}
+                  {actions.onCreateFrom && (
+                    <button
+                      type="button"
+                      // Keeps a selection inside the message: only that part goes into the new thing.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        const selection = window.getSelection();
+                        const article = e.currentTarget.closest("article");
+                        const part = selection && !selection.isCollapsed && article?.contains(selection.anchorNode) ? selection.toString().trim() : "";
+                        setMaking({ message: m, text: part || m.body, anchor: e.currentTarget });
+                      }}
+                      aria-label={c().fromMessage.menu}
+                      title={c().fromMessage.menu}
+                      aria-haspopup="menu"
+                      className={iconButtonClass("ghost")}
+                      data-chat-make
+                    >
+                      <Icon name="more" size={15} />
+                    </button>
+                  )}
                 </div>
               )}
             </article>
           </Fragment>
         );
       })}
+      {making && actions.onCreateFrom && (
+        <Popover anchor={making.anchor} onClose={() => setMaking(null)} width={240}>
+          {making.text !== making.message.body && <p className="px-3 pb-1 pt-2 text-xs text-muted">{c().fromMessage.fragment}</p>}
+          {(["task", "note", "event"] as const).map((kind) => (
+            <MenuItem
+              key={kind}
+              onSelect={() => {
+                setMaking(null);
+                actions.onCreateFrom?.(making.message, kind, making.text);
+              }}
+            >
+              <Icon name={kind === "task" ? "task" : kind === "note" ? "file-text" : "calendar"} size={16} />
+              <span data-chat-make-kind={kind}>{c().fromMessage[kind]}</span>
+            </MenuItem>
+          ))}
+        </Popover>
+      )}
       {picker && (
         <EmojiPicker
           anchor={picker.anchor}

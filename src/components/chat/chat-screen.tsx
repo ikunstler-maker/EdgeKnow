@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import {
@@ -20,6 +21,7 @@ import {
 import {
   cancelScheduled,
   deleteMessage,
+  loadMembers,
   editMessage,
   joinChannel,
   loadChat,
@@ -42,7 +44,7 @@ import { ChannelList, channelIcon } from "./channel-list";
 import { Composer, MessageStream, type MessageActions } from "./message-stream";
 import { MembersPanel } from "./members-panel";
 import { PinsPanel, SearchPanel, ThreadPanel } from "./side-panels";
-import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, NewDirectDialog } from "./chat-dialogs";
+import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, FromMessageDialog, NewDirectDialog, type FromMessageKind } from "./chat-dialogs";
 import { useChatLive, type ChatSignal } from "./use-chat-live";
 import { ChatChipsProvider } from "./chat-chips";
 
@@ -127,9 +129,13 @@ export function ChatScreen(props: ChatScreenProps) {
     return () => clearTimeout(timer);
   }, [drafts, draftsKey]);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // A task, note or event being made from a message (stage 3b).
+  const [making, setMaking] = useState<{ message: ChatMessage; kind: FromMessageKind; text: string; invitees: string[] } | null>(null);
   const [panel, setPanel] = useState<Panel>(props.initialThread ? { kind: "thread", id: props.initialThread } : null);
   const [highlight, setHighlight] = useState<string | null>(props.initialMessage);
   const [error, setError] = useState<string | null>(props.failed ? c().errors.load : null);
+  // What was just made from a message, when its link was not left in the thread.
+  const [made, setMade] = useState<{ kind: FromMessageKind; path: string } | null>(null);
 
   const people = useMemo(() => new Map(props.people.map((p) => [p.id, p])), [props.people]);
   const reactions = useMemo(() => new Map(Object.entries(reactionRows)), [reactionRows]);
@@ -453,6 +459,17 @@ export function ChatScreen(props: ChatScreenProps) {
     },
     onThread: (id) => setPanel({ kind: "thread", id }),
     comments: active?.post_policy === "chosen",
+    onCreateFrom: props.guest
+      ? undefined
+      : async (message, kind, text) => {
+          // An event from a closed channel or a conversation may invite its people (up to 50).
+          let invitees: string[] = [];
+          if (kind === "event" && active && active.visibility !== "open") {
+            const others = (await loadMembers(shortId, active.id)).map((m) => m.user_id).filter((id) => id !== me);
+            if (others.length <= 50) invitees = others;
+          }
+          setMaking({ message, kind, text, invitees });
+        },
   };
 
   const plan = async (body: string, at: Date, rootId: string | null = null) => {
@@ -567,6 +584,15 @@ export function ChatScreen(props: ChatScreenProps) {
                 <Icon name="settings" size={18} />
               </button>
             </header>
+            {made && (
+              <div role="status" className="flex items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm" data-chat-made>
+                <span className="flex-1">{c().fromMessage.created[made.kind]}</span>
+                <Link href={made.path} prefetch={false} className="font-medium text-accent hover:underline">{c().fromMessage.open}</Link>
+                <button type="button" onClick={() => setMade(null)} aria-label={t.common.close} className={iconButtonClass("ghost")}>
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
+            )}
             {error && (
               <div role="alert" className="flex items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm">
                 <span className="flex-1">{error}</span>
@@ -716,6 +742,26 @@ export function ChatScreen(props: ChatScreenProps) {
             setDialog(null);
             await refreshList();
             select(id);
+          }}
+        />
+      )}
+      {making && active && (
+        <FromMessageDialog
+          kind={making.kind}
+          shortId={shortId}
+          workspaceId={workspaceId}
+          text={making.text}
+          link={`${window.location.origin}/w/${shortId}/chat?c=${making.message.channel_id}${making.message.thread_root_id ? `&t=${making.message.thread_root_id}` : ""}&m=${making.message.id}`}
+          invitees={making.invitees}
+          privateChannel={active.visibility !== "open"}
+          canReply={canWrite && making.message.channel_id === active.id}
+          onClose={() => setMaking(null)}
+          onCreated={(path, reply) => {
+            const message = making.message;
+            setMaking(null);
+            // The new thing's link in the message's thread shows as a live chip.
+            if (reply) void send(`${c().fromMessage.created[making.kind]} ${window.location.origin}${path}`, [], message.thread_root_id ?? message.id);
+            else setMade({ kind: making.kind, path });
           }}
         />
       )}

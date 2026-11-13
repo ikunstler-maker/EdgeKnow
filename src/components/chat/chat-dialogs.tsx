@@ -20,7 +20,12 @@ import {
   setNotify,
   setPostPolicy,
   updateChannel,
+  noteFromMessage,
+  taskFromMessage,
 } from "@/app/chat-actions";
+import { projectsForEmbed } from "@/app/task-wiki-actions";
+import { createEvent } from "@/app/calendar-actions";
+import type { EventFields } from "@/lib/calendar";
 import { Dialog } from "@/components/ui/dialog";
 import { Segmented } from "@/components/ui/segmented";
 import { Icon } from "@/components/ui/icon";
@@ -682,6 +687,187 @@ export function NewDirectDialog({
         )}
         <ErrorLine error={error} />
       </div>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------- from a message (stage 3b)
+
+export type FromMessageKind = "task" | "note" | "event";
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const firstLine = (text: string) => text.trim().split(/\n/)[0].slice(0, 120);
+
+// A Rukh task, a Wika note or a Doba event made from a message (or the chosen part
+// of it), with a link back to the message; the new thing's address goes to `onCreated`.
+export function FromMessageDialog({
+  kind,
+  shortId,
+  workspaceId,
+  text,
+  link,
+  invitees,
+  privateChannel,
+  canReply,
+  onClose,
+  onCreated,
+}: {
+  kind: FromMessageKind;
+  shortId: string;
+  workspaceId: string;
+  text: string;
+  link: string;
+  // The conversation's other people, offered as guests of an event (closed channels and conversations, up to 50).
+  invitees: string[];
+  privateChannel: boolean;
+  canReply: boolean;
+  onClose: () => void;
+  onCreated: (path: string, reply: boolean) => void;
+}) {
+  const f = c().fromMessage;
+  const [title, setTitle] = useState(() => firstLine(text));
+  const [projects, setProjects] = useState<{ id: string; key: string; name: string }[] | null>(kind === "task" ? null : []);
+  const [projectId, setProjectId] = useState("");
+  const [day, setDay] = useState(() => localDay(new Date()));
+  const [start, setStart] = useState(() => `${pad((new Date().getHours() + 1) % 24)}:00`);
+  const [minutes, setMinutes] = useState(60);
+  const [invite, setInvite] = useState(invitees.length > 0);
+  const [reply, setReply] = useState(canReply);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (kind !== "task") return;
+    let live = true;
+    void projectsForEmbed(shortId).then((list) => {
+      if (!live) return;
+      const mine = list.filter((p) => p.canEdit);
+      setProjects(mine);
+      setProjectId((id) => id || mine[0]?.id || "");
+    });
+    return () => {
+      live = false;
+    };
+  }, [kind, shortId]);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    let path: string | null = null;
+    let code = "unknown";
+    if (kind === "task") {
+      const made = await taskFromMessage(shortId, projectId, title, text, link);
+      if (made.ok) {
+        const [project, number] = made.key.split("-");
+        path = `/w/${shortId}/tasks/${project}/${number}`;
+      } else code = made.error;
+    } else if (kind === "note") {
+      const made = await noteFromMessage(shortId, workspaceId, title, text, link);
+      if (made.ok) path = `/w/${shortId}/p/${made.id}`;
+      else code = made.error;
+    } else {
+      const starts = new Date(`${day}T${start}`);
+      if (Number.isNaN(starts.getTime())) {
+        setBusy(false);
+        return setError(f.badTime);
+      }
+      const fields: EventFields = {
+        title: title.trim(),
+        description: `${text.slice(0, 3000)}\n\n${f.backLink} ${link}`,
+        location: "",
+        meeting_url: "",
+        starts_at: starts.toISOString(),
+        ends_at: new Date(starts.getTime() + minutes * 60_000).toISOString(),
+        all_day: false,
+        time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        visibility: privateChannel ? "invite" : "open",
+        reminder_minutes: 10,
+      };
+      const made = await createEvent(shortId, workspaceId, fields, invite ? invitees : []);
+      if (made.ok) path = `/w/${shortId}/calendar?event=${made.id}`;
+      else code = made.error;
+    }
+    setBusy(false);
+    if (!path) return setError(errorText(code));
+    onCreated(path, reply && canReply);
+  };
+
+  const ready = Boolean(title.trim()) && (kind !== "task" || Boolean(projectId));
+  return (
+    <Dialog
+      title={f.titles[kind]}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={buttonClass("ghost")}>{t.common.cancel}</button>
+          <button type="button" onClick={submit} disabled={busy || !ready} className={buttonClass("primary")} data-chat-from-submit>
+            {f.submit}
+          </button>
+        </>
+      }
+    >
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (ready && !busy) void submit();
+        }}
+        data-chat-from={kind}
+      >
+        {kind === "task" &&
+          (projects === null ? (
+            <p className="text-sm text-muted">{c().loading}</p>
+          ) : projects.length === 0 ? (
+            <p className="text-sm text-muted">{f.noProjects}</p>
+          ) : (
+            <Field label={f.project}>
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={selectClass} data-chat-from-project>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{`${p.key} · ${p.name}`}</option>
+                ))}
+              </select>
+            </Field>
+          ))}
+        <Field label={f.name}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} className={inputClass} autoFocus data-chat-from-title />
+        </Field>
+        {kind === "event" && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field label={f.day}>
+              <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className={inputClass} />
+            </Field>
+            <Field label={f.start}>
+              <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className={inputClass} />
+            </Field>
+            <Field label={f.duration}>
+              <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className={selectClass}>
+                {[15, 30, 45, 60, 90, 120].map((m) => (
+                  <option key={m} value={m}>{f.minutes(m)}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )}
+        <div className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">{f.text}</span>
+          <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-surface p-2 text-muted">{text}</p>
+          <span className="text-xs text-muted">{f.linkHint}</span>
+        </div>
+        {kind === "event" && invitees.length > 0 && (
+          <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-0">
+            <input type="checkbox" checked={invite} onChange={(e) => setInvite(e.target.checked)} />
+            {f.invite(invitees.length)}
+          </label>
+        )}
+        {canReply && (
+          <label className="flex min-h-11 items-center gap-2 text-sm md:min-h-0">
+            <input type="checkbox" checked={reply} onChange={(e) => setReply(e.target.checked)} data-chat-from-reply />
+            {f.reply}
+          </label>
+        )}
+        <ErrorLine error={error} />
+      </form>
     </Dialog>
   );
 }

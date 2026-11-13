@@ -1,5 +1,6 @@
 "use server";
 
+import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { CHIP_SERVICES, type ChatChip, type ChipRef, type ChipService } from "@/lib/chat-chips";
@@ -302,4 +303,44 @@ export async function loadChatChips(shortId: string, workspaceId: string, refs: 
   }
   for (const { data: row } of taskRows) if (row?.project) result[`task:${row.project.key}-${row.number}`] = { kind: "task", id: row.id };
   return result;
+}
+
+// ---------------------------------------------------------------- from a message (stage 3b)
+
+type Block = { type: string; content?: unknown[]; props?: Record<string, unknown> };
+
+// The message (or the chosen part of it) as paragraphs, then "From the chat:" with a
+// link back to the message. Plain text only: links stay text the editor shows as is.
+function fromMessageBlocks(text: string, link: string, label: string): Block[] {
+  const lines = text.slice(0, 4000).split(/\n/);
+  return [
+    ...lines.map((line) => ({ type: "paragraph", content: line ? [{ type: "text", text: line, styles: {} }] : [] })),
+    { type: "paragraph", content: [{ type: "text", text: `${label} `, styles: {} }, { type: "link", href: link, content: [{ type: "text", text: link, styles: {} }] }] },
+  ];
+}
+
+// Only links to this site's own chat may go back into a task or a page.
+const chatLink = (link: string) => /^https?:\/\/[^/\s]+\/w\/[^/\s]+\/chat\?[\w=&-]{1,200}$/.test(link);
+
+export async function taskFromMessage(shortId: string, projectId: string, title: string, text: string, link: string): Promise<ActionResult<{ id: string; key: string }>> {
+  if (!UUID.test(projectId) || !title.trim() || !chatLink(link)) return { ok: false, error: "unknown" };
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" };
+  const description = fromMessageBlocks(text, link, t.chat.fromMessage.backLink);
+  const { data, error } = await db.rpc("create_task", { target_project: projectId, fields: { title: title.trim().slice(0, 300), description } });
+  if (error || !data) return { ok: false, error: "unknown" };
+  return data as ActionResult<{ id: string; key: string }>;
+}
+
+export async function noteFromMessage(shortId: string, workspaceId: string, title: string, text: string, link: string): Promise<ActionResult<{ id: string }>> {
+  if (!UUID.test(workspaceId) || !title.trim() || !chatLink(link)) return { ok: false, error: "unknown" };
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" };
+  const { data, error } = await db.rpc("create_page", { ws: workspaceId, parent: null, new_title: title.trim().slice(0, 200) });
+  const made = data as ActionResult<{ id: string }> | null;
+  if (error || !made) return { ok: false, error: "unknown" };
+  if (!made.ok) return made;
+  const saved = await db.rpc("save_page_content", { target_page: made.id, new_content: fromMessageBlocks(text, link, t.chat.fromMessage.backLink), base_version: 1 });
+  if (saved.error || !(saved.data as ActionResult | null)?.ok) return { ok: false, error: "unknown" };
+  return made;
 }
