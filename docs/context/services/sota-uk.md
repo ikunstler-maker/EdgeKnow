@@ -20,6 +20,8 @@
 - Є: масиви у фігурних дужках, ROW/COLUMN, LET, дії з діапазонами, FILTER, SORT, SORTBY, UNIQUE, SEQUENCE усередині інших формул.
 - **Немає:** «розливу» результату на сусідні клітинки і LAMBDA.
 
+- **Розлив і LAMBDA (SOTA-1, 2026-11-13):** формула, що дає таблицю, заповнює клітинки нижче й праворуч (`src/components/sheets/sheet-spill.ts`: клітинки з позначкою `ekSpill`, #SPILL! коли зайнято, введене людиною значення перемагає); LAMBDA на місці або через LET, а також MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY (`sheet-functions.ts`, звірено з Excel у `scripts/test-sheet-formulas.mjs`).
+
 ### Файли
 - Відкрити Excel чи CSV як нову таблицю; додати аркуші з файлу.
 - Зберегти в Excel (уся таблиця) чи CSV (поточний аркуш).

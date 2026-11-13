@@ -20,6 +20,8 @@ Spreadsheets with formulas people already know, Excel/CSV files and charts that 
 - Present: array literals, ROW/COLUMN, LET, operations on ranges, FILTER, SORT, SORTBY, UNIQUE, SEQUENCE inside other formulas.
 - **Missing:** spilling a result into neighbouring cells, and LAMBDA.
 
+- **Spill and LAMBDA (SOTA-1, 2026-11-13):** a formula whose result is a table fills the cells below and to the right (`src/components/sheets/sheet-spill.ts`: cells marked `ekSpill`, #SPILL! when blocked, a typed value wins); LAMBDA on the spot or through LET, and MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY (`sheet-functions.ts`, checked against Excel in `scripts/test-sheet-formulas.mjs`).
+
 ### Files
 - Open Excel or CSV as a new table; add sheets from a file.
 - Save to Excel (whole table) or CSV (current sheet).

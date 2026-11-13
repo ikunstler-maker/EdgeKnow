@@ -44,6 +44,16 @@ export const RELEASES: ReleaseLog[] = [
     ],
   },
   {
+    id: "2026-11-13-sheet-spill",
+    version: "0.54.2",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Таблиці: розлив формул і LAMBDA", en: "Tables: spilling formulas and LAMBDA" },
+    items: [
+      { id: "spill", type: "added", scope: "sheets", title: { uk: "Формула, що дає кілька значень (SORT, FILTER, UNIQUE, SEQUENCE…), заповнює сусідні клітинки, як в Excel; на зайнятих — #SPILL!.", en: "A formula giving several values (SORT, FILTER, UNIQUE, SEQUENCE…) fills the cells next to it, as in Excel; blocked — #SPILL!." } },
+      { id: "lambda", type: "added", scope: "sheets", title: { uk: "LAMBDA, а також MAP, REDUCE, SCAN, BYROW, BYCOL і MAKEARRAY.", en: "LAMBDA, plus MAP, REDUCE, SCAN, BYROW, BYCOL and MAKEARRAY." } },
+    ],
+  },
+  {
     id: "2026-11-13-chips-step4",
     version: "0.54.1",
     date: "2026-11-13",
