@@ -577,6 +577,31 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("a renamed board shows its new name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board renamed"));
 }
 
+// --- Chips on idea boards and mind maps (UI-3) -------------------------------------------------------
+{
+  const target = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "sheets", new_kind: "sheet", new_title: "Linked table", new_data: {} })).data?.id;
+  const link = `${APP}/w/${alphaShort}/sheets/${target}`;
+  const element = { type: "rectangle", id: "chip-el", x: 100, y: 120, width: 200, height: 100, angle: 0, strokeColor: "#1e1e1e", backgroundColor: "transparent", fillStyle: "solid", strokeWidth: 2, strokeStyle: "solid", roughness: 0, opacity: 100, groupIds: [], frameId: null, roundness: null, seed: 1, version: 1, versionNonce: 1, isDeleted: false, boundElements: null, updated: 1, link, locked: false, index: "a0" };
+  const board = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "board", new_title: "Chips board", new_data: { elements: [element], appState: {}, files: {} } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/boards/${board}`);
+  await alice.locator("[data-board-canvas] canvas").first().waitFor({ timeout: 30000 });
+  check("an element linking to a table shows a chip with the table's name", await alice.locator('[data-board-chip="Linked table"]').waitFor({ timeout: 15000 }).then(() => true, () => false));
+  await alice.locator("[data-board-canvas]").click({ position: { x: 600, y: 400 } });
+  await alice.locator("[data-board-insert-chip]").click();
+  await alice.locator("[data-chip-picker-search]").fill("Chips bo");
+  await alice.locator('[data-chip-picker-item="Chips board"]').click({ timeout: 15000 });
+  const links = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${board}' and e ->> 'link' like '%/boards/${board}'`);
+  check("“Chip” puts a link card on the board (saved without the title)", await until(() => links() === "1", 15000) && !sql(`select data::text from public.service_objects where id = '${board}'`).includes("Chips board"), links());
+
+  const map = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "nodes", new_kind: "mindmap", new_title: "Chips map", new_data: { nodes: [{ id: "r1", parent: null, text: "Plan", link }] } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/nodes/${map}`);
+  check("a mind-map node shows its linked table as a chip", await alice.locator('[data-node-chip="Linked table"]').waitFor({ timeout: 20000 }).then(() => true, () => false));
+  sql(`update public.service_objects set title = 'Linked table renamed' where id = '${target}'`);
+  await alice.waitForTimeout(2500);
+  await alice.reload();
+  check("…and its new name after a rename", await alice.locator('[data-node-chip="Linked table renamed"]').waitFor({ timeout: 20000 }).then(() => true, () => false));
+}
+
 // --- Surveys (steps О1, О2, О4): a form, answers into a connected table, results, on a page --------
 {
   await alice.goto(`${APP}/w/${alphaShort}`);

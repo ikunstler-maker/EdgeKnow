@@ -30,10 +30,13 @@ import {
   type NodeColor,
 } from "@/lib/nodes";
 import { Icon } from "@/components/ui/icon";
+import { ServiceIcon } from "@/components/services/service-icon";
+import { cellChipOf, onCellChips, rememberCellChip } from "@/components/sheets/sheet-chips";
+import { ChipPicker } from "@/components/sheets/chip-picker";
 
 const n = t.nodes;
 
-type NodeView = { text: string; color: NodeColor; selected: boolean; editing: boolean; root: boolean; hidden: number; collapsed: boolean; hasChildren: boolean };
+type NodeView = { text: string; color: NodeColor; selected: boolean; editing: boolean; root: boolean; hidden: number; collapsed: boolean; hasChildren: boolean; link?: string };
 type Callbacks = { select: (id: string) => void; startEdit: (id: string) => void; commit: (id: string, text: string, then?: "child" | "sibling") => void; cancel: () => void; toggle: (id: string) => void };
 
 const CallbacksContext = createContext<Callbacks | null>(null);
@@ -50,6 +53,7 @@ const MapNodeView = memo(function MapNodeView({ id, data }: NodeProps<Node<NodeV
     >
       <Handle type="target" position={Position.Left} className="!opacity-0" isConnectable={false} />
       <span className={`block break-words ${data.editing ? "invisible" : ""}`}>{data.text || "…"}</span>
+      <NodeChip link={data.link ?? (/^https?:\/\/\S+$/.test(data.text.trim()) ? data.text.trim() : undefined)} />
       {data.hasChildren && (
         <button
           type="button"
@@ -67,6 +71,39 @@ const MapNodeView = memo(function MapNodeView({ id, data }: NodeProps<Node<NodeV
     </div>
   );
 });
+
+// A linked thing under the node's text (UI-3): its live title with the viewer's access.
+function NodeChip({ link }: { link?: string }) {
+  const pages = useOptionalPages();
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const off = onCellChips(() => setTick((x) => x + 1));
+    return () => {
+      off();
+    };
+  }, []);
+  if (!link || !pages) return null;
+  const chip = cellChipOf(link, pages.workspace.shortId, pages.workspace.id);
+  if (!chip) return null;
+  if (chip.state !== "ok")
+    return (
+      <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-muted" data-node-chip={chip.state}>
+        {chip.state === "none" ? <Icon name="lock" size={12} /> : null}
+        {chip.state === "none" ? t.editor.chips.noAccess : "…"}
+      </span>
+    );
+  return (
+    <a
+      href={chip.href}
+      onClick={(e) => e.stopPropagation()}
+      className="nodrag mt-1 inline-flex max-w-full items-center gap-1 truncate rounded-full border border-border bg-background px-2 py-0.5 text-xs text-foreground hover:bg-surface"
+      data-node-chip={chip.title}
+    >
+      {chip.service === "home" ? <Icon name="gift" size={12} /> : <ServiceIcon serviceId={chip.service} size={12} />}
+      <span className="truncate">{chip.title || t.editor.chips.untitledObject}</span>
+    </a>
+  );
+}
 
 const nodeTypes = { map: MapNodeView };
 
@@ -225,6 +262,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
             hidden: positions.get(node.id)!.hidden,
             collapsed: Boolean(node.collapsed),
             hasChildren: map.nodes.some((x) => x.parent === node.id),
+            link: node.link,
           },
         })),
     [map, positions, selected, editing],
@@ -287,8 +325,23 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
     }
   };
 
+  const chipPages = useOptionalPages();
+  const [pickingChip, setPickingChip] = useState(false);
   const tool = "min-h-11 rounded-md border border-border bg-background px-3 text-sm hover:bg-surface disabled:opacity-40 md:min-h-9";
+  const canChip = Boolean(chipPages);
   return (
+    <>
+    {pickingChip && chipPages && (
+      <ChipPicker
+        onClose={() => setPickingChip(false)}
+        onPick={(picked) => {
+          setPickingChip(false);
+          const url = `${window.location.origin}${picked.path}`;
+          rememberCellChip(url, chipPages.workspace.shortId, { state: "ok", service: picked.service, title: picked.title, href: picked.path });
+          change(updateNode(map, node.id, { link: url }));
+        }}
+      />
+    )}
     <div className={compact ? "mt-3 flex flex-1 flex-col gap-2" : "flex min-h-0 flex-1 flex-col"}>
       <div role="toolbar" aria-label={n.toolbar} className={`flex flex-wrap items-center gap-1 ${compact ? "" : "shrink-0 border-b border-border px-2 py-1"}`} data-map-toolbar>
         {editable && !compact && (
@@ -314,6 +367,17 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
         </button>
         {editable && !compact && (
           <>
+            {canChip && (
+              <button
+                type="button"
+                title={node.link ? n.chipRemove : n.chipHint}
+                onClick={() => (node.link ? change(updateNode(map, node.id, { link: undefined })) : setPickingChip(true))}
+                className={tool}
+                data-map-chip
+              >
+                {node.link ? n.chipRemove : n.chip}
+              </button>
+            )}
             <select
               value={node.color ?? "default"}
               aria-label={n.color}
@@ -477,6 +541,7 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
         </CallbacksContext>
       </div>
     </div>
+    </>
   );
 }
 

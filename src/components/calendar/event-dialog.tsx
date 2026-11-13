@@ -48,6 +48,23 @@ import {
 } from "@/lib/calendar";
 import { PeoplePicker, buttonClass, inputClass, primaryClass } from "./calendar-parts";
 import { Icon } from "@/components/ui/icon";
+import { ChatChipsProvider, MessageChips } from "@/components/chat/chat-chips";
+import { useOptionalPages } from "@/components/pages/pages-provider";
+
+// Links to this workspace in an event's description show as chips under it (smart chips,
+// step 3 — UI-3), the same cards as under a chat message, read with the viewer's access.
+function DescriptionChips({ text }: { text: string }) {
+  const pages = useOptionalPages();
+  const where = useMemo(() => (pages ? { shortId: pages.workspace.shortId, workspaceId: pages.workspace.id, people: [] } : null), [pages]);
+  if (!where) return null;
+  return (
+    <div data-event-chips>
+      <ChatChipsProvider value={where}>
+        <MessageChips body={text} />
+      </ChatChipsProvider>
+    </div>
+  );
+}
 
 const c = t.calendar;
 
@@ -316,6 +333,7 @@ function EventView({
         </p>
       )}
       {event.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm">{event.description}</p>}
+      {event.description && <DescriptionChips text={event.description} />}
 
       {!event.cancelled && !iOrganize && (
         <div className="mt-4 rounded-lg border border-border p-3" data-my-answer={mine ?? "none"}>

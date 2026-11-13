@@ -273,6 +273,22 @@ export async function linkChecks() {
   const one = (query) => sql(query);
   const day = new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10);
 
+  // UI-3: a link to this workspace in an event's description shows as a chip under it.
+  {
+    const page = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Agenda page" })).data.id;
+    const { data: made } = await aliceClient.rpc("create_calendar_event", {
+      ws: alphaId,
+      fields: { title: "Chip meeting", description: `Agenda: ${APP}/w/${alphaShort}/p/${page}`, location: "", meeting_url: "", starts_at: `${day}T07:00:00Z`, ends_at: `${day}T07:30:00Z`, all_day: false, time_zone: "UTC", visibility: "open" },
+      people: [],
+    });
+    check("(setup) an event with a page link in its description", made?.ok === true, JSON.stringify(made));
+    await alice.goto(`${base}?view=week&date=${day}`);
+    await alice.locator(`[data-day-column="${day}"] [data-event="Chip meeting"]`).click({ timeout: 15000 });
+    const chip = alice.locator('[data-event-chips] [data-chat-chip="page"]');
+    check("a page link in an event's description shows as a chip with the page's name", (await chip.innerText({ timeout: 15000 }).catch(() => "")).includes("Agenda page"));
+    await alice.keyboard.press("Escape");
+  }
+
   // Five open tasks due on one day (one is the colleague's) and Alice's private one.
   const { data: project } = await aliceClient.rpc("create_task_project", { ws: alphaId, new_name: "Calendar", new_key: "CAL", new_icon: null, status_names: null });
   for (let i = 1; i <= 5; i++) {

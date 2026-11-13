@@ -13,7 +13,8 @@ export const NODE_COLOR_STYLES: Record<NodeColor, { bg: string; border: string }
   purple: { bg: "#f3e8ff", border: "#a855f7" },
 };
 
-export type MapNode = { id: string; parent: string | null; text: string; color?: NodeColor; collapsed?: boolean };
+// link (UI-3): a workspace link shown as a chip under the text (only the link is kept, never the title).
+export type MapNode = { id: string; parent: string | null; text: string; color?: NodeColor; collapsed?: boolean; link?: string };
 export type MapData = { nodes: MapNode[] };
 
 export const MAX_NODES = 2000;
@@ -29,7 +30,7 @@ export function readMap(data: unknown, rootText: string): MapData {
   const nodes = list
     .filter((n) => n && typeof n.id === "string" && typeof n.text === "string")
     .slice(0, MAX_NODES)
-    .map((n) => ({ id: n.id, parent: typeof n.parent === "string" ? n.parent : null, text: n.text.slice(0, 500), color: NODE_COLORS.includes(n.color as NodeColor) ? n.color : undefined, collapsed: n.collapsed === true || undefined }));
+    .map((n) => ({ id: n.id, parent: typeof n.parent === "string" ? n.parent : null, text: n.text.slice(0, 500), color: NODE_COLORS.includes(n.color as NodeColor) ? n.color : undefined, collapsed: n.collapsed === true || undefined, link: typeof n.link === "string" && /^https?:\/\//.test(n.link) ? n.link.slice(0, 500) : undefined }));
   const ids = new Set(nodes.map((n) => n.id));
   const roots = nodes.filter((n) => n.parent === null || !ids.has(n.parent));
   if (!roots.length) return newMap(rootText);

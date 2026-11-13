@@ -24,6 +24,9 @@ The node space: mind maps for laying out thoughts, and diagrams for processes an
 ### Shared
 - List, trash, access, collections — like boards and tables.
 
+### Chips in mind maps (UI-3, 2026-11-13)
+- A node may hold a workspace link (`MapNode.link`, the link only); a chip with the live title shows under its text ("No access" otherwise). "Chip" / "Remove chip" in the map toolbar; a node whose whole text is such a link shows a chip too.
+
 ## 3. Planned
 
 | What | State |

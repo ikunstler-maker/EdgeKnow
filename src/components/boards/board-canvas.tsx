@@ -12,6 +12,10 @@ import { templateParts, type TemplateKey, type TemplatePart } from "@/lib/board-
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { prepareImage } from "@/lib/image-compression";
 import { Icon } from "@/components/ui/icon";
+import { ServiceIcon } from "@/components/services/service-icon";
+import { cellChipOf, onCellChips, rememberCellChip } from "@/components/sheets/sheet-chips";
+import { ChipPicker } from "@/components/sheets/chip-picker";
+import { SERVICE_BRANDS, type ServiceKey } from "@/lib/services";
 import { mergeElements, type BoardElement, type BoardScene } from "@/lib/live/board-sync";
 import type { LiveBoard } from "@/lib/live/use-live-board";
 
@@ -73,7 +77,18 @@ export default function BoardCanvas({
 }) {
   const theme = useResolvedTheme();
   // A guest doesn't take the board away as a picture.
-  const canExport = useOptionalPages()?.workspace.role !== "guest";
+  const pagesContext = useOptionalPages();
+  const canExport = pagesContext?.workspace.role !== "guest";
+  // Chips on the board (UI-3): an element linking to this workspace shows the linked thing's live title.
+  const chipWhere = !compact && pagesContext ? { shortId: pagesContext.workspace.shortId, workspaceId: pagesContext.workspace.id } : null;
+  const [, setChipTick] = useState(0);
+  useEffect(() => {
+    const off = onCellChips(() => setChipTick((n) => n + 1));
+    return () => {
+      off();
+    };
+  }, []);
+  const [pickingChip, setPickingChip] = useState(false);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const [color, setColor] = useState<StickyColor>("yellow");
   const [view, setView] = useState({ scrollX: 0, scrollY: 0, zoom: 1 });
@@ -450,6 +465,19 @@ export default function BoardCanvas({
                   style={{ background: STICKY_COLORS[key] }}
                 />
               ))}
+              {chipWhere && (
+                <button
+                  type="button"
+                  onClick={() => setPickingChip(true)}
+                  title={b.chips.insertHint}
+                  aria-label={b.chips.insert}
+                  className="flex h-8 items-center gap-1 rounded px-2 text-sm hover:bg-surface"
+                  data-board-insert-chip
+                >
+                  <Icon name="plus" size={14} />
+                  {!isMobile && b.chips.insert}
+                </button>
+              )}
             </div>
           ) : null
         }
@@ -571,6 +599,69 @@ export default function BoardCanvas({
               );
             })}
         </div>
+      )}
+
+      {/* Elements linking to this workspace: a chip with the linked thing's live title (UI-3). */}
+      {chipWhere && (
+        <div className="pointer-events-none absolute inset-0 z-[3] overflow-hidden">
+          {elements.map((e) => {
+            if (e.isDeleted || !e.link || e.customData?.task) return null;
+            const chip = cellChipOf(e.link, chipWhere.shortId, chipWhere.workspaceId);
+            if (!chip) return null;
+            const at = toScreen(e.x, e.y);
+            const style = { left: at.left, top: at.top - 4, transform: "translateY(-100%)" };
+            if (chip.state !== "ok")
+              return (
+                <span key={e.id} className="absolute flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-muted shadow" style={style} data-board-chip={chip.state}>
+                  {chip.state === "none" ? (
+                    <>
+                      <Icon name="lock" size={12} />
+                      {t.editor.chips.noAccess}
+                    </>
+                  ) : (
+                    "…"
+                  )}
+                </span>
+              );
+            return (
+              <a
+                key={e.id}
+                href={chip.href}
+                className="pointer-events-auto absolute flex max-w-56 items-center gap-1 truncate rounded-full border border-border bg-background px-2 py-0.5 text-xs shadow"
+                style={style}
+                data-board-chip={chip.title}
+              >
+                {chip.service === "home" ? <Icon name="gift" size={12} /> : <ServiceIcon serviceId={chip.service} size={12} />}
+                <span className="truncate">{chip.title || t.editor.chips.untitledObject}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {pickingChip && (
+        <ChipPicker
+          onClose={() => setPickingChip(false)}
+          onPick={(picked) => {
+            setPickingChip(false);
+            if (!api || !chipWhere) return;
+            const url = `${window.location.origin}${picked.path}`;
+            rememberCellChip(url, chipWhere.shortId, { state: "ok", service: picked.service, title: picked.title, href: picked.path });
+            const state = api.getAppState();
+            const selected = Object.keys(state.selectedElementIds).filter((id) => state.selectedElementIds[id]);
+            if (selected.length === 1) {
+              // The selected element gets the link (a sticky note, a shape…).
+              api.updateScene({
+                elements: api.getSceneElementsIncludingDeleted().map((e) => (e.id === selected[0] ? { ...e, link: url, version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31) } : e)),
+                captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+              });
+              return;
+            }
+            // Otherwise a small card: only the service's name is written on the board, never the title.
+            const kind = picked.service === "home" ? t.chat.chips.wishlist : (SERVICE_BRANDS[picked.service as ServiceKey]?.name ?? "");
+            insertLink(kind, url, "#64748b");
+          }}
+        />
       )}
 
       {chooser && (

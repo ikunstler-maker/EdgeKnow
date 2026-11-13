@@ -108,6 +108,8 @@ The team's shared calendar and time-off management in one place: events and meet
 - Approved absences show in the calendar's month, week and list.
 - Notifications: a request to decide on, a decision, "you are the deputy", an absence for information.
 
+- **Chips in descriptions (UI-3, 2026-11-13):** links to this workspace in an event's description show as chips under it (the chat's cards: live title, "No access" otherwise).
+
 ## 3. Planned
 
 | What | State | Note |
