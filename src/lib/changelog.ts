@@ -34,7 +34,7 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-faster-pages",
-    version: "0.52.1",
+    version: "0.53.1",
     date: "2026-11-13",
     summaryTitle: { uk: "Швидше відкриваються сторінки й коментарі", en: "Pages and comments open faster" },
     items: [
