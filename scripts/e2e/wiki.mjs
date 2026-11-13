@@ -966,8 +966,11 @@ check("Add to Vault makes a link, not a copy", Boolean(linkId) && fakeFiles().le
 const linkFile = await colleague.evaluate(async ([ws, id]) => (await fetch(`/api/vault/files/${id}?ws=${ws}&download`)).status, [alphaShort, linkId]);
 check("the link opens the Drive's file", linkFile === 200, String(linkFile));
 await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+await wide.locator("[data-vault-google-list]").waitFor({ timeout: 15000 });
 await wide.locator("[data-vault-google-switch]").uncheck();
-await wide.waitForFunction(() => !document.querySelector("[data-vault-google-list]"), null, { timeout: 15000 });
+// Saved once the page has refreshed without the Drive's list (the switch is enabled again).
+await wide.locator("[data-vault-google-list]").waitFor({ state: "detached", timeout: 15000 });
+await wide.locator("[data-vault-google-switch]:not([disabled])").waitFor({ timeout: 15000 });
 const off = await listDrive(colleague);
 check("the owner's switch turns browsing off", off.status === 403 && off.body?.error === "off", JSON.stringify(off));
 await colleague.goto(`${APP}/w/${alphaShort}/files`);
