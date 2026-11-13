@@ -43,6 +43,10 @@ export const CHAT_FILE_COLUMNS =
 export const VAULT_FILE_COLUMNS =
   "id, workspace_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by:owner_id, created_at, large";
 
+// An earlier version of a Vault file (read only; the same bucket).
+export const VAULT_VERSION_COLUMNS =
+  "id, workspace_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at, large";
+
 export const TASK_FILE_COLUMNS =
   "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
 

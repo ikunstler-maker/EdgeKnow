@@ -86,6 +86,7 @@ export async function vaultFileView(shortId: string, id: string): Promise<VaultF
     .eq("id", id)
     .eq("kind", "file")
     .is("deleted_at", null)
+    .is("version_of", null)
     .neq("storage_backend", "pending")
     .maybeSingle();
   return data ? { ...(data as VaultFileView), bytes: Number((data as VaultFileView).bytes) } : null;
@@ -96,4 +97,21 @@ export async function vaultPickList(shortId: string, folder: string | null): Pro
   const workspace = await getWorkspace(shortId);
   if (!workspace) return { ok: false, error: "forbidden" };
   return readVaultFolder(shortId, workspace.id, folder);
+}
+
+// VAULT-6: a file's earlier versions (whoever sees the file), newest first.
+export type VaultVersion = { id: string; version_no: number; name: string; bytes: number; uploaded_by: string | null; created_at: string; replaced_at: string };
+export async function listVaultVersions(shortId: string, itemId: string): Promise<VaultVersion[]> {
+  if (!/^[0-9a-f-]{36}$/.test(itemId)) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.from("vault_versions").select("id, version_no, name, bytes, uploaded_by, created_at, replaced_at").eq("item_id", itemId).order("version_no", { ascending: false });
+  return ((data ?? []) as VaultVersion[]).map((v) => ({ ...v, bytes: Number(v.bytes) }));
+}
+
+export async function restoreVaultVersion(shortId: string, versionId: string) {
+  return call<{ version: number }>(shortId, "vault_restore_version", { target_version: versionId });
+}
+
+export async function deleteVaultVersion(shortId: string, versionId: string) {
+  return call(shortId, "vault_delete_version", { target_version: versionId });
 }

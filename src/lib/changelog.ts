@@ -34,11 +34,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-live-maps",
-    version: "0.52.0",
+    version: "0.53.0",
     date: "2026-11-13",
     summaryTitle: { uk: "Карти Nodo — разом наживо", en: "Nodo maps, live together" },
     items: [
       { id: "live-maps", type: "added", scope: "nodes", title: { uk: "Ментальні карти редагуються разом: зміни, курсори й «Стежити за людиною», як у презентаціях.", en: "Mind maps are edited together: changes, cursors and \"Follow\", as in presentations." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-versions",
+    version: "0.52.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: версії файлів", en: "Vault: file versions" },
+    items: [
+      { id: "vault-new-version", type: "added", scope: "files", title: { uk: "«Нова версія» замінює файл скрізь, де він вставлений; попередні версії зберігаються.", en: "\"New version\" replaces the file wherever it is inserted; earlier versions are kept." } },
+      { id: "vault-versions-list", type: "added", scope: "files", title: { uk: "«Версії»: відкрити, зробити поточною або видалити попередню версію.", en: "\"Versions\": open, make current or delete an earlier version." } },
     ],
   },
   {

@@ -28,10 +28,11 @@ export async function POST(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const ws = params.get("ws") ?? "";
   const folder = params.get("folder") || null;
+  const replace = params.get("replace") || null;
   const name = (params.get("name") ?? "").trim().slice(0, 200);
   const size = Number(params.get("size"));
   const type = (params.get("type") ?? "").trim().toLowerCase().slice(0, 130);
-  if (!/^[a-z0-9]{4,16}$/.test(ws) || (folder && !/^[0-9a-f-]{36}$/.test(folder)) || !name || !Number.isSafeInteger(size) || size <= VAULT_PART_BYTES) return bad("invalid");
+  if (!/^[a-z0-9]{4,16}$/.test(ws) || (folder && !/^[0-9a-f-]{36}$/.test(folder)) || (replace && !/^[0-9a-f-]{36}$/.test(replace)) || !name || !Number.isSafeInteger(size) || size <= VAULT_PART_BYTES) return bad("invalid");
   const { central, userId, admin, db } = await who(ws);
   if (!userId) return bad("unauthorized", 401);
   if (await overLimit(central, "upload")) return tooManyRequests();
@@ -41,7 +42,9 @@ export async function POST(request: NextRequest) {
   const to = await workspaceDestination(admin, workspace.id);
   if ("error" in to || to.kind !== "drive") return bad("error" in to ? to.error : "no_drive", 409);
 
-  const { data: registered } = await db.rpc("begin_vault_file", { ws: workspace.id, folder, file_name: name, file_type: type, file_bytes: size });
+  const { data: registered } = replace
+    ? await db.rpc("begin_vault_version", { target: replace, file_name: name, file_type: type, file_bytes: size })
+    : await db.rpc("begin_vault_file", { ws: workspace.id, folder, file_name: name, file_type: type, file_bytes: size });
   const reg = registered as { ok: boolean; error?: string; id?: string; large?: boolean } | null;
   if (!reg?.ok || !reg.id) return bad(reg?.error ?? "unknown", 403);
   const { rows } = await filesHome(admin, workspace.id);
@@ -71,8 +74,8 @@ export async function PUT(request: NextRequest) {
   if (!userId) return bad("unauthorized", 401);
   if (!admin || !db) return bad("team_setup", 503);
   // The record is read with the person's own session: only the one who started the upload continues it.
-  const { data: mine } = await db.from("vault_items").select("id, workspace_id, bytes, mime_type, owner_id, storage_backend, large").eq("id", id).maybeSingle();
-  const file = mine as { id: string; workspace_id: string; bytes: number; mime_type: string; owner_id: string | null; storage_backend: string; large: boolean } | null;
+  const { data: mine } = await db.from("vault_items").select("id, workspace_id, bytes, mime_type, owner_id, storage_backend, large, version_of").eq("id", id).maybeSingle();
+  const file = mine as { id: string; workspace_id: string; bytes: number; mime_type: string; owner_id: string | null; storage_backend: string; large: boolean; version_of: string | null } | null;
   if (!file || file.owner_id !== userId || file.storage_backend !== "pending" || !file.large) return bad("forbidden", 403);
   const { rows } = await filesHome(admin, file.workspace_id);
   const { data: state } = await rows.from("vault_uploads").select("session, sent, account_id").eq("file_id", id).maybeSingle();
@@ -100,6 +103,11 @@ export async function PUT(request: NextRequest) {
     const { error } = await rows.from("vault_items").update({ storage_backend: "drive", drive_source: "wiki", drive_account_id: connection.id, drive_file_id: fileId }).eq("id", id);
     if (error) throw new Error("record update failed");
     await rows.from("vault_uploads").delete().eq("file_id", id);
+    if (file.version_of) {
+      // A new version: its bytes now take the file's place.
+      const { data: finished } = await db.rpc("vault_finish_version", { upload: id });
+      if (!(finished as { ok?: boolean } | null)?.ok) throw new Error("version not put in place");
+    }
     return NextResponse.json({ ok: true, done: true, offset: size });
   } catch (error) {
     await noteDriveError(admin, connection, error);

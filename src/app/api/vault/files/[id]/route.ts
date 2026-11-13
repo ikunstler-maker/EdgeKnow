@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dataClient } from "@/lib/team-db/data";
-import { STREAM_FROM_BYTES, VAULT_FILE_COLUMNS, filesHome, readTaskFile, streamTaskFile, type StoredFile } from "@/lib/drive/task-files";
+import { STREAM_FROM_BYTES, VAULT_FILE_COLUMNS, VAULT_VERSION_COLUMNS, filesHome, readTaskFile, streamTaskFile, type StoredFile } from "@/lib/drive/task-files";
 import { vaultShowsInline } from "@/lib/vault-files";
 
 // A Vault file (?ws=<short id>[&download]). The record is read with the person's own
@@ -12,8 +12,13 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/api/v
   const { id } = await params;
   const ws = request.nextUrl.searchParams.get("ws") ?? "";
   if (!/^[0-9a-f-]{36}$/.test(id) || !/^[a-z0-9]{4,16}$/.test(ws)) return new NextResponse(null, { status: 404 });
+  const version = request.nextUrl.searchParams.get("version");
+  if (version && !/^[0-9a-f-]{36}$/.test(version)) return new NextResponse(null, { status: 404 });
   const db = await dataClient(ws);
-  const { data } = await db.from("vault_items").select(VAULT_FILE_COLUMNS).eq("id", id).eq("kind", "file").maybeSingle();
+  // VAULT-6: an earlier version of the file (whoever sees the file sees its versions).
+  const { data } = version
+    ? await db.from("vault_versions").select(VAULT_VERSION_COLUMNS).eq("id", version).eq("item_id", id).maybeSingle()
+    : await db.from("vault_items").select(VAULT_FILE_COLUMNS).eq("id", id).eq("kind", "file").is("version_of", null).maybeSingle();
   const found = data as unknown as (StoredFile & { large: boolean }) | null;
   const admin = createAdminClient();
   if (!found || !admin || found.storage_backend === "pending") return new NextResponse(null, { status: 404 });

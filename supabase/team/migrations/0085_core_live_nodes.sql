@@ -1,4 +1,6 @@
--- Undo 0084_core_live_nodes: channels for presentations and Bordy files only.
+-- CORE-4 in a team's own database (as supabase/migrations/20270211100000_core_live_nodes.sql):
+-- mind maps and flows of Nodo join the private channels.
+-- Rollback: supabase/team/rollbacks/0085_core_live_nodes.down.sql
 
 create or replace function public.live_channel_allowed(topic text, ext text, want_write boolean)
 returns boolean
@@ -22,7 +24,7 @@ begin
     return false;
   end if;
   select * into object from public.service_objects o where o.id = parts[1]::uuid;
-  if not found or object.deleted_at is not null or object.service not in ('slides', 'boards')
+  if not found or object.deleted_at is not null or object.service not in ('slides', 'boards', 'nodes')
      or object.workspace_id <> settings.workspace_id then
     return false;
   end if;

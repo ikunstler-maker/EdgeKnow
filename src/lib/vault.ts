@@ -73,6 +73,7 @@ export async function listVaultFiles(db: SupabaseClient, workspaceId: string, sh
       .eq("workspace_id", workspaceId)
       .eq("kind", "file")
       .neq("storage_backend", "pending")
+      .is("version_of", null)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(VAULT_LIMIT),
@@ -162,6 +163,8 @@ export type VaultItem = {
   owner_id: string | null;
   updated_at: string;
   deleted_at: string | null;
+  // VAULT-6: the current version's number (1: never replaced).
+  version?: number;
   role: VaultRole;
   // Nobody in the workspace has it from "general access" (only the people listed).
   restricted: boolean;
