@@ -96,6 +96,7 @@ Append only; a reversed decision gets a new row that refers to the old one.
 
 ### Session hygiene (Claude)
 - Todo list: current PR only, ≤5 items; everything else → `docs/backlog.md`.
+- PR codes and anti-conflict rules for parallel sessions: `docs/pr-codes.md`.
 - Large files: Grep / Read with offset+limit; CI logs via `tail -n 30` or grep for `FAIL|error`.
 - Screenshots: take them at scale 1, crop to the area in question.
 - At the end of each PR, check that decisions.md, backlog.md, TROUBLESHOOTING.md and GLOSSARY.md are updated where relevant.

@@ -1,0 +1,20 @@
+carol gives the kettle: true, a wish that isn't there: invalid, a strange kind: invalid
+dan gives it too: taken, chips in: true
+dan sees: [{"item": "a", "kind": "gives", "mine": false, "name": "Carol"}, {"item": "a", "kind": "chips_in", "mine": true, "name": "Dan"}]
+guest gives: forbidden, sees: forbidden
+stranger: forbidden, rows: 0
+bob gives to himself: forbidden, reads who gives: forbidden, reads the table: 0, which wishes are taken: ["a"]
+carol asks which are taken: forbidden
+the workspace owner sees: 2
+carol takes it back: true
+now dan gives it: true
+carol chips in: true, gives the book: true
+bob removes the kettle: true
+notes: Carol wishlist_item_removed Kettle (Bob's list, by Bob); Dan wishlist_item_removed Kettle (Bob's list, by Bob)
+parts left: b gives
+in carol's bell: Kettle
+dan mutes: true, chips in: true
+bob deletes: true
+deleted notes: Carol Bob's list item:none
+parts left: 0
+carol's parts after leaving: 0

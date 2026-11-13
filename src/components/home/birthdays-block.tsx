@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { dateLocale, t } from "@/i18n";
 import type { Birthday } from "@/lib/calendar";
 import { workspacePath } from "@/lib/paths";
+import { readWishlist, WISHLIST_GRADIENTS } from "@/lib/wishlist";
 import { Icon } from "@/components/ui/icon";
 
 const b = t.calendar.birthdays;
@@ -29,7 +30,36 @@ export async function BirthdaysBlock({ db, workspaceId, shortId }: { db: Supabas
   const now = list.filter((x) => x.day === today);
   const soon = list.filter((x) => x.day !== today).slice(0, 6);
   const mine = now.some((x) => x.mine);
-  const others = now.filter((x) => !x.mine).map((x) => x.name);
+  const others = now.filter((x) => !x.mine);
+  // Published wishlists for exactly these birthdays (the database shows only those one may see).
+  const { data: rows } = await db
+    .from("service_objects")
+    .select("id, owner_id, data")
+    .eq("workspace_id", workspaceId)
+    .eq("service", "wishlists")
+    .is("deleted_at", null)
+    .in("owner_id", [...new Set(list.map((x) => x.user_id))]);
+  const wishlistOf = new Map<string, { id: string; gradient: string }>();
+  for (const row of (rows ?? []) as { id: string; owner_id: string; data: unknown }[]) {
+    const d = readWishlist(row.data);
+    if (d.published) wishlistOf.set(`${row.owner_id}|${d.birthday}`, { id: row.id, gradient: WISHLIST_GRADIENTS[d.design.gradient] });
+  }
+  const wishButton = (x: Birthday) => {
+    const w = wishlistOf.get(`${x.user_id}|${x.day}`);
+    if (!w) return null;
+    return (
+      <Link
+        href={workspacePath(shortId, `/wishlists/${w.id}`)}
+        className="inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-semibold text-white shadow-sm transition hover:brightness-110 md:min-h-7"
+        style={{ background: w.gradient }}
+        aria-label={t.wishlists.homeButtonFor(x.mine ? b.mine : x.name)}
+        data-home-wishlist
+      >
+        <Icon name="gift" size={12} />
+        {t.wishlists.title}
+      </Link>
+    );
+  };
   const format = new Intl.DateTimeFormat(dateLocale(), { weekday: "short", day: "numeric", month: "long" });
   const join = (names: string[]) => new Intl.ListFormat(dateLocale(), { type: "conjunction" }).format(names);
 
@@ -47,11 +77,29 @@ export async function BirthdaysBlock({ db, workspaceId, shortId }: { db: Supabas
           <h2 id="home-birthdays" className="text-sm font-semibold">
             {now.length ? b.todayHeading : b.soonHeading}
           </h2>
-          {mine && <p className="mt-0.5 text-sm" data-home-birthday-mine>{b.todayMine}</p>}
+          {mine && (
+            <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm" data-home-birthday-mine>
+              {b.todayMine}
+              {now.filter((x) => x.mine).map((x) => <span key="mine">{wishButton(x)}</span>)}
+            </p>
+          )}
           {others.length > 0 && (
             <p className="mt-0.5 text-sm" data-home-birthday-today>
-              {b.today(join(others))}
+              {b.today(join(others.map((x) => x.name)))}
             </p>
+          )}
+          {others.some((x) => wishlistOf.has(`${x.user_id}|${x.day}`)) && (
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {others.map((x) => {
+                const button = wishButton(x);
+                return button ? (
+                  <span key={x.user_id} className="flex items-center gap-1.5 text-sm">
+                    {others.length > 1 && <span className="font-medium">{x.name}</span>}
+                    {button}
+                  </span>
+                ) : null;
+              })}
+            </div>
           )}
           {soon.length > 0 && (
             <ul className={`flex flex-wrap gap-x-4 gap-y-1 text-sm ${now.length ? "mt-2 text-muted" : "mt-1"}`}>
@@ -59,6 +107,7 @@ export async function BirthdaysBlock({ db, workspaceId, shortId }: { db: Supabas
                 <li key={`${x.user_id}-${x.day}`} className="flex items-center gap-1.5" data-home-birthday-soon={x.name}>
                   <span className="font-medium text-foreground">{x.mine ? b.mine : x.name}</span>
                   <span className="text-xs text-muted first-letter:uppercase">{format.format(new Date(`${x.day}T00:00:00`))}</span>
+                  {wishButton(x)}
                 </li>
               ))}
             </ul>

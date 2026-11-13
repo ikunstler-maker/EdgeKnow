@@ -5,14 +5,14 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000085a1', 'alice@later.test', now()),
- ('00000000-0000-0000-0000-0000000085b1', 'bob@later.test', now()),
- ('00000000-0000-0000-0000-0000000085c1', 'carol@later.test', now()),
- ('00000000-0000-0000-0000-0000000085f1', 'eve@other-later.test', now());
-\set alice '00000000-0000-0000-0000-0000000085a1'
-\set bob '00000000-0000-0000-0000-0000000085b1'
-\set carol '00000000-0000-0000-0000-0000000085c1'
-\set eve '00000000-0000-0000-0000-0000000085f1'
+ ('00000000-0000-0000-0000-0000000086a1', 'alice@later.test', now()),
+ ('00000000-0000-0000-0000-0000000086b1', 'bob@later.test', now()),
+ ('00000000-0000-0000-0000-0000000086c1', 'carol@later.test', now()),
+ ('00000000-0000-0000-0000-0000000086f1', 'eve@other-later.test', now());
+\set alice '00000000-0000-0000-0000-0000000086a1'
+\set bob '00000000-0000-0000-0000-0000000086b1'
+\set carol '00000000-0000-0000-0000-0000000086c1'
+\set eve '00000000-0000-0000-0000-0000000086f1'
 \set found '(select coalesce(string_agg(x ->> ''body'', '', '' order by x ->> ''body''), ''nothing'') from jsonb_array_elements(public.chat_search(:''ws'', ''budget'')) x)'
 update public.platform_settings set open_registration = true;
 set role authenticated;

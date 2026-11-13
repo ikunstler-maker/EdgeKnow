@@ -5,6 +5,7 @@
 Source of truth: `docs/SPEC.md` (Ukrainian) + owner-approved `docs/decisions.md`. Conflict → ask first.
 Open work: `docs/backlog.md`. DB rules: `.claude/rules/supabase.md`. UI/i18n rules: `.claude/rules/ui-i18n.md`.
 Context pack: `docs/context/` (overview, platform core, one card per service; `README.md` there). Working on a service → read its `-en` card first. A PR that changes a service updates its card (`-uk` and `-en`) in the same PR.
+PR codes: `docs/pr-codes.md` — every step is `CODE-n` (per service/category); code goes into branch, PR title, migration name, backlog/decisions entries.
 Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries per `docs/MASTER_GUIDE.md` A2). Terms: `docs/GLOSSARY.md`.
 
 ## Session start (automatic, the owner doesn't need to ask)
