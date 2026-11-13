@@ -56,7 +56,8 @@ async function load(refs: ChipRef[]) {
 
 // The chip of a cell's text, if it is a link to this workspace (asked for if not known yet).
 export function cellChipOf(text: unknown, shortId: string, workspaceId: string): CellChip | null {
-  if (typeof text !== "string" || !text.startsWith("http") || /\s/.test(text.trim())) return null;
+  // Only in the browser: the link is judged against the address the page is open at.
+  if (typeof window === "undefined" || typeof text !== "string" || !text.startsWith("http") || /\s/.test(text.trim())) return null;
   const ref = chipRefOf(text.trim(), window.location.host, shortId);
   if (!ref) return null;
   if (where.shortId !== shortId || where.workspaceId !== workspaceId) where = { shortId, workspaceId };

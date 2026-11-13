@@ -18,15 +18,15 @@ import {
   removeTree,
   reparent,
   type DesignDoc,
-  type DesignPage,
-} from "@/lib/design";
+  type DesignPage, detachInstance, newInstance } from "@/lib/design";
 import { align, boxOf, distribute, intersects, snap, unionBox, type AlignMode, type Guide } from "@/lib/slide-guides";
 import { NodeShape, pointsPath } from "@/components/slides/slide-view";
 import { LiveLayer } from "@/components/live/live-layer";
 import type { LiveDoc } from "@/lib/live/use-live-doc";
 import { DesignPanel } from "@/components/slides/inspector";
 import { DesignLayers } from "./design-layers";
-import { ChildPanel, FramePanel, PaintsPanel, PrototypePanel, Section } from "./design-inspector";
+import { ChildPanel, ComponentPanel, FramePanel, PaintsPanel, PrototypePanel, Section } from "./design-inspector";
+import { CommentPins, CommentsPanel, useDesignComments } from "./design-comments";
 import { exportFrame } from "./design-export";
 import { TaskFromText } from "./task-from-text";
 import { Icon } from "@/components/ui/icon";
@@ -55,7 +55,7 @@ const STYLE_KEYS = ["fill", "gradient", "fills", "stroke", "strokes", "strokeWid
 // The design editor (Bordy «Дизайн»): pages, an endless canvas, frames with nesting, the
 // layer tree, design and prototype panels. Every change goes through commit() (undo,
 // saving); auto layouts are recomputed after each change.
-export function DesignEditor({ shortId, fileId, initial, editable, onChange, onPlay, live }: { shortId: string; fileId: string; initial: DesignDoc; editable: boolean; onChange: (doc: DesignDoc) => void; onPlay: (path: string) => void; live?: LiveDoc<DesignDoc> }) {
+export function DesignEditor({ shortId, fileId, initial, editable, onChange, onPlay, live, canComment = false }: { shortId: string; fileId: string; initial: DesignDoc; editable: boolean; onChange: (doc: DesignDoc) => void; onPlay: (path: string) => void; live?: LiveDoc<DesignDoc>; canComment?: boolean }) {
   const [doc, setDoc] = useState(initial);
   const docRef = useRef(doc);
   const [past, setPast] = useState<DesignDoc[]>([]);
@@ -68,7 +68,11 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   const [editing, setEditing] = useState<string | null>(null);
   const [pathEdit, setPathEdit] = useState<string | null>(null);
   const [pen, setPen] = useState<PathPoint[] | null>(null);
-  const [mode, setMode] = useState<"design" | "prototype">("design");
+  const [mode, setMode] = useState<"design" | "prototype" | "comments">("design");
+  // BORDY-1: comments pinned on the canvas.
+  const comments = useDesignComments(shortId, fileId, true);
+  const [pendingPin, setPendingPin] = useState<{ x: number; y: number; node: string | null } | null>(null);
+  const [activeThread, setActiveThread] = useState<string | null>(null);
   const [side, setSide] = useState<"layers" | "pages">("layers");
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -421,6 +425,10 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   const onCanvasDown = (e: React.PointerEvent) => {
     wrapRef.current?.focus();
     if (e.button === 1 || tool === "hand" || space) return startPan(e);
+    if (mode === "comments") {
+      if (canComment && e.button === 0) setPendingPin({ ...point(e), node: null });
+      return;
+    }
     if (!editable || e.button !== 0) return;
     const at = point(e);
     if (tool === "pen") return penDown(at);
@@ -454,6 +462,11 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
     if (e.button !== 0) return;
     if (!editable || tool !== "select" || n.locked) return onCanvasDown(e);
     if (editing === n.id) return;
+    if (mode === "comments") {
+      e.stopPropagation();
+      if (canComment) setPendingPin({ ...point(e), node: n.id });
+      return;
+    }
     const id = targetOf(n);
     const ids = e.shiftKey ? (selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]) : selected.includes(id) ? selected : [id];
     setSelected(ids);
@@ -856,9 +869,10 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
           </span>
         )}
         <div className="flex rounded-md border border-white/10" role="tablist">
-          {(["design", "prototype"] as const).map((m) => (
+          {(["design", "prototype", "comments"] as const).map((m) => (
             <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} className={`min-h-9 px-3 text-sm ${mode === m ? "bg-sky-500/30" : ""}`} data-mode={m}>
-              {m === "design" ? g.prototype.design : g.prototype.tab}
+              {m === "design" ? g.prototype.design : m === "prototype" ? g.prototype.tab : g.comments.tab}
+              {m === "comments" && comments.list.some((x) => !x.parent_id && !x.resolved_at) ? ` · ${comments.list.filter((x) => !x.parent_id && !x.resolved_at).length}` : ""}
             </button>
           ))}
         </div>
@@ -964,6 +978,16 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                   {f.name}
                 </text>
               ))}
+            {/* BORDY-1: comment pins, and the one being placed */}
+            {mode === "comments" && (
+              <CommentPins
+                threads={comments.list.filter((x) => !x.parent_id && x.page_id === page.id && !x.resolved_at)}
+                unit={sw}
+                active={activeThread}
+                onPick={(id) => setActiveThread(id)}
+              />
+            )}
+            {mode === "comments" && pendingPin && <circle cx={pendingPin.x} cy={pendingPin.y} r={6 * sw} fill="#f59e0b" stroke="#fff" strokeWidth={1.5 * sw} data-comment-pending />}
             {/* Prototype connections */}
             {mode === "prototype" &&
               nodes.flatMap((n) =>
@@ -1063,7 +1087,20 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
         {/* Right: design / prototype */}
         {editable && (
           <aside className="hidden w-72 shrink-0 space-y-3 overflow-y-auto border-l border-white/10 bg-[#151922] p-3 text-sm md:block" data-design-inspector>
-            {mode === "prototype" ? (
+            {mode === "comments" ? (
+              <CommentsPanel
+                shortId={shortId}
+                fileId={fileId}
+                pageId={page.id}
+                list={comments.list}
+                reload={comments.reload}
+                pending={pendingPin}
+                onPendingDone={() => setPendingPin(null)}
+                active={activeThread}
+                onActive={setActiveThread}
+                canComment={canComment}
+              />
+            ) : mode === "prototype" ? (
               <PrototypePanel
                 node={one ?? null}
                 page={page}
@@ -1099,6 +1136,18 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
             ) : one ? (
               <div className="space-y-3 [&_input]:bg-transparent [&_select]:bg-[#151922]">
                 {one.type === "FRAME" && <FramePanel node={one} set={(patch) => update([one.id], (n) => ({ ...n, ...patch }))} />}
+                <ComponentPanel
+                  node={one}
+                  all={nodes}
+                  set={(patch) => update([one.id], (n) => ({ ...n, ...patch }))}
+                  onMakeCopy={() => {
+                    const made = newInstance(nodes, one.id);
+                    if (!made) return;
+                    setNodes(() => made.nodes);
+                    setSelected([made.id]);
+                  }}
+                  onDetach={() => setNodes((list) => detachInstance(list, one.id))}
+                />
                 {one.parentId && byId.get(one.parentId)?.type === "FRAME" && <ChildPanel node={one} parent={byId.get(one.parentId)!} set={(patch) => update([one.id], (n) => ({ ...n, ...patch }))} />}
                 <DesignPanel
                   node={one}

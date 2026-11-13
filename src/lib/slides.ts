@@ -40,6 +40,8 @@ export type Interaction = {
 // A live object of another service on a slide (step П-3б), read with the viewer's access.
 export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map", "wishlist", "file", "chip"] as const;
 export type EmbedKind = (typeof EMBED_KINDS)[number];
+export const BUILD_EFFECTS = ["fade", "rise", "zoom"] as const;
+export type BuildEffect = (typeof BUILD_EFFECTS)[number];
 // chip (UI-4): `link` is a workspace link drawn as a chip with its live title (only the link is kept).
 export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary"; link?: string };
 
@@ -68,6 +70,8 @@ export type SlideNode = {
   imageId?: string;
   // Look (step П-2)
   opacity?: number; // 0..1
+  // KADRY-1: appears in the show on a click, in the slide's order of objects.
+  build?: BuildEffect;
   gradient?: Gradient; // over fill when set
   dash?: "solid" | "dash" | "dot";
   radius?: number | [number, number, number, number]; // TL, TR, BR, BL
@@ -87,6 +91,11 @@ export type SlideNode = {
   zoom?: number;
   // Design
   parentId?: string;
+  // BORDY-1: a frame that is a component (its name; "Set/Variant" names make variants of a set),
+  // or a copy of one (its layers follow the component; `fromComponent` marks those layers).
+  component?: string;
+  instanceOf?: string;
+  fromComponent?: string;
   clip?: boolean;
   device?: string;
   autoLayout?: AutoLayout;
@@ -205,6 +214,7 @@ function readLook(node: Record<string, unknown>): Partial<SlideNode> {
   if (typeof node.lineHeight === "number") out.lineHeight = clamp(node.lineHeight, 0.6, 4);
   if (node.vAlign === "top" || node.vAlign === "middle" || node.vAlign === "bottom") out.vAlign = node.vAlign;
   if (node.hidden === true) out.hidden = true;
+  if ((BUILD_EFFECTS as readonly unknown[]).includes(node.build)) out.build = node.build as BuildEffect;
   if (node.locked === true) out.locked = true;
   if (typeof node.groupId === "string") out.groupId = node.groupId;
   const e = node.embed as Record<string, unknown> | undefined;
@@ -242,6 +252,9 @@ function readPaint(v: unknown): Paint | null {
 function readDesignLook(node: Record<string, unknown>): Partial<SlideNode> {
   const out: Partial<SlideNode> = {};
   if (typeof node.parentId === "string") out.parentId = node.parentId;
+  if (typeof node.component === "string" && node.component.trim()) out.component = node.component.slice(0, 120);
+  if (typeof node.instanceOf === "string") out.instanceOf = node.instanceOf;
+  if (typeof node.fromComponent === "string") out.fromComponent = node.fromComponent;
   if (node.clip === true) out.clip = true;
   if (typeof node.device === "string") out.device = node.device.slice(0, 40);
   const al = node.autoLayout;

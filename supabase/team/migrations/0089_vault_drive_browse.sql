@@ -1,6 +1,6 @@
--- VAULT-7 in a team's own database (as supabase/migrations/20270213100000_vault_drive_browse.sql;
+-- VAULT-7 in a team's own database (as supabase/migrations/20270215100000_vault_drive_browse.sql;
 -- the Drive's connection lives in the central database).
--- Rollback: supabase/team/rollbacks/0088_vault_drive_browse.down.sql
+-- Rollback: supabase/team/rollbacks/0089_vault_drive_browse.down.sql
 
 -- VAULT-7 (owner, 2026-11-13: «Погоджую план»): the team's Google Drive inside Vault.
 -- Members (not guests) browse the Drive connected to the workspace while its owner keeps

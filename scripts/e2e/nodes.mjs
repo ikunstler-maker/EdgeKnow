@@ -407,6 +407,32 @@ check("…while a map they may view shows as usual", shownMap, screen);
   const chipLinks = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'slides') s, jsonb_array_elements(s -> 'nodes') n where o.id = '${deckId}' and n #>> '{embed,kind}' = 'chip' and n #>> '{embed,link}' like 'http%/w/${alphaShort}/%'`);
   check("a slide takes a chip (the link only)", await until(() => chipLinks() === "1", 15000), chipLinks());
   check("…drawn with the linked thing's name", await alice.locator("[data-slide-chip]").first().waitFor({ timeout: 15000 }).then(async () => !["loading", "none"].includes(await alice.locator("[data-slide-chip]").first().getAttribute("data-slide-chip")), () => false));
+  // KADRY-1: an object that appears on a click, and the show through a link without signing in.
+  sql(`update public.service_objects set data = jsonb_set(data, '{slides,0,nodes}', coalesce(data #> '{slides,0,nodes}', '[]'::jsonb) || '[{"id":"b1","type":"RECTANGLE","x":100,"y":100,"width":200,"height":120,"rotation":0,"fill":"#2563eb","build":"fade"}]'::jsonb) where id = '${deckId}'`);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  let stepped = false;
+  for (let i = 0; i < 10 && !stepped; i++) {
+    await alice.keyboard.press("ArrowRight");
+    await alice.waitForTimeout(400);
+    stepped = (await alice.locator("[data-player]").getAttribute("data-player-step")) === "1" && (await alice.locator("[data-player-count]").innerText()).trim().startsWith("1 /");
+  }
+  check("a click first brings in the slide's object that appears on a click", stepped);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-studio-more]").click();
+  await alice.locator("[data-show-link-open]").click();
+  await alice.locator("[data-show-link-on]").click();
+  const showToken = () => sql(`select coalesce((select token from public.deck_public_links where object_id = '${deckId}' and enabled), '')`);
+  check("the owner turns the show link on", await until(() => showToken().length === 32, 10000));
+  const stranger = await newPage();
+  await stranger.goto(`${APP}/s/${alphaShort}/${showToken()}`);
+  check("…anyone with the link sees the show without signing in", await stranger.locator("[data-player]").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  await alice.locator("[data-show-link-off]").click();
+  await until(() => showToken() === "", 10000);
+  const offToken = sql(`select token from public.deck_public_links where object_id = '${deckId}'`);
+  await stranger.goto(`${APP}/s/${alphaShort}/${offToken}`);
+  check("…and nobody once it is off", (await stranger.locator("[data-public-show-missing]").count()) === 1 && (await stranger.locator("[data-player]").count()) === 0);
+  await stranger.close();
 }
 
 // --- Design (steps Д-1…Д-4): a frame with a shape inside, auto layout, the prototype player ------
@@ -586,6 +612,28 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.waitForTimeout(1500);
   await alice.mouse.click(...c1);
   check("a renamed board shows its new name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board renamed"));
+}
+
+// --- "Design": comments pinned on the canvas (BORDY-1) ------------------------------------------------
+{
+  const file = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "design", new_title: "Comment screens", new_data: { version: 1, kind: "design", pages: [{ id: "cp1", name: "Page 1", background: "#1e1f24", nodes: [], flows: [] }] } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/boards/${file}`);
+  const canvas = alice.locator("[data-design-canvas] svg");
+  await canvas.waitFor({ timeout: 30000 });
+  await alice.locator('[data-mode="comments"]').click();
+  const b = await canvas.boundingBox();
+  await alice.mouse.click(b.x + b.width * 0.4, b.y + b.height * 0.4);
+  await alice.locator("[data-comment-new] textarea").fill("Move this up");
+  await alice.locator("[data-comment-send]").click();
+  const count = () => sql(`select count(*) from public.design_comments where object_id = '${file}'`);
+  check("a comment is pinned on the Design canvas", await until(() => count() === "1", 10000), count());
+  check("…and shows as a pin and in the list", await alice.locator("[data-comment-pin]").first().waitFor({ timeout: 10000 }).then(() => true, () => false) && (await alice.locator('[data-comment-thread="Move this up"]').count()) === 1);
+  await alice.locator('[data-comment-thread="Move this up"] button').first().click();
+  await alice.locator("[data-comment-reply-box]").fill("Done");
+  await alice.locator("[data-comment-reply-send]").click();
+  check("…takes a reply", await until(() => count() === "2", 10000));
+  await alice.locator("[data-comment-resolve]").click();
+  check("…and is resolved", await until(() => sql(`select count(*) from public.design_comments where object_id = '${file}' and resolved_at is not null`) === "1", 10000));
 }
 
 // --- Chips on idea boards and mind maps (UI-3) -------------------------------------------------------

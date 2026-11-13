@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { t } from "@/i18n";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { ServiceIcon } from "@/components/services/service-icon";
@@ -10,16 +10,20 @@ import { cellChipOf, onCellChips } from "@/components/sheets/sheet-chips";
 // A workspace link shown as a chip (smart chips, UI-3/UI-4): the service's mark and the
 // linked thing's live title with the viewer's access; "No access" otherwise; nothing for a
 // link that isn't to this workspace.
+const noSubscribe = () => () => {};
+
 export function LinkChip({ link, className = "", attr = "data-link-chip" }: { link?: string | null; className?: string; attr?: string }) {
   const pages = useOptionalPages();
   const [, setTick] = useState(0);
+  // Drawn in the browser only (the server can't tell which links are this workspace's).
+  const inBrowser = useSyncExternalStore(noSubscribe, () => true, () => false);
   useEffect(() => {
     const off = onCellChips(() => setTick((x) => x + 1));
     return () => {
       off();
     };
   }, []);
-  if (!link || !pages) return null;
+  if (!link || !pages || !inBrowser) return null;
   const chip = cellChipOf(link, pages.workspace.shortId, pages.workspace.id);
   if (!chip) return null;
   if (chip.state !== "ok")

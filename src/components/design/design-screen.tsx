@@ -182,7 +182,7 @@ export function DesignScreen({
       ]}
       notices={<StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
     >
-      <DesignEditor shortId={shortId} fileId={id} initial={initial} editable={editable} onChange={(doc) => schedule({ data: doc })} onPlay={(path) => void open(path)} live={live} />
+      <DesignEditor shortId={shortId} fileId={id} initial={initial} editable={editable} onChange={(doc) => schedule({ data: doc })} onPlay={(path) => void open(path)} live={live} canComment={role === "owner" || role === "editor" || role === "commenter"} />
     </StudioShell>
   );
 }

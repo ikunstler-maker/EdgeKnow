@@ -2,7 +2,7 @@
 
 import { t } from "@/i18n";
 import { newId, type AutoLayout, type Interaction, type Paint, type SlideNode, type StrokePaint } from "@/lib/slides";
-import { DEVICES, type DesignPage } from "@/lib/design";
+import { DEVICES, type DesignPage, componentSet, variantName } from "@/lib/design";
 import { Icon } from "@/components/ui/icon";
 
 const g = t.design;
@@ -399,5 +399,73 @@ export function PrototypePanel({ node, page, frames, set, onFlows }: { node: Sli
         </label>
       )}
     </>
+  );
+}
+
+// BORDY-1: a frame made a component, copies of it, and switching a copy between the variants
+// of its set (components whose names share the part before the last "/").
+export function ComponentPanel({
+  node,
+  all,
+  set,
+  onMakeCopy,
+  onDetach,
+}: {
+  node: SlideNode;
+  all: SlideNode[];
+  set: (patch: Partial<SlideNode>) => void;
+  onMakeCopy: () => void;
+  onDetach: () => void;
+}) {
+  const c = g.components;
+  const components = all.filter((n) => n.component && n.type === "FRAME");
+  const btn = "min-h-11 rounded-md border border-white/15 px-2 text-sm hover:bg-white/10 md:min-h-8";
+  if (node.instanceOf) {
+    const main = components.find((n) => n.id === node.instanceOf);
+    const siblings = main ? components.filter((n) => componentSet(n.component!) === componentSet(main.component!)) : [];
+    return (
+      <Section title={c.copyTitle}>
+        <p className="text-xs text-muted">{main ? c.copyOf(main.component!) : c.gone}</p>
+        {siblings.length > 1 && (
+          <select value={node.instanceOf} onChange={(e) => set({ instanceOf: e.target.value })} className="mt-1 min-h-11 w-full rounded-md border border-white/15 px-2 md:min-h-8" aria-label={c.variant} data-component-variant>
+            {siblings.map((n) => (
+              <option key={n.id} value={n.id}>
+                {variantName(n.component!)}
+              </option>
+            ))}
+          </select>
+        )}
+        <button type="button" onClick={onDetach} className={`${btn} mt-2`} data-component-detach>
+          {c.detach}
+        </button>
+      </Section>
+    );
+  }
+  if (node.type !== "FRAME") return null;
+  if (!node.component)
+    return (
+      <Section title={c.title}>
+        <button type="button" onClick={() => set({ component: node.name || c.defaultName })} className={btn} data-component-make>
+          {c.make}
+        </button>
+        <p className="mt-1 text-xs text-muted">{c.hint}</p>
+      </Section>
+    );
+  return (
+    <Section title={c.title}>
+      <label className="block text-xs text-muted">
+        {c.name}
+        <input defaultValue={node.component} onBlur={(e) => e.currentTarget.value.trim() && set({ component: e.currentTarget.value.trim().slice(0, 120) })} className="mt-1 min-h-11 w-full rounded-md border border-white/15 px-2 text-sm md:min-h-8" data-component-name />
+      </label>
+      <p className="mt-1 text-xs text-muted">{c.nameHint}</p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        <button type="button" onClick={onMakeCopy} className={btn} data-component-copy>
+          {c.copy}
+        </button>
+        <button type="button" onClick={() => set({ component: undefined })} className={btn} data-component-unmake>
+          {c.unmake}
+        </button>
+      </div>
+    </Section>
   );
 }

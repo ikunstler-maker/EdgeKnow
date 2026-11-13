@@ -34,13 +34,33 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-vault-team-drive",
-    version: "0.55.0",
+    version: "0.57.0",
     date: "2026-11-13",
     summaryTitle: { uk: "Vault: Диск команди всередині", en: "Vault: the team Drive inside" },
     items: [
       { id: "vault-team-drive-tab", type: "added", scope: "files", title: { uk: "Вкладка «Диск команди»: учасники переглядають Google Диск простору прямо у Vault, відкривають і завантажують файли. Власник простору може вимкнути її.", en: "A \"Team Drive\" tab: members browse the workspace's Google Drive right in Vault, open and download files. The workspace owner can turn it off." } },
       { id: "vault-drive-link", type: "added", scope: "files", title: { uk: "«Додати у Vault» — посилання на той самий файл Диска, без копії: місця не займає, а кошик Vault прибирає лише посилання.", en: "\"Add to Vault\" makes a link to the same Drive file, not a copy: it takes no space, and Vault's bin removes only the link." } },
       { id: "vault-settings-read", type: "fixed", scope: "files", title: { uk: "Учасники знову бачать налаштування Vault (наприклад, ліміт розміру файлу) ще до завантаження.", en: "Members see Vault's settings again (such as the file size limit) before uploading." } },
+    ],
+  },
+  {
+    id: "2026-11-13-design-comments",
+    version: "0.56.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "«Дизайн»: коментарі на полотні, компоненти й варіанти", en: "\"Design\": comments on the canvas, components and variants" },
+    items: [
+      { id: "design-comments", type: "added", scope: "board", title: { uk: "Режим «Коментарі»: мітки з обговореннями прямо на полотні, відповіді, «Вирішено».", en: "\"Comments\" mode: pinned threads right on the canvas, replies, \"Resolve\"." } },
+      { id: "design-components", type: "added", scope: "board", title: { uk: "Компоненти: копії повторюють компонент після кожної зміни; варіанти за назвою «Набір/Варіант».", en: "Components: copies follow the component after every change; variants by \"Set/Variant\" names." } },
+    ],
+  },
+  {
+    id: "2026-11-13-show-link",
+    version: "0.55.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Презентації: поява об'єктів і показ за посиланням", en: "Presentations: builds and a show link" },
+    items: [
+      { id: "builds", type: "added", scope: "slides", title: { uk: "Об'єкт слайда може з'являтися за кліком: проявлення, виплив знизу або наближення.", en: "A slide object can appear on a click: fade in, rise up or zoom in." } },
+      { id: "show-link", type: "added", scope: "slides", title: { uk: "Посилання на показ без входу: власник вмикає, вимикає й оновлює його в меню «Ще».", en: "A show link without signing in: the owner turns it on, off or renews it in the \"More\" menu." } },
     ],
   },
   {

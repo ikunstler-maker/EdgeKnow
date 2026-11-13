@@ -5,17 +5,17 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000094a1', 'alice@vaultbrowse.test', now()),
- ('00000000-0000-0000-0000-0000000094b1', 'bob@vaultbrowse.test', now()),
- ('00000000-0000-0000-0000-0000000094e1', 'gwen@vaultbrowse.test', now());
-\set alice '00000000-0000-0000-0000-0000000094a1'
-\set bob '00000000-0000-0000-0000-0000000094b1'
-\set gwen '00000000-0000-0000-0000-0000000094e1'
+ ('00000000-0000-0000-0000-0000000096a1', 'alice@vaultbrowse96.test', now()),
+ ('00000000-0000-0000-0000-0000000096b1', 'bob@vaultbrowse96.test', now()),
+ ('00000000-0000-0000-0000-0000000096e1', 'gwen@vaultbrowse96.test', now());
+\set alice '00000000-0000-0000-0000-0000000096a1'
+\set bob '00000000-0000-0000-0000-0000000096b1'
+\set gwen '00000000-0000-0000-0000-0000000096e1'
 update public.platform_settings set open_registration = true;
 set role authenticated;
 set request.jwt.claim.sub = :'alice';
 select public.create_workspace('Vault browse') ->> 'id' as ws \gset
-select public.add_workspace_domain(:'ws', 'vaultbrowse.test') ->> 'ok' as ignored \gset
+select public.add_workspace_domain(:'ws', 'vaultbrowse96.test') ->> 'ok' as ignored \gset
 set request.jwt.claim.sub = :'bob';
 select public.join_workspaces() ->> 'ok' as ignored \gset
 set request.jwt.claim.sub = :'gwen';

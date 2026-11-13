@@ -1,5 +1,5 @@
--- The same in supabase/team/migrations/0088_vault_drive_browse.sql (without drive_connections).
--- Rollback: supabase/rollbacks/20270213100000_vault_drive_browse.down.sql
+-- The same in supabase/team/migrations/0089_vault_drive_browse.sql (without drive_connections).
+-- Rollback: supabase/rollbacks/20270215100000_vault_drive_browse.down.sql
 
 -- VAULT-7 (owner, 2026-11-13: «Погоджую план»): the team's Google Drive inside Vault.
 -- Members (not guests) browse the Drive connected to the workspace while its owner keeps

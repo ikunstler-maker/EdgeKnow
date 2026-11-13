@@ -1,0 +1,14 @@
+alice pins a comment: true
+not on an idea board: not_found
+empty: invalid
+bob (editor) replies: true
+bob reads: 2
+a reply stays at the pin: true
+carol (viewer) reads: 2, writes: forbidden
+carol resolves: forbidden, deletes: forbidden
+eve (stranger) reads: 0, writes: not_found
+bob resolves: true
+resolved: true
+alice deletes her thread: true
+replies go with it: 0
+anon may add: false

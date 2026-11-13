@@ -221,6 +221,71 @@ export function layoutFrame(nodes: SlideNode[], frameId: string): SlideNode[] {
 }
 
 // Every auto layout on a page, innermost first (so a hugging child is sized before its parent).
+// ---- BORDY-1: components and variants -----------------------------------------------------
+
+// The set a component belongs to: its name up to the last "/" ("Button/Primary" → "Button").
+export const componentSet = (name: string) => (name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : name);
+export const variantName = (name: string) => (name.includes("/") ? name.slice(name.lastIndexOf("/") + 1) : name);
+
+// Every copy of a component takes the component's look and layers again: its own place stays,
+// its layers are the component's, shifted there (ids stable per copy, so nothing jumps).
+// A copy whose component is gone keeps what it has. Copies inside a component follow too
+// (a few rounds settle nested ones).
+export function syncInstances(nodes: SlideNode[]): SlideNode[] {
+  let out = nodes;
+  for (let round = 0; round < 4; round++) {
+    const instances = out.filter((n) => n.instanceOf && n.type === "FRAME");
+    if (!instances.length) return out;
+    let changed = false;
+    for (const copy of instances) {
+      const main = out.find((n) => n.id === copy.instanceOf && n.component && n.type === "FRAME");
+      if (!main || main.id === copy.id || descendants(out, copy.id).includes(main.id)) continue;
+      const dx = copy.x - main.x;
+      const dy = copy.y - main.y;
+      const source = descendants(out, main.id).map((id) => out.find((n) => n.id === id)!).filter(Boolean);
+      const idOf = (sourceId: string) => `${copy.id}~${sourceId}`.slice(0, 120);
+      const fresh: SlideNode[] = source.map((n) => ({
+        ...n,
+        id: idOf(n.id),
+        x: n.x + dx,
+        y: n.y + dy,
+        parentId: n.parentId === main.id ? copy.id : idOf(n.parentId!),
+        fromComponent: n.id,
+        locked: true,
+        component: undefined,
+        ...(n.points ? { points: n.points.map((p) => shiftPoint(p, dx, dy)) } : {}),
+      }));
+      const look: SlideNode = { ...main, id: copy.id, x: copy.x, y: copy.y, parentId: copy.parentId, name: copy.name, instanceOf: main.id, component: undefined, hidden: copy.hidden, locked: copy.locked };
+      const old = new Set(descendants(out, copy.id));
+      const kept = out.filter((n) => !old.has(n.id));
+      const next = kept.map((n) => (n.id === copy.id ? look : n));
+      const at = next.findIndex((n) => n.id === copy.id);
+      const merged = [...next.slice(0, at + 1), ...fresh, ...next.slice(at + 1)];
+      if (JSON.stringify(merged) !== JSON.stringify(out)) {
+        out = merged;
+        changed = true;
+      }
+    }
+    if (!changed) return out;
+  }
+  return out;
+}
+
+// A new copy of a component, placed to its right.
+export function newInstance(nodes: SlideNode[], componentId: string): { nodes: SlideNode[]; id: string } | null {
+  const main = nodes.find((n) => n.id === componentId && n.component);
+  if (!main) return null;
+  const id = newId();
+  const copy: SlideNode = { ...main, id, x: main.x + main.width + 40, name: variantName(main.component!), instanceOf: main.id, component: undefined, parentId: main.parentId };
+  return { nodes: syncInstances([...nodes, copy]), id };
+}
+
+// A copy cut loose: it keeps its layers as its own.
+export function detachInstance(nodes: SlideNode[], id: string): SlideNode[] {
+  const inside = new Set(descendants(nodes, id));
+  return nodes.map((n) => (n.id === id ? { ...n, instanceOf: undefined } : inside.has(n.id) ? { ...n, fromComponent: undefined, locked: false } : n));
+}
+
 export function layoutAll(nodes: SlideNode[]): SlideNode[] {
   const frames = nodes.filter((n) => n.autoLayout);
   const depth = (id: string) => {
@@ -230,7 +295,7 @@ export function layoutAll(nodes: SlideNode[]): SlideNode[] {
   };
   let out = nodes;
   for (const f of [...frames].sort((a, b) => depth(b.id) - depth(a.id))) out = layoutFrame(out, f.id);
-  return fitGroups(out);
+  return syncInstances(fitGroups(out));
 }
 
 // A frame resized from `before` to its new box: children follow their constraints.

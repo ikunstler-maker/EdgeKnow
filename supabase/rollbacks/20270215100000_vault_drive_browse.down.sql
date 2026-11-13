@@ -1,4 +1,5 @@
--- Undoes VAULT-7 (0088_vault_drive_browse.sql): functions as before, links and the switch gone.
+-- Undoes VAULT-7 (20270215100000_vault_drive_browse.sql): functions as before, links and the switch gone.
+alter table public.drive_connections drop column if exists can_browse;
 drop trigger if exists vault_items_link_version on public.vault_items;
 drop function if exists public.check_vault_link_version();
 drop function if exists public.begin_vault_link(uuid, uuid, text, text, bigint);
