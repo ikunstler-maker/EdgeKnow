@@ -157,6 +157,10 @@ jobs:
       - name: Table formulas
         if: matrix.part == 'nodes'
         run: node --experimental-strip-types --no-warnings scripts/test-sheet-formulas.mjs
+      # "Design" components and variants: copies follow their component (BORDY-1).
+      - name: Design components
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings --import ./scripts/ts-resolve.mjs scripts/test-design-components.mjs
       # Tables a formula gives spill into the cells next to it (SOTA-1).
       - name: Sheet spill
         if: matrix.part == 'nodes'

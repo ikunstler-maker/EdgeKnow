@@ -42,6 +42,10 @@ A space for thinking together and for mock-ups. Two kinds of files:
 - Merged without Yjs, by the canvas library's own element versions (`src/lib/live/board-sync.ts`, `use-live-board.ts`): the newer version of an element wins, on a tie the lower random nonce; deletions travel as tombstones; what a person is changing right now stays theirs until they finish. Only changed elements are sent; pictures travel as storage links.
 - Undo is the canvas's own history; others' changes don't enter it. Votes and the timer stay as they were (server, polled).
 
+### Comments, components and variants in "Design" (BORDY-1, 2026-11-13)
+- "Comments" mode: a click pins a comment (page, spot, layer); threads with replies, resolve/reopen, delete (`design_comments`; read by who sees the file, written by commenters and up; resolve/delete by the author or editors and owners).
+- A frame can be a component; copies (`instanceOf`) take its look and layers after every change (`syncInstances` in `layoutAll`, copied layers locked, `fromComponent`); "Set/Variant" names make variants a copy can switch between; "Detach" makes the layers its own. No overrides inside copies yet.
+
 ### Chips on idea boards (UI-3, 2026-11-13)
 - An element whose link points to this workspace shows a chip above it (service mark + live title with the viewer's access; "No access" otherwise). The "Chip" button next to the sticky colours puts the link onto the selected element, or adds a link card labelled with the service's name only.
 

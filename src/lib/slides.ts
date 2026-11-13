@@ -91,6 +91,11 @@ export type SlideNode = {
   zoom?: number;
   // Design
   parentId?: string;
+  // BORDY-1: a frame that is a component (its name; "Set/Variant" names make variants of a set),
+  // or a copy of one (its layers follow the component; `fromComponent` marks those layers).
+  component?: string;
+  instanceOf?: string;
+  fromComponent?: string;
   clip?: boolean;
   device?: string;
   autoLayout?: AutoLayout;
@@ -247,6 +252,9 @@ function readPaint(v: unknown): Paint | null {
 function readDesignLook(node: Record<string, unknown>): Partial<SlideNode> {
   const out: Partial<SlideNode> = {};
   if (typeof node.parentId === "string") out.parentId = node.parentId;
+  if (typeof node.component === "string" && node.component.trim()) out.component = node.component.slice(0, 120);
+  if (typeof node.instanceOf === "string") out.instanceOf = node.instanceOf;
+  if (typeof node.fromComponent === "string") out.fromComponent = node.fromComponent;
   if (node.clip === true) out.clip = true;
   if (typeof node.device === "string") out.device = node.device.slice(0, 40);
   const al = node.autoLayout;

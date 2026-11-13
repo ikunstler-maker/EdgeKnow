@@ -614,6 +614,28 @@ check("…while a map they may view shows as usual", shownMap, screen);
   check("a renamed board shows its new name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board renamed"));
 }
 
+// --- "Design": comments pinned on the canvas (BORDY-1) ------------------------------------------------
+{
+  const file = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "design", new_title: "Comment screens", new_data: { version: 1, kind: "design", pages: [{ id: "cp1", name: "Page 1", background: "#1e1f24", nodes: [], flows: [] }] } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/boards/${file}`);
+  const canvas = alice.locator("[data-design-canvas] svg");
+  await canvas.waitFor({ timeout: 30000 });
+  await alice.locator('[data-mode="comments"]').click();
+  const b = await canvas.boundingBox();
+  await alice.mouse.click(b.x + b.width * 0.4, b.y + b.height * 0.4);
+  await alice.locator("[data-comment-new] textarea").fill("Move this up");
+  await alice.locator("[data-comment-send]").click();
+  const count = () => sql(`select count(*) from public.design_comments where object_id = '${file}'`);
+  check("a comment is pinned on the Design canvas", await until(() => count() === "1", 10000), count());
+  check("…and shows as a pin and in the list", await alice.locator("[data-comment-pin]").first().waitFor({ timeout: 10000 }).then(() => true, () => false) && (await alice.locator('[data-comment-thread="Move this up"]').count()) === 1);
+  await alice.locator('[data-comment-thread="Move this up"] button').first().click();
+  await alice.locator("[data-comment-reply-box]").fill("Done");
+  await alice.locator("[data-comment-reply-send]").click();
+  check("…takes a reply", await until(() => count() === "2", 10000));
+  await alice.locator("[data-comment-resolve]").click();
+  check("…and is resolved", await until(() => sql(`select count(*) from public.design_comments where object_id = '${file}' and resolved_at is not null`) === "1", 10000));
+}
+
 // --- Chips on idea boards and mind maps (UI-3) -------------------------------------------------------
 {
   const target = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "sheets", new_kind: "sheet", new_title: "Linked table", new_data: {} })).data?.id;
