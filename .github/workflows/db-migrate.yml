@@ -161,6 +161,10 @@ jobs:
       - name: Page Markdown export
         if: matrix.part == 'nodes'
         run: node --experimental-strip-types --no-warnings scripts/test-page-markdown.mjs
+      # Idea board co-editing: elements merged by their versions.
+      - name: Board sync
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings scripts/test-board-sync.mjs
       # Doba 3b: busy time out of an outside calendar's file (series, zones, free and cancelled events).
       - name: Outside calendar files
         if: matrix.part == 'nodes'
