@@ -350,7 +350,7 @@ const STAGES: Stage[] = [
   {
     name: "chat messages",
     table: "chat_messages",
-    columns: "id, workspace_id, channel_id, author_id, thread_root_id, body, mentions, created_at, edited_at, deleted_at, deleted_by, pinned_at, pinned_by, reply_count, last_reply_at, file_count",
+    columns: "id, workspace_id, channel_id, author_id, thread_root_id, body, mentions, created_at, edited_at, deleted_at, deleted_by, pinned_at, pinned_by, reply_count, last_reply_at, file_count, kind, leave_request_id",
     order: "created_at,id",
     onConflict: "id",
   },

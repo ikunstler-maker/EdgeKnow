@@ -1,0 +1,20 @@
+the request waits: pending
+bob sees cards: 1
+in a conversation of: bob, carol, direct: direct
+carol sees cards: 1, unread there: 1, the request: pending
+dave sees cards: 0, the request: 0
+alice (owner) sees cards: 0
+dave is sick: approved
+cards now: 1
+psql: ERROR:  system_message
+psql: ERROR:  system_message
+psql: ERROR:  permission denied for table chat_messages
+still one card, unchanged: 1 (empty) true
+a reply in its thread: true
+carol approves: true
+the request: approved, replies kept: 1
+second request: pending
+cards: 2, conversations: 1
+before a copy: 2
+after a copy: 2
+request gone, card kept: 1

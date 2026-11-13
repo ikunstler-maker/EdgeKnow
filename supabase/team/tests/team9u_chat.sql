@@ -18,8 +18,9 @@ insert into public.chat_messages (workspace_id, channel_id, author_id, body) val
 reset role;
 set role authenticated;
 :as_alice;
-select 'alice (owner) sees: ' || (select string_agg(name, ', ' order by name) from public.chat_channels)
-  || ', reads: ' || (select count(*) from public.chat_messages);
+-- (Time-off cards from earlier tests live in direct conversations; not counted here.)
+select 'alice (owner) sees: ' || (select string_agg(name, ', ' order by name) from public.chat_channels where visibility <> 'direct')
+  || ', reads: ' || (select count(*) from public.chat_messages where kind = 'user');
 select 'alice deletes secret: ' || (public.chat_delete_channel(:'secret') ->> 'error');
 reset role;
 set role authenticated;

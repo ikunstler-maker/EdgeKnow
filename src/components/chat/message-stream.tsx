@@ -11,6 +11,7 @@ import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, first
 import { levelsOf } from "./voice-player";
 import { MessageChips, useHost } from "./chat-chips";
 import { AwayBadge } from "./chat-presence";
+import { LeaveCard } from "./chat-leave-card";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
@@ -252,6 +253,8 @@ export function MessageStream({
                       if (await actions.onEdit(m.id, body)) setEditing(null);
                     }}
                   />
+                ) : m.kind === "system" ? (
+                  <LeaveCard shortId={shortId} requestId={m.leave_request_id ?? null} me={me} requester={m.author_id ?? ""} />
                 ) : (
                   <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                     <MessageText body={m.body} names={names} />
@@ -302,9 +305,9 @@ export function MessageStream({
                   {actions.canWrite && tool("smile", c().react, (anchor) => setPicker({ id: m.id, anchor }))}
                   {actions.canWrite && actions.onThread && !m.thread_root_id && tool("comment", actions.comments ? c().publish.comment : c().replyInThread, () => actions.onThread?.(m.id))}
                   {actions.canWrite && tool("pin", m.pinned_at ? c().unpin : c().pin, () => actions.onPin(m.id, !m.pinned_at), Boolean(m.pinned_at))}
-                  {mine && actions.canWrite && tool("edit", c().edit, () => setEditing(m.id))}
-                  {(mine || actions.canModerate) && tool("trash", c().delete, () => actions.onDelete(m.id))}
-                  {actions.onCreateFrom && (
+                  {mine && actions.canWrite && m.kind !== "system" && tool("edit", c().edit, () => setEditing(m.id))}
+                  {(mine || actions.canModerate) && m.kind !== "system" && tool("trash", c().delete, () => actions.onDelete(m.id))}
+                  {actions.onCreateFrom && m.kind !== "system" && (
                     <button
                       type="button"
                       // Keeps a selection inside the message: only that part goes into the new thing.
