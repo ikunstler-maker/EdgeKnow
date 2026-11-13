@@ -18,6 +18,7 @@ import { nodeMapBlock } from "./node-map-block";
 import { boardBlock } from "./board-block";
 import { sheetBlock } from "./sheet-block";
 import { surveyBlock } from "./survey-block";
+import { wishlistBlock } from "./wishlist-block";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
 import { linkCardBlock } from "./link-card-block";
@@ -114,6 +115,7 @@ export const schema = BlockNoteSchema.create({
     boardEmbed: boardBlock(),
     sheetEmbed: sheetBlock(),
     surveyEmbed: surveyBlock(),
+    wishlistEmbed: wishlistBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

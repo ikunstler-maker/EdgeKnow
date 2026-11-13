@@ -155,3 +155,43 @@ export async function loadClaimedWishes(shortId: string, id: string): Promise<st
   const result = data as { ok: boolean; items?: string[] } | null;
   return result?.ok ? (result.items ?? []) : [];
 }
+
+export type WishlistEmbedView = WishlistCard & { ownerName: string };
+
+// One wishlist for an embed (Wika, slides, tasks), read with the viewer's own access:
+// null when they may not see it (hidden, a draft of someone else, deleted, a guest).
+export async function wishlistEmbedView(shortId: string, id: string): Promise<WishlistEmbedView | null> {
+  if (!UUID.test(id)) return null;
+  const db = await dataClient(shortId);
+  const { data } = await db.from("service_objects").select("id, title, data, owner_id").eq("id", id).eq("service", "wishlists").is("deleted_at", null).maybeSingle();
+  if (!data) return null;
+  const d = readWishlist(data.data);
+  const { data: owner } = await db.from("profiles").select("name, email").eq("id", data.owner_id).maybeSingle();
+  return {
+    id: data.id as string,
+    title: data.title as string,
+    birthday: d.birthday,
+    published: d.published,
+    count: d.items.length,
+    design: d.design,
+    ownerName: ((owner?.name as string | null) || (owner?.email as string | undefined) || "") as string,
+  };
+}
+
+// Published wishlists the viewer may see, to pick one for an embed (newest birthday first).
+export async function wishlistsForEmbed(shortId: string): Promise<WishlistEmbedView[]> {
+  const workspace = await getWorkspace(shortId);
+  if (!workspace) return [];
+  const db = await dataClient(shortId);
+  const { data } = await db.from("service_objects").select("id, title, data, owner_id").eq("workspace_id", workspace.id).eq("service", "wishlists").is("deleted_at", null).limit(500);
+  const rows = ((data ?? []) as { id: string; title: string; data: unknown; owner_id: string }[]).filter((r) => readWishlist(r.data).published);
+  const ids = [...new Set(rows.map((r) => r.owner_id))];
+  const { data: people } = ids.length ? await db.from("profiles").select("id, name, email").in("id", ids) : { data: [] };
+  const names = new Map(((people ?? []) as { id: string; name: string | null; email: string }[]).map((p) => [p.id, p.name || p.email]));
+  return rows
+    .map((r) => {
+      const d = readWishlist(r.data);
+      return { id: r.id, title: r.title, birthday: d.birthday, published: true, count: d.items.length, design: d.design, ownerName: names.get(r.owner_id) ?? "" };
+    })
+    .sort((a, b) => b.birthday.localeCompare(a.birthday));
+}

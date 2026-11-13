@@ -7,6 +7,8 @@ import { workspacePath } from "@/lib/paths";
 import { boardSession, createTaskFromSticky, setBoardTimer, setBoardVoting, toggleBoardVote, type BoardSession } from "@/app/board-actions";
 import { projectsForEmbed, taskChips, type ChipProject } from "@/app/task-wiki-actions";
 import type { BoardController, StickyInfo } from "./board-canvas";
+import { wishlistEmbedView } from "@/app/wishlist-actions";
+import { WishlistPicker } from "@/components/wishlists/wishlist-embed";
 import { Icon } from "@/components/ui/icon";
 
 const b = t.boards;
@@ -86,7 +88,7 @@ export function BoardSessionBar({
 }) {
   const canEdit = role === "owner" || role === "editor";
   const { session, offset, refresh } = state;
-  const [menu, setMenu] = useState<"templates" | "voting" | "timer" | "task" | "keys" | null>(null);
+  const [menu, setMenu] = useState<"templates" | "voting" | "timer" | "task" | "keys" | "wishlist" | null>(null);
   const [votes, setVotes] = useState(3);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -152,6 +154,26 @@ export function BoardSessionBar({
                   {b.templates.names[key]}
                 </button>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+      {canEdit && (
+        <div className="relative">
+          <button type="button" className={button} onClick={() => setMenu(menu === "wishlist" ? null : "wishlist")} aria-expanded={menu === "wishlist"} data-board-wishlist>
+            <Icon name="gift" className="mr-1 inline" />
+            {t.wishlists.embed.addToBoard}
+          </button>
+          {menu === "wishlist" && (
+            <div className="absolute left-0 bottom-full z-20 mb-2 w-80 max-w-[calc(100vw-2rem)]">
+              <WishlistPicker
+                shortId={shortId}
+                onPick={async (id) => {
+                  setMenu(null);
+                  const view = await wishlistEmbedView(shortId, id);
+                  if (view) controller?.insertLink(t.wishlists.embed.boardLink(view.ownerName), workspacePath(shortId, `/wishlists/${view.id}`), view.design.accent);
+                }}
+              />
             </div>
           )}
         </div>

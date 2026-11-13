@@ -18,6 +18,7 @@ export type MdLabels = {
   sheet: string;
   chart: string;
   board: string;
+  wishlist: string;
   mindmap: string;
   flow: string;
   survey: string;
@@ -46,6 +47,7 @@ export type MdData = {
   pages: MdPage[];
   sheets: Record<string, MdSheet | null>;
   boards: Record<string, MdObject | null>;
+  wishlists: Record<string, MdObject | null>;
   nodes: Record<string, MdObject | null>;
   surveys: Record<string, MdObject | null>;
   // Keyed by `${projectId}:${mine ? 1 : 0}`.
@@ -290,6 +292,12 @@ function blockLines(block: MdBlock, data: MdData, labels: MdLabels): string[] {
       const board = data.boards[id];
       return board ? [objectLine("🧷", labels.board, board.title, `${data.base}/boards/${board.id}`, labels)] : [noAccess(labels)];
     }
+    case "wishlistEmbed": {
+      const id = str(props.wishlistId);
+      if (!id) return [];
+      const wl = data.wishlists[id];
+      return wl ? [objectLine("🎁", labels.wishlist, wl.title, `${data.base}/wishlists/${wl.id}`, labels)] : [noAccess(labels)];
+    }
     case "nodeMap": {
       const id = str(props.objectId);
       if (!id) return [];
@@ -371,7 +379,7 @@ export function pageToMarkdown(title: string, icon: string | null, blocks: unkno
 
 // The ids of everything on the page the export has to read first.
 export function collectRefs(blocks: unknown) {
-  const refs = { sheets: new Set<string>(), boards: new Set<string>(), nodes: new Set<string>(), surveys: new Set<string>(), taskLists: new Set<string>(), taskChips: new Set<string>(), files: new Set<string>() };
+  const refs = { sheets: new Set<string>(), boards: new Set<string>(), wishlists: new Set<string>(), nodes: new Set<string>(), surveys: new Set<string>(), taskLists: new Set<string>(), taskChips: new Set<string>(), files: new Set<string>() };
   const walkInline = (content: unknown) => {
     if (!Array.isArray(content)) return;
     for (const part of content) {
@@ -387,6 +395,7 @@ export function collectRefs(blocks: unknown) {
       const props = block.props ?? {};
       if (block.type === "sheetEmbed" && props.sheetId) refs.sheets.add(str(props.sheetId));
       if (block.type === "boardEmbed" && props.boardId) refs.boards.add(str(props.boardId));
+      if (block.type === "wishlistEmbed" && props.wishlistId) refs.wishlists.add(str(props.wishlistId));
       if (block.type === "nodeMap" && props.objectId) refs.nodes.add(str(props.objectId));
       if (block.type === "surveyEmbed" && props.surveyId) refs.surveys.add(str(props.surveyId));
       if (block.type === "tasks" && props.projectId) refs.taskLists.add(`${str(props.projectId)}:${props.mine ? 1 : 0}`);

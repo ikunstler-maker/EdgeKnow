@@ -4,6 +4,7 @@ import { canComment, canEdit, linkedTasks, type ProjectView } from "@/lib/tasks-
 import { TASK_COLUMNS, columnTimes, taskKey, type StatusMove, type TaskLink, type TaskRow } from "@/lib/tasks";
 import type { ProjectTask, TaskLinkView } from "./task-relations";
 import type { TaskFileView, TaskWebLink } from "./task-files";
+import type { TaskWishlistLink } from "./task-wishlists";
 import { TaskDetail, type TaskComment, type TaskPermissions, type TaskEvent, type TaskOrigin } from "./task-detail";
 import type { TimeEntry } from "./time-log";
 import type { TaskRecurrence } from "./recurrence";
@@ -91,6 +92,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
   }
   // Links kept with the task (read apart: a database a step behind has no such table yet).
   const { data: webLinks } = await db.from("task_web_links").select("id, title, url, added_by").eq("task_id", task.id).order("created_at");
+  const { data: wishlistLinks } = await db.from("task_wishlist_links").select("id, wishlist_id, added_by").eq("task_id", task.id).order("created_at");
   // Time entries, where the project tracks time (the database shows only those this reader may see).
   let time: TimeEntry[] | null = null;
   if (view.project.time_tracking) {
@@ -149,6 +151,7 @@ export async function TaskView({ wid, view, number, userId, inPanel = false }: {
       origin={(origin as TaskOrigin | null) ?? null}
       importedNames={importedNames}
       webLinks={(webLinks ?? []) as TaskWebLink[]}
+      wishlistLinks={(wishlistLinks ?? []) as TaskWishlistLink[]}
       time={time}
       permissions={allowed && typeof allowed === "object" ? (allowed as TaskPermissions) : undefined}
       recurrence={(recurrence as TaskRecurrence | null) ?? null}
