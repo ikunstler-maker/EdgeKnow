@@ -41,7 +41,7 @@ Each service has its own name and gradient (`src/lib/services.ts`).
 | 6 | **Kadry** | presentations | ✅ live | `/w/<id>/slides` |
 | 7 | **Questa** | surveys and forms | ✅ live | `/w/<id>/surveys` |
 | 8 | **Toker** | team chat | ⏳ planned | — |
-| 9 | **Vault** | file manager | ⏳ planned | — |
+| 9 | **Vault** | file manager (step 1: all files, read-only) | ✅ live | `/w/<id>/files` |
 | 10 | **Doba** | company calendar and time off | ✅ live (events, time off) | `/w/<id>/calendar` |
 | 11 | **Visio** | video meetings | ⏳ planned | — |
 | 12 | **Apus AI** | AI tools | ⏳ planned | — |

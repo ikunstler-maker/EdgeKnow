@@ -206,6 +206,13 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Later: ship only the current language's strings to the browser (both dictionaries, ~390 KB source, go to every page now).
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
 
+## VAULT Vault — file manager (owner, 2026-11-13; decision 2026-11-13)
+- VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — in review.
+- VAULT-2 own files and folders (DB → separate approval). Before the plan, the owner answers: who sees own files (whole workspace / members without guests / per folder), who uploads (all members / editors+admins), size limit (proposed 250 MB).
+- VAULT-3 "From Vault" in Wika, tasks, boards, slides, Toker (closes Toker's "file from shared storage").
+- VAULT-4 later: picking from the rest of Google Drive (new Google permission → approval), versions, space accounting.
+- VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
+
 ## Known gaps / follow-ups
 - Storage limit is counted unevenly: wiki images (`register_attachment`, `workspace_storage_status`) count only wiki images; tasks, boards, surveys and chat count each other. Settings → Storage "move files to the workspace storage" does not move chat files yet.
 - Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).

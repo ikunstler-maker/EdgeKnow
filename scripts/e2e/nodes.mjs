@@ -4,6 +4,7 @@
 
 import { birthdayChecks, calendarChecks, feedChecks, gridChecks, outsideChecks, holidayChecks, linkChecks, repeatChecks, timeOffChecks } from "./calendar-checks.mjs";
 import { appsChecks } from "./apps-checks.mjs";
+import { vaultChecks } from "./vault-checks.mjs";
 import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, newPage, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
@@ -12,7 +13,7 @@ const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
 // The start page shows the node space working, and opens it.
 await alice.goto(`${APP}/w/${alphaShort}`);
 await alice.locator('[data-service="nodes"]').waitFor({ timeout: 15000 });
-check("the start page has the node space and the chat working, the file manager coming", (await alice.locator('[data-service="nodes"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="chat"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="files"]', { hasText: "Скоро" }).count()) === 1);
+check("the start page has the node space and the chat and the file manager working", (await alice.locator('[data-service="nodes"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="chat"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="files"]', { hasText: "Скоро" }).count()) === 0);
 // Not pinned to the dock: opened from the list of all services.
 await alice.locator("[data-service-menu-button]").first().click();
 await alice.locator("[data-service-menu]").getByRole("link", { name: "Нодовий простір" }).click();
@@ -690,5 +691,6 @@ await feedChecks();
 await outsideChecks();
 await birthdayChecks();
 await appsChecks();
+await vaultChecks();
 
 await finish("nodes");
