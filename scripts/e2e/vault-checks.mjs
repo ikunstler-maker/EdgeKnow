@@ -24,7 +24,7 @@ export async function vaultChecks() {
 
   // A closed channel with Alice alone, a message and its file; and a file of a removed message.
   const channel = sql(`with made as (insert into public.chat_channels (workspace_id, name, visibility, created_by) values ('${alphaId}', 'vault-closed', 'closed', '${aliceId}') returning id) select id from made`);
-  sql(`insert into public.chat_channel_members (channel_id, workspace_id, user_id, role) values ('${channel}', '${alphaId}', '${aliceId}', 'owner')`);
+  sql(`insert into public.chat_channel_members (channel_id, workspace_id, user_id, role, invited) values ('${channel}', '${alphaId}', '${aliceId}', 'owner', true)`);
   const chatFile = (name, removed) => {
     const message = sql(`with made as (insert into public.chat_messages (workspace_id, channel_id, author_id, body${removed ? ", deleted_at" : ""}) values ('${alphaId}', '${channel}', '${aliceId}', 'file'${removed ? ", now()" : ""}) returning id) select id from made`);
     sql(`insert into public.chat_files (workspace_id, channel_id, message_id, name, mime_type, bytes, storage_path, storage_backend, uploaded_by)
