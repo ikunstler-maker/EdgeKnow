@@ -86,7 +86,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
-## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 3c-1 in review
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 3c-2 in review
 Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
 - 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — DONE (#168).
 - 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Tables + RLS approved 2026-11-12 (decision "Toker, етап 1").
@@ -106,8 +106,9 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - 3. Plan approved 2026-11-13 (decision "TOKER-3 Toker, етап 3").
   - 3a live chips: workspace links in messages (Wika pages, Rukh tasks, tables, boards, maps, slides, surveys, apps, wishlists) → cards read with the reader's access; hidden or gone → "No access" without the title; task chip = the wiki chip (live status) + status and assignee change — DONE (#183).
   - 3b message (or selected part) → Rukh task / Wika note / Doba event with a link back to the message; the new link left in the message's thread (a live chip); events from closed channels and conversations invite their people (≤ 50, "by invitation") — DONE (#184).
-  - 3c-1 Questa survey answered right in the message (the wiki embed); "On leave" / "Remote" mark next to names (today's approved absences, members only) — no DB change — in review.
-  - 3c-2 time-off approval buttons in a system message (requester ↔ approver conversation) — DB change; plan sent 2026-11-13, waiting for the owner's approval.
+  - 3c-1 Questa survey answered right in the message (the wiki embed); "On leave" / "Remote" mark next to names (today's approved absences, members only) — no DB change — DONE (#185).
+  - 3c-2 time-off request cards: system messages (`chat_messages.kind`, `leave_request_id`) written by the database into the requester ↔ decider conversation; "Approve" / "Decline" via `decide_leave_request` — DB approved 2026-11-13 — in review.
+  - Later: cards for requests made before 3c-2; a card when a request is made on behalf of someone else.
   - Later: chips for links to other workspaces of the reader; a Doba event chip; choosing the parent page of a note.
 - 4. Retention (workspace + per channel), "My data" export, Web Push (VAPID; key → approval), PWA.
 - 5. Secret rooms: on-device encryption (Web Crypto); limits → owner's consent.

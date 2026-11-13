@@ -11,7 +11,7 @@ import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChan
 // workspace keeps its data. No page re-render: the screen keeps its own state.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const MESSAGE_COLUMNS = "id, channel_id, author_id, thread_root_id, body, mentions, created_at, edited_at, deleted_at, pinned_at, reply_count, last_reply_at, file_count";
+const MESSAGE_COLUMNS = "id, channel_id, author_id, thread_root_id, body, mentions, created_at, edited_at, deleted_at, pinned_at, reply_count, last_reply_at, file_count, kind, leave_request_id";
 
 async function call<T extends object = object>(shortId: string, fn: string, args: Record<string, unknown>): Promise<ActionResult<T>> {
   const supabase = await writeClient(shortId);
@@ -343,4 +343,35 @@ export async function noteFromMessage(shortId: string, workspaceId: string, titl
   const saved = await db.rpc("save_page_content", { target_page: made.id, new_content: fromMessageBlocks(text, link, t.chat.fromMessage.backLink), base_version: 1 });
   if (saved.error || !(saved.data as ActionResult | null)?.ok) return { ok: false, error: "unknown" };
   return made;
+}
+
+// ---------------------------------------------------------------- time-off cards (stage 3c-2)
+
+export type ChatLeaveCard = {
+  id: string;
+  user_id: string;
+  policy: string | null;
+  start_date: string;
+  end_date: string;
+  half: "first" | "second" | null;
+  days: number;
+  comment: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  decision_note: string;
+  decided_by: string | null;
+};
+
+// The request behind a card, as the reader may see it (the requester and who decides);
+// null when hidden or gone.
+export async function loadLeaveCard(shortId: string, requestId: string): Promise<ChatLeaveCard | null> {
+  if (!UUID.test(requestId)) return null;
+  const db = await dataClient(shortId);
+  const { data } = await db
+    .from("leave_requests")
+    .select("id, user_id, start_date, end_date, half, days, comment, status, decision_note, decided_by, policy:leave_policies(name)")
+    .eq("id", requestId)
+    .maybeSingle()
+    .overrideTypes<(Omit<ChatLeaveCard, "policy"> & { policy: { name: string } | null }) | null, { merge: false }>();
+  if (!data) return null;
+  return { ...data, days: Number(data.days), policy: data.policy?.name ?? null };
 }

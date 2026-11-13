@@ -3640,6 +3640,17 @@ export const en: Dictionary = {
       until: (day: string) => `until ${day}`,
       deputy: (name: string) => `${name} stands in`,
     },
+    leave: {
+      title: "Time-off request",
+      mine: "My time-off request",
+      approve: "Approve",
+      decline: "Decline",
+      declineNote: "Reason for declining (optional):",
+      note: (text: string) => `Decision note: ${text}`,
+      failed: "Could not do it: it may be decided already, or you may not have this right.",
+      gone: "The request was deleted or is not available to you.",
+      open: "Open in Doba",
+    },
     chips: {
       noAccess: "No access",
       untitled: "Untitled",

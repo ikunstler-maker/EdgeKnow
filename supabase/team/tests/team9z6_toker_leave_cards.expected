@@ -1,0 +1,6 @@
+bob asks: pending
+his card: 1
+psql: ERROR:  system_message
+alice sees it: 1
+alice approves: true
+the request: approved

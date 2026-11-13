@@ -48,6 +48,9 @@ export type ChatMessage = {
   reply_count: number;
   last_reply_at: string | null;
   file_count: number;
+  // "system": written by the database (a time-off request card); never edited by people.
+  kind?: "user" | "system";
+  leave_request_id?: string | null;
 };
 
 // A file sent with a message (or being added to one).

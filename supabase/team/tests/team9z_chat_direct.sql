@@ -14,5 +14,5 @@ select 'bob writes to alice: ' || (public.chat_post_message(:'pair', 'Hello alic
 reset role;
 set role authenticated;
 :as_alice;
-select 'alice reads it: ' || (select count(*) from public.chat_messages where channel_id = :'pair');
+select 'alice reads it: ' || (select count(*) from public.chat_messages where channel_id = :'pair' and kind = 'user');
 reset role;

@@ -154,7 +154,7 @@ The team's shared calendar and time-off management in one place: events and meet
 |---|---|
 | **Core** | units (who decides on time off, the overlap hint), notifications (bell), roles (right `manage_leave`) and guests, "My data", backup |
 | **Rukh** | task due dates on the calendar (`calendar_tasks`, through `project_tasks`) |
-| **Toker** | event from a message (closed channel → its people invited, by invitation) — done (Toker 3b); "On leave" / "Remote" mark next to names in chat from approved absences (`team_absences`) — done (Toker 3c-1); planned: reminders; a unit lead approves or declines a request with a button in a Toker system message (same rights as in Doba) |
+| **Toker** | event from a message (closed channel → its people invited, by invitation) — done (Toker 3b); "On leave" / "Remote" mark next to names in chat from approved absences (`team_absences`) — done (Toker 3c-1); a request waiting for a decision becomes a card in the requester ↔ decider conversation with "Approve" / "Decline" (same rights as in Doba) — done (Toker 3c-2); planned: reminders |
 | **Visio** | planned: video meeting from an event in one click (today: any https link) |
 | **Spilno** | planned: meetings with a client |
 

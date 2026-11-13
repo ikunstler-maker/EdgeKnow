@@ -131,7 +131,7 @@ export function PinsPanel({
                     <span className="truncate font-medium text-foreground">{(m.author_id && people.get(m.author_id)?.name) || c().formerMember}</span>
                     {new Date(m.created_at).toLocaleDateString(dateLocale(), { day: "numeric", month: "short" })}
                   </span>
-                  <span className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm">{m.body}</span>
+                  <span className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm">{m.kind === "system" ? c().leave.title : m.body}</span>
                 </button>
                 {canUnpin && (
                   <button type="button" onClick={() => onUnpin(m.id)} aria-label={c().unpin} title={c().unpin} className={`${iconButtonClass("ghost")} absolute right-1 top-1`}>
