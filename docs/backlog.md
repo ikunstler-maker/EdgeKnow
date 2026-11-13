@@ -36,7 +36,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - Package 4-1: time tracking (per project: on/off and who sees entries; entries from the tracker; a per-person total in the project's settings) and "My tasks" — DONE. Later: time totals in the workspace's Analytics; editing an entry in place (today: remove and log again).
   - Package 4-2: larger attachments with a per-project limit a workspace admin sets (up to 250 MB, ZIP 10 GB, in parts to the team's Drive) — DONE. Open: an upload left unfinished stays as a waiting record until the files clean-up removes it; not verified on the real Drive.
   - Package 4-3: repeating tasks every N days/weeks (chosen weekdays)/months/years, copies made by the daily job, the next one at once when a copy is done early — DONE.
-  - Found, not fixed (separate task suggested): a task's `done_at` is not set when it is moved to a done column on the board or by the status buttons, so analytics of finished tasks miss it.
+  - RUKH-2 a task's `done_at` follows its column by any route (board, status buttons, rules, removing a column), cleared when it leaves "Done"; older tasks corrected once (owner approved 2026-11-13, items 1–2) — in review.
   - Sprints — POSTPONED by the owner (2026-11-12: "спринти поки відкладаємо"; the team does not use them). Draft plan, not approved, for when it comes back: a per-project switch (the `task_projects.sprints` column exists, unused); a sprint with a name, dates and a goal, states planned → active → finished, one active per project; a backlog screen with drag between sprints; the board shows the active sprint with an "all tasks" switch; on finish the open tasks go to the next sprint or the backlog; sprints and membership from the tracker in the import; DB: a sprints table, a task's sprint, create/start/finish functions, a "manage sprints" action in project permissions. Open questions: story points and a burndown chart.
 - **Access rights one to one with the tracker's permission scheme (owner, 2026-11-12: "all permissions are needed, prepare a plan; anything non-standard is added later").** Plan sent to the owner, waits for her OK on the DB list. Three PRs:
   - Д-1: a project's permission table for tasks (create, edit, delete, assign and who may be assigned, dates, move, link), enforced by the database, with a settings screen — DONE (#162).
@@ -71,7 +71,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Original Д scope: Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
 - CORE-1 Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — DONE (#172).
   - Owner's action: in the central Supabase project set the sign-in token lifetime (JWT expiry) to 10 minutes, so a revoked access stops in the channels within 10 minutes there too.
-  - CORE-2 Phase 2: the idea board — elements merged by the canvas library's own versions (newer wins, tombstones for deletions), same channels, presence, cursors, follow and leader; no DB change — in review (decision 2026-11-13). Later: shared transport code with phase 1 (today two hooks).
+  - CORE-2 Phase 2: the idea board — elements merged by the canvas library's own versions (newer wins, tombstones for deletions), same channels, presence, cursors, follow and leader; no DB change — DONE (#189). Later: shared transport code with phase 1 (today two hooks).
   - Then Nodo, Sota, Wika: extend `live_channel_allowed` to their services (central + team migration), Wika pages need their own table rules.
   - Later: live comments on the canvas; time-limited "presenter follows" for shows.
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
@@ -116,7 +116,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
-- Boards Д2: realtime co-editing — phase 1 DONE (#172); idea board (phase 2, CORE-2) in review (see Canvas engine).
+- Boards Д2: realtime co-editing — phase 1 DONE (#172); idea board (phase 2, CORE-2) DONE (#189).
 - Organization level, shared objects between workspaces (later).
 
 ## New directions (2026-11-05, roadmap stage 2c) — each needs its own plan + OK

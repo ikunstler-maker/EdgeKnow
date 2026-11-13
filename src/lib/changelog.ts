@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-done-date",
+    version: "0.45.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Дата завершення задач", en: "Task done dates" },
+    items: [
+      { id: "done-date-board", type: "fixed", scope: "tasks", title: { uk: "Задача, перетягнута в «Готово» на дошці чи кнопкою статусу, тепер має дату завершення й потрапляє в аналітику.", en: "A task moved to \"Done\" on the board or with a status button now gets its done date and shows in analytics." } },
+      { id: "done-date-reopen", type: "fixed", scope: "tasks", title: { uk: "Задача, повернута з «Готово» в роботу, знову видно в «Моїх задачах».", en: "A task moved back out of \"Done\" shows in \"My tasks\" again." } },
+    ],
+  },
+  {
     id: "2026-11-13-live-boards",
     version: "0.45.0",
     date: "2026-11-13",

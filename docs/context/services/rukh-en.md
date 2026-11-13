@@ -26,6 +26,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - "List" view, filters.
 - **Board at scale (2026-11-11):** grouping by assignee shows a foldable lane per person (avatar, name, count); card order (as arranged, newest, oldest, recently changed, nearest due, priority, waiting longest) and a time filter (changed in 7/30 days, in the column 3+/7+ days — counted from when the task came to the column on this board); a column folds to a narrow strip and its cards are not drawn; a long column draws 50 cards and "Show more"; all of it is remembered per project in the browser. Tasks and placements are read a thousand at a time, so projects with thousands of tasks show fully.
 - **Time in columns:** how long a task spent in each column (computed from history).
+- **Done date (RUKH-2, 2026-11-13):** set by the database whenever a task enters a "Done" column, by any route (task window, board, status buttons, rules, removing a column, repeating tasks), cleared when it leaves one; a date given with the move (the import) is kept; between two "Done" columns it stays. Trigger `tasks_done_at` (`task_done_at()`), central and team databases. Older tasks were corrected once (done without a date → their last change; open with a date → none).
 
 ### Team boards
 - **One task — many boards:** the same task stands in its own column on each board.
