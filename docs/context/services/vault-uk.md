@@ -1,6 +1,6 @@
 # Vault — менеджер файлів
 
-> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-4). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
+> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-6). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
 
 ## 1. Призначення
 
@@ -37,6 +37,11 @@
 - Кожне завантаження рахує місце однаково (`workspace_storage_used`): усі сервіси разом із Vault.
 - «Передати» колишнього учасника (`reassign_member_pages`) передає й папки та файли Vault (не гостю); `departed_page_owners` повертає `files`.
 - «Мої дані»: `vault_items` власника.
+
+## 1д. Версії (VAULT-6)
+
+- `vault_versions` (попередні версії), у `vault_items` — `version`, `content_by`, `version_of` (приховане завантаження нової версії). Функції: `begin_vault_version`, `vault_finish_version`, `vault_restore_version`, `vault_delete_version`. Маршрути завантаження приймають `replace=<id>`; `GET /api/vault/files/<id>?version=<id>` віддає стару версію.
+- Інтерфейс: «Нова версія» й «Версії» в меню файлу (`vault-versions-dialog.tsx`).
 
 ## 2. Задум
 

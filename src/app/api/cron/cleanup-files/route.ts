@@ -81,16 +81,17 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   if (!found.length) return 0;
   // A path that has a record again (a workspace moved back and forth) keeps its file.
   const paths = found.map((row) => row.storage_path as string);
-  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }, { data: chatFilesInUse }, { data: vaultInUse }] = await Promise.all([
+  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }, { data: chatFilesInUse }, { data: vaultInUse }, { data: versionsInUse }] = await Promise.all([
     rows.from("attachments").select("storage_path").in("storage_path", paths),
     // Task files and board pictures (tables that may not exist yet in an older team database).
     rows.from("task_files").select("storage_path").in("storage_path", paths),
     rows.from("object_files").select("storage_path").in("storage_path", paths),
     rows.from("chat_files").select("storage_path").in("storage_path", paths),
     rows.from("vault_items").select("storage_path").in("storage_path", paths),
+    rows.from("vault_versions").select("storage_path").in("storage_path", paths),
   ]);
   if (inUseError) return null;
-  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? []), ...(chatFilesInUse ?? []), ...(vaultInUse ?? [])].map((row) => row.storage_path as string));
+  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? []), ...(chatFilesInUse ?? []), ...(vaultInUse ?? []), ...(versionsInUse ?? [])].map((row) => row.storage_path as string));
   if (used.size) await rows.from("attachment_tombstones").delete().in("storage_path", [...used]);
   const tombstones = found.filter((row) => !used.has(row.storage_path as string));
 

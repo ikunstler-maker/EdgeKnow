@@ -1,6 +1,6 @@
 # Vault — file manager
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-4). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-6). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
 
 ## 1. Purpose
 
@@ -37,6 +37,11 @@ Browse and manage all files of the workspace storage right in the product.
 - Every upload counts space the same way (`workspace_storage_used`): all services plus Vault.
 - "Hand over" for a former member (`reassign_member_pages`) also hands over their Vault folders and files (never to a guest); `departed_page_owners` returns `files`.
 - "My data": the owner's `vault_items`.
+
+## 1e. Versions (VAULT-6)
+
+- `vault_versions` (earlier versions); `vault_items` gains `version`, `content_by`, `version_of` (a hidden upload of a new version). Functions: `begin_vault_version`, `vault_finish_version`, `vault_restore_version`, `vault_delete_version`. Upload routes take `replace=<id>`; `GET /api/vault/files/<id>?version=<id>` serves an earlier version.
+- UI: "New version" and "Versions" in a file's menu (`vault-versions-dialog.tsx`).
 
 ## 2. Intent
 
