@@ -207,16 +207,16 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
 
 ## VAULT Vault — file manager (owner, 2026-11-13; decision 2026-11-13)
-- VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — #190.
-- VAULT-2 own folders and files (DB approved 2026-11-13, option A): access as on a shared drive (members view by default, guests never; people/units viewer/editor; restrict), all members upload, admin's size limit (none by default), bin 30 days, files over 4 MB to the Drive in parts — in review.
+- VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — DONE (#190).
+- VAULT-2 own folders and files (DB approved 2026-11-13, option A): access as on a shared drive (members view by default, guests never; people/units viewer/editor; restrict), all members upload, admin's size limit (none by default), bin 30 days, files over 4 MB to the Drive in parts — DONE (#192).
 - VAULT-2б mirror Vault access onto the team's Google Drive (Google may email people "shared with you").
 - VAULT-2 open: a departed owner's restricted items stay with nobody able to manage them (no hand-over yet); Vault files are not in "My data"; other services' storage-limit checks don't count Vault files (only Vault's own check counts everything).
-- VAULT-3 "From Vault" (no DB): Wika block, task (as a task link shown as a card), slides/"Design" embed, idea board link, Toker message card; only the id kept, read with the viewer's access — in review.
+- VAULT-3 "From Vault" (no DB): Wika block, task (as a task link shown as a card), slides/"Design" embed, idea board link, Toker message card; only the id kept, read with the viewer's access — DONE (#193).
 - VAULT-4 later: picking from the rest of Google Drive (new Google permission → approval), versions, space accounting.
 - VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
 
 ## Known gaps / follow-ups
-- Found during VAULT-2, not fixed: `until()` in `scripts/e2e/common.mjs` takes a plain condition; checks that pass it an `async` one (calendar, wishlists and others: `grep -n "until(async" scripts/e2e`) always pass at once, so they prove nothing. Fix: let `until` await the condition, then mend whatever those checks then reveal.
+- CI-1 `until()` in `scripts/e2e/common.mjs` awaits async conditions (12 checks in calendar, wishlist and other e2e passed without checking anything) — in review; real failures it reveals are shown to the owner before fixing.
 - Storage limit is counted unevenly: wiki images (`register_attachment`, `workspace_storage_status`) count only wiki images; tasks, boards, surveys and chat count each other. Settings → Storage "move files to the workspace storage" does not move chat files yet.
 - Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
