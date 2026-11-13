@@ -545,6 +545,38 @@ check("…while a map they may view shows as usual", shownMap, screen);
   sql(`update public.service_objects set workspace_role = 'editor' where id = '${sheetId}'`);
 }
 
+// --- Chips in table cells (UI-2): a link to this workspace drawn as a chip with its live title ---
+{
+  const board = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "board", new_title: "Grid board", new_data: { elements: [], appState: {}, files: {} } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/sheets`);
+  await alice.getByRole("button", { name: "Нова таблиця" }).click();
+  await alice.waitForURL(/\/sheets\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const tableId = alice.url().split("/").pop();
+  const overlay = alice.locator("[data-sheet] .fortune-sheet-overlay").first();
+  await overlay.waitFor({ timeout: 30000 });
+  await alice.waitForTimeout(800);
+  const box = await overlay.boundingBox();
+  const c1 = [box.x + 46 + 73 * 2 + 30, box.y + 20 + 10];
+  await alice.mouse.click(...c1);
+  await alice.locator("[data-sheet-insert-chip]").click();
+  await alice.locator("[data-chip-picker-search]").fill("Grid bo");
+  await alice.locator('[data-chip-picker-item="Grid board"]').click({ timeout: 15000 });
+  const value = () => sql(`select coalesce((select e -> 'v' ->> 'v' from public.service_objects o, jsonb_array_elements(o.data -> 'sheets' -> 0 -> 'celldata') e where o.id = '${tableId}' and (e ->> 'r')::int = 0 and (e ->> 'c')::int = 2), '')`);
+  check("“Insert chip” puts the board's link into the cell (the link only, no title)", await until(() => value().endsWith(`/w/${alphaShort}/boards/${board}`), 15000), value());
+  const openLink = alice.locator("[data-sheet-open-chip]");
+  await alice.mouse.click(box.x + 46 + 30, box.y + 20 + 50);
+  await alice.mouse.click(...c1);
+  check("…the selected chip cell offers to open the board by its name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board"));
+  check("…and the link opens it", (await openLink.getAttribute("href")) === `/w/${alphaShort}/boards/${board}`);
+  sql(`update public.service_objects set title = 'Grid board renamed' where id = '${board}'`);
+  await alice.waitForTimeout(2500);
+  await alice.reload();
+  await overlay.waitFor({ timeout: 30000 });
+  await alice.waitForTimeout(1500);
+  await alice.mouse.click(...c1);
+  check("a renamed board shows its new name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board renamed"));
+}
+
 // --- Surveys (steps О1, О2, О4): a form, answers into a connected table, results, on a page --------
 {
   await alice.goto(`${APP}/w/${alphaShort}`);

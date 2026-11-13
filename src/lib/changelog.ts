@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-sheet-chips",
+    version: "0.50.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Чипи в таблицях", en: "Chips in tables" },
+    items: [
+      { id: "sheet-chips", type: "added", scope: "sheets", title: { uk: "Посилання на сторінку, задачу, дошку чи файл у клітинці показується чипом з актуальною назвою; «Вставити чип» над таблицею.", en: "A link to a page, task, board or file in a cell shows as a chip with its current title; \"Insert chip\" above the table." } },
+    ],
+  },
+  {
     id: "2026-11-13-smart-chips",
     version: "0.49.0",
     date: "2026-11-13",
