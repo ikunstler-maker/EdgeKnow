@@ -2,7 +2,7 @@
 
 import { t } from "@/i18n";
 import { Icon } from "@/components/ui/icon";
-import type { LiveDoc, LivePeer } from "@/lib/live/use-live-doc";
+import type { LivePeer, LiveRoom } from "@/lib/live/use-live-doc";
 import type { StudioAction } from "@/components/ui/studio-shell";
 
 const s = t.live;
@@ -27,7 +27,7 @@ function Avatar({ peer, size }: { peer: LivePeer; size: number }) {
 
 // In the studio bar: who else is in the document. A click on someone follows them (your
 // view goes where theirs goes); any own action stops it. People following you are shown too.
-export function LivePresence<T>({ live }: { live: LiveDoc<T> }) {
+export function LivePresence({ live }: { live: LiveRoom }) {
   if (!live.active) return null;
   // One entry per person (a person may have two tabs open).
   const seen = new Set<string>();
@@ -79,7 +79,7 @@ export function LivePresence<T>({ live }: { live: LiveDoc<T> }) {
 }
 
 // "More" menu entries: viewers' cursors (the document's editors) and hiding others' cursors (anyone).
-export function liveMenu<T>(live: LiveDoc<T>): StudioAction[] {
+export function liveMenu(live: LiveRoom): StudioAction[] {
   if (!live.active) return [];
   return [
     ...(live.canEdit

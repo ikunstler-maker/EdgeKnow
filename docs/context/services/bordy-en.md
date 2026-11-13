@@ -37,6 +37,11 @@ A space for thinking together and for mock-ups. Two kinds of files:
 - Viewers' and commenters' cursors only when an editor of the document turns on "Show viewers' cursors" (the "More" menu); anyone can hide others' cursors for themselves.
 - Undo takes back only one's own changes. One editor (the "leader") saves for everyone; viewers can't change the document through the channel (the database checks).
 
+### Live co-editing — idea board (phase 2, 2026-11-13)
+- The same switches, avatars, cursors with selection outlines, "Follow" and leader as in "Design".
+- Merged without Yjs, by the canvas library's own element versions (`src/lib/live/board-sync.ts`, `use-live-board.ts`): the newer version of an element wins, on a tie the lower random nonce; deletions travel as tombstones; what a person is changing right now stays theirs until they finish. Only changed elements are sent; pictures travel as storage links.
+- Undo is the canvas's own history; others' changes don't enter it. Votes and the timer stay as they were (server, polled).
+
 ### Shared by both
 - List, trash, access (owner, admins, whole workspace, people, units; guests only if shared).
 - Collections in the left panel.
@@ -45,7 +50,6 @@ A space for thinking together and for mock-ups. Two kinds of files:
 
 | What | State | Note |
 |---|---|---|
-| Co-editing for the idea board | planned (phase 2) | same channels and presence; no DB change expected |
 | Comments pinned on the canvas | planned | new table and access rules → approval |
 | Components and variants | planned | |
 | Per-frame version history | planned | |

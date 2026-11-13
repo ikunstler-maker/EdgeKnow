@@ -34,7 +34,7 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-vault",
-    version: "0.45.0",
+    version: "0.46.0",
     date: "2026-11-13",
     summaryTitle: { uk: "Vault: усі файли в одному місці", en: "Vault: every file in one place" },
     summaryDescription: {
@@ -44,6 +44,21 @@ export const RELEASES: ReleaseLog[] = [
     items: [
       { id: "vault-all", type: "added", scope: "files", title: { uk: "Розділ Vault: список або плитка, фільтр за сервісом і типом, пошук, сортування.", en: "The Vault section: list or grid, filter by service and type, search, sort." } },
       { id: "vault-preview", type: "added", scope: "files", title: { uk: "Перегляд зображень, аудіо й відео, «Перейти туди» до місця, де файл використано, і завантаження.", en: "Preview of images, audio and video, \"Go there\" to where the file is used, and download." } },
+    ],
+  },
+  {
+    id: "2026-11-13-live-boards",
+    version: "0.45.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Дошка для ідей — разом наживо", en: "Idea boards, live together" },
+    summaryDescription: {
+      uk: "Нотатки, фігури й малюнки на дошці для ідей з'являються в усіх одразу; курсори й «Стежити за людиною» — як у презентаціях.",
+      en: "Sticky notes, shapes and drawings on an idea board show for everyone at once; cursors and \"Follow\" as in presentations.",
+    },
+    items: [
+      { id: "live-board-edit", type: "added", scope: "board", title: { uk: "Зміни на дошці для ідей видно всім одразу; дві зміни водночас не губляться.", en: "Changes on an idea board show for everyone at once; two changes at the same time are both kept." } },
+      { id: "live-board-cursors", type: "added", scope: "board", title: { uk: "Аватари, курсори з іменами, рамки виділення й «Стежити за людиною» на дошці для ідей.", en: "Avatars, cursors with names, selection outlines and \"Follow\" on idea boards." } },
+      { id: "live-board-undo", type: "improved", scope: "board", title: { uk: "«Скасувати» прибирає лише ваші дії, а не чужі.", en: "Undo takes back only your own changes, not others'." } },
     ],
   },
   {

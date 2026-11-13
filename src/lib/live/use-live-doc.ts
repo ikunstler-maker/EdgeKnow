@@ -55,6 +55,24 @@ export function colorOf(id: string) {
 type Json = Record<string, unknown>;
 type Presence = { userId: string; name: string; avatarUrl: string | null; editor: boolean; ready: boolean; following: string | null };
 
+// What the studio bar's presence and the "More" menu need, for any live document.
+export type LiveRoom = {
+  status: LiveStatus;
+  active: boolean;
+  canEdit: boolean;
+  leader: boolean;
+  me: string;
+  peers: LivePeer[];
+  cursors: Record<string, LiveCursor>;
+  following: string | null;
+  followers: LivePeer[];
+  viewerCursors: boolean;
+  hideCursors: boolean;
+  follow: (key: string | null) => void;
+  setViewerCursors: (on: boolean) => void;
+  setHideCursors: (on: boolean) => void;
+};
+
 export type LiveDoc<T> = {
   status: LiveStatus;
   // The editor's changes go through Yjs (and undo/redo too) once this is true.
