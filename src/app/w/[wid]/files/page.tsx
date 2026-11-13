@@ -12,6 +12,8 @@ import { VAULT_LIMIT, listVaultFiles, type VaultListing } from "@/lib/vault";
 import { getWorkspace } from "@/lib/workspace";
 import { VaultBrowser } from "@/components/files/vault-browser";
 import { VaultDrive } from "@/components/files/vault-drive";
+import { VaultGoogle } from "@/components/files/vault-google";
+import { browseContext } from "@/lib/drive/vault-browse";
 import { ServiceIcon } from "@/components/services/service-icon";
 import { Hint } from "@/components/ui/hint";
 import { Icon, type IconName } from "@/components/ui/icon";
@@ -19,9 +21,10 @@ import { formatBytes } from "@/lib/format-bytes";
 
 export const metadata: Metadata = { title: `${SERVICE_BRANDS.files.name} · ${t.app.name}` };
 
-type Tab = "files" | "all" | "bin";
+type Tab = "files" | "google" | "all" | "bin";
 const TABS: { key: Tab; icon: IconName }[] = [
   { key: "files", icon: "folder" },
+  { key: "google", icon: "globe" },
   { key: "all", icon: "layers" },
   { key: "bin", icon: "trash" },
 ];
@@ -34,8 +37,14 @@ export default async function FilesPage({ params, searchParams }: PageProps<"/w/
   const workspace = await getWorkspace(wid);
   if (!workspace) return null;
   const guest = workspace.role === "guest";
-  const asked = (typeof query.tab === "string" ? query.tab : "files") as Tab;
-  const tab: Tab = guest ? "all" : TABS.some((x) => x.key === asked) ? asked : "files";
+  // Back from Google's screen (VAULT-7): the Drive tab with what happened.
+  const driveNotice = typeof query.drive === "string" && /^[a-z_]{1,20}$/.test(query.drive) ? query.drive : null;
+  const asked = (typeof query.tab === "string" ? query.tab : driveNotice ? "google" : "files") as Tab;
+  // The team Drive tab: members while the owner keeps it on; the owner always (to switch it).
+  const browse = guest ? null : await browseContext(wid);
+  const showGoogle = Boolean(browse && (browse.owner || !(!browse.state.ok && browse.state.error === "off")));
+  const tabs = TABS.filter((x) => x.key !== "google" || showGoogle);
+  const tab: Tab = guest ? "all" : tabs.some((x) => x.key === asked) ? asked : "files";
   let folder = typeof query.folder === "string" && /^[0-9a-f-]{36}$/.test(query.folder) ? query.folder : null;
   const db = await dataClient(wid);
   // A link to one file (from a card in another service): its folder, with the file marked.
@@ -57,7 +66,7 @@ export default async function FilesPage({ params, searchParams }: PageProps<"/w/
         </h1>
         {!guest && (
           <nav aria-label={v.tabsLabel} className="inline-flex shrink-0 rounded-lg border border-border bg-hover p-0.5" data-vault-tabs>
-            {TABS.map((x) => (
+            {tabs.map((x) => (
               <Link
                 key={x.key}
                 href={x.key === "files" ? base : `${base}?tab=${x.key}`}
@@ -73,7 +82,16 @@ export default async function FilesPage({ params, searchParams }: PageProps<"/w/
         )}
       </header>
       {tab === "files" && !folder && (workspace.role === "owner" || workspace.role === "admin") && <Usage db={db} workspaceId={workspace.id} team={Boolean(workspace.hasTeamDatabase)} />}
-      {tab === "all" ? <AllFiles db={db} workspaceId={workspace.id} shortId={workspace.shortId} /> : <Drive db={db} workspaceId={workspace.id} shortId={workspace.shortId} folder={tab === "bin" ? null : folder} bin={tab === "bin"} focus={focus} />}
+      {tab === "google" && browse ? (
+        <VaultGoogle
+          shortId={workspace.shortId}
+          workspaceId={workspace.id}
+          state={browse.state}
+          owner={browse.owner}
+          browseOn={browse.state.ok || browse.state.error !== "off"}
+          notice={driveNotice}
+        />
+      ) : tab === "all" ? <AllFiles db={db} workspaceId={workspace.id} shortId={workspace.shortId} /> : <Drive db={db} workspaceId={workspace.id} shortId={workspace.shortId} folder={tab === "bin" ? null : folder} bin={tab === "bin"} focus={focus} />}
     </main>
   );
 }

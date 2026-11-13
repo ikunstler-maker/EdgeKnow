@@ -944,6 +944,40 @@ check("new file stored on Drive", sql(`select storage_backend from public.attach
 const colleagueUpload = await colleague.evaluate(async (p) => (await fetch(`/api/files/upload?path=${encodeURIComponent(p)}`, { method: "POST", body: new Uint8Array([1, 2, 3]) })).status, reg.path);
 check("someone else can't upload into a registered path", colleagueUpload === 403, String(colleagueUpload));
 
+// VAULT-7: the team's Drive inside Vault — allowed once by the owner, links without copies.
+const listDrive = (page) => page.evaluate(async (ws) => {
+  const response = await fetch(`/api/vault/drive?ws=${ws}`);
+  return { status: response.status, body: await response.json().catch(() => null) };
+}, alphaShort);
+const notYet = await listDrive(colleague);
+check("the Drive can't be browsed before the owner allows it", notYet.status === 403 && notYet.body?.error === "not_allowed", JSON.stringify(notYet));
+await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+await wide.locator("[data-vault-google-allow]").click();
+await wide.waitForURL(/files\?drive=allowed/);
+check("owner allows browsing the same Drive", (await wide.locator('[data-vault-google-notice="allowed"]').count()) === 1 && sql(`select can_browse from public.drive_connections where workspace_id = '${alphaId}' and active`) === "t");
+const listed = await listDrive(colleague);
+check("a member browses the team's Drive", listed.status === 200 && (listed.body?.entries ?? []).length > 0, `${listed.status} ${(listed.body?.entries ?? []).length}`);
+const filesOnDrive = fakeFiles().length;
+await colleague.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+await colleague.locator("[data-vault-google-add]").first().click();
+await colleague.getByText("Додано у Vault (посилання, без копії).").waitFor({ timeout: 15000 });
+const linkId = sql(`select id from public.vault_items where workspace_id = '${alphaId}' and storage_backend = 'drive_link' limit 1`);
+check("Add to Vault makes a link, not a copy", Boolean(linkId) && fakeFiles().length === filesOnDrive, `${linkId} ${fakeFiles().length}/${filesOnDrive}`);
+const linkFile = await colleague.evaluate(async ([ws, id]) => (await fetch(`/api/vault/files/${id}?ws=${ws}&download`)).status, [alphaShort, linkId]);
+check("the link opens the Drive's file", linkFile === 200, String(linkFile));
+await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+await wide.locator("[data-vault-google-list]").waitFor({ timeout: 15000 });
+await wide.locator("[data-vault-google-switch]").uncheck();
+// Saved once the page has refreshed without the Drive's list (the switch is enabled again).
+await wide.locator("[data-vault-google-list]").waitFor({ state: "detached", timeout: 15000 });
+await wide.locator("[data-vault-google-switch]:not([disabled])").waitFor({ timeout: 15000 });
+const off = await listDrive(colleague);
+check("the owner's switch turns browsing off", off.status === 403 && off.body?.error === "off", JSON.stringify(off));
+await colleague.goto(`${APP}/w/${alphaShort}/files`);
+check("…and the tab is gone for members", (await colleague.locator('[data-vault-tab="google"]').count()) === 0);
+await wide.locator("[data-vault-google-switch]").check();
+await wide.locator("[data-vault-google-list]").waitFor({ timeout: 15000 });
+
 // Page backups.
 await wide.goto(settingsUrl);
 await wide.getByRole("button", { name: "Зробити копію зараз" }).click();
