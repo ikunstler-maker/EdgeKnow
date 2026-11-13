@@ -3649,6 +3649,12 @@ export const uk = {
       fragment: "Виділений фрагмент",
       open: "Відкрити",
     },
+    presence: {
+      onLeave: "У відпустці",
+      remote: "Віддалено",
+      until: (day: string) => `до ${day}`,
+      deputy: (name: string) => `заміщає ${name}`,
+    },
     chips: {
       noAccess: "Немає доступу",
       untitled: "Без назви",

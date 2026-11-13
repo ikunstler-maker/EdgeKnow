@@ -6,6 +6,7 @@ import type { ChatChannel, ChatMember, ChatPerson } from "@/lib/chat";
 import { addMembers, loadMembers, removeMember, setMemberCanPost, setMemberHistory, setMemberRole } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass, inputClass } from "@/components/ui/button";
+import { AwayBadge } from "./chat-presence";
 
 const c = () => t.chat.members;
 
@@ -146,6 +147,7 @@ export function MembersPanel({
                 <li key={m.user_id} className="flex min-h-11 items-center gap-2 rounded-md px-1 md:min-h-9" data-chat-member={m.user_id}>
                   <span className="min-w-0 flex-1 truncate text-sm">{person?.name ?? t.chat.formerMember}</span>
                   {person?.guest && <span className="text-[10px] uppercase text-muted">{t.chat.guest}</span>}
+                  <AwayBadge userId={m.user_id} />
                   {m.role === "owner" && <span className="text-xs text-muted">{c().owner}</span>}
                   {channel.post_policy === "chosen" && m.can_post && m.role !== "owner" && <span className="text-xs text-muted">{t.chat.publish.publisher}</span>}
                   {channel.post_policy === "chosen" && canManage && m.role !== "owner" && (

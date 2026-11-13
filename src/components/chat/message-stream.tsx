@@ -10,6 +10,7 @@ import { Popover, MenuItem } from "@/components/ui/popover";
 import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, firstLink, uploadChatFile, type Pending } from "./chat-files";
 import { levelsOf } from "./voice-player";
 import { MessageChips, useHost } from "./chat-chips";
+import { AwayBadge } from "./chat-presence";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
@@ -230,6 +231,7 @@ export function MessageStream({
                   <header className="flex items-baseline gap-2">
                     <span className="truncate text-sm font-semibold">{author?.name ?? c().formerMember}</span>
                     {author?.guest && <span className="rounded border border-border px-1 text-[10px] uppercase text-muted">{c().guest}</span>}
+                    <AwayBadge userId={m.author_id} />
                     <time dateTime={m.created_at} className="text-xs text-muted">{time(m.created_at)}</time>
                   </header>
                 )}

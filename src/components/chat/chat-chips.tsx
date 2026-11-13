@@ -7,6 +7,7 @@ import { chipRefsIn, type ChatChip, type ChipRef } from "@/lib/chat-chips";
 import { SERVICE_BRANDS, type ServiceKey } from "@/lib/services";
 import { loadChatChips } from "@/app/chat-actions";
 import { TaskChipView } from "@/components/editor/task-blocks";
+import { SurveyEmbed } from "@/components/editor/survey-block";
 import { ServiceIcon } from "@/components/services/service-icon";
 import { Icon } from "@/components/ui/icon";
 
@@ -120,6 +121,13 @@ export function MessageChips({ body }: { body: string }) {
             <span key={ref.key} className={taskBox} data-chat-chip="task">
               <TaskChipView taskId={chip.id} workspace={at.shortId} people={at.people} />
             </span>
+          );
+        // A Questa survey is answered right in the message (the wiki's embedded form).
+        if (chip.kind === "object" && chip.service === "surveys")
+          return (
+            <div key={ref.key} className="w-full max-w-xl text-sm" data-chat-chip="survey">
+              <SurveyEmbed surveyId={ref.kind === "object" ? ref.id : ""} view="form" pageEditable={false} onPick={() => {}} workspace={at.shortId} />
+            </div>
           );
         const service: ServiceKey | null = chip.kind === "page" ? "wiki" : chip.service === "wishlists" ? null : chip.service;
         const kindName = service ? SERVICE_BRANDS[service].name : c.wishlist;

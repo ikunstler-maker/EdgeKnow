@@ -3634,6 +3634,12 @@ export const en: Dictionary = {
       fragment: "Selected part",
       open: "Open",
     },
+    presence: {
+      onLeave: "On leave",
+      remote: "Remote",
+      until: (day: string) => `until ${day}`,
+      deputy: (name: string) => `${name} stands in`,
+    },
     chips: {
       noAccess: "No access",
       untitled: "Untitled",
