@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
 const TASK_FILE_PATH = /^[0-9a-f-]{36}\/(tasks|objects)\//;
 // Chat files ("<ws>/chat/…") have theirs.
 const CHAT_FILE_PATH = /^[0-9a-f-]{36}\/chat\//;
+// So do Vault's ("<ws>/vault/…").
+const VAULT_FILE_PATH = /^[0-9a-f-]{36}\/vault\//;
 
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
@@ -64,6 +66,8 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   await rows.rpc("clean_survey_files");
   // Chat files added to a message that was never sent (after a day) too.
   await rows.rpc("clean_chat_files");
+  // Vault: the bin after 30 days, uploads never finished after a day (a database not yet upgraded has no such function).
+  await rows.rpc("clean_vault_items");
   // Events cancelled over 30 days ago go for good (a database not yet upgraded has no such function).
   await rows.rpc("purge_calendar_events");
   // Time-off policies that accrue by themselves are brought up to date (nothing is given twice).
@@ -77,15 +81,16 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   if (!found.length) return 0;
   // A path that has a record again (a workspace moved back and forth) keeps its file.
   const paths = found.map((row) => row.storage_path as string);
-  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }, { data: chatFilesInUse }] = await Promise.all([
+  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }, { data: chatFilesInUse }, { data: vaultInUse }] = await Promise.all([
     rows.from("attachments").select("storage_path").in("storage_path", paths),
     // Task files and board pictures (tables that may not exist yet in an older team database).
     rows.from("task_files").select("storage_path").in("storage_path", paths),
     rows.from("object_files").select("storage_path").in("storage_path", paths),
     rows.from("chat_files").select("storage_path").in("storage_path", paths),
+    rows.from("vault_items").select("storage_path").in("storage_path", paths),
   ]);
   if (inUseError) return null;
-  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? []), ...(chatFilesInUse ?? [])].map((row) => row.storage_path as string));
+  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? []), ...(chatFilesInUse ?? []), ...(vaultInUse ?? [])].map((row) => row.storage_path as string));
   if (used.size) await rows.from("attachment_tombstones").delete().in("storage_path", [...used]);
   const tombstones = found.filter((row) => !used.has(row.storage_path as string));
 
@@ -93,9 +98,10 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   const onSupabase = tombstones.filter((row) => row.storage_backend !== "drive").map((row) => row.storage_path as string);
   // Task files ("<ws>/tasks/…") have their own bucket.
   for (const [bucket, paths] of [
-    ["attachments", onSupabase.filter((path) => !TASK_FILE_PATH.test(path) && !CHAT_FILE_PATH.test(path))],
+    ["attachments", onSupabase.filter((path) => !TASK_FILE_PATH.test(path) && !CHAT_FILE_PATH.test(path) && !VAULT_FILE_PATH.test(path))],
     ["task-files", onSupabase.filter((path) => TASK_FILE_PATH.test(path))],
     ["chat-files", onSupabase.filter((path) => CHAT_FILE_PATH.test(path))],
+    ["vault-files", onSupabase.filter((path) => VAULT_FILE_PATH.test(path))],
   ] as const) {
     if (!paths.length) continue;
     const removed = await rows.storage.from(bucket).remove(paths);

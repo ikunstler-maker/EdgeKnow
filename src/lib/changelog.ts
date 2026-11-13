@@ -34,12 +34,41 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-done-date",
-    version: "0.45.1",
+    version: "0.47.1",
     date: "2026-11-13",
     summaryTitle: { uk: "Дата завершення задач", en: "Task done dates" },
     items: [
       { id: "done-date-board", type: "fixed", scope: "tasks", title: { uk: "Задача, перетягнута в «Готово» на дошці чи кнопкою статусу, тепер має дату завершення й потрапляє в аналітику.", en: "A task moved to \"Done\" on the board or with a status button now gets its done date and shows in analytics." } },
       { id: "done-date-reopen", type: "fixed", scope: "tasks", title: { uk: "Задача, повернута з «Готово» в роботу, знову видно в «Моїх задачах».", en: "A task moved back out of \"Done\" shows in \"My tasks\" again." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-folders",
+    version: "0.47.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: власні папки й файли команди", en: "Vault: the team's own folders and files" },
+    summaryDescription: {
+      uk: "Папки, завантаження перетягуванням, доступ як на спільному диску, кошик на 30 днів і ліміт розміру від адміністратора.",
+      en: "Folders, drag-and-drop uploads, access as on a shared drive, a 30-day bin and a size limit set by an admin.",
+    },
+    items: [
+      { id: "vault-folders", type: "added", scope: "files", title: { uk: "Папки й файли у Vault: створення, завантаження, перейменування, переміщення, кошик.", en: "Folders and files in Vault: create, upload, rename, move, bin." } },
+      { id: "vault-access", type: "added", scope: "security", title: { uk: "Доступ до папки чи файлу: усім у просторі, окремим людям і підрозділам або лише запрошеним. Гості Vault не бачать.", en: "Access to a folder or file: everyone in the workspace, particular people and units, or invited only. Guests don't see Vault." } },
+      { id: "vault-large", type: "added", scope: "storage", title: { uk: "Великі файли йдуть на Google Диск простору частинами; адміністратор може обмежити розмір файлу.", en: "Large files go to the workspace's Google Drive in parts; an admin can limit a file's size." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault",
+    version: "0.46.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: усі файли в одному місці", en: "Vault: every file in one place" },
+    summaryDescription: {
+      uk: "Файли сторінок, задач, чату, дошок, презентацій та опитувань в одному списку. Ви бачите лише те, що бачите й у самих сервісах.",
+      en: "Files of pages, tasks, chat, boards, presentations and surveys in one list. You see only what you also see in the services.",
+    },
+    items: [
+      { id: "vault-all", type: "added", scope: "files", title: { uk: "Розділ Vault: список або плитка, фільтр за сервісом і типом, пошук, сортування.", en: "The Vault section: list or grid, filter by service and type, search, sort." } },
+      { id: "vault-preview", type: "added", scope: "files", title: { uk: "Перегляд зображень, аудіо й відео, «Перейти туди» до місця, де файл використано, і завантаження.", en: "Preview of images, audio and video, \"Go there\" to where the file is used, and download." } },
     ],
   },
   {

@@ -11,7 +11,7 @@ export const SERVICES: { key: ServiceKey; ready: boolean; path: string | null }[
   { key: "slides", ready: true, path: "/slides" },
   { key: "surveys", ready: true, path: "/surveys" },
   { key: "chat", ready: true, path: "/chat" },
-  { key: "files", ready: false, path: null },
+  { key: "files", ready: true, path: "/files" },
   { key: "calendar", ready: true, path: "/calendar" },
   { key: "meet", ready: false, path: null },
   { key: "ai", ready: false, path: null },

@@ -1,5 +1,5 @@
 -- RUKH-2: a task's "done" date follows its column, whatever moves it (decision 2026-11-13).
--- Rollback: supabase/rollbacks/20270207100000_rukh_done_at.down.sql
+-- Rollback: supabase/rollbacks/20270208100000_rukh_done_at.down.sql
 --
 -- Until now only update_task set done_at; moving a task on a board, the status buttons,
 -- column rules, removing a column and repeating tasks changed the column but not the date.

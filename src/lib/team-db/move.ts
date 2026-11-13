@@ -35,6 +35,9 @@ type Stage = {
 const TASK_COLUMNS =
   "id, workspace_id, project_id, number, title, description, status_id, type, priority, assignee_id, reporter_id, labels, start_date, due_date, estimate, parent_id, position, created_at, updated_at, updated_by, done_at, deleted_at, deleted_by, custom, private, external_key, external_url, imported_reporter, imported_assignee";
 
+const VAULT_COLUMNS =
+  "id, workspace_id, parent_id, kind, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, large, owner_id, inherit, workspace_role, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with";
+
 const PAGE_COLUMNS =
   "id, parent_id, owner_id, title, icon, position, content, version, created_at, updated_at, updated_by, deleted_at, deleted_by, trashed_with, workspace_id, created_by, inherit, workspace_role, cover, ack_label, ack_revision, ack_editing, ack_groups, published_at";
 
@@ -377,6 +380,12 @@ const STAGES: Stage[] = [
     onConflict: "message_id,user_id,emoji",
     replace: true,
   },
+  // Vault (VAULT-2): folders before what is inside them (as pages), then the grants and the settings.
+  { name: "vault items", table: "vault_items", columns: VAULT_COLUMNS, order: "id", onConflict: "id", flatten: true, files: "vault-files" },
+  { name: "vault tree", table: "vault_items", columns: "id, parent_id, workspace_id", order: "id", onConflict: "id", merge: true },
+  { name: "vault access", table: "vault_access", columns: "item_id, workspace_id, user_id, role, granted_by, created_at", order: "item_id,user_id", onConflict: "item_id,user_id", replace: true },
+  { name: "vault unit access", table: "vault_group_access", columns: "item_id, workspace_id, group_id, role, granted_by, created_at", order: "item_id,group_id", onConflict: "item_id,group_id", replace: true },
+  { name: "vault settings", table: "vault_settings", columns: "workspace_id, file_limit_mb, updated_at, updated_by", order: "workspace_id", onConflict: "workspace_id" },
   { name: "notification settings", table: "notification_prefs", columns: "workspace_id, user_id, muted, updated_at", order: "user_id", onConflict: "workspace_id,user_id" },
   {
     name: "notifications",
@@ -388,7 +397,7 @@ const STAGES: Stage[] = [
 ];
 
 // Tables compared row for row in "verify" (audit log entries get new ids, so they are only copied).
-const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "wishlist_gifts", "task_wishlist_links", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_web_links", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions", "chat_categories", "chat_category_access", "chat_channels", "chat_channel_members", "chat_messages", "chat_reactions", "chat_files", "chat_scheduled"];
+const COUNTED = ["service_objects", "object_collections", "object_collection_items", "service_object_access", "service_object_group_access", "survey_settings", "survey_responses", "survey_respondents", "object_files", "wishlist_gifts", "task_wishlist_links", "board_sessions", "board_votes", "task_projects", "task_fields", "task_boards", "task_board_access", "task_placements", "task_statuses", "task_project_access", "task_project_group_access", "tasks", "task_links", "task_page_links", "task_files", "task_web_links", "task_comments", "task_events", "task_participants", "task_rules", "task_templates", "calendar_events", "calendar_event_attendees", "calendar_event_exceptions", "calendar_settings", "leave_policies", "leave_holidays", "leave_member_settings", "leave_balances", "leave_requests", "notification_prefs", "notifications", "pages", "page_access", "page_group_access", "comment_threads", "comments", "attachments", "page_mentions", "page_contributions", "page_ack_revisions", "page_acks", "page_versions", "chat_categories", "chat_category_access", "chat_channels", "chat_channel_members", "chat_messages", "chat_reactions", "chat_files", "chat_scheduled", "vault_items", "vault_access", "vault_group_access", "vault_settings"];
 
 export type CopyResult = { done: boolean; stage: string; copied: number };
 
@@ -489,7 +498,7 @@ export async function copyPortion(
 }
 
 // Tables whose rows are copied by id; the rest go with their page.
-const BY_ID = ["task_wishlist_links", "wishlist_gifts", "chat_scheduled", "chat_files", "chat_messages", "chat_channels", "chat_category_access", "chat_categories", "notifications", "calendar_external_busy", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_web_links", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
+const BY_ID = ["vault_items", "task_wishlist_links", "wishlist_gifts", "chat_scheduled", "chat_files", "chat_messages", "chat_channels", "chat_category_access", "chat_categories", "notifications", "calendar_external_busy", "leave_requests", "leave_balances", "leave_holidays", "leave_policies", "calendar_events", "task_rules", "task_templates", "object_collections", "service_objects", "comments", "comment_threads", "attachments", "page_access", "pages", "task_events", "task_comments", "task_web_links", "task_files", "task_links", "tasks", "task_statuses", "task_boards", "task_fields", "task_projects"];
 
 async function idsOf(client: SupabaseClient, table: string, ws: string) {
   const ids = new Set<string>();
@@ -579,9 +588,11 @@ export async function verifyMove(admin: SupabaseClient, team: SupabaseClient, ws
   const { data: files } = await from.from("attachments").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
   const { data: taskFiles } = await from.from("task_files").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
   const { data: objectFiles } = await from.from("object_files").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
+  const { data: vaultFiles } = await from.from("vault_items").select("storage_path").eq("workspace_id", ws).eq("storage_backend", "supabase");
   const checks = [
     ...(files ?? []).map((f) => ({ ...f, bucket: "attachments" })),
     ...[...(taskFiles ?? []), ...(objectFiles ?? [])].map((f) => ({ ...f, bucket: "task-files" })),
+    ...(vaultFiles ?? []).map((f) => ({ ...f, bucket: "vault-files" })),
   ];
   for (const file of checks) {
     const { data: atSource } = await from.storage.from(file.bucket).exists(file.storage_path);

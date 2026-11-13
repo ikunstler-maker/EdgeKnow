@@ -5,10 +5,10 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000089d1', 'alice@rda.test', now());
+ ('00000000-0000-0000-0000-0000000090d1', 'alice@rda.test', now());
 update public.platform_settings set open_registration = true;
 set role authenticated;
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000089d1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000090d1';
 select public.create_workspace('Done dates') ->> 'id' as ws \gset
 select public.create_task_project(:'ws', 'Work', 'DDT', null, array['To do', 'Doing', 'Done']) ->> 'id' as project \gset
 reset role;
@@ -18,7 +18,7 @@ select id as doing from public.task_statuses where project_id = :'project' and c
 select id as done from public.task_statuses where project_id = :'project' and category = 'done' order by position limit 1 \gset
 
 set role authenticated;
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000089d1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000090d1';
 select public.create_task(:'project', '{"title": "Board move"}') ->> 'id' as task \gset
 select 'new task has a date: ' || (done_at is not null) from public.tasks where id = :'task';
 select 'board move into done: ' || (public.move_task_on_board(:'task', :'done') ->> 'ok');
@@ -48,7 +48,7 @@ select 'out of done the date goes even if given: ' || (done_at is null) from pub
 
 -- Removing a column moves its tasks: into a done column they get a date.
 set role authenticated;
-set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000089d1';
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000090d1';
 select 'remove doing into done: ' || (public.delete_task_status(:'doing', :'done') ->> 'ok');
 select 'moved by the removal has a date: ' || (done_at is not null) from public.tasks where id = :'task';
 reset role;
