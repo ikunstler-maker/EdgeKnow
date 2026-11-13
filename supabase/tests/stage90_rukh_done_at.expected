@@ -1,0 +1,17 @@
+new task has a date: false
+board move into done: true
+…date set: true
+back to doing: true
+…date cleared: true
+task window into done: true
+…date set: true
+title change: true
+…keeps the date: true
+task window back to to-do: true
+…date cleared: true
+created straight in done has a date: true
+done → another done keeps the date: true
+a date given with the move is kept: true
+out of done the date goes even if given: true
+remove doing into done: true
+moved by the removal has a date: true
