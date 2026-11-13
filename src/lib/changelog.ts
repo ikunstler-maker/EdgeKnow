@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-design-comments",
+    version: "0.56.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "«Дизайн»: коментарі на полотні, компоненти й варіанти", en: "\"Design\": comments on the canvas, components and variants" },
+    items: [
+      { id: "design-comments", type: "added", scope: "board", title: { uk: "Режим «Коментарі»: мітки з обговореннями прямо на полотні, відповіді, «Вирішено».", en: "\"Comments\" mode: pinned threads right on the canvas, replies, \"Resolve\"." } },
+      { id: "design-components", type: "added", scope: "board", title: { uk: "Компоненти: копії повторюють компонент після кожної зміни; варіанти за назвою «Набір/Варіант».", en: "Components: copies follow the component after every change; variants by \"Set/Variant\" names." } },
+    ],
+  },
+  {
     id: "2026-11-13-show-link",
     version: "0.55.0",
     date: "2026-11-13",
