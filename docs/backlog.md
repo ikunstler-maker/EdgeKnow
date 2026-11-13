@@ -8,6 +8,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 3 Left panel shows only the current section (tasks: projects/boards/tasks; wiki: pages; tables: tables…); fix the old fish name near Apus. — DONE (#109).
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
+## List actions (owner, 2026-11-13)
+- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — in review. Next: copy pictures with a duplicated board or deck (needs a DB change → owner's approval).
+
 ## Design system & UI overhaul (owner, 2026-11-11; decision 2026-11-11) — 6 PRs, in order
 - PR 1 Foundation: surface tokens, hairlines, radii, thin scrollbars; `Icon` set; `ServiceIcon` for 15 services + home; shared `Button`/`Dialog`/`Segmented`/`Hint`; four service categories; no comparisons with other products in UI strings — DONE (#144).
 - PR 2 Navigation: left panel (workspace & account menu, service switcher with Ctrl/Cmd+E, dock, collapse with Ctrl/Cmd+\, no task list), start page grouped by category, search, notifications, Apus 40×40; service marks as block glyphs from the owner's file — DONE (#145).
@@ -65,9 +68,9 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - П-1 deck editor — DONE (#116).
 - П-2 look — DONE (#117).
 - П-3а show (sizes, player, transitions, presenter, PDF) + П-3б embeds — DONE (#118).
-- KADRY-1 — in review (owner approved 2026-11-13): objects that appear on a click in the show (fade, rise, zoom; in layer order; presenter in sync), and the show through a link without signing in (`deck_public_links`, owner turns it on/off/renews; `/s/<ws>/<key>`, pictures via `/api/s/files/…`, embeds stay placeholders).
+- KADRY-1 — DONE (#209; owner approved 2026-11-13): objects that appear on a click in the show (fade, rise, zoom; in layer order; presenter in sync), and the show through a link without signing in (`deck_public_links`, owner turns it on/off/renews; `/s/<ws>/<key>`, pictures via `/api/s/files/…`, embeds stay placeholders).
 - Bordy «Дизайн» Д-1…Д-4 (pages, frames, layer tree, auto layout, constraints, pen, stacked fills, SVG import, prototypes + player, task from text, copy style, PNG/SVG/PDF export) — DONE (#119).
-- BORDY-1 — in review (owner approved 2026-11-13): comments pinned on the Design canvas (`design_comments`, threads, replies, resolve, delete; a "Comments" mode) and components with variants (a frame made a component; copies follow it; "Set/Variant" names; detach). Later: per-frame version history; overrides inside copies.
+- BORDY-1 — DONE (#210; owner approved 2026-11-13): comments pinned on the Design canvas (`design_comments`, threads, replies, resolve, delete; a "Comments" mode) and components with variants (a frame made a component; copies follow it; "Set/Variant" names; detach). Later: per-frame version history; overrides inside copies.
 - Original Д scope: Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
 - CORE-1 Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — DONE (#172).
   - Owner's action: in the central Supabase project set the sign-in token lifetime (JWT expiry) to 10 minutes, so a revoked access stops in the channels within 10 minutes there too.

@@ -185,7 +185,7 @@ export function AppShell({
           >
             <Icon name="sidebar" size={18} />
           </button>
-          <ServiceSwitcher shortId={workspace.shortId} pathname={pathname} vertical />
+          <ServiceSwitcher shortId={workspace.shortId} userId={user.id} pathname={pathname} vertical />
         </aside>
       )}
       <aside

@@ -809,4 +809,46 @@ await birthdayChecks();
 await appsChecks();
 await vaultChecks();
 
+// --- UI-5: a list's row buttons (rename, duplicate, share, access, bin); Wika opens the first page ---
+{
+  const aliceId = sql("select id from auth.users where email = 'alice@alpha.test'");
+  const listed = sql(`insert into public.service_objects (workspace_id, service, kind, title, owner_id, created_by, data) values ('${alphaId}', 'sheets', 'sheet', 'Row actions sheet', '${aliceId}', '${aliceId}', '{"cells":{"A1":"kept"}}'::jsonb) returning id`).split("\n")[0];
+  await alice.goto(`${APP}/w/${alphaShort}/sheets`);
+  const row = alice.locator('[data-sheet="Row actions sheet"]');
+  await row.waitFor({ timeout: 20000 });
+  check("UI-5: the owner sees rename, duplicate, share, access and bin on the row", (await row.locator("[data-row-action]").evaluateAll((els) => els.map((e) => e.getAttribute("data-row-action")).join(","))) === "rename,duplicate,share,access,bin");
+  await row.locator('[data-row-action="rename"]').click();
+  await row.locator("[data-row-rename] input").fill("Renamed sheet");
+  await row.locator("[data-row-rename-save]").click();
+  check("…renaming saves the new name", await until(() => sql(`select title from public.service_objects where id = '${listed}'`) === "Renamed sheet", 10000));
+  check("…and the list shows it", await alice.locator('[data-sheet="Renamed sheet"]').waitFor({ timeout: 10000 }).then(() => true, () => false));
+  await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="duplicate"]').click();
+  const copyData = () => sql(`select coalesce((select data ->> 'cells' from public.service_objects where service = 'sheets' and title like 'Renamed sheet (%' and deleted_at is null limit 1), '')`);
+  check("…duplicating makes a copy with the same contents", await until(() => copyData().includes("kept"), 10000), copyData());
+  await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="access"]').click();
+  check("…access opens the same dialog as in the editor", await alice.locator('[role="dialog"]').first().waitFor({ timeout: 10000 }).then(() => true, () => false));
+  await alice.keyboard.press("Escape");
+  // A colleague who may only view sees "Share" alone.
+  sql(`update public.service_objects set workspace_role = 'viewer' where id = '${listed}'`);
+  await colleague.goto(`${APP}/w/${alphaShort}/sheets`);
+  const theirs = colleague.locator('[data-sheet="Renamed sheet"]');
+  await theirs.waitFor({ timeout: 20000 });
+  check("…a viewer sees only Share", (await theirs.locator("[data-row-action]").evaluateAll((els) => els.map((e) => e.getAttribute("data-row-action")).join(","))) === "share");
+  alice.once("dialog", (dialog) => dialog.accept());
+  await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="bin"]').click();
+  check("…to the bin from the list", await until(() => sql(`select (deleted_at is not null)::text from public.service_objects where id = '${listed}'`) === "true", 10000));
+  // Every list shows the service's own mark on each row.
+  for (const service of ["boards", "nodes", "sheets", "slides", "surveys"]) {
+    await alice.goto(`${APP}/w/${alphaShort}/${service}`);
+    const rows = await alice.locator("main ul > li").count();
+    const marked = await alice.locator("main ul > li [data-service-icon]").count();
+    check(`…${service}: every row has the service's mark`, rows === 0 || marked >= rows, `${marked}/${rows}`);
+  }
+  // Wika opens the page at the top of the tree.
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  const wikiLink = alice.locator('[aria-label="Wika"], [title^="Wika"]').first();
+  const href = await wikiLink.getAttribute("href").catch(() => null);
+  check("Wika opens the first page of the tree, not the home page", Boolean(href && href.includes(`/w/${alphaShort}/p/`)), String(href));
+}
+
 await finish("nodes");

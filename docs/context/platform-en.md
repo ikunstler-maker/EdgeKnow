@@ -44,6 +44,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Start page**: service tiles in four categories (mark, name, one-line description, recent items or "Create").
 - **Left panel** (top to bottom): the workspace name opens the workspace and account menu (other workspaces, profile, settings, theme, language, "What's new", help, sign-out); a dock of pinned services and a button for the list of all services by category (Ctrl/Cmd+E; pins are kept in the browser); search, notifications; the current section's content (in Rukh: projects and boards, no tasks); at the bottom the bin and Apus. Resizable; collapses to a slim rail (button or Ctrl/Cmd+\; kept in the browser).
 - **Collections:** shared folders of workspace objects; one object in many collections, no copies.
+- **List row actions (UI-5):** rename, duplicate, share, access (owner), bin on each row of the object lists; shown by role.
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics
