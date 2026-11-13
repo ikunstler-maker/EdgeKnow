@@ -22,7 +22,7 @@ export type ChatChip =
   | { kind: "object"; service: ChipService; title: string; icon: string | null }
   // A task: its card reads key, title, status and assignee live (like a wiki chip).
   | { kind: "task"; id: string }
-  | { kind: "file"; id: string };
+  | { kind: "file"; id: string; title?: string };
 
 export const MAX_CHIPS = 5;
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";

@@ -2373,6 +2373,10 @@ export const uk = {
         pink: "Рожевий",
       },
       pageChip: "сторінка",
+      objectChip: "посилання",
+      untitledObject: "Без назви",
+      objectsGroup: "Таблиці, дошки, карти, презентації",
+      filesGroup: "Файли Vault",
       noAccess: "Немає доступу",
       someone: "Колега",
       presets: {
