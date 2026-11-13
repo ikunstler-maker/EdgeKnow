@@ -33,6 +33,20 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-vault",
+    version: "0.45.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: усі файли в одному місці", en: "Vault: every file in one place" },
+    summaryDescription: {
+      uk: "Файли сторінок, задач, чату, дошок, презентацій та опитувань в одному списку. Ви бачите лише те, що бачите й у самих сервісах.",
+      en: "Files of pages, tasks, chat, boards, presentations and surveys in one list. You see only what you also see in the services.",
+    },
+    items: [
+      { id: "vault-all", type: "added", scope: "files", title: { uk: "Розділ Vault: список або плитка, фільтр за сервісом і типом, пошук, сортування.", en: "The Vault section: list or grid, filter by service and type, search, sort." } },
+      { id: "vault-preview", type: "added", scope: "files", title: { uk: "Перегляд зображень, аудіо й відео, «Перейти туди» до місця, де файл використано, і завантаження.", en: "Preview of images, audio and video, \"Go there\" to where the file is used, and download." } },
+    ],
+  },
+  {
     id: "2026-11-12-live",
     version: "0.44.0",
     date: "2026-11-12",
