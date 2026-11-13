@@ -157,6 +157,10 @@ jobs:
       - name: Table formulas
         if: matrix.part == 'nodes'
         run: node --experimental-strip-types --no-warnings scripts/test-sheet-formulas.mjs
+      # Tables a formula gives spill into the cells next to it (SOTA-1).
+      - name: Sheet spill
+        if: matrix.part == 'nodes'
+        run: node --experimental-strip-types --no-warnings scripts/test-sheet-spill.mjs
       # Wiki page → Markdown export (hidden embeds stay hidden) and the .zip writer.
       - name: Page Markdown export
         if: matrix.part == 'nodes'
