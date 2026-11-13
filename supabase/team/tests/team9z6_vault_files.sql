@@ -15,7 +15,7 @@ reset role;
 update public.vault_items set storage_backend = 'supabase' where id = :'f';
 set role authenticated;
 :as_alice;
-select 'alice sees: ' || (select string_agg(name, ', ' order by name) from public.vault_items);
+select 'alice sees: ' || (select string_agg(name, ', ' order by name collate "C") from public.vault_items);
 reset role;
 set role authenticated;
 :as_bob;

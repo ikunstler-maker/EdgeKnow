@@ -53,7 +53,7 @@ update public.vault_items set storage_backend = 'supabase' where id = :'plan';
 set role authenticated;
 
 set request.jwt.claim.sub = :'carol';
-select 'carol sees: ' || (select string_agg(name, ', ' order by name) from public.vault_items)
+select 'carol sees: ' || (select string_agg(name, ', ' order by name collate "C") from public.vault_items)
   || '; her role on the file: ' || public.vault_role(:'plan');
 select 'carol renames bob''s file: ' || (public.vault_rename(:'plan', 'mine.pdf') ->> 'error')
   || ', adds to his folder: ' || (public.vault_create_folder(:'ws', :'team', 'Sub') ->> 'error')
@@ -99,7 +99,7 @@ select 'dave (Design) is a ' || public.vault_role(:'plan') || ' of the file, ren
 set request.jwt.claim.sub = :'bob';
 select 'shares the inner folder with alice: ' || (public.vault_set_member_role(:'inner', :'alice', 'viewer') ->> 'ok');
 set request.jwt.claim.sub = :'alice';
-select 'alice''s top shows it: ' || (select string_agg(x ->> 'name', ', ' order by x ->> 'name') from jsonb_array_elements(public.vault_list(:'ws', null) -> 'items') x)
+select 'alice''s top shows it: ' || (select string_agg(x ->> 'name', ', ' order by (x ->> 'name') collate "C") from jsonb_array_elements(public.vault_list(:'ws', null) -> 'items') x)
   || '; its path for her: ' || (public.vault_list(:'ws', :'inner') -> 'path')::text;
 
 -- Moving: never into itself or below; only where the person may add.
