@@ -44,6 +44,7 @@ import { MembersPanel } from "./members-panel";
 import { PinsPanel, SearchPanel, ThreadPanel } from "./side-panels";
 import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, NewDirectDialog } from "./chat-dialogs";
 import { useChatLive, type ChatSignal } from "./use-chat-live";
+import { ChatChipsProvider } from "./chat-chips";
 
 const c = () => t.chat;
 const POLL_MS = 5_000;
@@ -132,6 +133,8 @@ export function ChatScreen(props: ChatScreenProps) {
 
   const people = useMemo(() => new Map(props.people.map((p) => [p.id, p])), [props.people]);
   const reactions = useMemo(() => new Map(Object.entries(reactionRows)), [reactionRows]);
+  // Task chips offer workspace members (not guests) as assignees; the database checks.
+  const chipsAt = useMemo(() => ({ shortId, workspaceId, people: props.people.filter((p) => !p.guest).map((p) => ({ id: p.id, name: p.name })) }), [shortId, workspaceId, props.people]);
   const files = useMemo(() => new Map(Object.entries(fileRows)), [fileRows]);
   const active = channels.find((ch) => ch.id === activeId) ?? null;
   const stream = activeId ? streams[activeId] : undefined;
@@ -521,6 +524,7 @@ export function ChatScreen(props: ChatScreenProps) {
   );
 
   return (
+    <ChatChipsProvider value={chipsAt}>
     <div className="flex h-[calc(100dvh-3.25rem)] w-full min-w-0 overflow-hidden md:h-dvh" data-chat>
       <aside className={`w-full shrink-0 border-r border-border bg-shell md:block md:w-64 ${showList || !active ? "block" : "hidden"}`}>
         <ChannelList
@@ -770,5 +774,6 @@ export function ChatScreen(props: ChatScreenProps) {
         />
       )}
     </div>
+    </ChatChipsProvider>
   );
 }

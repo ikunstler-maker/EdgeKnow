@@ -9,6 +9,7 @@ import { EmojiPicker } from "@/components/pages/emoji-picker";
 import { Popover, MenuItem } from "@/components/ui/popover";
 import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, firstLink, uploadChatFile, type Pending } from "./chat-files";
 import { levelsOf } from "./voice-player";
+import { MessageChips, useHost } from "./chat-chips";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
@@ -30,6 +31,17 @@ function withMentions(text: string, names: string[], key: string): ReactNode[] {
     }
   }
   return text ? [<Fragment key={key}>{text}</Fragment>] : [];
+}
+
+// The first link of a message that leads off this site (own links become chips).
+function outsideLink(body: string, host: string) {
+  const link = firstLink(body);
+  if (!link || !host) return null;
+  try {
+    return new URL(link).host === host ? null : link;
+  } catch {
+    return null;
+  }
 }
 
 // Plain text with links (only http and https) and highlighted mentions.
@@ -129,6 +141,7 @@ export function MessageStream({
   const [editing, setEditing] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ id: string; anchor: HTMLElement } | null>(null);
   const everyone = [...people.values()];
+  const host = useHost();
 
   // New at the bottom: follow if the person was at the bottom. Older pages added on
   // top: keep the same message in view.
@@ -241,7 +254,8 @@ export function MessageStream({
                   </p>
                 )}
                 {!m.deleted_at && <MessageFiles files={files.get(m.id) ?? []} shortId={shortId} />}
-                {!m.deleted_at && !m.file_count && editing !== m.id && firstLink(m.body) && <LinkCard url={firstLink(m.body)!} />}
+                {!m.deleted_at && editing !== m.id && <MessageChips body={m.body} />}
+                {!m.deleted_at && !m.file_count && editing !== m.id && outsideLink(m.body, host) && <LinkCard url={outsideLink(m.body, host)!} />}
                 {pending && <p className="text-xs text-muted">{c().sending}</p>}
                 {signs.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1" data-chat-reactions>

@@ -8,7 +8,7 @@ import { workspacePath } from "@/lib/paths";
 import { type StatusCategory, type TaskStatus } from "@/lib/tasks";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
-import { projectStatuses, projectsForEmbed, setTaskStatusFromPage, taskEmbed, type ChipProject, type TaskEmbed } from "@/app/task-wiki-actions";
+import { projectStatuses, projectsForEmbed, setTaskAssigneeFromChip, setTaskStatusFromPage, taskEmbed, type ChipProject, type TaskEmbed } from "@/app/task-wiki-actions";
 import { refreshTaskChips, useTaskChip } from "./task-chip-store";
 import { TypeIcon } from "@/components/tasks/task-icons";
 import { Icon } from "@/components/ui/icon";
@@ -42,13 +42,23 @@ export const taskChip = createReactInlineContentSpec(
   },
 );
 
-export function TaskChipView({ taskId }: { taskId: string }) {
+// Outside a wiki page (a chat message) the workspace comes as `workspace`; with
+// `people` the menu also changes the assignee.
+export function TaskChipView({ taskId, workspace, people }: { taskId: string; workspace?: string; people?: { id: string; name: string }[] }) {
   const pages = useOptionalPages();
-  const shortId = pages?.workspace.shortId;
+  const shortId = workspace ?? pages?.workspace.shortId;
   const task = useTaskChip(shortId, taskId);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [statuses, setStatuses] = useState<TaskStatus[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
+  const change = (run: () => Promise<{ ok: boolean }>) =>
+    startTransition(async () => {
+      const result = await run();
+      setFailed(!result.ok);
+      refreshTaskChips();
+      if (result.ok) setAnchor(null);
+    });
   if (task === undefined) {
     return (
       <span contentEditable={false} className={`${pillClass} ek-chip bg-surface text-muted`} data-task-chip="loading">
@@ -69,6 +79,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
       <button
         type="button"
         onClick={(event) => {
+          setFailed(false);
           setAnchor(anchor ? null : event.currentTarget);
           if (task.canEdit && !statuses) projectStatuses(shortId, task.projectId).then(setStatuses);
         }}
@@ -82,6 +93,7 @@ export function TaskChipView({ taskId }: { taskId: string }) {
         <span className={`rounded-full px-1.5 text-[0.85em] ${CATEGORY_CLASS[task.category]}`} data-task-chip-status>
           {task.deleted ? w.chipDeleted : task.status}
         </span>
+        {people && task.assignee && <span className="truncate text-[0.9em] text-muted" data-task-chip-assignee-name>{task.assignee}</span>}
       </button>
       {anchor && (
         <Popover anchor={anchor} onClose={() => setAnchor(null)} width={240}>
@@ -100,20 +112,41 @@ export function TaskChipView({ taskId }: { taskId: string }) {
                     role="menuitemradio"
                     aria-checked={status.name === task.status}
                     disabled={pending}
-                    onClick={() =>
-                      startTransition(async () => {
-                        await setTaskStatusFromPage(shortId, task.id, status.id);
-                        refreshTaskChips();
-                        setAnchor(null);
-                      })
-                    }
+                    onClick={() => change(() => setTaskStatusFromPage(shortId, task.id, status.id))}
                     className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm hover:bg-surface md:min-h-9"
                   >
                     <span className={`rounded-full px-2 text-xs ${CATEGORY_CLASS[status.category]}`}>{status.name}</span>
                     {status.name === task.status && <Icon name="check" size={14} className="ml-auto text-accent" />}
                   </button>
                 ))}
+                {people && (
+                  <>
+                    <p className="px-3 pb-1 pt-2 text-xs text-muted">{w.changeAssignee}</p>
+                    <div className="max-h-56 overflow-y-auto">
+                      {[{ id: null, name: w.noAssignee }, ...people].map((person) => (
+                        <button
+                          key={person.id ?? "none"}
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={person.id === task.assigneeId}
+                          disabled={pending}
+                          onClick={() => change(() => setTaskAssigneeFromChip(shortId, task.id, person.id))}
+                          className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm hover:bg-surface md:min-h-9"
+                          data-task-chip-assignee={person.id ?? ""}
+                        >
+                          <span className={`truncate ${person.id ? "" : "text-muted"}`}>{person.name}</span>
+                          {person.id === task.assigneeId && <Icon name="check" size={14} className="ml-auto shrink-0 text-accent" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
+            )}
+            {failed && (
+              <p role="alert" className="px-3 pb-2 pt-1 text-xs text-danger">
+                {w.changeFailed}
+              </p>
             )}
           </div>
         </Popover>
