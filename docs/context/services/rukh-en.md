@@ -149,6 +149,7 @@ The tables exist in both the central and the team database.
 | **Toker** | task from a message (or a selected part) with a link back, the link left in the thread — done (Toker 3b); status and assignee change from a chip in a chat message — done (Toker 3a) |
 | **Spilno** | planned links; no details yet |
 | **Profile** | "Link a wishlist": live wishlist cards in a task (`task_wishlist_links`), rights as for files |
+| **Vault** | "From Vault" in attachments: a task link `…/files?file=<id>` titled "File from Vault", shown as a live card (VAULT-3) |
 
 ## 6. Key files
 

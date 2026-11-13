@@ -33,6 +33,22 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-vault-embeds",
+    version: "0.48.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Файли з Vault у сторінках, задачах, презентаціях і чаті", en: "Vault files in pages, tasks, presentations and chat" },
+    summaryDescription: {
+      uk: "Кнопка «Із Vault» вставляє картку файлу. Її бачать ті, кому файл відкритий; іншим — «Файл недоступний».",
+      en: "\"From Vault\" inserts a file's card. Those the file is open to see it; others see \"File unavailable\".",
+    },
+    items: [
+      { id: "vault-embed-wiki", type: "added", scope: "wiki", title: { uk: "Блок «Файл із Vault» на сторінці (меню «/»).", en: "A \"File from Vault\" block on a page (the \"/\" menu)." } },
+      { id: "vault-embed-tasks", type: "added", scope: "tasks", title: { uk: "«Із Vault» у вкладеннях задачі.", en: "\"From Vault\" in a task's attachments." } },
+      { id: "vault-embed-slides", type: "added", scope: "slides", title: { uk: "Файл із Vault у презентації, файлі «Дизайн» і на дошці для ідей.", en: "A Vault file in a presentation, a \"Design\" file and on an idea board." } },
+      { id: "vault-embed-chat", type: "added", scope: "chat", title: { uk: "«Із Vault» у повідомленні чату: файл показується карткою.", en: "\"From Vault\" in a chat message: the file shows as a card." } },
+    ],
+  },
+  {
     id: "2026-11-13-done-date",
     version: "0.47.1",
     date: "2026-11-13",

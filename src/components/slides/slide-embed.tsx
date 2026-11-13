@@ -14,6 +14,7 @@ import { BoardEmbed } from "@/components/editor/board-block";
 import { NodeMapEmbed } from "@/components/editor/node-map-block";
 import { TaskChipView, TasksEmbedView } from "@/components/editor/task-blocks";
 import { WishlistEmbed } from "@/components/wishlists/wishlist-embed";
+import { VaultFileEmbed } from "@/components/files/vault-file-embed";
 import { Icon } from "@/components/ui/icon";
 
 const e = t.slides.embeds;
@@ -47,6 +48,8 @@ export function SlideEmbed({ embed, setup, onEmbed }: { embed: Embed; setup: boo
       return embed.id ? <TaskCard taskId={embed.id} /> : setup ? <TaskPicker shortId={shortId} onPick={(id) => onEmbed({ ...embed, id })} /> : <NoAccess />;
     case "wishlist":
       return <WishlistEmbed shortId={shortId} wishlistId={embed.id} editable={setup} onPick={(id) => onEmbed({ ...embed, id })} />;
+    case "file":
+      return <VaultFileEmbed shortId={shortId} fileId={embed.id} editable={setup} onPick={(id) => onEmbed({ ...embed, id })} />;
     case "page":
       return embed.id ? <PageCard shortId={shortId} pageId={embed.id} /> : setup ? <PagePicker onPick={(id) => onEmbed({ ...embed, id })} /> : <NoAccess />;
   }

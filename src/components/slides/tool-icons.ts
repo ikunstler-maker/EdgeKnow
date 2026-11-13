@@ -28,6 +28,7 @@ export const ALIGN_ICON: Record<string, IconName> = {
 };
 // What a slide can embed, by kind.
 export const EMBED_ICON: Record<string, IconName> = {
+  file: "folder",
   task: "task",
   tasks: "list",
   sheet: "table",

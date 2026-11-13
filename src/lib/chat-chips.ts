@@ -1,3 +1,5 @@
+import { vaultFileIdOf } from "./vault-links";
+
 // Toker live chips: a link to something in the same workspace (a page, a task, a
 // table, a board…) shows as a card with its current title; a task's card also
 // shows and changes its status and assignee. The reader's own access decides what comes back
@@ -9,7 +11,9 @@ export type ChipService = (typeof CHIP_SERVICES)[number];
 export type ChipRef =
   | { key: string; url: string; kind: "page"; id: string }
   | { key: string; url: string; kind: "task"; project: string; number: number }
-  | { key: string; url: string; kind: "object"; service: ChipService; id: string };
+  | { key: string; url: string; kind: "object"; service: ChipService; id: string }
+  // A Vault file (VAULT-3): its card is read live with the reader's access, like the rest.
+  | { key: string; url: string; kind: "file"; id: string };
 
 export type ChatChip =
   // Gone, or the reader may not see it: a neutral badge, never the title.
@@ -17,7 +21,8 @@ export type ChatChip =
   | { kind: "page"; title: string; icon: string | null }
   | { kind: "object"; service: ChipService; title: string; icon: string | null }
   // A task: its card reads key, title, status and assignee live (like a wiki chip).
-  | { kind: "task"; id: string };
+  | { kind: "task"; id: string }
+  | { kind: "file"; id: string };
 
 export const MAX_CHIPS = 5;
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -45,6 +50,8 @@ export function chipRefOf(url: string, host: string, shortId: string): ChipRef |
   }
   m = OBJECT_RE.exec(path);
   if (m && m[1] === shortId) return { key: `object:${m[3]}`, url, kind: "object", service: m[2] as ChipService, id: m[3] };
+  const file = vaultFileIdOf(url, shortId);
+  if (file) return { key: `file:${file}`, url, kind: "file", id: file };
   return null;
 }
 

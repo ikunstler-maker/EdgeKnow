@@ -35,8 +35,14 @@ export default async function FilesPage({ params, searchParams }: PageProps<"/w/
   const guest = workspace.role === "guest";
   const asked = (typeof query.tab === "string" ? query.tab : "files") as Tab;
   const tab: Tab = guest ? "all" : TABS.some((x) => x.key === asked) ? asked : "files";
-  const folder = typeof query.folder === "string" && /^[0-9a-f-]{36}$/.test(query.folder) ? query.folder : null;
+  let folder = typeof query.folder === "string" && /^[0-9a-f-]{36}$/.test(query.folder) ? query.folder : null;
   const db = await dataClient(wid);
+  // A link to one file (from a card in another service): its folder, with the file marked.
+  const focus = typeof query.file === "string" && /^[0-9a-f-]{36}$/.test(query.file) ? query.file : null;
+  if (focus && tab === "files") {
+    const { data: file } = await db.from("vault_items").select("parent_id").eq("id", focus).is("deleted_at", null).maybeSingle();
+    if (file) folder = (file.parent_id as string | null) ?? null;
+  }
   const base = workspacePath(workspace.shortId, "/files");
   const v = t.vault;
 
@@ -65,7 +71,7 @@ export default async function FilesPage({ params, searchParams }: PageProps<"/w/
           </nav>
         )}
       </header>
-      {tab === "all" ? <AllFiles db={db} workspaceId={workspace.id} shortId={workspace.shortId} /> : <Drive db={db} workspaceId={workspace.id} shortId={workspace.shortId} folder={tab === "bin" ? null : folder} bin={tab === "bin"} />}
+      {tab === "all" ? <AllFiles db={db} workspaceId={workspace.id} shortId={workspace.shortId} /> : <Drive db={db} workspaceId={workspace.id} shortId={workspace.shortId} folder={tab === "bin" ? null : folder} bin={tab === "bin"} focus={focus} />}
     </main>
   );
 }
@@ -77,7 +83,7 @@ async function AllFiles({ db, workspaceId, shortId }: { db: Awaited<ReturnType<t
   return <VaultBrowser files={files} limited={[...perSource.values()].some((n) => n >= VAULT_LIMIT)} />;
 }
 
-async function Drive({ db, workspaceId, shortId, folder, bin }: { db: Awaited<ReturnType<typeof dataClient>>; workspaceId: string; shortId: string; folder: string | null; bin: boolean }) {
+async function Drive({ db, workspaceId, shortId, folder, bin, focus }: { db: Awaited<ReturnType<typeof dataClient>>; workspaceId: string; shortId: string; folder: string | null; bin: boolean; focus: string | null }) {
   const admin = createAdminClient();
   const [{ data: listed }, { data: settings }, { data: groups }, { data: memberRows }, connection] = await Promise.all([
     db.rpc("vault_list", { ws: workspaceId, folder, bin }),
@@ -103,6 +109,7 @@ async function Drive({ db, workspaceId, shortId, folder, bin }: { db: Awaited<Re
       workspaceId={workspaceId}
       listing={result}
       bin={bin}
+      focus={focus}
       hasDrive={connection?.status === "ok"}
       limitMb={(settings?.file_limit_mb as number | null | undefined) ?? null}
       members={members}

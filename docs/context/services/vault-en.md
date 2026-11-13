@@ -1,12 +1,12 @@
 # Vault — file manager
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-2). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-3). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
 
 ## 1. Purpose
 
 Browse and manage all files of the workspace storage right in the product.
 
-- **State:** ✅ VAULT-1 ("All files") and VAULT-2 (own folders and files). Next VAULT-2b (access mirrored to Google Drive), VAULT-3 ("From Vault" insert), VAULT-4 (rest of Google Drive, versions) — `docs/backlog.md`.
+- **State:** ✅ VAULT-1 ("All files") and VAULT-2 (own folders and files). VAULT-3 ("From Vault"). Next VAULT-2b (access mirrored to Google Drive, later), VAULT-4 (rest of Google Drive, versions) — `docs/backlog.md`.
 - **Storage:** the single workspace storage (Google Drive or database storage); files over 4 MB only on the Drive.
 
 ## 1a. What works (VAULT-1)
@@ -24,6 +24,12 @@ Browse and manage all files of the workspace storage right in the product.
 - Functions: `vault_create_folder`, `begin_vault_file`, `vault_rename`, `vault_move`, `vault_trash`, `vault_restore`, `vault_delete_forever`, `vault_list`, `vault_sharing`, `vault_set_member_role`, `vault_set_group_role`, `vault_set_general`, `set_vault_file_limit`, `clean_vault_items` (server).
 - Routes: `POST /api/vault/files` (up to 4 MB), `/api/vault/files/large` (parts to the Drive), `GET /api/vault/files/<id>`. Bucket `vault-files`, path `<ws>/vault/<id>`.
 - Code: `src/components/files/vault-drive.tsx`, `vault-share-dialog.tsx`, `vault-move-dialog.tsx`, `vault-limit-panel.tsx`, `src/app/vault-actions.ts`, `src/lib/vault-files.ts`; tests `supabase/tests/stage89_vault_files.sql`, `supabase/team/tests/team9z6_vault_files.sql`, e2e `scripts/e2e/vault-checks.mjs`.
+
+## 1c. "From Vault" in other services (VAULT-3)
+
+- Only the file's id is kept; the card (`VaultFileEmbed`, `src/components/files/vault-file-embed.tsx`) is read with the viewer's access (`vaultFileView`); without it — "File unavailable", no name.
+- Wika: block `vaultFile`; task: a task link `…/files?file=<id>` titled "File from Vault", shown as a card; slides and "Design": embed kind `file`; idea board: "File from Vault" written with the link; Toker: a link in a message → a card (`chat-chips`, kind `file`).
+- File links: `vaultFileHref()` / `vaultFileIdOf()` (`src/lib/vault-links.ts`); `/w/<id>/files?file=<id>` opens the folder with the file marked.
 
 ## 2. Intent
 
