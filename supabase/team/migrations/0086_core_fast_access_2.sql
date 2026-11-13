@@ -1,5 +1,5 @@
 -- CORE-5 in a team's own database (as supabase/migrations/20270212100000_core_fast_access_2.sql).
--- Rollback: supabase/team/rollbacks/0085_core_fast_access_2.down.sql
+-- Rollback: supabase/team/rollbacks/0086_core_fast_access_2.down.sql
 --
 -- CORE-5: access checks once per query, part 2 (speed; owner's approval 2026-11-13). Who sees
 -- what does not change: every rule below is the old one rewritten, and the equivalence tests
