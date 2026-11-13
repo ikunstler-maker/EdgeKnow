@@ -131,6 +131,8 @@ async function vaultEmbedChecks(fileId) {
   const added = await aliceClient.rpc("add_task_web_link", { target_task: taskId, new_title: "File from Vault", new_url: link });
   const { data: page } = await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Vault embeds" });
   const saved = await aliceClient.rpc("save_page_content", { target_page: page.id, new_content: [{ id: "v1", type: "vaultFile", props: { fileId }, children: [] }], base_version: 1 });
+  // A new page is a draft only its author sees until it is published.
+  await aliceClient.rpc("publish_page", { target_page: page.id, with_children: false });
   check("(setup) a message, a task link and a page with the Vault file", Boolean(channel?.id) && added.data?.ok === true && saved.data?.ok === true, JSON.stringify([added.data, saved.data]));
 
   const places = {
@@ -153,7 +155,8 @@ async function vaultEmbedChecks(fileId) {
   const hidden = [];
   for (const [name, url] of Object.entries(places)) {
     await colleague.goto(url);
-    const unavailable = await colleague.locator("[data-vault-embed-unavailable]").first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+    // In chat a link the reader can't see is the usual "no access" badge; elsewhere the card says "unavailable".
+    const unavailable = await colleague.locator('[data-vault-embed-unavailable], [data-chat-chip="none"]').first().waitFor({ timeout: 15000 }).then(() => true, () => false);
     if (unavailable && (await colleague.getByText("notes.txt").count()) === 0) hidden.push(name);
   }
   // The colleague may not see the task at all; then nothing of the file shows there either.
