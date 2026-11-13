@@ -4,6 +4,11 @@ import { t } from "@/i18n";
 import { isEmptyValue, personLabel, type Person, type TaskField } from "@/lib/tasks";
 import { CODE_KINDS, OTHER, durationText, isOther, itemName, listOf, otherText, splitDuration } from "@/lib/field-lists";
 import { Icon } from "@/components/ui/icon";
+import { useState } from "react";
+import { LinkChip } from "@/components/editor/link-chip";
+import { ChipPicker } from "@/components/sheets/chip-picker";
+import { rememberCellChip } from "@/components/sheets/sheet-chips";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 import { MultiPicker } from "./multi-picker";
 
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
@@ -164,9 +169,37 @@ export function FieldValue({
               <Icon name="arrow-up-right" />
             </a>
           )}
+          {field.kind === "url" && !disabled && <UrlChipButton onPick={(url) => onChange(url)} />}
         </span>
       )}
+      {/* A link to this workspace shows as a chip with its live title (UI-4). */}
+      {field.kind === "url" && text && <LinkChip link={text} className="mt-1 self-start" attr="data-field-chip" />}
     </label>
+  );
+}
+
+// "Chip" next to a link field: pick a page, task, table, board or file; the field gets its link.
+function UrlChipButton({ onPick }: { onPick: (url: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const pages = useOptionalPages();
+  if (!pages) return null;
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="shrink-0 rounded-md px-2 text-sm text-muted hover:bg-surface hover:text-foreground" title={t.tasks.customFields.chipHint} data-field-insert-chip>
+        {t.tasks.customFields.chip}
+      </button>
+      {open && (
+        <ChipPicker
+          onClose={() => setOpen(false)}
+          onPick={(picked) => {
+            setOpen(false);
+            const url = `${window.location.origin}${picked.path}`;
+            rememberCellChip(url, pages.workspace.shortId, { state: "ok", service: picked.service, title: picked.title, href: picked.path });
+            onPick(url);
+          }}
+        />
+      )}
+    </>
   );
 }
 

@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-chips-step4",
+    version: "0.54.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Чипи в полях задач і на слайдах", en: "Chips in task fields and on slides" },
+    items: [
+      { id: "chips-fields", type: "added", scope: "tasks", title: { uk: "Поле-посилання задачі показує чип з актуальною назвою; кнопка «Чип» вставляє посилання на сторінку, задачу, таблицю чи файл.", en: "A task's link field shows a chip with the current title; the \"Chip\" button inserts a link to a page, task, table or file." } },
+      { id: "chips-slides", type: "added", scope: "slides", title: { uk: "Нова вставка на слайді — «Чип (посилання)».", en: "A new slide embed — \"Chip (link)\"." } },
+    ],
+  },
+  {
     id: "2026-11-13-vault-drive-access",
     version: "0.54.0",
     date: "2026-11-13",
