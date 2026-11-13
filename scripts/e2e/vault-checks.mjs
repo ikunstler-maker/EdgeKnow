@@ -1,7 +1,7 @@
 // Browser smoke test: Vault (VAULT-1) — every file a person can see, gathered from
 // the services. Rows are put straight into the database (the upload paths have their
 // own tests); what matters here is who sees which file.
-import { APP, alice, aliceClient, alphaId, alphaShort, check, colleague, colleagueId, sql, until } from "./common.mjs";
+import { APP, alice, aliceClient, alphaId, alphaShort, check, clip, colleague, colleagueId, sql, until } from "./common.mjs";
 
 export async function vaultChecks() {
   const aliceId = sql("select id from auth.users where email = 'alice@alpha.test'");
@@ -132,7 +132,7 @@ async function vaultEmbedChecks(fileId) {
   const { data: page } = await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Vault embeds" });
   const saved = await aliceClient.rpc("save_page_content", { target_page: page.id, new_content: [{ id: "v1", type: "vaultFile", props: { fileId }, children: [] }], base_version: 1 });
   // A new page is a draft only its author sees until it is published.
-  await aliceClient.rpc("publish_page", { target_page: page.id, with_children: false });
+  const published = await aliceClient.rpc("publish_page", { target_page: page.id, with_children: false });
   check("(setup) a message, a task link and a page with the Vault file", Boolean(channel?.id) && added.data?.ok === true && saved.data?.ok === true, JSON.stringify([added.data, saved.data]));
 
   const places = {
@@ -153,14 +153,16 @@ async function vaultEmbedChecks(fileId) {
   const folderId = sql(`select parent_id from public.vault_items where id = '${fileId}'`);
   await aliceClient.rpc("vault_set_member_role", { target: folderId, member: colleagueId, new_role: null });
   const hidden = [];
+  const seenBy = {};
   for (const [name, url] of Object.entries(places)) {
     await colleague.goto(url);
     // In chat a link the reader can't see is the usual "no access" badge; elsewhere the card says "unavailable".
     const unavailable = await colleague.locator('[data-vault-embed-unavailable], [data-chat-chip="none"]').first().waitFor({ timeout: 15000 }).then(() => true, () => false);
     if (unavailable && (await colleague.getByText("notes.txt").count()) === 0) hidden.push(name);
+    else seenBy[name] = clip(await colleague.locator("main").first().innerText().catch(() => ""), 200);
   }
   // The colleague may not see the task at all; then nothing of the file shows there either.
-  check("…without access: \"unavailable\" and never the name", hidden.includes("chat") && hidden.includes("page") && (await colleague.getByText("notes.txt").count()) === 0, hidden.join(","));
+  check("…without access: \"unavailable\" and never the name", hidden.includes("chat") && hidden.includes("page") && (await colleague.getByText("notes.txt").count()) === 0, `${hidden.join(",")} ${JSON.stringify(published.data)} ${JSON.stringify(seenBy)}`);
 
   await alice.goto(link);
   check("…\"In Vault\" opens the file's folder with the file marked", (await alice.locator('[data-vault-item="notes.txt"][aria-current="true"]').waitFor({ timeout: 15000 }).then(() => true, () => false)));
