@@ -63,23 +63,30 @@ function OwnerPanel({ shortId, workspaceId, state, browseOn }: { shortId: string
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const toggle = (on: boolean) =>
+  // Shown at once; put back if the change was refused.
+  const [checked, setChecked] = useState(browseOn);
+  const toggle = (on: boolean) => {
+    setChecked(on);
     start(async () => {
       setError(null);
       const result = await setVaultDriveBrowse(shortId, workspaceId, on);
-      if (!result.ok) setError(errorText(result.error));
+      if (!result.ok) {
+        setChecked(!on);
+        setError(errorText(result.error));
+      }
       router.refresh();
     });
+  };
   return (
     <div className="space-y-3 rounded-xl border border-border p-4 text-sm" data-vault-google-owner>
       <label className="flex min-h-11 cursor-pointer items-center gap-3">
-        <input type="checkbox" className="h-5 w-5 shrink-0" checked={browseOn} disabled={pending} onChange={(e) => toggle(e.target.checked)} data-vault-google-switch />
+        <input type="checkbox" className="h-5 w-5 shrink-0" checked={checked} disabled={pending} onChange={(e) => toggle(e.target.checked)} data-vault-google-switch />
         <span>
           <span className="block font-medium">{g.switchLabel}</span>
           <span className="block text-xs text-muted">{g.switchHint}</span>
         </span>
       </label>
-      {browseOn && !state.ok && state.error === "no_drive" && (
+      {checked && !state.ok && state.error === "no_drive" && (
         <p className="flex flex-wrap items-center gap-2 text-muted">
           {g.noDrive}
           <Link href={`${workspacePath(shortId, "/settings")}?tab=data`} className="text-accent hover:underline">

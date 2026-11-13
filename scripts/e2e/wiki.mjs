@@ -973,6 +973,7 @@ check("the owner's switch turns browsing off", off.status === 403 && off.body?.e
 await colleague.goto(`${APP}/w/${alphaShort}/files`);
 check("…and the tab is gone for members", (await colleague.locator('[data-vault-tab="google"]').count()) === 0);
 await wide.locator("[data-vault-google-switch]").check();
+await wide.locator("[data-vault-google-list]").waitFor({ timeout: 15000 });
 
 // Page backups.
 await wide.goto(settingsUrl);
