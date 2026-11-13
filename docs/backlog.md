@@ -209,16 +209,16 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 ## VAULT Vault — file manager (owner, 2026-11-13; decision 2026-11-13)
 - VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — DONE (#190).
 - VAULT-2 own folders and files (DB approved 2026-11-13, option A): access as on a shared drive (members view by default, guests never; people/units viewer/editor; restrict), all members upload, admin's size limit (none by default), bin 30 days, files over 4 MB to the Drive in parts — DONE (#192).
-- VAULT-2б mirror Vault access onto the team's Google Drive (Google may email people "shared with you").
+- VAULT-2б Vault access mirrored on the team's Google Drive (no emails; failures shown to editors; daily + on every change) — in review. Not checked against the real Google Drive (fake Drive in tests).
 - VAULT-4 "Used" by service (owner/admins), one storage count for every upload (incl. Vault), a former member's Vault items handed over with their pages, Vault in "My data" — in review.
 - VAULT-3 "From Vault" (no DB): Wika block, task (as a task link shown as a card), slides/"Design" embed, idea board link, Toker message card; only the id kept, read with the viewer's access — DONE (#193).
-- VAULT-4 later: picking from the rest of Google Drive (new Google permission → approval), versions, space accounting.
+- VAULT-7 (approved 2026-11-13): pick files from a person's Google Drive (Google Picker; a browser key — rule change approved). VAULT-8 (requested 2026-11-13): browse Google Drive inside Vault as a switch the workspace owner can turn off — plan and questions pending.
 - VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
 
 ## Known gaps / follow-ups
 - CI-1 `until()` in `scripts/e2e/common.mjs` awaits async conditions (12 checks in calendar, wishlist and other e2e passed without checking anything) — DONE (#195); they all pass for real.
 - VAULT-5 (owner, 2026-11-13): Settings → Storage shows every service's files in EdgeKnow's storage; "move files to the workspace storage" moves chat files too; Vault files are never kept by the browser (taken access works at once) — DONE (#200).
-- VAULT-6 file versions: "New version" keeps the file's id, links and access; versions list, make current, delete; up to 50 kept; counted in space — in review. Not moved by "move files to the workspace storage" (versions stay where they are).
+- VAULT-6 file versions: "New version" keeps the file's id, links and access; versions list, make current, delete; up to 50 kept; counted in space — DONE (#202). Earlier versions now move with "move files to the workspace storage" (VAULT-2б PR).
 - Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.

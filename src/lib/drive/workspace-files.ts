@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CHAT_FILE_COLUMNS, OBJECT_FILE_COLUMNS, TASK_FILE_COLUMNS, VAULT_FILE_COLUMNS, filesHome, isAt, moveTaskFile, spaceAt, workspaceDestination, type Destination, type StoredFile } from "./task-files";
+import { syncVaultDriveShares } from "./vault-shares";
+import { CHAT_FILE_COLUMNS, OBJECT_FILE_COLUMNS, TASK_FILE_COLUMNS, VAULT_FILE_COLUMNS, VAULT_VERSION_COLUMNS, filesHome, isAt, moveTaskFile, spaceAt, workspaceDestination, type Destination, type StoredFile } from "./task-files";
 
 // Settings → Storage for task files (step U1): how many are not yet in the
 // workspace's one storage, the space there now and after, moving them, and
@@ -33,6 +34,12 @@ async function allTaskFiles(rows: SupabaseClient, workspaceId: string) {
   for (let from = 0; ; from += 1000) {
     const { data } = await rows.from("vault_items").select(VAULT_FILE_COLUMNS).eq("workspace_id", workspaceId).eq("kind", "file").eq("large", false).neq("storage_backend", "pending").order("created_at").range(from, from + 999);
     files.push(...((data ?? []) as unknown as StoredFile[]).map((file) => ({ ...file, vault: true })));
+    if (!data || data.length < 1000) break;
+  }
+  // And their earlier versions (VAULT-6) up to 4 MB.
+  for (let from = 0; ; from += 1000) {
+    const { data } = await rows.from("vault_versions").select(VAULT_VERSION_COLUMNS).eq("workspace_id", workspaceId).eq("large", false).order("created_at").range(from, from + 999);
+    files.push(...((data ?? []) as unknown as StoredFile[]).map((file) => ({ ...file, vaultVersion: true })));
     if (!data || data.length < 1000) break;
   }
   return files;
@@ -78,6 +85,8 @@ export async function moveTaskFilesHome(admin: SupabaseClient, workspaceId: stri
   }
   const remaining = moves.length - moved;
   if (!remaining) await forgetUnusedDriveAccounts(admin, workspaceId, rows);
+  // Vault files now on the Drive are shared there as in Vault (VAULT-2b).
+  if (moved && moves.some((file) => file.vault)) await syncVaultDriveShares(admin, workspaceId).catch(() => null);
   return { moved, failed, remaining };
 }
 

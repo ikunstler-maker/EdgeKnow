@@ -28,6 +28,10 @@ export type DriveApi = {
   stream(refreshToken: string, fileId: string, range?: string | null): Promise<{ body: ReadableStream<Uint8Array> | null; status: number; headers: Record<string, string> }>;
   // How much the Drive holds and how much is used, in bytes (no limit: null).
   quota(refreshToken: string): Promise<{ limit: number | null; usage: number }>;
+  // VAULT-2b: a file opened to one person (no notification email), its role changed, taken away.
+  share(refreshToken: string, fileId: string, email: string, role: "reader" | "writer"): Promise<string>;
+  updateShare(refreshToken: string, fileId: string, permissionId: string, role: "reader" | "writer"): Promise<void>;
+  unshare(refreshToken: string, fileId: string, permissionId: string): Promise<void>;
 };
 
 export class DriveError extends Error {
@@ -208,6 +212,32 @@ const google: DriveApi = {
     return { body: response.body, status: response.status, headers };
   },
 
+  async share(refreshToken, fileId, email, role) {
+    const response = await call(refreshToken, `${FILES}/${encodeURIComponent(fileId)}/permissions?sendNotificationEmail=false&${ALL_DRIVES}&fields=id`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "user", role, emailAddress: email }),
+    });
+    return ((await response.json()) as { id: string }).id;
+  },
+
+  async updateShare(refreshToken, fileId, permissionId, role) {
+    await call(refreshToken, `${FILES}/${encodeURIComponent(fileId)}/permissions/${encodeURIComponent(permissionId)}?${ALL_DRIVES}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+  },
+
+  async unshare(refreshToken, fileId, permissionId) {
+    try {
+      await call(refreshToken, `${FILES}/${encodeURIComponent(fileId)}/permissions/${encodeURIComponent(permissionId)}?${ALL_DRIVES}`, { method: "DELETE" });
+    } catch (error) {
+      // Already gone (or the file is) is fine.
+      if (!(error instanceof DriveError && error.status === 404)) throw error;
+    }
+  },
+
   async quota(refreshToken) {
     const response = await call(refreshToken, "https://www.googleapis.com/drive/v3/about?fields=storageQuota");
     const { storageQuota } = (await response.json()) as { storageQuota?: { limit?: string; usage?: string } };
@@ -222,6 +252,11 @@ function fake(dir: string): DriveApi {
   const check = (refreshToken: string) => {
     if (refreshToken !== "fake-refresh-token") throw new DriveError("revoked", 401);
   };
+  // Who a file is shared with, kept next to it (an address at no-google.test has no Google account).
+  const perms = (id: string) => `${file(id)}.perms.json`;
+  const readPerms = async (id: string): Promise<Record<string, { email: string; role: string }>> =>
+    JSON.parse(await readFile(perms(id), "utf8").catch(() => "{}"));
+  const writePerms = (id: string, value: Record<string, { email: string; role: string }>) => writeFile(perms(id), JSON.stringify(value));
   return {
     authUrl: (redirectUri, state) => `${redirectUri}?code=fake-code&state=${encodeURIComponent(state)}`,
     async exchangeCode(code) {
@@ -257,6 +292,28 @@ function fake(dir: string): DriveApi {
       check(refreshToken);
       await rm(file(fileId), { force: true });
       await rm(`${file(fileId)}.type`, { force: true });
+    },
+    async share(refreshToken, fileId, email, role) {
+      check(refreshToken);
+      if (email.endsWith("@no-google.test")) throw new DriveError("no Google account for this address", 400);
+      const all = await readPerms(fileId);
+      const id = `perm-${randomUUID()}`;
+      all[id] = { email, role };
+      await writePerms(fileId, all);
+      return id;
+    },
+    async updateShare(refreshToken, fileId, permissionId, role) {
+      check(refreshToken);
+      const all = await readPerms(fileId);
+      if (!all[permissionId]) throw new DriveError("not found", 404);
+      all[permissionId].role = role;
+      await writePerms(fileId, all);
+    },
+    async unshare(refreshToken, fileId, permissionId) {
+      check(refreshToken);
+      const all = await readPerms(fileId);
+      delete all[permissionId];
+      await writePerms(fileId, all);
     },
     async beginUpload(refreshToken, _folder, _name, mimeType) {
       check(refreshToken);

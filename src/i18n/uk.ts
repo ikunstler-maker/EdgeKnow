@@ -4302,6 +4302,7 @@ export const uk = {
       remove: "Прибрати доступ",
       owner: "власник",
       viewOnly: "Змінювати доступ можуть лише ті, хто редагує.",
+      driveFailed: (emails: string) => `Не відкрито на Google Диску (немає облікового запису Google або Диск відмовив): ${emails}. У Vault доступ є.`,
     },
     limit: {
       title: "Найбільший файл у Vault",

@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-vault-drive-access",
+    version: "0.53.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: ті самі доступи на Google Диску", en: "Vault: the same access on Google Drive" },
+    items: [
+      { id: "vault-drive-share", type: "added", scope: "files", title: { uk: "Файл Vault на Google Диску команди відкривається там тим самим людям, що й у Vault, і закривається, коли доступ забирають. Без листів.", en: "A Vault file on the team's Google Drive is open there to the same people as in Vault, and closed when access is taken away. No emails." } },
+    ],
+  },
+  {
     id: "2026-11-13-vault-versions",
     version: "0.52.0",
     date: "2026-11-13",

@@ -8,6 +8,7 @@ import { driveApi } from "@/lib/drive/google-drive";
 import { connectionById, noteDriveError, refreshTokenOf } from "@/lib/drive/storage";
 import { chatFileLooksLike, filesHome, workspaceDestination } from "@/lib/drive/task-files";
 import { VAULT_PART_BYTES, vaultChecked } from "@/lib/vault-files";
+import { syncVaultSharesLater } from "@/lib/drive/vault-shares";
 
 export const maxDuration = 60;
 
@@ -108,6 +109,7 @@ export async function PUT(request: NextRequest) {
       const { data: finished } = await db.rpc("vault_finish_version", { upload: id });
       if (!(finished as { ok?: boolean } | null)?.ok) throw new Error("version not put in place");
     }
+    syncVaultSharesLater(file.workspace_id);
     return NextResponse.json({ ok: true, done: true, offset: size });
   } catch (error) {
     await noteDriveError(admin, connection, error);
