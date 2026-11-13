@@ -37,6 +37,8 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 ### Shared
 - List, trash, access, collections, search by slide text.
 
+- **Chip embed (UI-4, 2026-11-13):** "Chip (link)" puts a workspace link on a slide, drawn as a chip with the live title (`Embed.link`, the link only).
+
 ## 3. Planned
 
 | What | State | Note |

@@ -36,4 +36,5 @@ export const EMBED_ICON: Record<string, IconName> = {
   survey: "check-circle",
   board: "note",
   map: "share",
+  chip: "embed",
 };
