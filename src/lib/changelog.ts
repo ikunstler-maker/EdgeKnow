@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-faster-pages",
+    version: "0.53.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Швидше відкриваються сторінки й коментарі", en: "Pages and comments open faster" },
+    items: [
+      { id: "faster-pages", type: "improved", scope: "global", title: { uk: "Права на сторінки, коментарі й файли задач перевіряються раз на запит: великі списки відкриваються в рази швидше. Хто що бачить — не змінилося.", en: "Access to pages, task comments and files is checked once per request: large lists open several times faster. Who sees what is unchanged." } },
+    ],
+  },
+  {
     id: "2026-11-13-live-maps",
     version: "0.53.0",
     date: "2026-11-13",
