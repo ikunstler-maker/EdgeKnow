@@ -44,14 +44,17 @@ export function SurveyEmbed({
   view: mode,
   pageEditable,
   onPick,
+  workspace,
 }: {
   surveyId: string;
   view: "form" | "summary";
   pageEditable: boolean;
   onPick: (surveyId: string, view: "form" | "summary") => void;
+  // Outside a wiki page (a chat message) the workspace comes from the caller.
+  workspace?: string;
 }) {
   const pages = useOptionalPages();
-  const shortId = pages?.workspace.shortId ?? "";
+  const shortId = workspace ?? pages?.workspace.shortId ?? "";
   const [view, setView] = useState<SurveyView | null | undefined>(undefined);
   const [list, setList] = useState<SurveySummary[] | null>(null);
   const [picked, setPicked] = useState("");

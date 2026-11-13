@@ -39,7 +39,7 @@ Forms and surveys: for the team and for people without an account. Answers go st
 
 | What | State |
 |---|---|
-| Surveys in chat (Toker) | after chat |
+| Surveys in chat (Toker) | done (Toker 3c-1): a survey link in a message shows the form to fill in right there |
 | Link with CRM (Spilno) | after CRM |
 | Answer limit on Free | open pricing question |
 

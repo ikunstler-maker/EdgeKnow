@@ -47,6 +47,7 @@ import { PinsPanel, SearchPanel, ThreadPanel } from "./side-panels";
 import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, FromMessageDialog, NewDirectDialog, type FromMessageKind } from "./chat-dialogs";
 import { useChatLive, type ChatSignal } from "./use-chat-live";
 import { ChatChipsProvider } from "./chat-chips";
+import { ChatPresenceProvider } from "./chat-presence";
 
 const c = () => t.chat;
 const POLL_MS = 5_000;
@@ -542,6 +543,7 @@ export function ChatScreen(props: ChatScreenProps) {
 
   return (
     <ChatChipsProvider value={chipsAt}>
+    <ChatPresenceProvider shortId={shortId} workspaceId={workspaceId} guest={props.guest}>
     <div className="flex h-[calc(100dvh-3.25rem)] w-full min-w-0 overflow-hidden md:h-dvh" data-chat>
       <aside className={`w-full shrink-0 border-r border-border bg-shell md:block md:w-64 ${showList || !active ? "block" : "hidden"}`}>
         <ChannelList
@@ -820,6 +822,7 @@ export function ChatScreen(props: ChatScreenProps) {
         />
       )}
     </div>
+    </ChatPresenceProvider>
     </ChatChipsProvider>
   );
 }
