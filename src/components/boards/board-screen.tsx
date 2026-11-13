@@ -12,6 +12,8 @@ import { saveBoard, setBoardGroupRole, setBoardMemberRole, setBoardWorkspaceRole
 import { BoardSessionBar, useBoardSession } from "./board-session-bar";
 import type { BoardController, StickyInfo } from "./board-canvas";
 import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
+import { LivePresence, liveMenu } from "@/components/live/live-presence";
+import { useLiveBoard, type LiveBoard } from "@/lib/live/use-live-board";
 
 const BoardCanvas = dynamic(() => import("./board-canvas"), { ssr: false, loading: () => <p className="p-4 text-sm text-muted">{t.boards.loading}</p> });
 
@@ -19,7 +21,8 @@ const b = t.boards;
 
 // One board: its name, the save status, access and the canvas. Changes are saved
 // about a second after the last one; a save that finds a newer version stops
-// and says so (working together live comes with step Д2).
+// and says so. With real-time co-editing on, the room shares every change and one
+// editor (the leader) saves for everyone.
 export function BoardScreen({
   shortId,
   id,
@@ -46,7 +49,7 @@ export function BoardScreen({
   const [stickies, setStickies] = useState<StickyInfo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
-  const live = useBoardSession(shortId, id, stickies);
+  const session = useBoardSession(shortId, id, stickies);
   const [initial] = useState(() => readBoard(initialData));
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "conflict" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +57,7 @@ export function BoardScreen({
   const pending = useRef<{ title: string | null; data: BoardData | null } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
+  const liveRef = useRef<LiveBoard | null>(null);
 
   const flush = useCallback(async () => {
     if (saving.current) return;
@@ -65,6 +69,7 @@ export function BoardScreen({
       const result = await saveBoard(shortId, id, next.title, next.data, version.current).catch(() => null);
       if (result?.ok) {
         version.current = result.version;
+        liveRef.current?.saved(result.version);
         setStatus("saved");
         setError(null);
         continue;
@@ -102,7 +107,19 @@ export function BoardScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
-  const editable = canEdit && status !== "conflict";
+  const live = useLiveBoard({
+    shortId,
+    objectId: id,
+    initialTitle,
+    versionRef: version,
+    pageCanEdit: canEdit,
+    onTitle: setTitle,
+    onSave: (data, name) => schedule({ data, title: name }),
+  });
+  useEffect(() => {
+    liveRef.current = live;
+  });
+  const editable = live.canEdit && status !== "conflict";
   return (
     <StudioShell
       service="boards"
@@ -113,7 +130,7 @@ export function BoardScreen({
         canEdit
           ? (value) => {
               setTitle(value);
-              schedule({ title: value });
+              if (!live.changeTitle(value)) schedule({ title: value });
             }
           : undefined
       }
@@ -123,6 +140,7 @@ export function BoardScreen({
       savingLabel={b.saving}
       savedLabel={b.saved}
       center={undefined}
+      presence={<LivePresence live={live} />}
       files={[]}
       access={
         access && (
@@ -142,6 +160,7 @@ export function BoardScreen({
       }
       primary={undefined}
       more={[
+        ...liveMenu(live),
         ...(canEdit
           ? [
               {
@@ -174,13 +193,14 @@ export function BoardScreen({
             onReady={setController}
             onStickies={setStickies}
             onSelect={setSelected}
-            votes={live.session ? { open: live.session.votingOpen, tally: live.session.tally, mine: live.session.mine, show: showResults } : null}
+            votes={session.session ? { open: session.session.votingOpen, tally: session.session.tally, mine: session.session.mine, show: showResults } : null}
             onVote={async (sticky) => {
               const result = await toggleBoardVote(shortId, id, sticky);
               if (!result.ok) setError(b.errors[result.error] ?? t.common.unknownError);
-              await live.refresh();
+              await session.refresh();
             }}
-            chips={live.chips}
+            chips={session.chips}
+            live={live}
           />
         </div>
         <BoardSessionBar
@@ -191,7 +211,7 @@ export function BoardScreen({
           controller={controller}
           stickies={stickies}
           selected={selected}
-          state={live}
+          state={session}
           showResults={showResults}
           setShowResults={setShowResults}
         />

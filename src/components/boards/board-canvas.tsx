@@ -12,6 +12,8 @@ import { templateParts, type TemplateKey, type TemplatePart } from "@/lib/board-
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { prepareImage } from "@/lib/image-compression";
 import { Icon } from "@/components/ui/icon";
+import { mergeElements, type BoardElement, type BoardScene } from "@/lib/live/board-sync";
+import type { LiveBoard } from "@/lib/live/use-live-board";
 
 const b = t.boards;
 
@@ -50,6 +52,7 @@ export default function BoardCanvas({
   votes,
   onVote,
   chips,
+  live = null,
 }: {
   // Inside a wiki page (step Д4): no template chooser.
   compact?: boolean;
@@ -65,6 +68,8 @@ export default function BoardCanvas({
   votes?: Votes | null;
   onVote?: (stickyId: string) => void;
   chips?: Record<string, Chip | null>;
+  // Real-time co-editing (phase 2), on the board's own page only.
+  live?: LiveBoard | null;
 }) {
   const theme = useResolvedTheme();
   // A guest doesn't take the board away as a picture.
@@ -95,23 +100,29 @@ export default function BoardCanvas({
     };
   }, []);
 
-  // The saved pictures come back from the storage when the board opens.
-  useEffect(() => {
-    if (!api || !shortId) return;
-    let alive = true;
-    for (const [fileId, link] of Object.entries(stored.current)) {
+  // A stored picture comes back from the storage (when the board opens, or when someone
+  // else in the room has put it on the board).
+  const alive = useRef(true);
+  const fetchPicture = useCallback(
+    (fileId: string, link: { file: string; mimeType: string }) => {
+      if (!api || !shortId) return;
       void fetch(`/api/boards/files/${link.file}?ws=${shortId}`)
         .then((response) => (response.ok ? response.blob() : null))
         .then((blob) => (blob ? readAsDataUrl(blob) : null))
         .then((dataURL) => {
-          if (alive && dataURL) api.addFiles([{ id: fileId as never, dataURL: dataURL as never, mimeType: link.mimeType as never, created: Date.now() }]);
+          if (alive.current && dataURL) api.addFiles([{ id: fileId as never, dataURL: dataURL as never, mimeType: link.mimeType as never, created: Date.now() }]);
         })
         .catch(() => {});
-    }
+    },
+    [api, shortId],
+  );
+  useEffect(() => {
+    alive.current = true;
+    for (const [fileId, link] of Object.entries(stored.current)) fetchPicture(fileId, link);
     return () => {
-      alive = false;
+      alive.current = false;
     };
-  }, [api, shortId]);
+  }, [fetchPicture]);
 
   // A picture put on the board (inserted, dropped or pasted) is made smaller and
   // stored; then the board is saved with its link.
@@ -262,6 +273,84 @@ export default function BoardCanvas({
     if (api) onReady?.({ insertTemplate, linkTask, insertLink });
   }, [api, insertTemplate, linkTask, insertLink, onReady]);
 
+  // ---- Real-time co-editing ------------------------------------------------------
+  const sceneOf = useCallback(
+    (all: readonly unknown[], appState: { viewBackgroundColor: string; gridModeEnabled: boolean }): BoardScene => ({
+      elements: all as BoardElement[],
+      appState: { viewBackgroundColor: appState.viewBackgroundColor, ...(appState.gridModeEnabled ? { gridModeEnabled: true } : {}) },
+      files: { ...stored.current },
+    }),
+    [],
+  );
+  useEffect(() => {
+    if (!api || !live) return;
+    live.bind({
+      scene: () => sceneOf(api.getSceneElementsIncludingDeleted(), api.getAppState()),
+      apply: (part) => {
+        for (const [fileId, link] of Object.entries(part.files ?? {})) {
+          if (stored.current[fileId]) continue;
+          stored.current[fileId] = link;
+          fetchPicture(fileId, link);
+        }
+        const state = api.getAppState();
+        let elements: BoardElement[] | null = null;
+        if (part.elements?.length) {
+          // What the person is changing right now stays theirs until they finish.
+          const busy = new Set<string>(
+            [state.editingTextElement?.id, state.resizingElement?.id, state.newElement?.id].filter((id): id is string => Boolean(id)),
+          );
+          if (state.selectedElementsAreBeingDragged) Object.keys(state.selectedElementIds).forEach((id) => busy.add(id));
+          elements = mergeElements(api.getSceneElementsIncludingDeleted() as unknown as BoardElement[], part.elements, busy);
+        }
+        const look = part.appState;
+        if (look) grid.current = Boolean(look.gridModeEnabled);
+        if (!elements && !look) return;
+        api.updateScene({
+          ...(elements ? { elements: elements as never } : {}),
+          ...(look ? { appState: { viewBackgroundColor: look.viewBackgroundColor ?? state.viewBackgroundColor, gridModeEnabled: Boolean(look.gridModeEnabled) } } : {}),
+          // Others' changes never enter this person's undo.
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      },
+    });
+    return () => live.bind(null);
+    // The live object changes on every render; its bind is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, live?.bind, sceneOf, fetchPicture]);
+
+  // Own cursor with the selection and the middle of the view (for those who follow).
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const sendCursor = useCallback(() => {
+    if (!api || !live?.active) return;
+    const state = api.getAppState();
+    const zoom = state.zoom.value;
+    const at = pointer.current;
+    live.sendCursor({
+      x: at?.x ?? Number.NaN,
+      y: at?.y ?? Number.NaN,
+      at: "board",
+      sel: Object.keys(state.selectedElementIds).filter((id) => state.selectedElementIds[id]).slice(0, 50),
+      view: { x: -state.scrollX + state.width / 2 / zoom, y: -state.scrollY + state.height / 2 / zoom, z: zoom },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, live?.active, live?.sendCursor]);
+
+  // Following someone: this view goes where theirs goes; any own action stops it.
+  const followed = live?.following ? live.cursors[live.following] : undefined;
+  const followView = followed?.view;
+  useEffect(() => {
+    if (!api || !followView) return;
+    const state = api.getAppState();
+    const z = followView.z;
+    api.updateScene({
+      appState: { scrollX: -followView.x + state.width / 2 / z, scrollY: -followView.y + state.height / 2 / z, zoom: { value: z as never } },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, [api, followView]);
+  const stopFollowing = () => {
+    if (live?.following) live.follow(null);
+  };
+
   // The sticky notes with their text (a note's text is in the text bound to it).
   const stickies = useMemo(() => {
     const textOf = new Map(elements.filter((e) => e.type === "text" && e.containerId && !e.isDeleted).map((e) => [e.containerId!, (e.text ?? "").trim()]));
@@ -291,9 +380,22 @@ export default function BoardCanvas({
 
   const toScreen = (x: number, y: number) => ({ left: (x + view.scrollX) * view.zoom, top: (y + view.scrollY) * view.zoom });
   const showMarks = Boolean(votes && (votes.open || votes.show));
+  const byId = useMemo(() => (live?.active ? new Map(elements.map((e) => [e.id, e])) : null), [live?.active, elements]);
 
   return (
-    <div ref={box} className="relative h-full w-full" data-board-canvas>
+    <div
+      ref={box}
+      className="relative h-full w-full"
+      data-board-canvas
+      data-board-stickies={stickies.length}
+      onPointerDownCapture={stopFollowing}
+      onWheelCapture={stopFollowing}
+      onKeyDownCapture={stopFollowing}
+      onPointerLeave={() => {
+        pointer.current = null;
+        if (live?.active) live.sendCursor(null);
+      }}
+    >
       <Excalidraw
         excalidrawAPI={setApi}
         initialData={{
@@ -316,7 +418,14 @@ export default function BoardCanvas({
           // Pictures (step Д3b) only where they can be stored.
           tools: { image: Boolean(shortId && boardId) },
         }}
-        onScrollChange={(scrollX, scrollY, zoom) => setView({ scrollX, scrollY, zoom: zoom.value })}
+        onScrollChange={(scrollX, scrollY, zoom) => {
+          setView({ scrollX, scrollY, zoom: zoom.value });
+          sendCursor();
+        }}
+        onPointerUpdate={({ pointer: p }) => {
+          pointer.current = { x: p.x, y: p.y };
+          sendCursor();
+        }}
         renderTopRightUI={(isMobile) =>
           editable ? (
             <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1" role="group" aria-label={b.sticky}>
@@ -362,6 +471,8 @@ export default function BoardCanvas({
           }
           if (key === last.current) return;
           last.current = key;
+          // Live: the room shares the change and one editor saves for everyone.
+          if (live?.changed(sceneOf(next, appState))) return;
           onChange(dataOf(next, appState));
         }}
       >
@@ -417,6 +528,46 @@ export default function BoardCanvas({
           );
         })}
       </div>
+
+      {/* Others in the room: their cursors and outlines of what they have selected. */}
+      {live?.active && byId && (
+        <div className="pointer-events-none absolute inset-0 z-[4] overflow-hidden" data-live-layer>
+          {live.peers
+            .filter((p) => !p.me && live.cursors[p.key]?.at === "board")
+            .map((p) => {
+              const c = live.cursors[p.key];
+              const label = p.name.length > 24 ? `${p.name.slice(0, 23)}…` : p.name;
+              const spot = Number.isFinite(c.x) && Number.isFinite(c.y) ? toScreen(c.x, c.y) : null;
+              return (
+                <div key={p.key} data-live-cursor={p.name}>
+                  {c.sel.map((id) => {
+                    const e = byId.get(id);
+                    if (!e || e.isDeleted) return null;
+                    const from = toScreen(Math.min(e.x, e.x + e.width), Math.min(e.y, e.y + e.height));
+                    return (
+                      <div
+                        key={id}
+                        className="absolute rounded-sm border-2 border-dashed"
+                        style={{ left: from.left - 3, top: from.top - 3, width: Math.abs(e.width) * view.zoom + 6, height: Math.abs(e.height) * view.zoom + 6, borderColor: p.color }}
+                        data-live-selection
+                      />
+                    );
+                  })}
+                  {spot && (
+                    <div className="absolute" style={{ left: spot.left, top: spot.top, transition: "left 180ms linear, top 180ms linear" }}>
+                      <svg width="14" height="21" viewBox="0 0 14 21" aria-hidden>
+                        <path d="M0,0 L0,17 L4.5,13 L7.5,20 L10.5,18.8 L7.6,12 L13,12 Z" fill={p.color} stroke="#fff" strokeWidth={1.2} />
+                      </svg>
+                      <span className="absolute left-3 top-[18px] whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-white" style={{ background: p.color }}>
+                        {label}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
 
       {chooser && (
         <div className="absolute inset-x-4 top-20 z-10 mx-auto max-w-lg rounded-xl border border-border border border-border-strong bg-overlay p-4 shadow-2xl" role="dialog" aria-label={b.templates.title} data-template-chooser>
