@@ -53,6 +53,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<"
       initialView={view}
       initialDay={isDayKey(query.date) ? query.date : null}
       initialEvent={typeof query.event === "string" && /^[0-9a-f-]{36}$/.test(query.event) ? query.event : null}
+      googleResult={!guest && typeof query.google === "string" && ["connected", "cancelled", "permissions", "error"].includes(query.google) ? query.google : null}
     />
   );
 }

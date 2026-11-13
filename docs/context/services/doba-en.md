@@ -1,6 +1,6 @@
 # Doba — company calendar and time off
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-12 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a, 3b; birthdays). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30, 2027-01-31, 2027-02-01) and the code. Ukrainian twin: `doba-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (phases 1a, 1b, 2a, 2b, 2c, 2d, 3a, 3b, 3c — DOBA-1; birthdays). Source of truth: `docs/decisions.md` (2027-01-21, 2027-01-22, 2027-01-24, 2027-01-25, 2027-01-27, 2027-01-28, 2027-01-30, 2027-01-31, 2027-02-01) and the code. Ukrainian twin: `doba-uk.md`.
 
 ## 1. Purpose
 
@@ -58,6 +58,13 @@ The team's shared calendar and time-off management in one place: events and meet
 - Colleagues get it as plain anonymous "Busy" (availability, the overlap hint) with nothing to tell where it came from; only the owner sees "Busy (outside calendar)" in their own week.
 - Stale-while-revalidate: the calendar opens with what is known; an address not read for an hour is read again after the response; once a day all of them; "Refresh now" by hand (once a minute at most). Each refresh replaces the person's slots; past ones are not kept.
 - "Disconnect" (and leaving the workspace) removes the address and every slot at once.
+
+### Calendar connected by signing in; video meetings (phase 3c, DOBA-1, 2026-11-13)
+- In the same window: "Connect Google Calendar" (PRO mark, open to all for now; the provider named on buttons only). It replaces a feed address — one or the other.
+- Read from the primary calendar (90 days ahead, refreshed like 3b): title, time, busy or free — no descriptions, places or people; cancelled and declined events are skipped. The titles are shown to the person alone (free ones marked "free"); colleagues still get plain "Busy", busy slots only.
+- Written to the app's own "Doba" calendar there: the events the person organizes or takes part in (not declined), each day of a series on its own, title, time, place, meeting link, no description; from yesterday to 90 days ahead. Right after every change to events in the workspace, and daily for everyone; copies of what is over stay. Nothing goes back from there into Doba.
+- "Add Google Meet" in the event window (for those connected): a meeting room in the person's own account, its address put into the meeting link field.
+- "Disconnect" asks whether to delete the "Doba" calendar there; the access is taken back at the provider — except when the same account keeps a workspace's Drive (taking it back could cut that off too), then it is only deleted here. Leaving the workspace: the server takes the access back and removes the connection at its next copying (at the latest, the daily run).
 
 ### Birthdays
 - Kept per person and workspace (day, month, an optional year, "show to colleagues"). Set by the person in the workspace profile, or by who manages time off in the members' table of the time-off settings ("dd.mm" or "dd.mm.yyyy").
@@ -117,7 +124,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | Event chip in task descriptions | with "smart chips everywhere" | the task description has no chips yet |
 | Dragging on touch screens; moving or resizing an event by dragging | later | |
 | Reminders when the site is closed | with push notifications | |
-| Sign-in with a provider (busy time from the primary calendar; Doba events into the app's own "Doba" calendar) | phase 3c, on hold | architecture decided 2027-02-01, code waits for the owner's OK; strictly minimal access; PRO mark; the provider named on its sign-in button only |
+| Zoom meetings for events (VISIO-1) | next PR | connect Zoom; a meeting made, moved and cancelled with the event; DB approval first |
 
 ## 4. Data
 
@@ -136,8 +143,9 @@ The team's shared calendar and time-off management in one place: events and meet
 | `leave_requests` | requests with `deputy_id`, status, who decided |
 | `notifications.leave_request_id` | link from a notification to a request |
 | `calendar_feeds` | one row per person and workspace: the hash of the feed's secret |
-| `calendar_external_busy` | a person's busy slots from their outside calendar: start, end, whole day — nothing else |
-| `calendar_connections` (central only) | the outside calendar's address, encrypted; last try, last success, short error code |
+| `calendar_external_busy` | a person's slots from their outside calendar: start, end, whole day; with a sign-in also `title` (theirs alone) and `busy` |
+| `calendar_connections` (central only) | `kind` feed or google; the address or the access, encrypted; the account's email, the "Doba" calendar's id; last try, last success, short error code; `pushed_at`, `push_error` of the copying |
+| `calendar_external_links` (central only) | a Doba event (or one day of a series: `item`) ↔ its copy in the person's "Doba" calendar: `remote_id`, `fingerprint`, `starts_at` |
 
 - Nobody writes these tables directly: only functions (`create_calendar_event`, `update_calendar_event`, `invite_to_calendar_event`, `remove_calendar_event_attendee`, `respond_to_calendar_event`, `decide_calendar_event_request`, `cancel_calendar_event`, `set_calendar_settings`; for series — `change_calendar_occurrence`, `cancel_calendar_occurrence`, `split_calendar_event`, `end_calendar_series`; reminders — `calendar_remind_me`).
 - Phase 2b reads: `calendar_tasks` (Rukh tasks of a period), `search_calendar_events`, `calendar_event_chips`; writes: `invite_unit_to_calendar_event`, `refresh_calendar_event_units` (units kept in `calendar_events.invited_group_ids`). A change to the task visibility rules needs no change here as long as `project_tasks` follows it.
@@ -149,6 +157,7 @@ The team's shared calendar and time-off management in one place: events and meet
 - The tables exist in both the central and the team database (`0043`), move between them (`src/lib/team-db/move.ts`), go into "My data" (own events, answers, time-off requests and ledger rows) and into the workspace backup (all but private events; time off without the comments).
 - The feed (3a): `calendar_feeds` is closed to everyone; `my_calendar_feed`, `set_calendar_feed`, `drop_calendar_feed` are the person's own; `calendar_feed(ws, hash)` is for the server only (the route uses the secret key of wherever the workspace keeps its data). It moves with the workspace; it is in neither the backup nor "My data".
 - Outside busy time (3b): `calendar_connections` is closed to everyone and exists only centrally — the server reads and writes it with the secret key (`src/lib/calendar-external.ts`). `calendar_external_busy`: a person selects only their own rows; `set_calendar_external_busy(ws, person, slots)` is for the server only and replaces everything; `calendar_busy` adds these rows for active members. Triggers on `workspace_members` remove both when a person is removed. The slots move with the workspace and are in "My data"; neither table is in the backup.
+- Sign-in (3c): `calendar_busy` hands out `busy` rows only, never titles. `calendar_person_events(ws, person, from, to)` (server only, null for a non-member or guest) lists what goes into the "Doba" calendar. `calendar_external_links` is closed and goes with its connection. On leaving, a feed connection is removed by the trigger; a sign-in stays for the server to take back at the provider.
 
 ## 5. Links with other services
 
@@ -157,7 +166,7 @@ The team's shared calendar and time-off management in one place: events and meet
 | **Core** | units (who decides on time off, the overlap hint), notifications (bell), roles (right `manage_leave`) and guests, "My data", backup |
 | **Rukh** | task due dates on the calendar (`calendar_tasks`, through `project_tasks`) |
 | **Toker** | event from a message (closed channel → its people invited, by invitation) — done (Toker 3b); "On leave" / "Remote" mark next to names in chat from approved absences (`team_absences`) — done (Toker 3c-1); planned: reminders; a unit lead approves or declines a request with a button in a Toker system message (same rights as in Doba) |
-| **Visio** | planned: video meeting from an event in one click (today: any https link) |
+| **Visio** | "Add Google Meet" in the event window (DOBA-1); Zoom next (VISIO-1); any https link still works |
 | **Spilno** | planned: meetings with a client |
 
 ## 6. Key files
@@ -166,6 +175,7 @@ The team's shared calendar and time-off management in one place: events and meet
 |---|---|
 | Screens | `src/app/w/[wid]/calendar/page.tsx`, `src/app/w/[wid]/calendar/time-off/page.tsx` |
 | Actions | `src/app/calendar-actions.ts`, `src/app/time-off-actions.ts` |
+| Sign-in, copies, meetings (3c) | `src/lib/google-calendar.ts` (the provider's API), `src/lib/calendar-google.ts` (connect, copy, disconnect, meeting), `src/app/api/calendar-google/connect`, `…/callback`; copying after changes in `src/app/calendar-actions.ts`, daily in `src/app/api/cron/cleanup-files` |
 | Outside busy time (3b) | `src/lib/calendar-external.ts` (address, download, refresh), `src/lib/calendar-external-parse.ts` (file → slots; `ical.js`), `src/app/calendar-external-actions.ts`; daily run in `src/app/api/cron/cleanup-files` |
 | Feed (3a) | `src/app/api/calendar-feed/[ws]/[token]/route.ts` (open in `src/lib/supabase/proxy.ts`), `src/lib/calendar-feed.ts` (the file's text) |
 | Components | `src/components/calendar/` (`calendar-screen.tsx`, `event-dialog.tsx`, `calendar-parts.tsx`, `time-off-screen.tsx`, `use-day-drag.ts`); the wiki chip — `src/components/editor/event-chip.tsx` |
@@ -183,7 +193,7 @@ The team's shared calendar and time-off management in one place: events and meet
 - Nobody decides on their own request; the first decision stands.
 - The kind of an absence is personal (it may be about health): colleagues see it only when the policy says so; the request's comment never leaves the people who decide and stays out of the backup.
 - A feed's address is a secret shown once; the database knows only its hash, and what the feed holds is worked out by one server-only function.
-- From an outside calendar only starts and ends are ever stored; to colleagues they are indistinguishable from Doba events.
+- From a feed address only starts and ends are ever stored; with a sign-in also titles, shown to the person alone; to colleagues both are indistinguishable from Doba events.
 - Secrets of external calendars (phases 3b, 3c): encrypted on the server with their own key `CALENDAR_TOKEN_KEY`, central database only, never in the team database, backups, "My data" or logs.
 - No third-party product names or logos in the UI or the code.
 
@@ -195,7 +205,7 @@ The team's shared calendar and time-off management in one place: events and meet
 - Series: no answer for a single day; no rule like "the last Friday of the month"; a notification about a changed day doesn't say which day; reminders don't come while the site is closed.
 - Time off: a request can't cross the new year (split it); holidays are entered by hand (no ready sets by country); a holiday added later doesn't recount requests already made; accrual by itself runs once a day.
 - When an organizer's account is deleted the event stays without an organizer (admins can cancel a non-private one).
-- Outside busy time: one address per person; shown to its owner in the week only; a calendar that needs a sign-in can't be read (that is phase 3c); tests replace the network with files (`CALENDAR_FAKE_DIR`, never on the real site).
+- Outside busy time: one address per person; shown to its owner in the week only; a calendar that needs a sign-in can be connected only through the provider (3c); 3c has no automated end-to-end test yet (needs a stand-in for the provider); tests replace the network with files (`CALENDAR_FAKE_DIR`, never on the real site).
 - The feed is refreshed by the outside calendar itself (often every few hours); it covers a year ahead; its time-off entries carry the policy's name.
 - The landing still shows the calendar as "Soon" (its card promises sync, which is phase 3).
 

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { dateLocale, t } from "@/i18n";
 import { dropFeed, issueFeed, loadFeed, saveCalendarSettings, setBirthdaysShown } from "@/app/calendar-actions";
-import { connectOutsideCalendar, disconnectOutsideCalendar, loadConnection, refreshOutsideCalendar } from "@/app/calendar-external-actions";
+import { connectOutsideCalendar, disconnectGoogleCalendar, disconnectOutsideCalendar, loadConnection, refreshOutsideCalendar } from "@/app/calendar-external-actions";
+import { ProBadge } from "@/components/ui/pro-badge";
 import type { ConnectionState } from "@/lib/calendar-external";
 import { browserTimeZone, timeZones, type CalendarPerson, type CalendarSettings } from "@/lib/calendar";
 import { Icon } from "@/components/ui/icon";
@@ -197,12 +198,15 @@ export function FeedDialog({
   shortId,
   workspaceId,
   guest,
+  googleResult = null,
   onOutsideChanged,
   onClose,
 }: {
   shortId: string;
   workspaceId: string;
   guest: boolean;
+  // DOBA-1: how connecting by signing in went (back from the provider), if just now.
+  googleResult?: string | null;
   onOutsideChanged: () => void;
   onClose: () => void;
 }) {
@@ -296,7 +300,7 @@ export function FeedDialog({
             </button>
           )}
         </div>
-        {!guest && <OutsideCalendar shortId={shortId} onChanged={onOutsideChanged} />}
+        {!guest && <OutsideCalendar shortId={shortId} googleResult={googleResult} onChanged={onOutsideChanged} />}
         <div className="mt-4 flex justify-end">
           <button type="button" onClick={onClose} className={buttonClass}>
             {f.close}
@@ -309,8 +313,11 @@ export function FeedDialog({
 
 // The other direction (phase 3b): the person's busy time from their own outside calendar.
 // The address goes to the server once and is never shown again.
-function OutsideCalendar({ shortId, onChanged }: { shortId: string; onChanged: () => void }) {
+// DOBA-1: or a sign-in with the provider (titles to oneself, Doba events copied there).
+function OutsideCalendar({ shortId, googleResult, onChanged }: { shortId: string; googleResult: string | null; onChanged: () => void }) {
   const o = c.outside;
+  const g = o.google;
+  const [asking, setAsking] = useState(false);
   const [state, setState] = useState<ConnectionState | null | undefined>(undefined);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -344,7 +351,16 @@ function OutsideCalendar({ shortId, onChanged }: { shortId: string; onChanged: (
       if (next) setState(next);
       onChanged();
     });
+  const disconnectGoogle = (removeCalendar: boolean) =>
+    run(async () => {
+      const result = await disconnectGoogleCalendar(shortId, removeCalendar);
+      if (!result.ok) return setError(o.errors[result.error] ?? o.errors.unknown);
+      setAsking(false);
+      setState((old) => (old ? { ...old, connected: false, kind: null, account: null, synced_at: null, error: null, push_error: null, slots: 0 } : old));
+      onChanged();
+    });
   const disconnect = () => {
+    if (state?.kind === "google") return setAsking(true);
     if (!window.confirm(o.disconnectConfirm)) return;
     return run(async () => {
       const result = await disconnectOutsideCalendar(shortId);
@@ -354,12 +370,30 @@ function OutsideCalendar({ shortId, onChanged }: { shortId: string; onChanged: (
     });
   };
   if (state === undefined || state === null) return null;
+  const signedIn = state.connected && state.kind === "google";
+  const connectHref = `/api/calendar-google/connect?ws=${encodeURIComponent(shortId)}&tz=${encodeURIComponent(browserTimeZone())}`;
   return (
     <section className="mt-5 border-t border-border pt-4" data-outside-calendar={!state.configured ? "unset" : state.connected ? "on" : "off"}>
       <h3 className="font-semibold">{o.title}</h3>
       <p className="mt-2 text-sm">{o.intro}</p>
       <p className="mt-1 text-sm text-muted">{o.what}</p>
       {!state.configured && <p className="mt-3 text-sm text-muted">{o.notConfigured}</p>}
+      {googleResult && (
+        <p className={`mt-3 text-sm ${googleResult === "connected" ? "" : "text-danger"}`} data-google-result={googleResult}>
+          {g.results[googleResult] ?? g.results.error}
+        </p>
+      )}
+      {state.configured && state.google && !signedIn && (
+        <div className="mt-3">
+          <p className="text-sm text-muted">{g.intro}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <a href={connectHref} className={primaryClass} data-google-connect>
+              {g.connect}
+            </a>
+            <ProBadge />
+          </div>
+        </div>
+      )}
       {state.configured && !state.connected && (
         <div className="mt-3 flex gap-2">
           <input
@@ -380,11 +414,29 @@ function OutsideCalendar({ shortId, onChanged }: { shortId: string; onChanged: (
       )}
       {state.configured && state.connected && (
         <>
-          <p className="mt-3 text-sm" data-outside-slots={state.slots}>
-            {o.connected(state.slots)} {state.synced_at ? o.syncedAt(new Date(state.synced_at).toLocaleString(dateLocale())) : o.never}
+          <p className="mt-3 text-sm" data-outside-slots={state.slots} data-outside-kind={state.kind ?? ""}>
+            {signedIn ? `${g.connected(state.account ?? "")} ${g.events(state.slots)}` : o.connected(state.slots)}{" "}
+            {state.synced_at ? o.syncedAt(new Date(state.synced_at).toLocaleString(dateLocale())) : o.never}
           </p>
           {state.error && <p className="mt-1 text-sm text-danger">{o.errors[state.error] ?? o.errors.unknown}</p>}
-          <p className="mt-1 text-sm text-muted">{o.hidden}</p>
+          {signedIn && state.push_error && <p className="mt-1 text-sm text-danger">{o.errors[state.push_error] ?? o.errors.unknown}</p>}
+          <p className="mt-1 text-sm text-muted">{signedIn ? g.copies : o.hidden}</p>
+          {asking && (
+            <div className="mt-3 rounded-md border border-border p-3" data-google-disconnect-ask>
+              <p className="text-sm">{g.disconnectAsk}</p>
+              <div className="mt-2 flex flex-wrap justify-end gap-2">
+                <button type="button" onClick={() => setAsking(false)} disabled={busy} className={buttonClass}>
+                  {g.cancel}
+                </button>
+                <button type="button" onClick={() => disconnectGoogle(false)} disabled={busy} className={buttonClass} data-google-keep>
+                  {g.keepCalendar}
+                </button>
+                <button type="button" onClick={() => disconnectGoogle(true)} disabled={busy} className={buttonClass} data-google-remove>
+                  {g.removeCalendar}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             <button type="button" onClick={disconnect} disabled={busy} className={buttonClass} data-outside-disconnect>
               {o.disconnect}

@@ -1,0 +1,8 @@
+the link table here: none
+bob lists his own events:
+psql: ERROR:  permission denied for function calendar_person_events
+the server lists bob's events: array
+the server keeps: 2
+alice sees bob busy: 1, a title in it: false, reads his rows: 0
+bob reads his own: Dentist/true, Maybe lunch/false
+cleared: 0

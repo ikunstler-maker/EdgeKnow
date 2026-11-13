@@ -11,6 +11,19 @@
 3. **Branding**: пошта підтримки й контактна — корпоративні; Application home page `https://edge-know.vercel.app`; Privacy policy `https://edge-know.vercel.app/privacy`; Authorized domains `xcnfeyajqrrfvtrmmteu.supabase.co` і `edge-know.vercel.app`.
 4. **Clients → клієнт**: JavaScript origins `http://localhost:3000`, `https://edge-know.vercel.app`; Redirect URI `https://xcnfeyajqrrfvtrmmteu.supabase.co/auth/v1/callback`. Новий секрет: **+ Add secret**, старий — Disable → Delete.
 
+### Doba: календар через вхід і Google Meet (DOBA-1)
+
+Без цього кнопки «Підключити Google Календар» і «Додати Google Meet» не з'являються; адреса-підписка (3б) працює й так.
+
+1. **APIs & Services → Library**: увімкнути **Google Calendar API** і **Google Meet REST API**.
+2. **Google Auth Platform → Data Access → Add or remove scopes**: додати три дозволи (крім наявних):
+   - `https://www.googleapis.com/auth/calendar.events.owned.readonly` — читати події власних календарів (беремо лише основний: назва, час, «зайнятий/вільний»);
+   - `https://www.googleapis.com/auth/calendar.app.created` — власний календар застосунку «Doba» та його події, нічого іншого;
+   - `https://www.googleapis.com/auth/meetings.space.created` — кімнати відеозустрічей, які створює застосунок.
+3. **Clients → клієнт → Authorized redirect URIs**: додати `https://edge-know.vercel.app/api/calendar-google/callback` (для тестової версії — ще й її адресу з тим самим шляхом).
+4. **Verification Center**: подати застосунок на перевірку. Для кожного дозволу — пояснення, навіщо він (тексти вище), і відео: вхід у workspace → Doba → «У моєму календарі» → «Підключити Google Календар» → екран згоди → ваші події з назвами в тижні Doba → створена подія з'являється в календарі «Doba» → «Додати Google Meet» у вікні події → «Відключити». До схвалення люди бачать попередження «застосунок не перевірено».
+5. **Vercel**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DRIVE_TOKEN_KEY` (уже є для Drive) і `CALENDAR_TOKEN_KEY` (уже є для 3б) — нових змінних не потрібно.
+
 ## Supabase
 
 1. **Authentication → Sign In / Providers**: Google увімкнено (Client ID + Client Secret); Email і Anonymous — вимкнено.

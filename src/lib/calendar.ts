@@ -73,8 +73,9 @@ export type EventFields = {
   reminder_minutes?: number | null;
 };
 
-// `outside`: the viewer's own slot read from their outside calendar (marked for them only).
-export type BusySlot = { user_id: string; starts_at: string; ends_at: string; all_day: boolean; outside?: boolean };
+// `outside`: the viewer's own slot read from their outside calendar (marked for them only);
+// with a sign-in (DOBA-1) also its `title` and whether it makes them `busy`.
+export type BusySlot = { user_id: string; starts_at: string; ends_at: string; all_day: boolean; outside?: boolean; title?: string | null; busy?: boolean };
 export type CalendarSettings = { work_days: number[]; time_zone: string; show_birthdays?: boolean };
 // Someone's birthday on a day the viewer may see (never the year).
 export type Birthday = { user_id: string; name: string; day: string; mine: boolean };
