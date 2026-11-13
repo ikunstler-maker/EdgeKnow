@@ -14,7 +14,7 @@ import { buttonClass, iconButtonClass, inputClass } from "@/components/ui/button
 
 type Sort = "newest" | "oldest" | "largest" | "name";
 type View = "list" | "grid";
-const SOURCES: VaultSource[] = ["wiki", "tasks", "chat", "boards", "nodes", "sheets", "slides", "surveys"];
+const SOURCES: VaultSource[] = ["files", "wiki", "tasks", "chat", "boards", "nodes", "sheets", "slides", "surveys"];
 const KINDS: VaultKind[] = ["image", "pdf", "video", "audio", "document", "other"];
 const KIND_ICONS: Record<VaultKind, IconName> = { image: "image", pdf: "file-text", video: "play", audio: "mic", document: "file-text", other: "file" };
 const VIEW_KEY = "ek_vault_view";
@@ -43,7 +43,7 @@ const saveView = (next: View) => {
 
 const v = t.vault;
 const nameOf = (file: VaultFile) => file.name || (file.kind === "audio" ? v.wikiAudio : v.wikiImage);
-const whereOf = (file: VaultFile) => (file.where.direct ? v.direct : file.where.label || v.untitled);
+const whereOf = (file: VaultFile) => (file.where.direct ? v.direct : file.where.own ? SERVICE_BRANDS.files.name : file.where.label || v.untitled);
 
 // Vault (VAULT-1): the files the person can see, with search, filters, two views
 // and a preview. Everything is filtered here, in the browser; nothing is written.

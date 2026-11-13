@@ -1,0 +1,4 @@
+a 6 MB file (no storage limit here) goes in parts: true
+alice sees: Team folder, plan.pdf
+bob restricts it: true
+alice sees: 0
