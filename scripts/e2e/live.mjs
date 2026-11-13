@@ -234,7 +234,7 @@ const untilAsync = async (condition, ms = 8000) => {
   // The other person's cursor.
   const area = alice.locator("[data-board-canvas] .excalidraw__canvas.interactive");
   const box = await area.boundingBox();
-  for (let i = 0; i < 6; i++) await alice.mouse.move(box.x + box.width * (0.2 + i * 0.05), box.y + box.height * 0.8, { steps: 2 });
+  for (let i = 0; i < 6; i++) await alice.mouse.move(box.x + box.width * (0.35 + i * 0.05), box.y + box.height * 0.6, { steps: 2 });
   check("Idea board: the other person's cursor shows", await colleague.locator("[data-live-cursor]").first().waitFor({ timeout: 6000 }).then(() => true, () => false));
 
   // Undo takes back only one's own note.

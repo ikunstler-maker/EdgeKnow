@@ -2,7 +2,7 @@
 
 import "./excalidraw-assets";
 import "@excalidraw/excalidraw/index.css";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaptureUpdateAction, Excalidraw, FONT_FAMILY, MainMenu, convertToExcalidrawElements, hashElementsVersion } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { currentLocale, t } from "@/i18n";
@@ -543,7 +543,7 @@ export default function BoardCanvas({
               const label = p.name.length > 24 ? `${p.name.slice(0, 23)}…` : p.name;
               const spot = Number.isFinite(c.x) && Number.isFinite(c.y) ? toScreen(c.x, c.y) : null;
               return (
-                <div key={p.key} data-live-cursor={p.name}>
+                <Fragment key={p.key}>
                   {c.sel.map((id) => {
                     const e = byId.get(id);
                     if (!e || e.isDeleted) return null;
@@ -558,7 +558,7 @@ export default function BoardCanvas({
                     );
                   })}
                   {spot && (
-                    <div className="absolute" style={{ left: spot.left, top: spot.top, transition: "left 180ms linear, top 180ms linear" }}>
+                    <div className="absolute h-[21px] w-[14px]" style={{ left: spot.left, top: spot.top, transition: "left 180ms linear, top 180ms linear" }} data-live-cursor={p.name}>
                       <svg width="14" height="21" viewBox="0 0 14 21" aria-hidden>
                         <path d="M0,0 L0,17 L4.5,13 L7.5,20 L10.5,18.8 L7.6,12 L13,12 Z" fill={p.color} stroke="#fff" strokeWidth={1.2} />
                       </svg>
@@ -567,7 +567,7 @@ export default function BoardCanvas({
                       </span>
                     </div>
                   )}
-                </div>
+                </Fragment>
               );
             })}
         </div>
