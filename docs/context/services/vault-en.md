@@ -1,6 +1,6 @@
 # Vault — file manager
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-6). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-2b). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
 
 ## 1. Purpose
 
@@ -42,6 +42,11 @@ Browse and manage all files of the workspace storage right in the product.
 
 - `vault_versions` (earlier versions); `vault_items` gains `version`, `content_by`, `version_of` (a hidden upload of a new version). Functions: `begin_vault_version`, `vault_finish_version`, `vault_restore_version`, `vault_delete_version`. Upload routes take `replace=<id>`; `GET /api/vault/files/<id>?version=<id>` serves an earlier version.
 - UI: "New version" and "Versions" in a file's menu (`vault-versions-dialog.tsx`).
+
+## 1f. Access on Google Drive (VAULT-2b)
+
+- `src/lib/drive/vault-shares.ts`: `syncVaultDriveShares` compares `vault_drive_wanted` (who should have a file: members with a role, no guests or former members) with `vault_drive_shares` and shares/changes/unshares on the Drive without emails; `syncVaultSharesLater` after a change (via `after()`), `syncAllVaultDriveShares` daily.
+- Refusals (an address with no Google account) — `vault_drive_failures` in the Access dialog for editors.
 
 ## 2. Intent
 

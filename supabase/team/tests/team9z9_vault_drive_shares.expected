@@ -1,0 +1,2 @@
+psql: ERROR:  permission denied for function vault_drive_wanted
+wanted: 3, bob writes: 1

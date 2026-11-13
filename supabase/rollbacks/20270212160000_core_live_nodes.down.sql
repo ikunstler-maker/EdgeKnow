@@ -1,6 +1,4 @@
--- CORE-4: live co-editing, phase 3 — mind maps and flows of Nodo join the private channels
--- (owner's approval 2026-11-13). Same rules as presentations and Bordy files.
--- Rollback: supabase/rollbacks/20270211100000_core_live_nodes.down.sql
+-- Undo 20270212160000_core_live_nodes: channels for presentations and Bordy files only.
 
 create or replace function public.live_channel_allowed(topic text, ext text, want_write boolean)
 returns boolean
@@ -18,7 +16,7 @@ begin
     return false;
   end if;
   select * into object from public.service_objects o where o.id = parts[1]::uuid;
-  if not found or object.deleted_at is not null or object.service not in ('slides', 'boards', 'nodes')
+  if not found or object.deleted_at is not null or object.service not in ('slides', 'boards')
      or not coalesce((select w.live_collab from public.workspaces w where w.id = object.workspace_id), false) then
     return false;
   end if;

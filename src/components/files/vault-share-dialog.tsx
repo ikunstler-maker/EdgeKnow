@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { personLabel, type Person } from "@/lib/tasks";
 import { canEditVault, type VaultItem, type VaultSharing } from "@/lib/vault";
-import { readVaultSharing, setVaultGeneral, setVaultGroupRole, setVaultMemberRole } from "@/app/vault-actions";
+import { readVaultSharing, setVaultGeneral, setVaultGroupRole, setVaultMemberRole, vaultDriveFailures } from "@/app/vault-actions";
 import { Dialog } from "@/components/ui/dialog";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,16 @@ export function VaultShareDialog({ shortId, item, members, groups, onClose }: { 
   const [personRole, setPersonRole] = useState<Grant>("viewer");
   const [unit, setUnit] = useState("");
   const [unitRole, setUnitRole] = useState<Grant>("viewer");
+  // VAULT-2b: who could not get the file on the team's Google Drive (files only, editors only).
+  const [driveFailed, setDriveFailed] = useState<string[]>([]);
+  useEffect(() => {
+    if (item.kind !== "file" || !canEditVault(item.role)) return;
+    let live = true;
+    void vaultDriveFailures(shortId, item.id).then((emails) => live && setDriveFailed(emails));
+    return () => {
+      live = false;
+    };
+  }, [shortId, item.id, item.kind, item.role]);
 
   const load = useCallback(async () => {
     const result = await readVaultSharing(shortId, item.id);
@@ -88,6 +98,11 @@ export function VaultShareDialog({ shortId, item, members, groups, onClose }: { 
         ) : (
           <>
             {!edit && <p className="text-muted">{a.viewOnly}</p>}
+            {driveFailed.length > 0 && (
+              <p className="rounded-lg border border-border bg-surface px-3 py-2 text-xs" data-vault-drive-failed>
+                {a.driveFailed(driveFailed.join(", "))}
+              </p>
+            )}
             <label className="block space-y-1">
               <span className="font-medium">{a.general}</span>
               <select value={general} disabled={!edit || pending} onChange={(e) => setGeneral(e.target.value as General)} className={`${selectClass} w-full`} data-vault-general>

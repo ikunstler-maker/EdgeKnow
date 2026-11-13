@@ -34,12 +34,21 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-chips-step4",
-    version: "0.53.2",
+    version: "0.54.1",
     date: "2026-11-13",
     summaryTitle: { uk: "Чипи в полях задач і на слайдах", en: "Chips in task fields and on slides" },
     items: [
       { id: "chips-fields", type: "added", scope: "tasks", title: { uk: "Поле-посилання задачі показує чип з актуальною назвою; кнопка «Чип» вставляє посилання на сторінку, задачу, таблицю чи файл.", en: "A task's link field shows a chip with the current title; the \"Chip\" button inserts a link to a page, task, table or file." } },
       { id: "chips-slides", type: "added", scope: "slides", title: { uk: "Нова вставка на слайді — «Чип (посилання)».", en: "A new slide embed — \"Chip (link)\"." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-drive-access",
+    version: "0.54.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: ті самі доступи на Google Диску", en: "Vault: the same access on Google Drive" },
+    items: [
+      { id: "vault-drive-share", type: "added", scope: "files", title: { uk: "Файл Vault на Google Диску команди відкривається там тим самим людям, що й у Vault, і закривається, коли доступ забирають. Без листів.", en: "A Vault file on the team's Google Drive is open there to the same people as in Vault, and closed when access is taken away. No emails." } },
     ],
   },
   {

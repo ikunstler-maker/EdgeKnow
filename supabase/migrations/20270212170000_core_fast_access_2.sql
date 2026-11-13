@@ -1,7 +1,7 @@
 -- CORE-5: access checks once per query, part 2 (speed; owner's approval 2026-11-13). Who sees
 -- what does not change: every rule below is the old one rewritten, and the equivalence tests
 -- compare them for every test person.
--- Rollback: supabase/rollbacks/20270212100000_core_fast_access_2.down.sql
+-- Rollback: supabase/rollbacks/20270212170000_core_fast_access_2.down.sql
 --
 -- 1. Pages: the role on every live page of the person's workspaces in one pass (the same pass
 --    as the page tree, my_page_tree) instead of walking up the tree for each row; pages in the

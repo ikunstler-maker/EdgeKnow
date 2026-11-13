@@ -1,6 +1,6 @@
 # Vault — менеджер файлів
 
-> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-6). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
+> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-2b). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
 
 ## 1. Призначення
 
@@ -42,6 +42,11 @@
 
 - `vault_versions` (попередні версії), у `vault_items` — `version`, `content_by`, `version_of` (приховане завантаження нової версії). Функції: `begin_vault_version`, `vault_finish_version`, `vault_restore_version`, `vault_delete_version`. Маршрути завантаження приймають `replace=<id>`; `GET /api/vault/files/<id>?version=<id>` віддає стару версію.
 - Інтерфейс: «Нова версія» й «Версії» в меню файлу (`vault-versions-dialog.tsx`).
+
+## 1е. Доступи на Google Диску (VAULT-2б)
+
+- `src/lib/drive/vault-shares.ts`: `syncVaultDriveShares` порівнює `vault_drive_wanted` (хто має мати файл: учасники з роллю, без гостей і колишніх) з `vault_drive_shares` і відкриває/змінює/забирає дозволи на Диску без листів; `syncVaultSharesLater` — після зміни (через `after()`), `syncAllVaultDriveShares` — щодня.
+- Відмови (адреса без облікового запису Google) — `vault_drive_failures` у вікні «Доступ» для тих, хто редагує.
 
 ## 2. Задум
 

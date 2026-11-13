@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readyTeams, teamAdmin } from "@/lib/team-db/files";
 import { checkAllTeams } from "@/lib/team-db/health";
+import { syncAllVaultDriveShares } from "@/lib/drive/vault-shares";
 import { recheckDomains } from "@/lib/domain-dns";
 import { rekeyTeamSecrets } from "@/lib/team-db/rekey";
 
@@ -48,9 +49,11 @@ export async function GET(request: NextRequest) {
   const rekeyed = process.env.TEAM_DB_KEY ? await rekeyTeamSecrets(admin).catch(() => ({ changed: 0, failed: 1 })) : null;
   // Domains proven through DNS: is the record still there (weekly per domain)?
   const domains = await recheckDomains(admin);
+  // Vault's access mirrored on each team's Google Drive (VAULT-2b).
+  const vaultShares = await syncAllVaultDriveShares(admin).catch(() => null);
   // Outside calendars nobody looked at lately are read again (busy time only).
   const calendars = await refreshAllStale(admin).catch(() => null);
-  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars });
+  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars, vaultShares });
 }
 
 // Task files and board pictures share their bucket.

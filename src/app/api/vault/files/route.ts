@@ -6,6 +6,7 @@ import { writeClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { VAULT_FILE_COLUMNS, chatFileLooksLike, filesHome, storeTaskFile, workspaceDestination, type StoredFile } from "@/lib/drive/task-files";
 import { VAULT_SMALL_BYTES, vaultChecked } from "@/lib/vault-files";
+import { syncVaultSharesLater } from "@/lib/drive/vault-shares";
 
 // Adds a file of up to 4 MB to Vault: ?ws=<short id>&folder=<id or empty>&name=<file name>,
 // the bytes as the body with their type. The database checks the right to add there,
@@ -62,7 +63,9 @@ export async function POST(request: NextRequest) {
       await forget();
       return NextResponse.json({ ok: false, error: result?.error ?? "unknown" }, { status: 403 });
     }
+    if (to.kind === "drive") syncVaultSharesLater(workspace.id);
     return NextResponse.json({ ok: true, id: replace });
   }
+  if (to.kind === "drive") syncVaultSharesLater(workspace.id);
   return NextResponse.json({ ok: true, id: reg.id });
 }
