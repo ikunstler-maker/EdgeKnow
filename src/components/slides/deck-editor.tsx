@@ -14,6 +14,8 @@ import { NodeShape, SlideView } from "./slide-view";
 import { Icon } from "@/components/ui/icon";
 import { ALIGN_ICON, EMBED_ICON, TOOL_ICON } from "@/components/slides/tool-icons";
 import { MenuItem, Popover } from "@/components/ui/popover";
+import { LiveLayer } from "@/components/live/live-layer";
+import type { LiveDoc } from "@/lib/live/use-live-doc";
 
 const s = t.slides;
 type Tool = "select" | NodeType;
@@ -32,7 +34,7 @@ const HISTORY = 100;
 // The slide editor: slides on the left (drag to reorder), the slide on a canvas that
 // fits the space (zoom in and out), tools on top, the selected layer's look on the
 // right. Every change goes through commit(), which also feeds undo/redo and saving.
-export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPlay }: { shortId: string; deckId: string; initial: Deck; editable: boolean; onChange: (deck: Deck) => void; onPlay?: (slide: number) => void }) {
+export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPlay, live }: { shortId: string; deckId: string; initial: Deck; editable: boolean; onChange: (deck: Deck) => void; onPlay?: (slide: number) => void; live?: LiveDoc<Deck> }) {
   const [deck, setDeck] = useState(initial);
   const deckRef = useRef(deck);
   const [past, setPast] = useState<Deck[]>([]);
@@ -78,25 +80,63 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
   const scale = fit * zoom;
 
   // A new state of the deck; record=false while dragging (the drag records once at the end).
+  // Real-time co-editing: while a drag goes on, each step is a change from the previous step.
+  const liveFrame = useRef<Deck | null>(null);
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
   const commit = useCallback(
     (next: Deck, record = true, before?: Deck) => {
       if (!editable) return;
-      if (record) {
+      const base = record ? deckRef.current : (liveFrame.current ?? deckRef.current);
+      liveFrame.current = record ? null : next;
+      if (record && !live?.active) {
         setPast((list) => [...list.slice(-HISTORY + 1), before ?? deckRef.current]);
         setFuture([]);
       }
       deckRef.current = next;
       setDeck(next);
+      // Live: shared through the room (undo and saving there too).
+      if (live?.change(base, next, record)) return;
       onChange(next);
     },
-    [editable, onChange],
+    [editable, onChange, live],
   );
+
+  // Others' changes come in here; what they deleted leaves the selection.
+  useEffect(() => {
+    live?.bind((next) => {
+      deckRef.current = next;
+      setDeck(next);
+      setSelected((list) => {
+        const ids = new Set(next.slides.flatMap((x) => x.nodes.map((n) => n.id)));
+        return list.every((id) => ids.has(id)) ? list : list.filter((id) => ids.has(id));
+      });
+    });
+  }, [live]);
   const updateSlide = (change: (slide: Slide) => Slide, record = true, before?: Deck) =>
     commit({ ...deckRef.current, slides: deckRef.current.slides.map((x, i) => (i === slideIndex ? change(x) : x)) }, record, before);
   const updateNodes = (ids: string[], change: (node: SlideNode) => SlideNode, record = true, before?: Deck) =>
     updateSlide((x) => ({ ...x, nodes: x.nodes.map((n) => (ids.includes(n.id) ? change(n) : n)) }), record, before);
 
+  // Live: the slide and selection go to the room even without a mouse move; following
+  // someone shows the slide they are on.
+  const liveSlideId = slide.id;
+  useEffect(() => {
+    if (!live?.active) return;
+    const p = lastPointer.current;
+    live.sendCursor({ x: p?.x ?? NaN, y: p?.y ?? NaN, at: liveSlideId, sel: selected });
+  }, [live, liveSlideId, selected]);
+  const followedAt = live?.following ? live.cursors[live.following]?.at : undefined;
+  useEffect(() => {
+    if (!followedAt) return;
+    const at = deckRef.current.slides.findIndex((x) => x.id === followedAt);
+    if (at >= 0) setCurrent(at);
+  }, [followedAt]);
+  const stopFollowing = () => {
+    if (live?.following) live.follow(null);
+  };
+
   const undo = () => {
+    if (live?.undo()) return setSelected([]);
     const prev = past.at(-1);
     if (!prev) return;
     setPast(past.slice(0, -1));
@@ -107,6 +147,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
     setSelected([]);
   };
   const redo = () => {
+    if (live?.redo()) return setSelected([]);
     const next = future[0];
     if (!next) return;
     setFuture(future.slice(1));
@@ -233,6 +274,10 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
   };
 
   const onMove = (event: React.PointerEvent) => {
+    if (live?.active) {
+      lastPointer.current = point(event);
+      live.sendCursor({ ...lastPointer.current, at: slide.id, sel: selected });
+    }
     const d = drag.current;
     if (!d) return;
     const at = point(event);
@@ -323,6 +368,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
       setTool("select");
     }
     if (JSON.stringify(d.before) !== JSON.stringify(deckRef.current)) commit(deckRef.current, true, d.before);
+    liveFrame.current = null;
   };
 
   const onKey = (event: React.KeyboardEvent) => {
@@ -420,7 +466,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
   const handleSize = 14 / scale;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-deck-editor>
+    <div className="flex min-h-0 flex-1 flex-col" onPointerDownCapture={stopFollowing} onKeyDownCapture={stopFollowing} onWheelCapture={stopFollowing} data-deck-editor>
       {editable && (
         <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-2 py-1" role="toolbar" aria-label={s.canvas}>
           {(["select", "TEXT", "RECTANGLE", "ELLIPSE", "LINE", "ARROW"] as Tool[]).map((x) => (
@@ -468,10 +514,10 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
             )}
           </span>
           <span className="mx-1 h-6 w-px bg-border" />
-          <button type="button" title={s.undo} aria-label={s.undo} disabled={!past.length} onClick={undo} className={iconButton} data-undo>
+          <button type="button" title={s.undo} aria-label={s.undo} disabled={!(live?.active ? live.canUndo : past.length)} onClick={undo} className={iconButton} data-undo>
             <Icon name="undo" />
           </button>
-          <button type="button" title={s.redo} aria-label={s.redo} disabled={!future.length} onClick={redo} className={iconButton} data-redo>
+          <button type="button" title={s.redo} aria-label={s.redo} disabled={!(live?.active ? live.canRedo : future.length)} onClick={redo} className={iconButton} data-redo>
             <Icon name="redo" />
           </button>
           <span className="mx-1 h-6 w-px bg-border" />
@@ -582,6 +628,10 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
               onPointerMove={onMove}
               onPointerUp={onUp}
               onPointerCancel={onUp}
+              onPointerLeave={() => {
+                lastPointer.current = null;
+                if (live?.active) live.sendCursor({ x: NaN, y: NaN, at: slide.id, sel: selected });
+              }}
               role="img"
               aria-label={s.slideN(slideIndex + 1)}
             >
@@ -650,6 +700,7 @@ export function DeckEditor({ shortId, deckId, initial, editable, onChange, onPla
                 ),
               )}
               {marquee && <rect x={marquee.x} y={marquee.y} width={marquee.width} height={marquee.height} fill="#3b82f622" stroke="#3b82f6" strokeWidth={1.5 / scale} pointerEvents="none" data-marquee />}
+              {live?.active && <LiveLayer cursors={live.cursors} peers={live.peers} at={slide.id} nodes={slide.nodes} unit={1 / scale} />}
               {/* Selection */}
               {slide.nodes
                 .filter((n) => selected.includes(n.id))

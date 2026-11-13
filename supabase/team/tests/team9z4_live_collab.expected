@@ -1,0 +1,19 @@
+sync, switch off: true
+switch off, bob (owner of the deck): read false, doc false, presence false, cursor false
+sync, switch on: true
+bob, deck owner: read true, doc true, presence true, cursor true
+dave, editor: read true, doc true, presence true, cursor true
+alice, workspace owner: read true, doc true, presence true, cursor true
+gwen, guest viewer: read true, doc false, presence true, cursor false
+gwen shows viewers' cursors: forbidden
+dave shows viewers' cursors: true
+gwen, cursors shown: read true, doc false, presence true, cursor true
+bob, token from another issuer: read false, doc false, presence false, cursor false
+bob, token for another workspace: read false, doc false, presence false, cursor false
+bob, token without a workspace: read false, doc false, presence false, cursor false
+gwen sends a change (refused):
+psql: ERROR:  new row violates row-level security policy for table "messages"
+dave sends a change: ok
+sync, switch off again: true
+bob, switch off: read false, doc false, presence false, cursor false
+bin: true

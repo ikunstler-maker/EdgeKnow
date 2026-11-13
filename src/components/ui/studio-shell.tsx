@@ -37,6 +37,7 @@ export function StudioShell({
   savingLabel,
   savedLabel,
   center,
+  presence,
   files = [],
   access,
   primary,
@@ -56,6 +57,8 @@ export function StudioShell({
   savingLabel: string;
   savedLabel: string;
   center?: ReactNode;
+  // Who else is in the document right now (real-time co-editing).
+  presence?: ReactNode;
   files?: StudioAction[];
   access?: ReactNode;
   primary?: StudioAction;
@@ -103,6 +106,7 @@ export function StudioShell({
         </span>
         <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">{center}</div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {presence}
           {files.length > 0 && (
             <button type="button" onClick={toggle("files")} aria-expanded={menu?.kind === "files"} className={buttonClass("subtle")} data-studio-files>
               <Icon name="download" />

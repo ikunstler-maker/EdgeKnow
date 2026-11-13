@@ -30,6 +30,13 @@ A space for thinking together and for mock-ups. Two kinds of files:
 - **Prototypes:** transitions between frames, a player in a separate tab.
 - Task from text; copy style; PNG / SVG / PDF export.
 
+### Live co-editing — "Design" (phase 1, 2026-11-12)
+- Turned on by the workspace owner (Settings → General; off by default).
+- Several people in one file: others' changes show at once, avatars in the top bar, cursors with names and selection outlines in each person's colour.
+- "Follow": click an avatar; your view follows their page or slide and visible area; any own action stops it; the person sees who follows them.
+- Viewers' and commenters' cursors only when an editor of the document turns on "Show viewers' cursors" (the "More" menu); anyone can hide others' cursors for themselves.
+- Undo takes back only one's own changes. One editor (the "leader") saves for everyone; viewers can't change the document through the channel (the database checks).
+
 ### Shared by both
 - List, trash, access (owner, admins, whole workspace, people, units; guests only if shared).
 - Collections in the left panel.
@@ -38,7 +45,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 
 | What | State | Note |
 |---|---|---|
-| Real-time co-editing (cursors, presence) | planned | together with presentations; earlier postponed by the owner |
+| Co-editing for the idea board | planned (phase 2) | same channels and presence; no DB change expected |
 | Comments pinned on the canvas | planned | new table and access rules → approval |
 | Components and variants | planned | |
 | Per-frame version history | planned | |
@@ -48,7 +55,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 
 | Table | Holds |
 |---|---|
-| `service_objects` (service `boards`; kind — board or `design`) | the file: name, content, search text, version, trash |
+| `service_objects` (service `boards`; kind — board or `design`) | the file: name, content, search text, version, trash; `live_viewer_cursors` — viewers' cursors when live |
 | `service_object_access`, `service_object_group_access` | access |
 | `board_sessions`, `board_votes` | voting and timer |
 | `object_files` | images |
@@ -72,6 +79,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 | Actions | `src/app/board-actions.ts` |
 | Idea board | `src/components/boards/`, `src/lib/boards.ts`, `board-templates.ts` |
 | Design | `src/components/design/`, `src/lib/design.ts`, `design-server.ts` |
+| Co-editing | `src/lib/live/`, `src/components/live/`, `src/app/live-actions.ts` |
 
 ## 7. Important decisions
 
@@ -82,7 +90,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 
 ## 8. Known gaps and open questions
 
-- Co-editing needs a technology choice and a cost estimate.
+- Co-editing: cursors are the main cost in Supabase messages (they grow with the square of people in a file); plan limits still to settle.
 - Free limit "number of boards" — open pricing question.
 
 ## Screen (updated 2026-11-11)

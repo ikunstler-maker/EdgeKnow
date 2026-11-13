@@ -27,6 +27,13 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 - Task, project task list, table or chart, wiki page, survey (form — can be answered during the show — or results), board, map.
 - An embed is an ordinary layer: moves, resizes, rotates.
 
+### Live co-editing (phase 1, 2026-11-12)
+- Turned on by the workspace owner (Settings → General; off by default).
+- Several people in one file: others' changes show at once, avatars in the top bar, cursors with names and selection outlines in each person's colour.
+- "Follow": click an avatar; your view follows their page or slide and visible area; any own action stops it; the person sees who follows them.
+- Viewers' and commenters' cursors only when an editor of the document turns on "Show viewers' cursors" (the "More" menu); anyone can hide others' cursors for themselves.
+- Undo takes back only one's own changes. One editor (the "leader") saves for everyone; viewers can't change the document through the channel (the database checks).
+
 ### Shared
 - List, trash, access, collections, search by slide text.
 
@@ -34,7 +41,6 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 
 | What | State | Note |
 |---|---|---|
-| Real-time co-editing | planned | together with Bordy "Design" |
 | Per-object build animations | owner may decide | |
 | Public show link without sign-in | owner may decide | access change → approval |
 
@@ -42,7 +48,7 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 
 | Table | Holds |
 |---|---|
-| `service_objects` (service `slides`) | the deck: slides, layers, size, search text, version, trash |
+| `service_objects` (service `slides`) | the deck: slides, layers, size, search text, version, trash; `live_viewer_cursors` — viewers' cursors when live |
 | `service_object_access`, `service_object_group_access` | access |
 | `object_files` | images |
 
@@ -62,6 +68,7 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 | Screens | `src/app/w/[wid]/slides/` |
 | Actions | `src/app/slide-actions.ts` |
 | Components | `src/components/slides/` |
+| Co-editing | `src/lib/live/`, `src/components/live/`, `src/app/live-actions.ts` |
 | Logic | `src/lib/slides.ts`, `slides-server.ts`, `slide-themes.ts`, `slide-motion.ts`, `slide-guides.ts` |
 
 ## 7. Important decisions

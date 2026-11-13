@@ -140,6 +140,11 @@ export async function setPrivateTasksAdmin(ws: string, allowed: boolean) {
   return callWorkspaceRpc("set_private_tasks_admin", { ws, allowed });
 }
 
+// Real-time co-editing for the whole workspace: the owner's switch (off by default).
+export async function setLiveCollab(ws: string, enabled: boolean) {
+  return callWorkspaceRpc("set_live_collab", { ws, enabled });
+}
+
 // Company structure, stage 2: workspace roles (the owner's). Copied to a team's database like members.
 export async function saveRole(ws: string, roleId: string | null, name: string, permissions: Record<string, boolean>, contentLevel: string | null) {
   return callWorkspaceRpc("save_workspace_role", { ws, role_id: roleId, new_name: name, new_permissions: permissions, new_level: contentLevel });
