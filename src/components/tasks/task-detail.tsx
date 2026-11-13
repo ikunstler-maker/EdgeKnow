@@ -12,6 +12,7 @@ import { KeyFields } from "./key-fields";
 import { TimeLog, type TimeEntry } from "./time-log";
 import { Recurrence, type TaskRecurrence } from "./recurrence";
 import type { TaskWebLink } from "./task-files";
+import { TaskWishlists, type TaskWishlistLink } from "./task-wishlists";
 import type { ActionResult } from "@/lib/action-result";
 import {
   TASK_PRIORITIES,
@@ -85,6 +86,7 @@ export function TaskDetail({
   origin = null,
   importedNames = {},
   webLinks = [],
+  wishlistLinks = [],
   time = null,
   fileLimits,
   recurrence = null,
@@ -120,6 +122,7 @@ export function TaskDetail({
   // Comment or history line id → the tracker's name of whoever wrote it (not tied to a member yet).
   importedNames?: Record<string, string>;
   webLinks?: TaskWebLink[];
+  wishlistLinks?: TaskWishlistLink[];
   // Time entries the reader may see; null where the project doesn't track time.
   time?: TimeEntry[] | null;
   fileLimits?: { fileMb: number; zipMb: number };
@@ -344,6 +347,7 @@ export function TaskDetail({
             <TaskDescription shortId={shortId} taskId={task.id} initial={task.description} editable={can.edit} />
           </div>
           <TaskFiles shortId={shortId} taskId={task.id} files={files} links={webLinks} limits={fileLimits} members={members} me={me} canEdit={may("file_add", canEdit)} canDeleteOwn={may("file_delete_own", true)} canDeleteAny={may("file_delete_any", canEdit)} />
+          <TaskWishlists shortId={shortId} taskId={task.id} links={wishlistLinks} me={me} canAdd={may("file_add", canEdit)} canDeleteOwn={may("file_delete_own", true)} canDeleteAny={may("file_delete_any", canEdit)} />
         </div>
 
         <aside className="min-w-0 self-start rounded-xl border border-border p-3 text-sm @3xl:col-start-2 @3xl:row-span-2 @3xl:row-start-1" aria-label={k.fields.heading} data-task-fields>

@@ -1,5 +1,6 @@
 "use server";
 
+import { wishlistEmbedView } from "@/app/wishlist-actions";
 import { dataClient } from "@/lib/team-db/data";
 import { readWorkbook } from "@/lib/sheets";
 import { collectRefs, MAX_SHEET_ROWS, type MdObject, type MdSheet, type MdSheetTab, type MdTaskChip, type MdTaskList } from "@/lib/page-markdown";
@@ -19,6 +20,7 @@ export type PageExport = {
   content: unknown;
   sheets: Record<string, MdSheet | null>;
   boards: Record<string, MdObject | null>;
+  wishlists: Record<string, MdObject | null>;
   nodes: Record<string, MdObject | null>;
   surveys: Record<string, MdObject | null>;
   taskLists: Record<string, MdTaskList | null>;
@@ -67,7 +69,7 @@ export async function pageExport(shortId: string, pageId: string): Promise<PageE
   if (!page) return null;
   const refs = collectRefs(page.content);
 
-  const [sheets, boards, nodes, surveys, lists, chips] = await Promise.all([
+  const [sheets, boards, nodes, surveys, lists, chips, wishlists] = await Promise.all([
     Promise.all(pick<string>(refs.sheets).map(async (id) => {
       const view = await sheetView(shortId, id);
       if (!view) return [id, null] as const;
@@ -98,6 +100,10 @@ export async function pageExport(shortId: string, pageId: string): Promise<PageE
       return [key, embed] as const;
     })),
     taskChips(shortId, [...refs.taskChips]),
+    Promise.all(pick<string>(refs.wishlists).map(async (id) => {
+      const view = await wishlistEmbedView(shortId, id);
+      return [id, view ? { id: view.id, title: view.title || `${view.ownerName}` } : null] as const;
+    })),
   ]);
 
   // Names of the people tasks are assigned to (only those the reader can see).
@@ -135,6 +141,7 @@ export async function pageExport(shortId: string, pageId: string): Promise<PageE
     content: page.content,
     sheets: Object.fromEntries(sheets),
     boards: Object.fromEntries(boards),
+    wishlists: Object.fromEntries(wishlists),
     nodes: Object.fromEntries(nodes),
     surveys: Object.fromEntries(surveys),
     taskLists,

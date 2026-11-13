@@ -1,5 +1,5 @@
--- Toker search and later sending in a team's own database (as supabase/migrations/20270205100000_toker_chat_later.sql).
--- Rollback: supabase/team/rollbacks/0078_toker_chat_later.down.sql
+-- The same in supabase/team/migrations/0079_toker_chat_later.sql.
+-- Rollback: supabase/rollbacks/20270206100000_toker_chat_later.down.sql
 
 -- Toker, stage 2c: search in chat and messages sent later (decision 2026-11-12
 -- "Toker, етап 2"). Drafts stay on the device (no table).

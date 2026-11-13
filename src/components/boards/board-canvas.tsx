@@ -22,6 +22,8 @@ export type StickyInfo = { id: string; text: string; task: { id: string; key: st
 export type BoardController = {
   insertTemplate: (key: TemplateKey) => void;
   linkTask: (stickyId: string, task: { id: string; key: string; href: string }) => void;
+  // A link to a wishlist: only "Wishlist · name" is written on the board, never its title.
+  insertLink: (label: string, href: string, color: string) => void;
 };
 
 type Votes = { open: boolean; tally: Record<string, number>; mine: string[]; show: boolean };
@@ -228,6 +230,23 @@ export default function BoardCanvas({
     [api, editable, viewCenter, addElements],
   );
 
+  const insertLink = useCallback(
+    (label: string, href: string, color: string) => {
+      if (!api || !editable) return;
+      const center = viewCenter();
+      const made = convertToExcalidrawElements([
+        { type: "rectangle", x: center.x - 160, y: center.y - 36, width: 320, height: 72, roundness: { type: 3 }, roughness: 0, strokeColor: color, backgroundColor: color, fillStyle: "solid",
+          label: { text: label, fontFamily: FONT_FAMILY.Nunito, fontSize: 22, strokeColor: "#ffffff" } },
+      ] as Parameters<typeof convertToExcalidrawElements>[0]).map((e) => (e.type === "rectangle" ? { ...e, link: href } : e));
+      api.updateScene({
+        elements: [...api.getSceneElementsIncludingDeleted(), ...made],
+        appState: made[0] ? { selectedElementIds: { [made[0].id]: true } } : undefined,
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+    },
+    [api, editable, viewCenter],
+  );
+
   const linkTask = useCallback(
     (stickyId: string, task: { id: string; key: string; href: string }) => {
       if (!api) return;
@@ -240,8 +259,8 @@ export default function BoardCanvas({
   );
 
   useEffect(() => {
-    if (api) onReady?.({ insertTemplate, linkTask });
-  }, [api, insertTemplate, linkTask, onReady]);
+    if (api) onReady?.({ insertTemplate, linkTask, insertLink });
+  }, [api, insertTemplate, linkTask, insertLink, onReady]);
 
   // The sticky notes with their text (a note's text is in the text bound to it).
   const stickies = useMemo(() => {

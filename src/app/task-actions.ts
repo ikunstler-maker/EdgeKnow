@@ -98,6 +98,15 @@ export async function deleteTaskWebLink(linkId: string) {
   return call("delete_task_web_link", { target_link: linkId });
 }
 
+// A colleague's wishlist linked to a task (only the link; the card checks access itself).
+export async function addTaskWishlist(taskId: string, wishlistId: string) {
+  return call<{ id: string }>("add_task_wishlist_link", { target_task: taskId, target_wishlist: wishlistId });
+}
+
+export async function deleteTaskWishlist(linkId: string) {
+  return call("delete_task_wishlist_link", { target_link: linkId });
+}
+
 export async function createTaskProject(ws: string, name: string, key: string, icon: string | null) {
   const s = t.tasks.defaultStatuses;
   return call<{ id: string; key: string }>("create_task_project", {
