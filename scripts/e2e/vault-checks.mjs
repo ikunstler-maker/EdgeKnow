@@ -34,12 +34,12 @@ export async function vaultChecks() {
   chatFile("vault-removed.txt", true);
 
   const names = (page) => page.locator("[data-vault-file]").evaluateAll((items) => items.map((item) => item.getAttribute("data-vault-file")).filter((n) => n.startsWith("vault-")).sort());
-  await alice.goto(`${APP}/w/${alphaShort}/files`);
+  await alice.goto(`${APP}/w/${alphaShort}/files?tab=all`);
   await until(async () => (await names(alice)).length >= 3, 15000);
   const aliceSees = await names(alice);
   check("Vault: the owner sees the files of her tasks and her closed channel", JSON.stringify(aliceSees) === JSON.stringify(["vault-brief.pdf", "vault-private.pdf", "vault-secret.txt"]), JSON.stringify(aliceSees));
 
-  await colleague.goto(`${APP}/w/${alphaShort}/files`);
+  await colleague.goto(`${APP}/w/${alphaShort}/files?tab=all`);
   await colleague.locator("[data-vault-filters], main p").first().waitFor({ timeout: 15000 });
   const colleagueSees = await names(colleague);
   check("…a member sees neither a private task's file nor a closed channel's", !colleagueSees.includes("vault-private.pdf") && !colleagueSees.includes("vault-secret.txt"), JSON.stringify(colleagueSees));
