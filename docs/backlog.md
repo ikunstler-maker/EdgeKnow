@@ -216,6 +216,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
 
 ## Known gaps / follow-ups
+- Found during VAULT-2, not fixed: `until()` in `scripts/e2e/common.mjs` takes a plain condition; checks that pass it an `async` one (calendar, wishlists and others: `grep -n "until(async" scripts/e2e`) always pass at once, so they prove nothing. Fix: let `until` await the condition, then mend whatever those checks then reveal.
 - Storage limit is counted unevenly: wiki images (`register_attachment`, `workspace_storage_status`) count only wiki images; tasks, boards, surveys and chat count each other. Settings → Storage "move files to the workspace storage" does not move chat files yet.
 - Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.

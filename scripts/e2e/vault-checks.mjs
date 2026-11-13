@@ -35,7 +35,8 @@ export async function vaultChecks() {
 
   const names = (page) => page.locator("[data-vault-file]").evaluateAll((items) => items.map((item) => item.getAttribute("data-vault-file")).filter((n) => n.startsWith("vault-")).sort());
   await alice.goto(`${APP}/w/${alphaShort}/files?tab=all`);
-  await until(async () => (await names(alice)).length >= 3, 15000);
+  // (until() takes a plain condition; the browser's own waiting is used for the page)
+  await alice.locator('[data-vault-file^="vault-"]').nth(2).waitFor({ timeout: 15000 });
   const aliceSees = await names(alice);
   check("Vault: the owner sees the files of her tasks and her closed channel", JSON.stringify(aliceSees) === JSON.stringify(["vault-brief.pdf", "vault-private.pdf", "vault-secret.txt"]), JSON.stringify(aliceSees));
 
@@ -73,15 +74,15 @@ async function vaultDriveChecks() {
 
   await alice.goto(`${top}?folder=${folderId}`);
   await alice.locator("[data-vault-file-input]").setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello vault") });
-  const uploaded = await until(async () => (await alice.locator('[data-vault-item="notes.txt"]').count()) === 1, 15000);
+  const uploaded = await alice.locator('[data-vault-item="notes.txt"]').waitFor({ timeout: 15000 }).then(() => true, () => false);
   const stored = sql("select storage_backend || ' ' || bytes || ' ' || mime_type from public.vault_items where name = 'notes.txt'");
   check("…uploads a file into it, kept in the workspace's storage", uploaded && /^(supabase|drive) 11 text\/plain$/.test(stored), stored);
   await alice.locator("[data-vault-file-input]").setInputFiles({ name: "fake.pdf", mimeType: "application/pdf", buffer: Buffer.from("not a pdf at all") });
-  await until(async () => (await alice.locator("[data-vault-uploads]").count()) === 1, 10000);
+  await alice.locator("[data-vault-uploads]").waitFor({ timeout: 10000 });
   check("…a file that is not what it claims is refused", sql("select count(*) from public.vault_items where name = 'fake.pdf'") === "0");
   const fileId = sql("select id from public.vault_items where name = 'notes.txt'");
   const fileUrl = `/api/vault/files/${fileId}?ws=${alphaShort}&download`;
-  const read = (page) => page.evaluate(async (url) => { const r = await fetch(url); return `${r.status} ${r.status === 200 ? await r.text() : ""}`.trim(); }, fileUrl);
+  const read = (page) => page.evaluate(async (url) => { const r = await fetch(url, { cache: "no-store" }); return `${r.status} ${r.status === 200 ? await r.text() : ""}`.trim(); }, fileUrl);
 
   await colleague.goto(`${top}?folder=${folderId}`);
   await colleague.locator('[data-vault-item="notes.txt"]').waitFor({ timeout: 15000 });
