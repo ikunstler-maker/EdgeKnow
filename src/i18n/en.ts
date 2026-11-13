@@ -2359,6 +2359,10 @@ export const en: Dictionary = {
         pink: "Pink",
       },
       pageChip: "page",
+      objectChip: "link",
+      untitledObject: "Untitled",
+      objectsGroup: "Tables, boards, maps, presentations",
+      filesGroup: "Vault files",
       noAccess: "No access",
       someone: "Colleague",
       presets: {

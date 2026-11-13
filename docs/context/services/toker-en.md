@@ -29,7 +29,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - The platform admin sees no content.
 
 **Links with the ecosystem**
-- Live chips: a link to a page, task, table or board becomes a card; a task's status and assignee can be changed right from chat. No rights to the object — a neutral "No access" badge without the title.
+- Live chips: a link to a page, task, table or board becomes a card (the same pill as in the wiki and task descriptions since UI-1); a task's status and assignee can be changed right from chat. No rights to the object — a neutral "No access" badge without the title.
 - Actions from a message or a selected fragment: a Rukh task (with a link back to the thread), a Wika note, a Doba event.
 - Questa surveys are answered right in the channel.
 - Doba sets the "On leave" status; a unit lead approves time off with a button in a system message.
