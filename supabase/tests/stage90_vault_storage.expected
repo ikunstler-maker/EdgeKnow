@@ -1,0 +1,7 @@
+a 400 KB wiki picture: quota_exceeded, a 200 KB one: true, then a 200 KB Vault file: quota_exceeded
+bob reads the usage: forbidden
+alice: Vault 716800, wiki 204800
+carol lists former owners: forbidden, hands them over: forbidden
+former owners: bob@vaultstore.test 1 pages 2 files
+handed over: {"ok": true, "files": 2, "pages": 1}
+carol now owns the folder: owner, may restrict it: true

@@ -1,6 +1,6 @@
 # Vault — file manager
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-3). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-4). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
 
 ## 1. Purpose
 
@@ -30,6 +30,13 @@ Browse and manage all files of the workspace storage right in the product.
 - Only the file's id is kept; the card (`VaultFileEmbed`, `src/components/files/vault-file-embed.tsx`) is read with the viewer's access (`vaultFileView`); without it — "File unavailable", no name.
 - Wika: block `vaultFile`; task: a task link `…/files?file=<id>` titled "File from Vault", shown as a card; slides and "Design": embed kind `file`; idea board: "File from Vault" written with the link; Toker: a link in a message → a card (`chat-chips`, kind `file`).
 - File links: `vaultFileHref()` / `vaultFileIdOf()` (`src/lib/vault-links.ts`); `/w/<id>/files?file=<id>` opens the folder with the file marked.
+
+## 1d. Space and hand-over (VAULT-4)
+
+- "Used" in Vault (`vault_storage_usage`, owner and admins, sizes only) by service; without a Drive — the database's storage of the workspace's limit.
+- Every upload counts space the same way (`workspace_storage_used`): all services plus Vault.
+- "Hand over" for a former member (`reassign_member_pages`) also hands over their Vault folders and files (never to a guest); `departed_page_owners` returns `files`.
+- "My data": the owner's `vault_items`.
 
 ## 2. Intent
 

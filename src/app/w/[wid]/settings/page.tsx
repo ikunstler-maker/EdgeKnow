@@ -201,7 +201,7 @@ export default async function WorkspaceSettingsPage({
       }
     : null;
   const departedData = departed?.data as
-    | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number }[] }
+    | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number; files?: number }[] }
     | null
     | undefined;
   const departedItems: DepartedOwner[] = (departedData?.owners ?? []).map((d) => ({
@@ -209,6 +209,7 @@ export default async function WorkspaceSettingsPage({
     name: d.name,
     email: d.email,
     pages: d.pages,
+    files: d.files ?? 0,
   }));
 
   const memberItems: MemberItem[] = (members?.data ?? []).map((m) => ({

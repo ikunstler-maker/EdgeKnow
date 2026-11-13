@@ -33,6 +33,17 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-vault-space",
+    version: "0.51.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: скільки місця займають файли", en: "Vault: how much space files take" },
+    items: [
+      { id: "vault-used", type: "added", scope: "files", title: { uk: "«Зайнято» у Vault — за сервісами; бачать власник і адміністратори простору.", en: "\"Used\" in Vault by service; seen by the workspace's owner and admins." } },
+      { id: "vault-quota", type: "fixed", scope: "storage", title: { uk: "Ліміт сховища тепер однаково рахує файли всіх сервісів разом із Vault.", en: "The storage limit now counts every service's files, Vault included, the same way." } },
+      { id: "vault-handover", type: "added", scope: "files", title: { uk: "«Передати» для колишнього учасника передає й його файли Vault; вони є й у «Мої дані».", en: "\"Hand over\" for a former member also hands over their Vault files; they are in \"My data\" too." } },
+    ],
+  },
+  {
     id: "2026-11-13-sheet-chips",
     version: "0.50.0",
     date: "2026-11-13",
