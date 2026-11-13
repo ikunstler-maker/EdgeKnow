@@ -38,7 +38,7 @@ export type Interaction = {
 };
 
 // A live object of another service on a slide (step П-3б), read with the viewer's access.
-export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map", "wishlist"] as const;
+export const EMBED_KINDS = ["task", "tasks", "sheet", "page", "survey", "board", "map", "wishlist", "file"] as const;
 export type EmbedKind = (typeof EMBED_KINDS)[number];
 export type Embed = { kind: EmbedKind; id: string; chartId?: string; mine?: boolean; view?: "form" | "summary" };
 

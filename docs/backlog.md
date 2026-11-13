@@ -102,7 +102,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
   - Voice player: "Transcribe" (with Apus, stage 6) and "Task" (with Rukh links, stage 3) buttons from the mock.
   - 2c search (chat panel + global search), drafts on the device, scheduled send (published with the bell's check) — DONE (#180).
   - Later: files in scheduled messages; search index (trigram) if chats grow large.
-  - Later: file from shared storage — with Vault (Google picker needs a new key/scope → approval).
+  - Later: file from shared storage — DONE with VAULT-3 (from Vault); the Google picker still needs a new key/scope → approval.
 - 3. Plan approved 2026-11-13 (decision "TOKER-3 Toker, етап 3").
   - 3a live chips: workspace links in messages (Wika pages, Rukh tasks, tables, boards, maps, slides, surveys, apps, wishlists) → cards read with the reader's access; hidden or gone → "No access" without the title; task chip = the wiki chip (live status) + status and assignee change — DONE (#183).
   - 3b message (or selected part) → Rukh task / Wika note / Doba event with a link back to the message; the new link left in the message's thread (a live chip); events from closed channels and conversations invite their people (≤ 50, "by invitation") — DONE (#184).
@@ -211,7 +211,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - VAULT-2 own folders and files (DB approved 2026-11-13, option A): access as on a shared drive (members view by default, guests never; people/units viewer/editor; restrict), all members upload, admin's size limit (none by default), bin 30 days, files over 4 MB to the Drive in parts — in review.
 - VAULT-2б mirror Vault access onto the team's Google Drive (Google may email people "shared with you").
 - VAULT-2 open: a departed owner's restricted items stay with nobody able to manage them (no hand-over yet); Vault files are not in "My data"; other services' storage-limit checks don't count Vault files (only Vault's own check counts everything).
-- VAULT-3 "From Vault" in Wika, tasks, boards, slides, Toker (closes Toker's "file from shared storage").
+- VAULT-3 "From Vault" (no DB): Wika block, task (as a task link shown as a card), slides/"Design" embed, idea board link, Toker message card; only the id kept, read with the viewer's access — in review.
 - VAULT-4 later: picking from the rest of Google Drive (new Google permission → approval), versions, space accounting.
 - VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
 

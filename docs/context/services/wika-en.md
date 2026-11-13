@@ -92,6 +92,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | **Kadry** (presentations) | a wiki page is embedded in a slide as a card |
 | **Core** | search, mention notifications, analytics, file storage. No collections in the wiki: the page tree replaces them |
 | **Profile** | "Wishlist" block: a live card of a colleague's wishlist, access checked |
+| **Vault** | "File from Vault" block (`vaultFile`): a live file card, access checked; without access — "File unavailable" (VAULT-3) |
 
 **Embed rule:** the page stores only the object's ID. Rights are checked every time against the object, not the page.
 

@@ -19,6 +19,7 @@ export type MdLabels = {
   chart: string;
   board: string;
   wishlist: string;
+  vaultFile: string;
   mindmap: string;
   flow: string;
   survey: string;
@@ -297,6 +298,11 @@ function blockLines(block: MdBlock, data: MdData, labels: MdLabels): string[] {
       if (!id) return [];
       const wl = data.wishlists[id];
       return wl ? [objectLine("🎁", labels.wishlist, wl.title, `${data.base}/wishlists/${wl.id}`, labels)] : [noAccess(labels)];
+    }
+    case "vaultFile": {
+      // Only a link: the file's name may not be the reader's to see.
+      const id = str(props.fileId);
+      return id ? [`[${labels.vaultFile}](${data.base}/files?file=${id})`] : [];
     }
     case "nodeMap": {
       const id = str(props.objectId);
