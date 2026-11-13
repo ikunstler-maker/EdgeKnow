@@ -1,13 +1,13 @@
 # Vault — менеджер файлів
 
-> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-1). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
+> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-2). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
 
 ## 1. Призначення
 
 Перегляд і керування всіма файлами сховища workspace прямо в продукті.
 
-- **Стан:** ✅ крок 1 (VAULT-1): «Усі файли», лише перегляд. Далі VAULT-2 (власні файли й папки), VAULT-3 (вставка «Із Vault»), VAULT-4 (решта Google Диска, версії) — `docs/backlog.md`.
-- **Сховище:** єдине сховище workspace (Google Диск або сховище бази); власних таблиць у Vault поки немає.
+- **Стан:** ✅ VAULT-1 («Усі файли») і VAULT-2 (власні папки й файли). Далі VAULT-2б (доступи на Google Диск), VAULT-3 (вставка «Із Vault»), VAULT-4 (решта Google Диска, версії) — `docs/backlog.md`.
+- **Сховище:** єдине сховище workspace (Google Диск або сховище бази); файли понад 4 МБ — лише на Диску.
 
 ## 1а. Що працює (VAULT-1)
 
@@ -16,6 +16,14 @@
 - Список або плитка (вибір у браузері), фільтр за сервісом і типом, пошук за назвою чи місцем, сортування; перегляд зображень, аудіо й відео у вікні; PDF і документи — у новій вкладці через маршрут свого сервісу; «Перейти туди»; завантаження.
 - Обмеження: найновіші 400 файлів кожного сервісу (`VAULT_LIMIT`), фільтри працюють у браузері; фото ВішЛістів і логотипи додатків не показуються.
 - Файли: `src/lib/vault.ts`, `src/components/files/vault-browser.tsx`, `src/app/w/[wid]/files/page.tsx`; перевірка — `scripts/e2e/vault-checks.mjs` (частина `nodes`).
+
+## 1б. Власні папки й файли (VAULT-2)
+
+- Вкладки `/w/<id>/files`: «Файли» (`?folder=<id>`), «Усі файли» (`?tab=all`), «Кошик» (`?tab=bin`); гість бачить лише «Усі файли».
+- Таблиці: `vault_items` (дерево папок і файлів, кошик 30 днів через `trashed_with`), `vault_access`, `vault_group_access`, `vault_settings`, `vault_uploads`. Роль — `vault_role_of()`: власник; власник папки вище — редагує; загальний доступ згори (верхній рівень — усі учасники переглядають; `workspace_role` на елементі; `inherit = false` — лише запрошені); ролі людей і підрозділів (`unit_reaches`). Гостям і колишнім учасникам — нічого; адміни закритого не бачать.
+- Функції: `vault_create_folder`, `begin_vault_file`, `vault_rename`, `vault_move`, `vault_trash`, `vault_restore`, `vault_delete_forever`, `vault_list`, `vault_sharing`, `vault_set_member_role`, `vault_set_group_role`, `vault_set_general`, `set_vault_file_limit`, `clean_vault_items` (сервер).
+- Маршрути: `POST /api/vault/files` (до 4 МБ), `/api/vault/files/large` (частинами на Диск), `GET /api/vault/files/<id>`. Кошик `vault-files`, шлях `<ws>/vault/<id>`.
+- Код: `src/components/files/vault-drive.tsx`, `vault-share-dialog.tsx`, `vault-move-dialog.tsx`, `vault-limit-panel.tsx`, `src/app/vault-actions.ts`, `src/lib/vault-files.ts`; тести `supabase/tests/stage89_vault_files.sql`, `supabase/team/tests/team9z6_vault_files.sql`, e2e `scripts/e2e/vault-checks.mjs`.
 
 ## 2. Задум
 

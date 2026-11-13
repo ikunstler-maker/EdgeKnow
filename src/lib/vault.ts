@@ -8,7 +8,7 @@ import type { ServiceKey } from "@/lib/services";
 // a removed message, is left out. Nothing here changes data.
 
 export type VaultKind = "image" | "pdf" | "video" | "audio" | "document" | "other";
-export type VaultSource = Extract<ServiceKey, "wiki" | "tasks" | "chat" | "boards" | "nodes" | "sheets" | "slides" | "surveys">;
+export type VaultSource = Extract<ServiceKey, "files" | "wiki" | "tasks" | "chat" | "boards" | "nodes" | "sheets" | "slides" | "surveys">;
 
 export type VaultFile = {
   key: string;
@@ -23,7 +23,7 @@ export type VaultFile = {
   src: string;
   download: string;
   // Where the file is used.
-  where: { label: string; href: string; direct?: boolean };
+  where: { label: string; href: string; direct?: boolean; own?: boolean };
 };
 
 // Per service; the newest first. Enough for a first look; paging comes with own files.
@@ -52,7 +52,7 @@ export function kindOf(mime: string): VaultKind {
 // route); a PDF opens in its own tab, where the browser's viewer works under our
 // files' strict rules.
 export const previewable = (file: Pick<VaultFile, "kind" | "source">) =>
-  file.source !== "surveys" && (file.kind === "image" || ((file.kind === "audio" || file.kind === "video") && (file.source === "chat" || file.source === "wiki")));
+  file.source !== "surveys" && (file.kind === "image" || ((file.kind === "audio" || file.kind === "video") && (file.source === "chat" || file.source === "wiki" || file.source === "files")));
 
 const OBJECT_SOURCES: VaultSource[] = ["boards", "nodes", "sheets", "slides", "surveys"];
 const one = <T,>(value: T | T[] | null | undefined): T | null => (Array.isArray(value) ? (value[0] ?? null) : (value ?? null));
@@ -60,11 +60,22 @@ const one = <T,>(value: T | T[] | null | undefined): T | null => (Array.isArray(
 type WikiRow = { id: string; storage_path: string; mime_type: string; bytes: number; created_at: string; pages: { id: string; title: string; deleted_at: string | null } | null };
 type TaskRow = { id: string; name: string; mime_type: string; bytes: number; created_at: string; tasks: { number: number; title: string; deleted_at: string | null; task_projects: { key: string } | null } | null };
 type ChatRow = { id: string; name: string; mime_type: string; bytes: number; created_at: string; channel_id: string; message_id: string; chat_messages: { deleted_at: string | null; thread_root_id: string | null } | null; chat_channels: { name: string; visibility: string } | null };
+type OwnRow = { id: string; name: string; mime_type: string; bytes: number; created_at: string; parent_id: string | null; large: boolean };
 type ObjectRow = { id: string; name: string; mime_type: string; bytes: number; created_at: string; service_objects: { id: string; service: string; title: string; deleted_at: string | null } | null };
 
 export async function listVaultFiles(db: SupabaseClient, workspaceId: string, shortId: string): Promise<VaultFile[]> {
   const base = (rest: string) => workspacePath(shortId, rest);
-  const [wiki, tasks, chat, objects] = await Promise.all([
+  const [own, wiki, tasks, chat, objects] = await Promise.all([
+    // Vault's own files (VAULT-2): those the person has a role on, not in the bin.
+    db
+      .from("vault_items")
+      .select("id, name, mime_type, bytes, created_at, parent_id, large")
+      .eq("workspace_id", workspaceId)
+      .eq("kind", "file")
+      .neq("storage_backend", "pending")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(VAULT_LIMIT),
     db
       .from("attachments")
       .select("id, storage_path, mime_type, bytes, created_at, pages!inner(id, title, deleted_at)")
@@ -101,6 +112,11 @@ export async function listVaultFiles(db: SupabaseClient, workspaceId: string, sh
   ]);
 
   const files: VaultFile[] = [];
+  // A large file's bytes were not checked, so it is never shown, only downloaded.
+  for (const row of (own.data ?? []) as unknown as OwnRow[]) {
+    const src = `/api/vault/files/${row.id}?ws=${shortId}`;
+    files.push({ key: `files:${row.id}`, source: "files", name: row.name, mime: row.mime_type, kind: row.large ? "other" : kindOf(row.mime_type), bytes: Number(row.bytes), createdAt: row.created_at, src, download: `${src}&download`, where: { label: "", href: base(row.parent_id ? `/files?folder=${row.parent_id}` : "/files"), own: true } });
+  }
   for (const row of (wiki.data ?? []) as unknown as WikiRow[]) {
     const page = one(row.pages);
     if (!page) continue;
@@ -133,3 +149,38 @@ export async function listVaultFiles(db: SupabaseClient, workspaceId: string, sh
   }
   return files.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
+
+// Vault's own folders and files (VAULT-2), as vault_list returns them.
+export type VaultRole = "owner" | "editor" | "viewer";
+export type VaultItem = {
+  id: string;
+  kind: "folder" | "file";
+  name: string;
+  mime_type: string | null;
+  bytes: number | null;
+  parent_id: string | null;
+  owner_id: string | null;
+  updated_at: string;
+  deleted_at: string | null;
+  role: VaultRole;
+  // Nobody in the workspace has it from "general access" (only the people listed).
+  restricted: boolean;
+  // Given to people or units.
+  shared: boolean;
+};
+export type VaultListing = {
+  folder: { id: string; name: string; role: VaultRole } | null;
+  path: { id: string; name: string }[];
+  items: VaultItem[];
+};
+export type VaultSharing = {
+  role: VaultRole;
+  owner_id: string | null;
+  inherit: boolean;
+  workspace_role: "viewer" | "editor" | null;
+  inherited_workspace_role: "viewer" | "editor" | null;
+  people: { user_id: string; role: "viewer" | "editor" }[];
+  units: { group_id: string; role: "viewer" | "editor" }[];
+};
+export const canEditVault = (role: VaultRole | null | undefined) => role === "owner" || role === "editor";
+export const vaultFileSrc = (shortId: string, id: string) => `/api/vault/files/${id}?ws=${shortId}`;

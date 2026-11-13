@@ -207,8 +207,10 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
 
 ## VAULT Vault — file manager (owner, 2026-11-13; decision 2026-11-13)
-- VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — in review.
-- VAULT-2 own files and folders (DB → separate approval). Before the plan, the owner answers: who sees own files (whole workspace / members without guests / per folder), who uploads (all members / editors+admins), size limit (proposed 250 MB).
+- VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — #190.
+- VAULT-2 own folders and files (DB approved 2026-11-13, option A): access as on a shared drive (members view by default, guests never; people/units viewer/editor; restrict), all members upload, admin's size limit (none by default), bin 30 days, files over 4 MB to the Drive in parts — in review.
+- VAULT-2б mirror Vault access onto the team's Google Drive (Google may email people "shared with you").
+- VAULT-2 open: a departed owner's restricted items stay with nobody able to manage them (no hand-over yet); Vault files are not in "My data"; other services' storage-limit checks don't count Vault files (only Vault's own check counts everything).
 - VAULT-3 "From Vault" in Wika, tasks, boards, slides, Toker (closes Toker's "file from shared storage").
 - VAULT-4 later: picking from the rest of Google Drive (new Google permission → approval), versions, space accounting.
 - VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
