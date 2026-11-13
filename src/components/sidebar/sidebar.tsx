@@ -108,7 +108,7 @@ export function Sidebar({
           )
         }
       />
-      <ServiceSwitcher shortId={workspace.shortId} pathname={pathname} onNavigate={onNavigate} />
+      <ServiceSwitcher shortId={workspace.shortId} userId={user.id} pathname={pathname} onNavigate={onNavigate} />
 
       <SearchButton currentPageId={currentId} onNavigate={onNavigate} />
       <NotificationBell onNavigate={onNavigate} />

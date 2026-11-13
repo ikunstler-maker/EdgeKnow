@@ -44,7 +44,7 @@ export function ObjectAccessButton({ label, title, intro, access, members, actio
   );
 }
 
-function AccessDialog({ title, intro, access, members, actions, viewOnly, onClose }: { title: string; intro: string; access: ObjectAccess; members: Person[]; actions: AccessActions; viewOnly: boolean; onClose: () => void }) {
+export function AccessDialog({ title, intro, access, members, actions, viewOnly, onClose }: { title: string; intro: string; access: ObjectAccess; members: Person[]; actions: AccessActions; viewOnly: boolean; onClose: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

@@ -7,6 +7,8 @@ import { getWorkspace } from "@/lib/workspace";
 import { SurveyBinActions, NewSurveyButton } from "@/components/surveys/survey-list-actions";
 import { Icon } from "@/components/ui/icon";
 import { ServiceIcon } from "@/components/services/service-icon";
+import { ObjectRowActions } from "@/components/services/object-row-actions";
+import { rolesOf } from "@/lib/object-roles";
 import { Hint } from "@/components/ui/hint";
 import { buttonClass } from "@/components/ui/button";
 
@@ -25,6 +27,7 @@ export default async function SurveysPage({ params, searchParams }: PageProps<"/
   request = bin ? request.not("deleted_at", "is", null) : request.is("deleted_at", null);
   const { data } = await request.order("updated_at", { ascending: false }).limit(500);
   const rows = (data ?? []) as Row[];
+  const roles = bin ? new Map<string, string | null>() : await rolesOf(db, rows.map((row) => row.id));
   const when = (value: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
   const base = workspacePath(workspace.shortId, "/surveys");
   const b = t.surveys;
@@ -49,9 +52,7 @@ export default async function SurveysPage({ params, searchParams }: PageProps<"/
         <ul className="mt-5 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface" data-surveys>
           {rows.map((row) => (
             <li key={row.id} className="flex min-h-14 flex-wrap items-center gap-3 px-3 py-2" data-survey={row.title || b.untitled}>
-              <span aria-hidden="true" className="text-xl">
-                <Icon name="file-text" />
-              </span>
+              <ServiceIcon serviceId="surveys" size={22} />
               <div className="min-w-0 flex-1">
                 {bin ? (
                   <span className="block truncate text-sm font-medium">{row.title || b.untitled}</span>
@@ -63,6 +64,7 @@ export default async function SurveysPage({ params, searchParams }: PageProps<"/
                 <span className="text-xs text-muted">{b.updated(when(row.updated_at))}</span>
               </div>
               {bin && <SurveyBinActions shortId={workspace.shortId} id={row.id} title={row.title || b.untitled} />}
+              {!bin && <ObjectRowActions shortId={workspace.shortId} id={row.id} title={row.title || b.untitled} href={`${base}/${row.id}`} role={roles.get(row.id) ?? null} />}
             </li>
           ))}
         </ul>
