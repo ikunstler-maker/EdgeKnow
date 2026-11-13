@@ -1,6 +1,6 @@
--- CORE-4 in a team's own database (as supabase/migrations/20270210100000_core_live_nodes.sql):
+-- CORE-4 in a team's own database (as supabase/migrations/20270211100000_core_live_nodes.sql):
 -- mind maps and flows of Nodo join the private channels.
--- Rollback: supabase/team/rollbacks/0083_core_live_nodes.down.sql
+-- Rollback: supabase/team/rollbacks/0084_core_live_nodes.down.sql
 
 create or replace function public.live_channel_allowed(topic text, ext text, want_write boolean)
 returns boolean

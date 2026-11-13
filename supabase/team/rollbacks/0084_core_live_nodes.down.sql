@@ -1,4 +1,4 @@
--- Undo 0083_core_live_nodes: channels for presentations and Bordy files only.
+-- Undo 0084_core_live_nodes: channels for presentations and Bordy files only.
 
 create or replace function public.live_channel_allowed(topic text, ext text, want_write boolean)
 returns boolean
