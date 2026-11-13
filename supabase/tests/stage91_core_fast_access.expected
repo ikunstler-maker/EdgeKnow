@@ -1,0 +1,8 @@
+anon may call my_object_role: false
+anon may call my_page_role: false
+anon may call my_task_project_ids: false
+anon may call my_workspace_ids: false
+anon may call task_not_frozen_for_me: false
+anon may call task_visible_to_me: false
+alice: workspace true, project true, owns it true, task true, reads it 1
+eve: workspace false, project false, reads the task 0

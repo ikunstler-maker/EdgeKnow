@@ -1,0 +1,5 @@
+pages: (is_workspace_member(workspace_id) AND (effective_role(id) IS NOT NULL))
+service_objects: (is_workspace_member(workspace_id) AND (service_object_role(id) IS NOT NULL))
+tasks: (is_workspace_member(workspace_id) AND (task_project_role(project_id) IS NOT NULL) AND (task_read_until(id) = 'infinity'::timestamp with time zone))
+helpers gone: true
+the owner reads the task: 1

@@ -144,6 +144,7 @@ The core gives every service people, access, storage, search, notifications and 
 2. The database checks access. The UI only hides what is already forbidden.
 3. Embedding an object in another service stores only its ID; without access — "No access" with no name.
 4. Every new table: `workspace_id`, policies in the same migration, rollback, tests, team migration, move between databases.
+4a. Read rules check what is the same for every row (membership, a project role) once per query: an uncorrelated set such as `workspace_id in (select public.my_workspace_ids())`, `project_id in (select public.my_task_project_ids())`; only what depends on the row is a per-row function (CORE-3: tasks, pages, service objects). `stagez_access_equivalence` / `teamz_access_equivalence` compare the rewritten rules with the per-row ones for every test person.
 5. Guests get no access through "whole workspace" or units.
 6. Everything new goes into search, trash, backup and "My data" where it makes sense.
 7. Strings in both languages; phone and both themes are mandatory.

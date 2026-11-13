@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-faster-access",
+    version: "0.48.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Швидше відкриваються задачі", en: "Tasks open faster" },
+    items: [
+      { id: "faster-access", type: "improved", scope: "global", title: { uk: "Права доступу до задач, сторінок і файлів сервісів перевіряються раз на запит, а не для кожного рядка: великі списки задач відкриваються в рази швидше. Хто що бачить — не змінилося.", en: "Access to tasks, pages and service files is checked once per request instead of for every row: large task lists open several times faster. Who sees what is unchanged." } },
+    ],
+  },
+  {
     id: "2026-11-13-vault-embeds",
     version: "0.48.0",
     date: "2026-11-13",
