@@ -407,6 +407,32 @@ check("…while a map they may view shows as usual", shownMap, screen);
   const chipLinks = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'slides') s, jsonb_array_elements(s -> 'nodes') n where o.id = '${deckId}' and n #>> '{embed,kind}' = 'chip' and n #>> '{embed,link}' like 'http%/w/${alphaShort}/%'`);
   check("a slide takes a chip (the link only)", await until(() => chipLinks() === "1", 15000), chipLinks());
   check("…drawn with the linked thing's name", await alice.locator("[data-slide-chip]").first().waitFor({ timeout: 15000 }).then(async () => !["loading", "none"].includes(await alice.locator("[data-slide-chip]").first().getAttribute("data-slide-chip")), () => false));
+  // KADRY-1: an object that appears on a click, and the show through a link without signing in.
+  sql(`update public.service_objects set data = jsonb_set(data, '{slides,0,nodes}', coalesce(data #> '{slides,0,nodes}', '[]'::jsonb) || '[{"id":"b1","type":"RECTANGLE","x":100,"y":100,"width":200,"height":120,"rotation":0,"fill":"#2563eb","build":"fade"}]'::jsonb) where id = '${deckId}'`);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  let stepped = false;
+  for (let i = 0; i < 10 && !stepped; i++) {
+    await alice.keyboard.press("ArrowRight");
+    await alice.waitForTimeout(400);
+    stepped = (await alice.locator("[data-player]").getAttribute("data-player-step")) === "1" && (await alice.locator("[data-player-count]").innerText()).trim().startsWith("1 /");
+  }
+  check("a click first brings in the slide's object that appears on a click", stepped);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-studio-more]").click();
+  await alice.locator("[data-show-link-open]").click();
+  await alice.locator("[data-show-link-on]").click();
+  const showToken = () => sql(`select coalesce((select token from public.deck_public_links where object_id = '${deckId}' and enabled), '')`);
+  check("the owner turns the show link on", await until(() => showToken().length === 32, 10000));
+  const stranger = await newPage();
+  await stranger.goto(`${APP}/s/${alphaShort}/${showToken()}`);
+  check("…anyone with the link sees the show without signing in", await stranger.locator("[data-player]").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  await alice.locator("[data-show-link-off]").click();
+  await until(() => showToken() === "", 10000);
+  const offToken = sql(`select token from public.deck_public_links where object_id = '${deckId}'`);
+  await stranger.goto(`${APP}/s/${alphaShort}/${offToken}`);
+  check("…and nobody once it is off", (await stranger.locator("[data-public-show-missing]").count()) === 1 && (await stranger.locator("[data-player]").count()) === 0);
+  await stranger.close();
 }
 
 // --- Design (steps Д-1…Д-4): a frame with a shape inside, auto layout, the prototype player ------

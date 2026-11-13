@@ -1,7 +1,7 @@
 "use client";
 
 import { t } from "@/i18n";
-import type { Gradient, Slide, SlideNode } from "@/lib/slides";
+import { BUILD_EFFECTS, type Gradient, type Slide, type SlideNode } from "@/lib/slides";
 import { BRAND_GRADIENTS, FONTS } from "@/lib/slide-themes";
 import { Icon } from "@/components/ui/icon";
 import { ALIGN_ICON } from "@/components/slides/tool-icons";
@@ -106,6 +106,25 @@ export function DesignPanel({ node, slide, onNode, onSlide }: { node: SlideNode 
           <NumberField label={d.rotation} value={node.rotation} min={0} max={359} onChange={(rotation) => set({ rotation })} data="rotation" />
           <NumberField label={d.opacity} value={Math.round((node.opacity ?? 1) * 100)} min={0} max={100} onChange={(v) => set({ opacity: v / 100 })} data="opacity" />
         </div>
+      </Section>
+
+      {/* KADRY-1: the object appears in the show on a click. */}
+      <Section title={s.build.title}>
+        <select
+          value={node.build ?? ""}
+          onChange={(e) => set({ build: (e.target.value || undefined) as SlideNode["build"] })}
+          className={inputClass}
+          aria-label={s.build.title}
+          data-build
+        >
+          <option value="">{s.build.none}</option>
+          {BUILD_EFFECTS.map((effect) => (
+            <option key={effect} value={effect}>
+              {s.build.effects[effect]}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-muted">{s.build.hint}</p>
       </Section>
 
       {shape && (

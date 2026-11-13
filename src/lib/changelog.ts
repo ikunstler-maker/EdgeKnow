@@ -33,6 +33,16 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-show-link",
+    version: "0.55.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Презентації: поява об'єктів і показ за посиланням", en: "Presentations: builds and a show link" },
+    items: [
+      { id: "builds", type: "added", scope: "slides", title: { uk: "Об'єкт слайда може з'являтися за кліком: проявлення, виплив знизу або наближення.", en: "A slide object can appear on a click: fade in, rise up or zoom in." } },
+      { id: "show-link", type: "added", scope: "slides", title: { uk: "Посилання на показ без входу: власник вмикає, вимикає й оновлює його в меню «Ще».", en: "A show link without signing in: the owner turns it on, off or renews it in the \"More\" menu." } },
+    ],
+  },
+  {
     id: "2026-11-13-sheet-spill",
     version: "0.54.2",
     date: "2026-11-13",
