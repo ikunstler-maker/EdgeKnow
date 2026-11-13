@@ -245,7 +245,9 @@ export function useLiveBoard({
     setPeers(list);
     setCursors((all) => Object.fromEntries(Object.entries(all).filter(([key]) => list.some((p) => p.key === key))));
     setFollowing((f) => (f && !list.some((p) => p.key === f) ? null : f));
-    const leaderKey = list.find((p) => p.editor && (p.ready || p.me))?.key ?? null;
+    // The leader is the first editor already in sync; only while no one is, oneself. So two
+    // copies never both take themselves for the leader while a newcomer is still joining.
+    const leaderKey = list.find((p) => p.editor && p.ready)?.key ?? list.find((p) => p.editor && p.me)?.key ?? null;
     const wasLeader = leaderRef.current;
     leaderRef.current = leaderKey === me && editorRef.current;
     setLeader(leaderRef.current);

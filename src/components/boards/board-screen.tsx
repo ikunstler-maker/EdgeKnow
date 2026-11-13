@@ -58,6 +58,7 @@ export function BoardScreen({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
   const liveRef = useRef<LiveBoard | null>(null);
+  const retried = useRef(false);
 
   const flush = useCallback(async () => {
     if (saving.current) return;
@@ -70,14 +71,25 @@ export function BoardScreen({
       if (result?.ok) {
         version.current = result.version;
         liveRef.current?.saved(result.version);
+        retried.current = false;
         setStatus("saved");
         setError(null);
         continue;
       }
       if (result && !result.ok && result.error === "conflict") {
+        // Live: someone else in the room saved a moment ago (the leader changed); their
+        // version arrives over the channel, so one more try with it.
+        if (liveRef.current?.active && !retried.current) {
+          retried.current = true;
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          const later = pending.current as { title: string | null; data: BoardData | null } | null;
+          pending.current = { title: later?.title ?? next.title, data: later?.data ?? next.data };
+          continue;
+        }
         setStatus("conflict");
         break;
       }
+      retried.current = false;
       // Kept for the next try, with anything drawn meanwhile.
       const later = pending.current as { title: string | null; data: BoardData | null } | null;
       pending.current = { title: later?.title ?? next.title, data: later?.data ?? next.data };

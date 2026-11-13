@@ -391,6 +391,14 @@ export default function BoardCanvas({
       onPointerDownCapture={stopFollowing}
       onWheelCapture={stopFollowing}
       onKeyDownCapture={stopFollowing}
+      onPointerMoveCapture={(event) => {
+        if (!api || !live?.active) return;
+        // Screen → board coordinates.
+        const state = api.getAppState();
+        const zoom = state.zoom.value;
+        pointer.current = { x: (event.clientX - state.offsetLeft) / zoom - state.scrollX, y: (event.clientY - state.offsetTop) / zoom - state.scrollY };
+        sendCursor();
+      }}
       onPointerLeave={() => {
         pointer.current = null;
         if (live?.active) live.sendCursor(null);
@@ -420,10 +428,6 @@ export default function BoardCanvas({
         }}
         onScrollChange={(scrollX, scrollY, zoom) => {
           setView({ scrollX, scrollY, zoom: zoom.value });
-          sendCursor();
-        }}
-        onPointerUpdate={({ pointer: p }) => {
-          pointer.current = { x: p.x, y: p.y };
           sendCursor();
         }}
         renderTopRightUI={(isMobile) =>
