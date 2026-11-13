@@ -1722,6 +1722,9 @@ export const uk = {
       chipDeleted: "видалена",
       open: "Відкрити задачу",
       changeStatus: "Змінити статус",
+      changeAssignee: "Змінити виконавця",
+      noAssignee: "Без виконавця",
+      changeFailed: "Не вдалося змінити: можливо, у вас немає такого права в цьому проєкті.",
       mentionGroup: "Задачі",
       newTaskGroup: "Нова задача",
       newTaskIn: (key: string, title: string) => `+ ${key}: «${title}»`,
@@ -3621,6 +3624,11 @@ export const uk = {
       publisher: "публікує",
       grant: (who: string) => `Дозволити ${who} публікувати`,
       revoke: (who: string) => `Заборонити ${who} публікувати`,
+    },
+    chips: {
+      noAccess: "Немає доступу",
+      untitled: "Без назви",
+      wishlist: "ВішЛіст",
     },
     search: {
       title: "Пошук у чаті",

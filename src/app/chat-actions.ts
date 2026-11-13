@@ -2,6 +2,7 @@
 
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
+import { CHIP_SERVICES, type ChatChip, type ChipRef, type ChipService } from "@/lib/chat-chips";
 import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatFile, type ChatNotify, type ChatReaction, type ChatScheduled, type ChatSearchHit } from "@/lib/chat";
 
 // Toker: the screen's reads and changes. The database decides who sees and does
@@ -260,4 +261,45 @@ export async function reorderCategories(shortId: string, workspaceId: string, or
 
 export async function setCategoryAccess(shortId: string, workspaceId: string, categoryId: string, groupIds: string[], userIds: string[]) {
   return call(shortId, "chat_set_category_access", { ws: workspaceId, cat: categoryId, group_ids: ids(groupIds), user_ids: ids(userIds) });
+}
+
+// ---------------------------------------------------------------- live chips (stage 3a)
+
+type ChipTaskRow = { id: string; number: number; project: { key: string } | null };
+
+// What the workspace links of messages point at, as the reader may see them (their
+// own access in the database): anything hidden or gone comes back as "none". A task
+// comes back as its id only; its card reads it live like a chip on a wiki page.
+export async function loadChatChips(shortId: string, workspaceId: string, refs: ChipRef[]): Promise<Record<string, ChatChip>> {
+  const result: Record<string, ChatChip> = {};
+  if (!UUID.test(workspaceId) || !Array.isArray(refs)) return result;
+  const list = refs.slice(0, 40);
+  for (const ref of list) result[ref.key] = { kind: "none" };
+  const db = await dataClient(shortId);
+  const pageIds = list.flatMap((r) => (r.kind === "page" && UUID.test(r.id) ? [r.id] : []));
+  const objectIds = list.flatMap((r) => (r.kind === "object" && UUID.test(r.id) && (CHIP_SERVICES as readonly string[]).includes(r.service) ? [r.id] : []));
+  const tasks = list.flatMap((r) => (r.kind === "task" && /^[A-Z][A-Z0-9]{1,9}$/.test(r.project) && Number.isInteger(r.number) && r.number > 0 ? [r] : []));
+  const [pages, objects, ...taskRows] = await Promise.all([
+    pageIds.length ? db.from("pages").select("id, title, icon").eq("workspace_id", workspaceId).in("id", pageIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
+    objectIds.length ? db.from("service_objects").select("id, service, title, icon").eq("workspace_id", workspaceId).in("id", objectIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
+    ...tasks.map((r) =>
+      db
+        .from("tasks")
+        .select("id, number, project:task_projects!inner(key)")
+        .eq("workspace_id", workspaceId)
+        .eq("project.key", r.project)
+        .eq("number", r.number)
+        .is("deleted_at", null)
+        .maybeSingle()
+        .overrideTypes<ChipTaskRow | null, { merge: false }>(),
+    ),
+  ]);
+  for (const p of (pages.data ?? []) as { id: string; title: string; icon: string | null }[]) result[`page:${p.id}`] = { kind: "page", title: p.title, icon: p.icon };
+  for (const o of (objects.data ?? []) as { id: string; service: ChipService; title: string; icon: string | null }[]) {
+    // The link's own service must match (a table link never shows a board).
+    const ref = list.find((r) => r.kind === "object" && r.id === o.id);
+    if (ref?.kind === "object" && ref.service === o.service) result[`object:${o.id}`] = { kind: "object", service: o.service, title: o.title, icon: o.icon };
+  }
+  for (const { data: row } of taskRows) if (row?.project) result[`task:${row.project.key}-${row.number}`] = { kind: "task", id: row.id };
+  return result;
 }

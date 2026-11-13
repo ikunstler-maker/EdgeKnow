@@ -1713,6 +1713,9 @@ export const en: Dictionary = {
       chipDeleted: "deleted",
       open: "Open task",
       changeStatus: "Change status",
+      changeAssignee: "Change assignee",
+      noAssignee: "No assignee",
+      changeFailed: "Could not change it: you may not have this right in the project.",
       mentionGroup: "Tasks",
       newTaskGroup: "New task",
       newTaskIn: (key: string, title: string) => `+ ${key}: “${title}”`,
@@ -3606,6 +3609,11 @@ export const en: Dictionary = {
       publisher: "publishes",
       grant: (who: string) => `Let ${who} publish`,
       revoke: (who: string) => `Stop ${who} publishing`,
+    },
+    chips: {
+      noAccess: "No access",
+      untitled: "Untitled",
+      wishlist: "Wishlist",
     },
     search: {
       title: "Search the chat",

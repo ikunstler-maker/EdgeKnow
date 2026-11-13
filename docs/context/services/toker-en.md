@@ -1,12 +1,12 @@
 # Toker — team chat
 
-> **Service card (planned).** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-12. No code yet: this is the intent, the stages and open questions. Source of truth: `docs/decisions.md` (decision 2026-11-12 "Toker: architecture and stages"), `docs/backlog.md`. Ukrainian twin: `toker-uk.md`.
+> **Service card (planned).** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13. No code yet: this is the intent, the stages and open questions. Source of truth: `docs/decisions.md` (decision 2026-11-12 "Toker: architecture and stages"), `docs/backlog.md`. Ukrainian twin: `toker-uk.md`.
 
 ## 1. Purpose
 
 Team chat next to the work: channels, direct messages, threads, voice rooms. Combines the structure of a work messenger with the sense of presence of a community app. The next big service by plan.
 
-- **State:** ✅ stage 1 (#169, #171, #174); 🛠 stage 2: direct and group conversations (2a, #176); files and voice messages (2b, #177); chosen-publisher channels and voice player (2d, #179); 2c — search, drafts, scheduled send. Before: stage 1: database (1a) and main screen (1b) — channels, categories, stream, composer, members, live updates. Threads (right panel), reactions, pins, "@" mentions and the bell — 1c. Decisions 2026-11-12 "Toker, етап 1", "Toker, PR 1б", "Toker, PR 1в".
+- **State:** ✅ stage 1 (#169, #171, #174); ✅ stage 2: direct and group conversations (2a, #176); files and voice messages (2b, #177); chosen-publisher channels and voice player (2d, #179); search, drafts, scheduled send (2c, #180). 🛠 stage 3 (decision 2026-11-13 "TOKER-3"): 3a — live chips. Before: stage 1: database (1a) and main screen (1b) — channels, categories, stream, composer, members, live updates. Threads (right panel), reactions, pins, "@" mentions and the bell — 1c. Decisions 2026-11-12 "Toker, етап 1", "Toker, PR 1б", "Toker, PR 1в".
 
 ## 2. Intent
 
@@ -64,6 +64,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - **Files (2b):** `chat_files` (message, kind file/image/voice, duration, size; stored like task files: the workspace Drive or the `chat-files` bucket), `chat_messages.file_count`; `register_chat_file` → `POST /api/chat/files` (first bytes, `chatFileLooksLike`) → `chat_post_message(…, file_ids)`; served by `GET /api/chat/files/<id>` by access; `clean_chat_files` in the daily cleanup. Migrations `20270131150000_chat_files.sql`, team `0074_chat_files.sql`; tests `stage83_chat_files`, `team9z1_chat_files`. UI: `src/components/chat/chat-files.tsx`.
 - **Chosen publishers (2d):** `chat_channels.post_policy` (`everyone`/`chosen`), `chat_channel_members.can_post`, `chat_can_publish`; `chat_set_post_policy`, `chat_set_member_can_post`; `chat_post_message` checks top messages (not replies). Voice: `chat_files.waveform` (levels 0..5), player `src/components/chat/voice-player.tsx`. Migrations `20270202150000_chat_publish.sql`, team `0075_chat_publish.sql`; tests `stage84_chat_publish`, `team9z2_chat_publish`.
 - **Search and later (2c):** `chat_search(ws, query, ch)`; `chat_scheduled` (author only), `chat_schedule_message`, `chat_cancel_scheduled`, `chat_send_due(ws)` — called from `loadChat` and the bell's check. Drafts — `localStorage` `chat-drafts:<ws>`. Migrations `20270206100000_toker_chat_later.sql`, team `0079_toker_chat_later.sql`; tests `stage88_chat_later`, `team9z5_chat_later`.
+- **Live chips (3a):** `src/lib/chat-chips.ts` finds links to this workspace in a message (`/w/<id>/p|tasks|sheets|boards|nodes|slides|surveys|apps|wishlists/…`, up to 5); `loadChatChips` (`chat-actions.ts`) reads them with the reader's access (hidden or gone → "No access", no title); `src/components/chat/chat-chips.tsx` draws them (batched, re-read every minute). A task is the wiki chip `TaskChipView` (live status; in chat also the assignee via `setTaskAssigneeFromChip`). No DB change.
 - **Realtime:** triggers send id-only signals to private topics `chat:<channel>` and `chat-user:<person>`; who may join — `chat_topic_allowed`.
 
 ## 5. Expected links
