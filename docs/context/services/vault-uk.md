@@ -1,6 +1,6 @@
 # Vault — менеджер файлів
 
-> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-3). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
+> **Картка сервісу.** Читати разом із `docs/context/00-overview-uk.md`. **Стан на:** 2026-11-13 (VAULT-4). Джерело правди — `docs/decisions.md`, `docs/backlog.md`.
 
 ## 1. Призначення
 
@@ -30,6 +30,13 @@
 - Зберігається лише id файлу; картку (`VaultFileEmbed`, `src/components/files/vault-file-embed.tsx`) читають доступом того, хто дивиться (`vaultFileView`); без доступу — «Файл недоступний» без назви.
 - Wika: блок `vaultFile`; задача: посилання задачі `…/files?file=<id>` з назвою «Файл із Vault», показане карткою; презентації й «Дизайн»: вид вставки `file`; дошка для ідей: напис «Файл із Vault» з посиланням; Toker: посилання в повідомленні → картка (`chat-chips`, вид `file`).
 - Посилання на файл: `vaultFileHref()` / `vaultFileIdOf()` (`src/lib/vault-links.ts`); `/w/<id>/files?file=<id>` відкриває папку з позначеним файлом.
+
+## 1г. Облік місця й передача (VAULT-4)
+
+- «Зайнято» у Vault (`vault_storage_usage`, власник і адміни, лише розміри) — за сервісами; без Диска — сховище бази з ліміту простору.
+- Кожне завантаження рахує місце однаково (`workspace_storage_used`): усі сервіси разом із Vault.
+- «Передати» колишнього учасника (`reassign_member_pages`) передає й папки та файли Vault (не гостю); `departed_page_owners` повертає `files`.
+- «Мої дані»: `vault_items` власника.
 
 ## 2. Задум
 

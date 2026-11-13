@@ -112,6 +112,13 @@ async function vaultDriveChecks() {
   await until(() => sql(`select count(*) from public.vault_items where workspace_id = '${alphaId}' and deleted_at is not null`) === "0", 10000);
   check("…to the bin with what is inside, and restored", sql(`select (deleted_at is null)::text from public.vault_items where id = '${fileId}'`) === "true");
 
+  // VAULT-4: "Used" by service, for the owner only.
+  await alice.goto(top);
+  const used = await alice.locator("[data-vault-usage]").textContent({ timeout: 15000 }).catch(() => "");
+  await colleague.goto(top);
+  await colleague.locator("[data-vault-tabs]").waitFor({ timeout: 15000 });
+  check("…the owner sees what the files take by service, a member does not", /Vault/.test(used ?? "") && (await colleague.locator("[data-vault-usage]").count()) === 0, used ?? "");
+
   await alice.goto(`${top}?tab=all`);
   await alice.locator('[data-vault-file="notes.txt"]').waitFor({ timeout: 15000 });
   check("…and \"All files\" lists it with Vault as its place", (await alice.locator('[data-vault-file="notes.txt"]').getAttribute("data-vault-source")) === "files");
