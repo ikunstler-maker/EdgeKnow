@@ -86,7 +86,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
-## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 3a in review
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 3b in review
 Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
 - 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — DONE (#168).
 - 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Tables + RLS approved 2026-11-12 (decision "Toker, етап 1").
@@ -104,10 +104,10 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
   - Later: files in scheduled messages; search index (trigram) if chats grow large.
   - Later: file from shared storage — with Vault (Google picker needs a new key/scope → approval).
 - 3. Plan approved 2026-11-13 (decision "TOKER-3 Toker, етап 3").
-  - 3a live chips: workspace links in messages (Wika pages, Rukh tasks, tables, boards, maps, slides, surveys, apps, wishlists) → cards read with the reader's access; hidden or gone → "No access" without the title; task chip = the wiki chip (live status) + status and assignee change — in review.
-  - 3b message → Rukh task (link back to the thread), Wika note, Doba event (invite the channel's people, closed/direct, ≤ 50) — no DB change.
+  - 3a live chips: workspace links in messages (Wika pages, Rukh tasks, tables, boards, maps, slides, surveys, apps, wishlists) → cards read with the reader's access; hidden or gone → "No access" without the title; task chip = the wiki chip (live status) + status and assignee change — DONE (#183).
+  - 3b message (or selected part) → Rukh task / Wika note / Doba event with a link back to the message; the new link left in the message's thread (a live chip); events from closed channels and conversations invite their people (≤ 50, "by invitation") — in review.
   - 3c Questa survey answered in a channel; Doba "On leave" status; time-off approval button in a system message (requester ↔ approver conversation) — DB change → separate approval first.
-  - Later: chips for links to other workspaces of the reader; a Doba event chip.
+  - Later: chips for links to other workspaces of the reader; a Doba event chip; choosing the parent page of a note.
 - 4. Retention (workspace + per channel), "My data" export, Web Push (VAPID; key → approval), PWA.
 - 5. Secret rooms: on-device encryption (Web Crypto); limits → owner's consent.
 - 6. Forum channels, voice rooms (with Visio), Apus transcription + thread summaries, cross-company shared channels.
