@@ -2,15 +2,12 @@
 
 import { VaultFileEmbed } from "@/components/files/vault-file-embed";
 import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
-import Link from "next/link";
 import { t } from "@/i18n";
 import { chipRefsIn, type ChatChip, type ChipRef } from "@/lib/chat-chips";
-import { SERVICE_BRANDS, type ServiceKey } from "@/lib/services";
 import { loadChatChips } from "@/app/chat-actions";
 import { TaskChipView } from "@/components/editor/task-blocks";
 import { SurveyEmbed } from "@/components/editor/survey-block";
-import { ServiceIcon } from "@/components/services/service-icon";
-import { Icon } from "@/components/ui/icon";
+import { NoAccessPill, ObjectPill } from "@/components/editor/object-chip";
 
 // Live chips under a message: workspace links become cards read with the reader's
 // own access. Asks within a moment are read together; titles are read again every
@@ -110,13 +107,7 @@ export function MessageChips({ body }: { body: string }) {
               …
             </span>
           );
-        if (chip.kind === "none")
-          return (
-            <span key={ref.key} className={`${pill} text-muted hover:bg-background`} title={c.noAccess} data-chat-chip="none">
-              <Icon name="lock" size={14} />
-              {c.noAccess}
-            </span>
-          );
+        if (chip.kind === "none") return <NoAccessPill key={ref.key} size="card" attrs={{ "data-chat-chip": "none" }} />;
         if (chip.kind === "file")
           return (
             <div key={ref.key} className="w-full max-w-md text-sm" data-chat-chip="file">
@@ -136,15 +127,17 @@ export function MessageChips({ body }: { body: string }) {
               <SurveyEmbed surveyId={ref.kind === "object" ? ref.id : ""} view="form" pageEditable={false} onPick={() => {}} workspace={at.shortId} />
             </div>
           );
-        const service: ServiceKey | null = chip.kind === "page" ? "wiki" : chip.service === "wishlists" ? null : chip.service;
-        const kindName = service ? SERVICE_BRANDS[service].name : c.wishlist;
+        // The same chip as in the wiki and task descriptions (smart chips everywhere, UI-1).
         return (
-          <Link key={ref.key} href={new URL(ref.url).pathname} prefetch={false} className={pill} title={`${kindName}: ${chip.title || c.untitled}`} data-chat-chip={chip.kind}>
-            {service ? <ServiceIcon serviceId={service} size={16} /> : <Icon name="gift" size={16} />}
-            {chip.icon && <span aria-hidden="true">{chip.icon}</span>}
-            <span className="truncate font-medium">{chip.title || c.untitled}</span>
-            <span className="shrink-0 text-xs text-muted">{kindName}</span>
-          </Link>
+          <ObjectPill
+            key={ref.key}
+            kind={chip.kind === "page" ? "wiki" : chip.service}
+            title={chip.title || c.untitled}
+            icon={chip.icon}
+            href={new URL(ref.url).pathname}
+            size="card"
+            attrs={{ "data-chat-chip": chip.kind }}
+          />
         );
       })}
     </div>

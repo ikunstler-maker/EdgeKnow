@@ -112,3 +112,16 @@ export function ServiceIcon({ serviceId, size = 24, muted = false, mono = false,
     </span>
   );
 }
+
+// The same mark drawn on a canvas (chips in table cells, UI-2): `size` px square at x, y.
+export function drawServiceMark(ctx: CanvasRenderingContext2D, serviceId: ServiceIconId, x: number, y: number, size: number) {
+  const mark = MARKS[serviceId];
+  const scale = size / 24;
+  ctx.save();
+  ctx.fillStyle = mark.colors[1];
+  for (const [bx, by, width, height, opacity] of mark.blocks) {
+    ctx.globalAlpha = opacity ?? 1;
+    ctx.fillRect(x + bx * scale, y + by * scale, width * scale, height * scale);
+  }
+  ctx.restore();
+}

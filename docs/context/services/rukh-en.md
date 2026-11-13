@@ -25,6 +25,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 - **Project screen:** one header row (the project, "Board / List", and on the right "Task fields", "Templates", "Access and settings") and one filter row (search, people, quick filters, grouping, card fields, notification rules, board settings, "New task"). A new project is created in a dialog from the "New project" button. The left panel is a tree: projects → their boards → the tasks on each board (every level folds; the open project is unfolded). A task there shows a dot in its column's colour on the left and its priority on the right, and opens over its board. Boards are also switched by the tabs above the columns. A new column is added with a small "+" at the end of the row; arrows on the edges of the row say there are more columns that way.
 - "List" view, filters.
 - **Board at scale (2026-11-11):** grouping by assignee shows a foldable lane per person (avatar, name, count); card order (as arranged, newest, oldest, recently changed, nearest due, priority, waiting longest) and a time filter (changed in 7/30 days, in the column 3+/7+ days — counted from when the task came to the column on this board); a column folds to a narrow strip and its cards are not drawn; a long column draws 50 cards and "Show more"; all of it is remembered per project in the browser. Tasks and placements are read a thousand at a time, so projects with thousands of tasks show fully.
+- **Chips in the description (UI-1, 2026-11-13):** the description editor has the wiki's chips — pages, people, tasks, events and any service object or Vault file — through "@" or by pasting a workspace link; read live with the reader's access.
 - **Time in columns:** how long a task spent in each column (computed from history).
 - **Done date (RUKH-2, 2026-11-13):** set by the database whenever a task enters a "Done" column, by any route (task window, board, status buttons, rules, removing a column, repeating tasks), cleared when it leaves one; a date given with the move (the import) is kept; between two "Done" columns it stays. Trigger `tasks_done_at` (`task_done_at()`), central and team databases. Older tasks were corrected once (done without a date → their last change; open with a date → none).
 
@@ -106,7 +107,7 @@ The team's task tracker: projects, boards with columns, custom fields, links, ru
 | Import from an export file (CSV) | later | for other trackers |
 | Notifications when the site is closed (push) | planned | needs a key in hosting settings |
 | Link with chat (Toker) | after chat (Toker stage 3) | task from a message or a selected fragment with an automatic link back to the thread; the task shows the message link; status and assignee can be changed from a live chip in chat (task rights checked; no rights — a "No access" badge without the title); notifications to a channel |
-| Smart chips in fields and description | owner's request | |
+| Smart chips in fields | owner's request | the description has them since UI-1 |
 
 ## 4. Data
 

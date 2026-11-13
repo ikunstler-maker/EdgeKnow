@@ -34,13 +34,47 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-vault-space",
-    version: "0.49.0",
+    version: "0.51.0",
     date: "2026-11-13",
     summaryTitle: { uk: "Vault: скільки місця займають файли", en: "Vault: how much space files take" },
     items: [
       { id: "vault-used", type: "added", scope: "files", title: { uk: "«Зайнято» у Vault — за сервісами; бачать власник і адміністратори простору.", en: "\"Used\" in Vault by service; seen by the workspace's owner and admins." } },
       { id: "vault-quota", type: "fixed", scope: "storage", title: { uk: "Ліміт сховища тепер однаково рахує файли всіх сервісів разом із Vault.", en: "The storage limit now counts every service's files, Vault included, the same way." } },
       { id: "vault-handover", type: "added", scope: "files", title: { uk: "«Передати» для колишнього учасника передає й його файли Vault; вони є й у «Мої дані».", en: "\"Hand over\" for a former member also hands over their Vault files; they are in \"My data\" too." } },
+    ],
+  },
+  {
+    id: "2026-11-13-sheet-chips",
+    version: "0.50.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Чипи в таблицях", en: "Chips in tables" },
+    items: [
+      { id: "sheet-chips", type: "added", scope: "sheets", title: { uk: "Посилання на сторінку, задачу, дошку чи файл у клітинці показується чипом з актуальною назвою; «Вставити чип» над таблицею.", en: "A link to a page, task, board or file in a cell shows as a chip with its current title; \"Insert chip\" above the table." } },
+    ],
+  },
+  {
+    id: "2026-11-13-smart-chips",
+    version: "0.49.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Розумні чипи всюди", en: "Smart chips everywhere" },
+    summaryDescription: {
+      uk: "Згадайте будь-яку таблицю, дошку, карту, презентацію, опитування, застосунок, ВішЛіст чи файл — у Wika й в описі задачі.",
+      en: "Mention any table, board, map, presentation, survey, app, wishlist or file — in the wiki and in task descriptions.",
+    },
+    items: [
+      { id: "chips-at", type: "added", scope: "wiki", title: { uk: "«@» знаходить таблиці, дошки, карти, презентації, опитування, застосунки, ВішЛісти й файли Vault і вставляє їх чипом з актуальною назвою.", en: "\"@\" finds tables, boards, maps, presentations, surveys, apps, wishlists and Vault files and inserts them as a chip with the current title." } },
+      { id: "chips-tasks", type: "added", scope: "tasks", title: { uk: "В описі задачі тепер є чипи: сторінки, задачі, події й будь-які об'єкти.", en: "Task descriptions now take chips: pages, tasks, events and any object." } },
+      { id: "chips-paste", type: "added", scope: "global", title: { uk: "Вставлене посилання на щось у вашому просторі одразу стає чипом.", en: "A pasted link to something in your workspace turns into a chip." } },
+      { id: "chips-access", type: "improved", scope: "security", title: { uk: "Хто не має доступу, бачить «Немає доступу» без назви.", en: "Without access a chip shows \"No access\" and no title." } },
+    ],
+  },
+  {
+    id: "2026-11-13-faster-access",
+    version: "0.48.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Швидше відкриваються задачі", en: "Tasks open faster" },
+    items: [
+      { id: "faster-access", type: "improved", scope: "global", title: { uk: "Права доступу до задач, сторінок і файлів сервісів перевіряються раз на запит, а не для кожного рядка: великі списки задач відкриваються в рази швидше. Хто що бачить — не змінилося.", en: "Access to tasks, pages and service files is checked once per request instead of for every row: large task lists open several times faster. Who sees what is unchanged." } },
     ],
   },
   {

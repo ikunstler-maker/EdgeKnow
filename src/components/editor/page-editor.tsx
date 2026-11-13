@@ -1,7 +1,7 @@
 "use client";
 
 import "@blocknote/mantine/style.css";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core";
 import { SuggestionMenu } from "@blocknote/core/extensions";
 import { en as blockNoteEn, uk as blockNoteUk } from "@blocknote/core/locales";
@@ -31,11 +31,8 @@ import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Popover } from "@/components/ui/popover";
 import { publishPageStats } from "@/components/pages/page-stats";
 import { ChipPeopleContext } from "./chips";
-import { rememberTask } from "./task-chip-store";
-import { eventWhen, rememberEvent } from "./event-chip";
-import { searchEvents } from "@/app/calendar-actions";
+import { eventMentionItems, objectMentionItems, pasteLinkAsChip, taskMentionItems, type ChipEditor } from "./chip-menu";
 import { TaskFromSelectionButton, TaskFromSelectionDialog } from "./task-from-selection";
-import { createTaskFromPage, searchTasksForChip } from "@/app/task-wiki-actions";
 import { EditorPageContext } from "./navigation-block";
 import { ImageError } from "@/lib/image-compression";
 import { parseYouTubeUrl, youTubeWatchUrl } from "@/lib/youtube";
@@ -276,52 +273,6 @@ function slashMenuItems(editor: Editor): DefaultReactSuggestionItem[] {
   return [...items, callout, navigation, linkCard, diagram, chip, mention, taskChipItem, tasksEmbed, nodeMap, boardEmbed, sheetEmbed, surveyEmbed, wishlistEmbed, vaultFile];
 }
 
-// "@": calendar events the person sees, by title (Doba, phase 2b).
-async function eventMentionItems(editor: Editor, shortId: string, query: string): Promise<DefaultReactSuggestionItem[]> {
-  if (query.trim().length < 2) return [];
-  const found = await searchEvents(shortId, query).catch(() => []);
-  return found.slice(0, 5).map((event) => ({
-    title: `${event.title} · ${eventWhen(event)}`,
-    group: t.calendar.chip.group,
-    icon: <Icon name="calendar" />,
-    onItemClick: () => {
-      rememberEvent({ ...event, cancelled: false });
-      editor.insertInlineContent([{ type: "eventChip", props: { eventId: event.id } }, " "]);
-    },
-  }));
-}
-
-// "@": tasks by key or title, and a new task from what was typed (step Z4).
-async function taskMentionItems(editor: Editor, shortId: string, query: string, pageId: string): Promise<DefaultReactSuggestionItem[]> {
-  const { tasks, projects } = await searchTasksForChip(shortId, query).catch(() => ({ tasks: [], projects: [] }));
-  const insert = (taskId: string) => editor.insertInlineContent([{ type: "taskChip", props: { taskId } }, " "]);
-  const found = tasks.map((task) => ({
-    title: `${task.key} ${task.title}`,
-    group: t.tasks.wiki.mentionGroup,
-    icon: <Icon name="task" />,
-    onItemClick: () => {
-      rememberTask(task);
-      insert(task.id);
-    },
-  }));
-  const title = query.trim();
-  const create = title.length >= 2 && !/^[A-Za-z][A-Za-z0-9]{1,9}-\d+$/.test(title)
-    ? projects
-        .filter((p) => p.canEdit)
-        .slice(0, 3)
-        .map((project) => ({
-          title: t.tasks.wiki.newTaskIn(project.key, title),
-          group: t.tasks.wiki.newTaskGroup,
-          icon: <Icon name="plus" />,
-          onItemClick: async () => {
-            const made = await createTaskFromPage(shortId, project.id, title, pageId);
-            if (made.ok) insert(made.id);
-          },
-        }))
-    : [];
-  return [...found, ...create];
-}
-
 // "@": people who can see the page, then pages, as chips.
 function mentionItems(editor: Editor, people: MentionPerson[], pages: PageNode[], currentPageId: string): DefaultReactSuggestionItem[] {
   const personItems = people.map((person) => ({
@@ -370,6 +321,9 @@ export default function PageEditor({
   const editorDictionary = currentLocale() === "en" ? blockNoteEn : blockNoteUk;
   const shownTheme = useResolvedTheme();
   const theme = print ? "light" : shownTheme;
+  const pagesContext = useOptionalPages();
+  // For the paste handler (the editor is made once; the workspace doesn't change on a page).
+  const workspaceRef = useRef(pagesContext?.workspace ?? null);
   const editor = useCreateBlockNote({
     schema,
     dictionary: {
@@ -404,8 +358,11 @@ export default function PageEditor({
     resolveFileUrl: resolveAttachmentUrl,
     extensions: [syntaxHighlighter],
     // A YouTube link pasted on its own becomes a video card.
+    // A link to something in this workspace becomes its chip (smart chips, UI-1).
     pasteHandler: ({ event, editor, defaultPasteHandler }) => {
       const text = event.clipboardData?.getData("text/plain")?.trim() ?? "";
+      const ws = workspaceRef.current;
+      if (ws && pasteLinkAsChip(editor as unknown as ChipEditor, text, ws.shortId, ws.id)) return true;
       const ref = !text.includes(" ") ? parseYouTubeUrl(text) : null;
       if (!ref) return defaultPasteHandler();
       const url = youTubeWatchUrl(ref);
@@ -419,7 +376,6 @@ export default function PageEditor({
     },
   });
 
-  const pagesContext = useOptionalPages();
   const [chipPeople, setChipPeople] = useState<MentionPerson[]>([]);
   useEffect(() => {
     let alive = true;
@@ -579,8 +535,9 @@ export default function PageEditor({
               triggerCharacter="@"
               getItems={async (query) => [
                 ...filterSuggestionItems(mentionItems(editor, chipPeople, pagesContext?.pages ?? [], pageId), query).slice(0, 8),
-                ...(pagesContext ? await taskMentionItems(editor, pagesContext.workspace.shortId, query, pageId) : []),
-                ...(pagesContext ? await eventMentionItems(editor, pagesContext.workspace.shortId, query) : []),
+                ...(pagesContext ? await taskMentionItems(editor as unknown as ChipEditor, pagesContext.workspace.shortId, query, pageId) : []),
+                ...(pagesContext ? await eventMentionItems(editor as unknown as ChipEditor, pagesContext.workspace.shortId, query) : []),
+                ...(pagesContext ? await objectMentionItems(editor as unknown as ChipEditor, pagesContext.workspace.shortId, query) : []),
               ]}
             />
           )}

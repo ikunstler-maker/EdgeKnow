@@ -1,4 +1,4 @@
--- Undo team migration 0082_vault_storage.
+-- Undo team migration 0083_vault_storage.
 
 drop function public.vault_storage_usage(uuid);
 
