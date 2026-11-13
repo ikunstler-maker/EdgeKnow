@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 // Doba (company calendar), run at the end of the "nodes" part: an event made in the
 // browser, a request to join and its approval, a private event that others see only
 // as "busy", an outsider, the week on a phone.
@@ -662,7 +663,8 @@ export async function birthdayChecks() {
   // Embeds (PROF-4): the published wishlist as a live card in a Wika page, a task and a
   // slide; an outsider gets nothing, and once it is unpublished: "unavailable", no title.
   const wishlistId = wishlistUrl.split("/").pop();
-  const embedPage = (await aliceClient.rpc("create_page_at", { ws: alphaId, parent: null, new_title: "Wishlist embed", page_id: null })).data?.id;
+  const embedPage = (await aliceClient.rpc("create_page_at", { ws: alphaId, parent: null, new_title: "Wishlist embed", page_id: randomUUID() })).data?.id;
+  check("(setup) a page for the embed", /^[0-9a-f-]{36}$/.test(embedPage ?? ""), String(embedPage));
   sql(`update public.pages set content = '[{"id":"wl1","type":"wishlistEmbed","props":{"wishlistId":"${wishlistId}"},"children":[]}]'::jsonb where id = '${embedPage}'`);
   await alice.goto(`${APP}/w/${alphaShort}/p/${embedPage}`);
   check("a wiki page shows the wishlist as a live card", await until(async () => (await alice.locator("[data-wishlist-block] [data-wishlist-embed-card]", { hasText: "Birthday ideas" }).count()) === 1, 15000));
