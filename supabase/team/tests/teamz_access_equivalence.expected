@@ -1,1 +1,11 @@
-psql: NOTICE:  checked enough people; mismatches: tasks 0, pages 0, objects 0
+psql: NOTICE:  checked enough people
+comments: 0 hidden that were readable, 0 readable that were hidden
+events: 0 hidden that were readable, 0 readable that were hidden
+files: 0 hidden that were readable, 0 readable that were hidden
+objects: 0 hidden that were readable, 0 readable that were hidden
+pages: 0 hidden that were readable, 0 readable that were hidden
+placements: 0 hidden that were readable, 0 readable that were hidden
+tasks: 0 hidden that were readable, 0 readable that were hidden
+time: 0 hidden that were readable, 0 readable that were hidden
+web_links: 0 hidden that were readable, 0 readable that were hidden
+wishlist_links: 0 hidden that were readable, 0 readable that were hidden

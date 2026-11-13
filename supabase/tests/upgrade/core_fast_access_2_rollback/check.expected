@@ -1,0 +1,9 @@
+pages: ((workspace_id IN ( SELECT my_workspace_ids() AS my_workspace_ids)) AND (my_page_role(id) IS NOT NULL))
+task_comments: (is_workspace_member(workspace_id) AND (created_at <= task_read_until(task_id)))
+task_events: (is_workspace_member(workspace_id) AND (created_at <= task_read_until(task_id)))
+task_files: (is_workspace_member(workspace_id) AND (created_at <= task_read_until(task_id)))
+task_placements: (is_workspace_member(workspace_id) AND board_visible(board_id) AND (task_read_until(task_id) IS NOT NULL))
+task_time_entries: (is_workspace_member(workspace_id) AND (created_at <= task_read_until(task_id)) AND ((user_id = auth.uid()) OR sees_task_time(task_id)))
+task_web_links: (is_workspace_member(workspace_id) AND (created_at <= task_read_until(task_id)))
+task_wishlist_links: (is_workspace_member(workspace_id) AND (created_at <= task_read_until(task_id)))
+helpers gone: true
