@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
+import { getWorkspace } from "@/lib/workspace";
 import type { VaultListing, VaultSharing } from "@/lib/vault";
 
 // Vault (VAULT-2): every check — who sees, adds, changes or shares what — is in the
@@ -71,4 +72,28 @@ export async function readVaultSharing(shortId: string, id: string): Promise<Act
   const { data, error } = await db.rpc("vault_sharing", { target: id });
   if (error || !data) return { ok: false, error: "unknown" };
   return data as ActionResult<VaultSharing>;
+}
+
+// VAULT-3: one file as another service shows it (null: gone, in the bin, or not the
+// viewer's to see — then only "unavailable" shows, never its name).
+export type VaultFileView = { id: string; name: string; mime_type: string; bytes: number; large: boolean };
+export async function vaultFileView(shortId: string, id: string): Promise<VaultFileView | null> {
+  if (!/^[0-9a-f-]{36}$/.test(id) || !/^[a-z0-9]{4,16}$/.test(shortId)) return null;
+  const db = await dataClient(shortId);
+  const { data } = await db
+    .from("vault_items")
+    .select("id, name, mime_type, bytes, large")
+    .eq("id", id)
+    .eq("kind", "file")
+    .is("deleted_at", null)
+    .neq("storage_backend", "pending")
+    .maybeSingle();
+  return data ? { ...(data as VaultFileView), bytes: Number((data as VaultFileView).bytes) } : null;
+}
+
+// One folder for the "From Vault" picker (the workspace found by its short id).
+export async function vaultPickList(shortId: string, folder: string | null): Promise<ActionResult<VaultListing>> {
+  const workspace = await getWorkspace(shortId);
+  if (!workspace) return { ok: false, error: "forbidden" };
+  return readVaultFolder(shortId, workspace.id, folder);
 }

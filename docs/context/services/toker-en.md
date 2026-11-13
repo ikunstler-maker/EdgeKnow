@@ -79,7 +79,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 | **Visio** | call from a channel; persistent voice rooms in the left panel |
 | **Wika** | page chips; note from a message |
 | **Apus AI** | voice-message transcription; thread summary |
-| **Vault** | chat files and voice messages in the file manager — with channel access |
+| **Vault** | chat files and voice messages in the file manager — with channel access; "From Vault" in the paperclip menu, a Vault file link shows as a live card in the message (VAULT-3) |
 | **Core** | global search, "My data", notifications when the site is closed |
 | **Free / Team** | on Free limited history and no shared channels — draft, open pricing question |
 

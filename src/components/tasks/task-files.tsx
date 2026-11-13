@@ -10,6 +10,9 @@ import { deleteTaskFile } from "@/app/task-file-actions";
 import { addTaskWebLink, deleteTaskWebLink } from "@/app/task-actions";
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { Dialog } from "@/components/ui/dialog";
+import { VaultFileEmbed, VaultFilePicker } from "@/components/files/vault-file-embed";
+import { vaultFileHref, vaultFileIdOf } from "@/lib/vault-links";
 
 export type TaskFileView = { id: string; name: string; mime_type: string; bytes: number; uploaded_by: string | null; created_at: string };
 
@@ -95,6 +98,13 @@ export function TaskFiles({
   const [kind, setKind] = useState<FileKind | "all">("all");
   const [open, setOpen] = useState(false);
   const [linking, setLinking] = useState(false);
+  // VAULT-3: a Vault file kept as a link of the task (only its id, read live with each viewer's access).
+  const [fromVault, setFromVault] = useState(false);
+  const vaultLinks = links.flatMap((link) => {
+    const fileId = vaultFileIdOf(link.url, shortId);
+    return fileId ? [{ link, fileId }] : [];
+  });
+  const plainLinks = links.filter((link) => !vaultFileIdOf(link.url, shortId));
   // How the files are shown is remembered in this browser.
   useEffect(() => {
     try {
@@ -320,9 +330,37 @@ export function TaskFiles({
           )}
         </>
       )}
-      {links.length > 0 && (
+      {vaultLinks.length > 0 && (
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2" aria-label={t.vault.embed.title} data-task-vault-files>
+          {vaultLinks.map(({ link, fileId }) => (
+            <li key={link.id} className="relative" data-task-vault-file>
+              <VaultFileEmbed shortId={shortId} fileId={fileId} editable={false} onPick={() => {}} compact />
+              {removable(link.added_by) && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  aria-label={f.remove(t.vault.embed.title)}
+                  onClick={() => {
+                    if (!confirm(f.removeConfirm(t.vault.embed.title))) return;
+                    startTransition(async () => {
+                      const result = await deleteTaskWebLink(link.id);
+                      setError(result.ok ? null : (t.tasks.errors[result.error] ?? t.common.unknownError));
+                      router.refresh();
+                    });
+                  }}
+                  className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-muted hover:text-danger"
+                  data-task-vault-remove
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {plainLinks.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2" aria-label={f.links.heading} data-task-web-links>
-          {links.map((link) => (
+          {plainLinks.map((link) => (
             <li key={link.id} className="flex max-w-full items-center rounded-full border border-border pl-3 text-sm" data-task-web-link={link.title}>
               <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex min-h-9 min-w-0 items-center gap-1.5 hover:underline" title={link.url}>
                 <Icon name="link" className="shrink-0 text-muted" />
@@ -363,8 +401,28 @@ export function TaskFiles({
             <Icon name="link" className="mr-1 inline" />
             {f.links.add}
           </button>
+          <button type="button" onClick={() => setFromVault(true)} className="min-h-11 rounded-md border border-border px-3 hover:bg-surface md:min-h-9" data-task-from-vault>
+            <Icon name="folder" className="mr-1 inline" />
+            {t.vault.embed.fromVault}
+          </button>
           <span className="text-xs text-muted">{busy ? f.uploading(busy) : limits.fileMb > 4 || limits.zipMb > 4 ? f.dropHintLarge(limits.fileMb, limits.zipMb) : f.dropHint}</span>
         </div>
+      )}
+      {canEdit && fromVault && (
+        <Dialog title={t.vault.embed.pick} onClose={() => setFromVault(false)}>
+          <VaultFilePicker
+            shortId={shortId}
+            onPick={(fileId) => {
+              setFromVault(false);
+              startTransition(async () => {
+                // The link's title is never the file's name (who sees the task may not see the file).
+                const result = await addTaskWebLink(taskId, t.vault.embed.title, `${window.location.origin}${vaultFileHref(shortId, fileId)}`);
+                setError(result.ok ? null : (f.errors[result.error] ?? t.tasks.errors[result.error] ?? t.common.unknownError));
+                router.refresh();
+              });
+            }}
+          />
+        </Dialog>
       )}
       {canEdit && linking && (
         <form

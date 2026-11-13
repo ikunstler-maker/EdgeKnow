@@ -19,6 +19,7 @@ import { boardBlock } from "./board-block";
 import { sheetBlock } from "./sheet-block";
 import { surveyBlock } from "./survey-block";
 import { wishlistBlock } from "./wishlist-block";
+import { vaultFileBlock } from "./vault-file-block";
 import { commentStyle } from "./comment-style";
 import { diagramBlock } from "./diagram-block";
 import { linkCardBlock } from "./link-card-block";
@@ -116,6 +117,7 @@ export const schema = BlockNoteSchema.create({
     sheetEmbed: sheetBlock(),
     surveyEmbed: surveyBlock(),
     wishlistEmbed: wishlistBlock(),
+    vaultFile: vaultFileBlock(),
   },
   inlineContentSpecs: {
     ...defaultInlineContentSpecs,

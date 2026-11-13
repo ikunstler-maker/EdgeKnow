@@ -74,6 +74,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 | **Kadry** | board as an embed on a slide; **shared canvas engine** with "Design" |
 | **Core** | search, collections, file storage, access |
 | **Profile** | "Wishlist" button: a "Wishlist · name" link element (no title); a live card in "Design" |
+| **Vault** | "From Vault" button: a "File from Vault" link element, no file name (VAULT-3) |
 
 ## 6. Key files
 

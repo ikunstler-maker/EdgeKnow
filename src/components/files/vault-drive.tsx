@@ -40,6 +40,7 @@ export function VaultDrive({
   workspaceId,
   listing,
   bin,
+  focus = null,
   hasDrive,
   limitMb,
   members,
@@ -49,6 +50,7 @@ export function VaultDrive({
   workspaceId: string;
   listing: VaultListing;
   bin: boolean;
+  focus?: string | null;
   hasDrive: boolean;
   limitMb: number | null;
   members: Person[];
@@ -230,7 +232,14 @@ export function VaultDrive({
       ) : (
         <ul className="mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface" data-vault-items>
           {listing.items.map((item) => (
-            <li key={item.id} className="flex min-h-14 items-center gap-3 px-3 py-2" data-vault-item={item.name} data-vault-kind={item.kind}>
+            <li
+              key={item.id}
+              ref={item.id === focus ? (el) => el?.scrollIntoView({ block: "center" }) : undefined}
+              className={`flex min-h-14 items-center gap-3 px-3 py-2 ${item.id === focus ? "bg-accent/10" : ""}`}
+              aria-current={item.id === focus ? "true" : undefined}
+              data-vault-item={item.name}
+              data-vault-kind={item.kind}
+            >
               <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-hover text-muted">
                 {item.kind === "folder" ? (
                   <Icon name="folder" size={20} />

@@ -115,5 +115,51 @@ async function vaultDriveChecks() {
   await alice.goto(`${top}?tab=all`);
   await alice.locator('[data-vault-file="notes.txt"]').waitFor({ timeout: 15000 });
   check("…and \"All files\" lists it with Vault as its place", (await alice.locator('[data-vault-file="notes.txt"]').getAttribute("data-vault-source")) === "files");
+
+  await vaultEmbedChecks(fileId);
+}
+
+// VAULT-3: a Vault file in a chat message, a task and a wiki page — a card read with the
+// viewer's own access; without it, "unavailable" and never the name.
+async function vaultEmbedChecks(fileId) {
+  const link = `${APP}/w/${alphaShort}/files?file=${fileId}`;
+  const card = '[data-vault-embed-card="notes.txt"]';
+  const { data: channel } = await aliceClient.rpc("chat_create_channel", { ws: alphaId, cat: null, new_name: "vault-embeds", new_topic: "", is_closed: false, unit: null });
+  await aliceClient.rpc("chat_post_message", { ch: channel.id, new_body: `See ${link}`, thread_root: null, mention_ids: null });
+  const taskId = sql("select id from public.tasks where title = 'Vault open task'");
+  const taskNumber = sql(`select number from public.tasks where id = '${taskId}'`);
+  const added = await aliceClient.rpc("add_task_web_link", { target_task: taskId, new_title: "File from Vault", new_url: link });
+  const { data: page } = await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Vault embeds" });
+  const saved = await aliceClient.rpc("save_page_content", { target_page: page.id, new_content: [{ id: "v1", type: "vaultFile", props: { fileId }, children: [] }], base_version: 1 });
+  check("(setup) a message, a task link and a page with the Vault file", Boolean(channel?.id) && added.data?.ok === true && saved.data?.ok === true, JSON.stringify([added.data, saved.data]));
+
+  const places = {
+    chat: `${APP}/w/${alphaShort}/chat?c=${channel.id}`,
+    task: `${APP}/w/${alphaShort}/tasks/VLT/${taskNumber}`,
+    page: `${APP}/w/${alphaShort}/p/${page.id}`,
+  };
+  const shows = async (who, url) => {
+    await who.goto(url);
+    return who.locator(card).first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+  };
+  const seen = [];
+  for (const [name, url] of Object.entries(places)) if (await shows(alice, url)) seen.push(name);
+  check("Vault: the file's card shows in a chat message, a task and a wiki page", seen.join(",") === "chat,task,page", seen.join(","));
+  check("…and a colleague with access to the file sees it in the chat", await shows(colleague, places.chat));
+
+  // The colleague loses access: the card says "unavailable", without the file's name.
+  const folderId = sql(`select parent_id from public.vault_items where id = '${fileId}'`);
+  await aliceClient.rpc("vault_set_member_role", { target: folderId, member: colleagueId, new_role: null });
+  const hidden = [];
+  for (const [name, url] of Object.entries(places)) {
+    await colleague.goto(url);
+    const unavailable = await colleague.locator("[data-vault-embed-unavailable]").first().waitFor({ timeout: 15000 }).then(() => true, () => false);
+    if (unavailable && (await colleague.getByText("notes.txt").count()) === 0) hidden.push(name);
+  }
+  // The colleague may not see the task at all; then nothing of the file shows there either.
+  check("…without access: \"unavailable\" and never the name", hidden.includes("chat") && hidden.includes("page") && (await colleague.getByText("notes.txt").count()) === 0, hidden.join(","));
+
+  await alice.goto(link);
+  check("…\"In Vault\" opens the file's folder with the file marked", (await alice.locator('[data-vault-item="notes.txt"][aria-current="true"]').waitFor({ timeout: 15000 }).then(() => true, () => false)));
 }
 

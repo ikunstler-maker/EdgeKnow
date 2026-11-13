@@ -1,5 +1,6 @@
 "use client";
 
+import { VaultFileEmbed } from "@/components/files/vault-file-embed";
 import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { t } from "@/i18n";
@@ -115,6 +116,12 @@ export function MessageChips({ body }: { body: string }) {
               <Icon name="lock" size={14} />
               {c.noAccess}
             </span>
+          );
+        if (chip.kind === "file")
+          return (
+            <div key={ref.key} className="w-full max-w-md text-sm" data-chat-chip="file">
+              <VaultFileEmbed shortId={at.shortId} fileId={chip.id} editable={false} onPick={() => {}} />
+            </div>
           );
         if (chip.kind === "task")
           return (
