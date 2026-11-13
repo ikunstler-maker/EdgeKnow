@@ -1,6 +1,5 @@
--- Wishlists, step 4 (decision 2026-11-12): a wishlist linked to a task.
--- The same in supabase/team/migrations/0077_prof_task_wishlists.sql.
--- Rollback: supabase/rollbacks/20270204100000_prof_task_wishlists.down.sql
+-- A wishlist linked to a task, in a team's own database (as supabase/migrations/20270205100000_prof_task_wishlists.sql).
+-- Rollback: supabase/team/rollbacks/0078_prof_task_wishlists.down.sql
 
 -- A task can carry colleagues' wishlists (profile, step 4): only the link is kept; the card
 -- is read with the viewer's own access to the wishlist.
