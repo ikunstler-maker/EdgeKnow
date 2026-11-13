@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { t } from "@/i18n";
-import { workspacePath } from "@/lib/paths";
+import { pagePath, workspacePath } from "@/lib/paths";
+import { firstPageId } from "@/lib/pages";
+import { useOptionalPages } from "@/components/pages/pages-provider";
 import { SERVICE_BRANDS, SERVICE_CATEGORIES, SERVICES, serviceByKey, type ServiceKey } from "@/lib/services";
 import { Popover } from "@/components/ui/popover";
 import { Icon } from "@/components/ui/icon";
@@ -50,8 +52,12 @@ export function currentService(pathname: string, shortId: string): ServiceKey | 
 
 // The dock of pinned services with the button that opens the whole list in its
 // four groups (also Ctrl/Cmd+E). Services still being built show as "Soon".
-export function ServiceSwitcher({ shortId, pathname, onNavigate, vertical = false }: { shortId: string; pathname: string; onNavigate?: () => void; vertical?: boolean }) {
+export function ServiceSwitcher({ shortId, userId, pathname, onNavigate, vertical = false }: { shortId: string; userId: string; pathname: string; onNavigate?: () => void; vertical?: boolean }) {
   const home = workspacePath(shortId);
+  // Wika opens the page at the top of the tree (the home page while there is none).
+  const pages = useOptionalPages()?.pages;
+  const firstPage = pages ? firstPageId(pages, userId) : null;
+  const wiki = firstPage ? pagePath(shortId, firstPage) : home;
   const here = currentService(pathname, shortId);
   const pins = useSyncExternalStore(subscribePins, readPins, () => DEFAULT_PINS);
   const button = useRef<HTMLButtonElement>(null);
@@ -72,7 +78,7 @@ export function ServiceSwitcher({ shortId, pathname, onNavigate, vertical = fals
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const hrefOf = (key: ServiceKey) => (key === "wiki" ? home : workspacePath(shortId, serviceByKey(key).path ?? ""));
+  const hrefOf = (key: ServiceKey) => (key === "wiki" ? wiki : workspacePath(shortId, serviceByKey(key).path ?? ""));
   const go = () => {
     setAnchor(null);
     onNavigate?.();

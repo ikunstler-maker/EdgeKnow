@@ -44,6 +44,18 @@ export const RELEASES: ReleaseLog[] = [
     ],
   },
   {
+    id: "2026-11-13-list-actions",
+    version: "0.56.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Дії з файлами просто в списках", en: "File actions right in the lists" },
+    items: [
+      { id: "row-actions", type: "added", scope: "global", title: { uk: "У списках дошок, карт, таблиць, презентацій і опитувань праворуч від назви: перейменувати, дублювати, поділитися, доступ, у кошик.", en: "Lists of boards, maps, tables, decks and surveys: rename, duplicate, share, access and bin right of the name." } },
+      { id: "row-marks", type: "visual", scope: "global", title: { uk: "Кожен рядок списку має значок свого сервісу.", en: "Every list row carries its service's mark." } },
+      { id: "wiki-first-page", type: "improved", scope: "wiki", title: { uk: "Wika відкривається на першій сторінці дерева.", en: "Wika opens on the first page of the tree." } },
+      { id: "rename-sidebar", type: "fixed", scope: "global", title: { uk: "Нова назва файлу з'являється в панелі ліворуч за кілька секунд.", en: "A new file name shows in the left panel within seconds." } },
+    ],
+  },
+  {
     id: "2026-11-13-design-comments",
     version: "0.56.0",
     date: "2026-11-13",
