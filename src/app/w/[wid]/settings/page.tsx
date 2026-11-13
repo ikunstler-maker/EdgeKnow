@@ -1,3 +1,4 @@
+import { spaceAt } from "@/lib/drive/task-files";
 import { VaultLimitPanel } from "@/components/files/vault-limit-panel";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -182,6 +183,8 @@ export default async function WorkspaceSettingsPage({
       ])
     : [null, null];
   const taskFiles = tab === "data" && service ? await taskFilesStatus(service, workspace.id).catch(() => null) : null;
+  // What all services keep in EdgeKnow's storage (the wiki's figure alone understated it).
+  const storageUsed = tab === "data" && service && !taskFiles?.team ? ((await spaceAt(service, { kind: "storage" }, workspace.id, false).catch(() => null))?.used ?? null) : null;
   // Vault's largest file (VAULT-2), kept where the workspace's data is.
   const vaultLimit = tab === "data" && admin ? ((await teamData.from("vault_settings").select("file_limit_mb").eq("workspace_id", workspace.id).maybeSingle()).data?.file_limit_mb as number | null | undefined) ?? null : null;
   const teamStatus: TeamDatabaseStatus = teamRow?.data
@@ -201,7 +204,7 @@ export default async function WorkspaceSettingsPage({
       }
     : null;
   const departedData = departed?.data as
-    | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number }[] }
+    | { ok: boolean; owners?: { user_id: string; name: string | null; email: string; pages: number; files?: number }[] }
     | null
     | undefined;
   const departedItems: DepartedOwner[] = (departedData?.owners ?? []).map((d) => ({
@@ -209,6 +212,7 @@ export default async function WorkspaceSettingsPage({
     name: d.name,
     email: d.email,
     pages: d.pages,
+    files: d.files ?? 0,
   }));
 
   const memberItems: MemberItem[] = (members?.data ?? []).map((m) => ({
@@ -372,6 +376,7 @@ export default async function WorkspaceSettingsPage({
                 workspaceId={workspace.id}
                 status={storage.data as StorageStatus}
                 taskFiles={taskFiles}
+                usedBytes={storageUsed}
                 team={Boolean(taskFiles?.team)}
                 isOwner={isOwner}
                 configured={driveConfigured()}

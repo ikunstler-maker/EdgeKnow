@@ -45,7 +45,8 @@ export type DomainItem = {
 // A domain asked for and waiting for its DNS record.
 export type ClaimItem = { domain: string; token: string; checkedAt: string | null; lastError: string | null };
 export type InvitationItem = { id: string; email: string; role: string; expiresLabel: string; guestUntil: string | null };
-export type DepartedOwner = { userId: string; name: string | null; email: string; pages: number };
+// Their pages and (VAULT-4) Vault items, handed over together.
+export type DepartedOwner = { userId: string; name: string | null; email: string; pages: number; files: number };
 
 const inputClass = "min-h-11 min-w-0 rounded-lg border border-border bg-background px-3 text-base";
 const buttonClass =
@@ -385,6 +386,7 @@ function DepartedRow({
         <span className="block truncate">{owner.name ?? owner.email}</span>
         <span className="block truncate text-xs text-muted">
           {owner.email} · {s.members.departedPages(owner.pages)}
+          {owner.files > 0 && ` · ${s.members.departedFiles(owner.files)}`}
         </span>
       </span>
       <select value={to} onChange={(e) => setTo(e.target.value)} aria-label={s.members.newOwner} className={inputClass}>

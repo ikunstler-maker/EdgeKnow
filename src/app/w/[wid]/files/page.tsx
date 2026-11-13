@@ -15,6 +15,7 @@ import { VaultDrive } from "@/components/files/vault-drive";
 import { ServiceIcon } from "@/components/services/service-icon";
 import { Hint } from "@/components/ui/hint";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { formatBytes } from "@/lib/format-bytes";
 
 export const metadata: Metadata = { title: `${SERVICE_BRANDS.files.name} · ${t.app.name}` };
 
@@ -71,6 +72,7 @@ export default async function FilesPage({ params, searchParams }: PageProps<"/w/
           </nav>
         )}
       </header>
+      {tab === "files" && !folder && (workspace.role === "owner" || workspace.role === "admin") && <Usage db={db} workspaceId={workspace.id} team={Boolean(workspace.hasTeamDatabase)} />}
       {tab === "all" ? <AllFiles db={db} workspaceId={workspace.id} shortId={workspace.shortId} /> : <Drive db={db} workspaceId={workspace.id} shortId={workspace.shortId} folder={tab === "bin" ? null : folder} bin={tab === "bin"} focus={focus} />}
     </main>
   );
@@ -115,5 +117,31 @@ async function Drive({ db, workspaceId, shortId, folder, bin, focus }: { db: Awa
       members={members}
       groups={withPaths((groups ?? []) as { id: string; name: string; parent_id: string | null }[])}
     />
+  );
+}
+
+// VAULT-4: what the workspace's files take, by service (owner and admins; sizes only).
+// Without a Drive, how much of EdgeKnow's storage is used, of the workspace's limit (a team's own
+// storage has no limit of ours).
+async function Usage({ db, workspaceId, team }: { db: Awaited<ReturnType<typeof dataClient>>; workspaceId: string; team: boolean }) {
+  const admin = createAdminClient();
+  const [{ data }, connection, limit] = await Promise.all([
+    db.rpc("vault_storage_usage", { ws: workspaceId }),
+    admin ? activeConnection(admin, workspaceId) : Promise.resolve(null),
+    admin ? admin.from("workspaces").select("storage_limit_mb").eq("id", workspaceId).maybeSingle().then((r) => (r.data?.storage_limit_mb as number | undefined) ?? null) : Promise.resolve(null),
+  ]);
+  const usage = data as { ok: boolean; services?: Record<string, { bytes: number; stored: number }> } | null;
+  if (!usage?.ok || !usage.services) return null;
+  const u = t.vault.usage;
+  const entries = Object.entries(usage.services).filter(([, x]) => Number(x.bytes) > 0).sort((a, b) => Number(b[1].bytes) - Number(a[1].bytes));
+  const label = (key: string) => (key in SERVICE_BRANDS ? SERVICE_BRANDS[key as keyof typeof SERVICE_BRANDS].name : key === "wishlists" ? t.wishlists.title : key);
+  const total = entries.reduce((sum, [, x]) => sum + Number(x.bytes), 0);
+  const stored = entries.reduce((sum, [, x]) => sum + Number(x.stored), 0);
+  return (
+    <p className="mt-3 text-xs text-muted" title={u.onlyAdmins} data-vault-usage>
+      <span className="font-medium text-foreground">{u.title}:</span> {entries.map(([key, x]) => `${label(key)} ${formatBytes(Number(x.bytes))}`).join(" · ") || formatBytes(0)}
+      {entries.length > 1 && ` · ${u.total(formatBytes(total))}`}
+      {connection?.status !== "ok" && ` · ${limit && !team ? u.stored(formatBytes(stored), formatBytes(limit * 1048576)) : u.storedNoLimit(formatBytes(stored))}`}
+    </p>
   );
 }

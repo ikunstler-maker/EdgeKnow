@@ -34,13 +34,24 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 export const RELEASES: ReleaseLog[] = [
   {
     id: "2026-11-13-chips-step3",
-    version: "0.51.0",
+    version: "0.51.1",
     date: "2026-11-13",
     summaryTitle: { uk: "Чипи на дошках, у картах і подіях", en: "Chips on boards, maps and events" },
     items: [
       { id: "chips-boards", type: "added", scope: "board", title: { uk: "Елемент дошки з посиланням показує чип з актуальною назвою; кнопка «Чип» додає посилання.", en: "A board element with a link shows a chip with the current title; the \"Chip\" button adds a link." } },
       { id: "chips-maps", type: "added", scope: "nodes", title: { uk: "Вузол карти можна прив'язати до сторінки, задачі, таблиці чи файлу — під текстом з'явиться чип.", en: "A map node can link to a page, task, table or file — a chip shows under its text." } },
       { id: "chips-events", type: "added", scope: "calendar", title: { uk: "Посилання в описі події показуються чипами.", en: "Links in an event's description show as chips." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-space",
+    version: "0.51.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: скільки місця займають файли", en: "Vault: how much space files take" },
+    items: [
+      { id: "vault-used", type: "added", scope: "files", title: { uk: "«Зайнято» у Vault — за сервісами; бачать власник і адміністратори простору.", en: "\"Used\" in Vault by service; seen by the workspace's owner and admins." } },
+      { id: "vault-quota", type: "fixed", scope: "storage", title: { uk: "Ліміт сховища тепер однаково рахує файли всіх сервісів разом із Vault.", en: "The storage limit now counts every service's files, Vault included, the same way." } },
+      { id: "vault-handover", type: "added", scope: "files", title: { uk: "«Передати» для колишнього учасника передає й його файли Vault; вони є й у «Мої дані».", en: "\"Hand over\" for a former member also hands over their Vault files; they are in \"My data\" too." } },
     ],
   },
   {

@@ -24,7 +24,8 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/api/v
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; object-src 'self'",
     "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(row.name)}`,
-    "Cache-Control": "private, max-age=3600",
+    // Never kept by the browser: access taken away takes effect at once.
+    "Cache-Control": "private, no-store",
   };
   try {
     // A large file is passed on as it arrives from the Drive; the browser may ask for a part.
