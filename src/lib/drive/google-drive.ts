@@ -11,10 +11,16 @@ import path from "node:path";
 // local folder (never on Vercel, where it is ignored).
 
 export const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive.file", "openid", "email"];
+// VAULT-7: reading the whole Drive to show it in Vault, asked only when the owner agrees.
+export const BROWSE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+
+// An entry of the Drive as Vault shows it (a Google document has no size: null).
+export type DriveEntry = { id: string; name: string; mimeType: string; size: number | null; modifiedTime: string | null; folder: boolean; link: string | null };
+export const GOOGLE_NATIVE = "application/vnd.google-apps.";
 
 export type DriveApi = {
-  authUrl(redirectUri: string, state: string): string;
-  exchangeCode(code: string, redirectUri: string): Promise<{ refreshToken: string; email: string }>;
+  authUrl(redirectUri: string, state: string, browse?: boolean): string;
+  exchangeCode(code: string, redirectUri: string): Promise<{ refreshToken: string; email: string; browse: boolean }>;
   createFolder(refreshToken: string, name: string, parentId?: string): Promise<string>;
   upload(refreshToken: string, folderId: string, name: string, mimeType: string, bytes: Uint8Array): Promise<string>;
   overwrite(refreshToken: string, fileId: string, mimeType: string, bytes: Uint8Array): Promise<void>;
@@ -32,6 +38,11 @@ export type DriveApi = {
   share(refreshToken: string, fileId: string, email: string, role: "reader" | "writer"): Promise<string>;
   updateShare(refreshToken: string, fileId: string, permissionId: string, role: "reader" | "writer"): Promise<void>;
   unshare(refreshToken: string, fileId: string, permissionId: string): Promise<void>;
+  // VAULT-7 (drive.readonly): a folder's entries ("root": the top), a page at a time; one entry.
+  list(refreshToken: string, folderId: string, pageToken?: string | null): Promise<{ entries: DriveEntry[]; next: string | null }>;
+  entry(refreshToken: string, fileId: string): Promise<DriveEntry & { trashed: boolean }>;
+  // A Google document, sheet, slides or drawing as a PDF (Google's limit: 10 MB).
+  exportPdf(refreshToken: string, fileId: string): Promise<{ body: ReadableStream<Uint8Array> | null; status: number; headers: Record<string, string> }>;
 };
 
 export class DriveError extends Error {
@@ -95,13 +106,27 @@ function multipart(metadata: object, mimeType: string, bytes: Uint8Array) {
   return { body, contentType: `multipart/related; boundary=${boundary}` };
 }
 
+const ENTRY_FIELDS = "id,name,mimeType,size,modifiedTime,webViewLink";
+type GoogleEntry = { id: string; name?: string; mimeType?: string; size?: string; modifiedTime?: string; webViewLink?: string };
+const FOLDER = "application/vnd.google-apps.folder";
+const asEntry = (f: GoogleEntry): DriveEntry => ({
+  id: f.id,
+  name: f.name ?? "",
+  mimeType: f.mimeType ?? "application/octet-stream",
+  size: f.size ? Number(f.size) : null,
+  modifiedTime: f.modifiedTime ?? null,
+  folder: f.mimeType === FOLDER,
+  // Only Google's own pages: a document opens there.
+  link: f.webViewLink?.startsWith("https://docs.google.com/") || f.webViewLink?.startsWith("https://drive.google.com/") ? f.webViewLink : null,
+});
+
 const google: DriveApi = {
-  authUrl(redirectUri, state) {
+  authUrl(redirectUri, state, browse) {
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID ?? "",
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: DRIVE_SCOPES.join(" "),
+      scope: [...DRIVE_SCOPES, ...(browse ? [BROWSE_SCOPE] : [])].join(" "),
       access_type: "offline",
       // Always ask, so Google returns a refresh token even on a second connection.
       prompt: "consent select_account",
@@ -129,7 +154,7 @@ const google: DriveApi = {
     if (!String(json.scope ?? "").includes("drive.file")) throw new DriveError("drive permission not granted", 403);
     // The id token comes straight from Google over TLS; only the email is read from it.
     const claims = JSON.parse(Buffer.from((json.id_token ?? "..").split(".")[1] ?? "", "base64url").toString("utf8") || "{}");
-    return { refreshToken: json.refresh_token, email: String(claims.email ?? "") };
+    return { refreshToken: json.refresh_token, email: String(claims.email ?? ""), browse: String(json.scope ?? "").split(" ").includes(BROWSE_SCOPE) };
   },
 
   async createFolder(refreshToken, name, parentId) {
@@ -238,6 +263,34 @@ const google: DriveApi = {
     }
   },
 
+  async list(refreshToken, folderId, pageToken) {
+    const params = new URLSearchParams({
+      q: `'${folderId.replace(/[^a-zA-Z0-9_-]/g, "")}' in parents and trashed = false`,
+      fields: `nextPageToken, files(${ENTRY_FIELDS})`,
+      orderBy: "folder, name_natural",
+      pageSize: "200",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const response = await call(refreshToken, `${FILES}?${params}`);
+    const json = (await response.json()) as { nextPageToken?: string; files?: GoogleEntry[] };
+    return { entries: (json.files ?? []).map(asEntry), next: json.nextPageToken ?? null };
+  },
+
+  async entry(refreshToken, fileId) {
+    const response = await call(refreshToken, `${FILES}/${encodeURIComponent(fileId)}?${ALL_DRIVES}&fields=${ENTRY_FIELDS},trashed`);
+    const json = (await response.json()) as GoogleEntry & { trashed?: boolean };
+    return { ...asEntry(json), trashed: Boolean(json.trashed) };
+  },
+
+  async exportPdf(refreshToken, fileId) {
+    const response = await call(refreshToken, `${FILES}/${encodeURIComponent(fileId)}/export?mimeType=application%2Fpdf`);
+    const length = response.headers.get("content-length");
+    const headers: Record<string, string> = length ? { "content-length": length } : {};
+    return { body: response.body, status: 200, headers };
+  },
+
   async quota(refreshToken) {
     const response = await call(refreshToken, "https://www.googleapis.com/drive/v3/about?fields=storageQuota");
     const { storageQuota } = (await response.json()) as { storageQuota?: { limit?: string; usage?: string } };
@@ -257,22 +310,32 @@ function fake(dir: string): DriveApi {
   const readPerms = async (id: string): Promise<Record<string, { email: string; role: string }>> =>
     JSON.parse(await readFile(perms(id), "utf8").catch(() => "{}"));
   const writePerms = (id: string, value: Record<string, { email: string; role: string }>) => writeFile(perms(id), JSON.stringify(value));
+  const fakeEntry = async (id: string): Promise<DriveEntry> => ({
+    id,
+    name: await readFile(`${file(id)}.name`, "utf8").catch(() => id),
+    mimeType: await readFile(`${file(id)}.type`, "utf8").catch(() => "application/octet-stream"),
+    size: (await stat(file(id))).size,
+    modifiedTime: (await stat(file(id))).mtime.toISOString(),
+    folder: false,
+    link: null,
+  });
   return {
-    authUrl: (redirectUri, state) => `${redirectUri}?code=fake-code&state=${encodeURIComponent(state)}`,
+    authUrl: (redirectUri, state, browse) => `${redirectUri}?code=${browse ? "fake-code-browse" : "fake-code"}&state=${encodeURIComponent(state)}`,
     async exchangeCode(code) {
-      if (code !== "fake-code") throw new DriveError("bad code", 400);
-      return { refreshToken: "fake-refresh-token", email: "team-drive@fake.test" };
+      if (code !== "fake-code" && code !== "fake-code-browse") throw new DriveError("bad code", 400);
+      return { refreshToken: "fake-refresh-token", email: "team-drive@fake.test", browse: code === "fake-code-browse" };
     },
     async createFolder(refreshToken) {
       check(refreshToken);
       return `folder-${randomUUID()}`;
     },
-    async upload(refreshToken, _folder, _name, mimeType, bytes) {
+    async upload(refreshToken, _folder, name, mimeType, bytes) {
       check(refreshToken);
       await mkdir(dir, { recursive: true });
       const id = `file-${randomUUID()}`;
       await writeFile(file(id), bytes);
       await writeFile(`${file(id)}.type`, mimeType);
+      await writeFile(`${file(id)}.name`, name);
       return id;
     },
     async overwrite(refreshToken, fileId, mimeType, bytes) {
@@ -348,11 +411,30 @@ function fake(dir: string): DriveApi {
         throw new DriveError("not found", 404);
       }
     },
+    // The stand-in has no folders: every file is at the top ("root").
+    async list(refreshToken, folderId) {
+      check(refreshToken);
+      if (folderId !== "root") return { entries: [], next: null };
+      const entries: DriveEntry[] = [];
+      for (const name of (await readdir(dir).catch(() => [] as string[])).sort()) {
+        if (name.startsWith("file-") && !name.includes(".")) entries.push(await fakeEntry(name));
+      }
+      return { entries, next: null };
+    },
+    async entry(refreshToken, fileId) {
+      check(refreshToken);
+      if (!(await stat(file(fileId)).catch(() => null))) throw new DriveError("not found", 404);
+      return { ...(await fakeEntry(fileId)), trashed: false };
+    },
+    async exportPdf(refreshToken) {
+      check(refreshToken);
+      throw new DriveError("the stand-in has no Google documents", 404);
+    },
     async quota(refreshToken) {
       check(refreshToken);
       let usage = 0;
       for (const name of await readdir(dir).catch(() => [] as string[])) {
-        if (!name.endsWith(".type")) usage += (await stat(path.join(dir, name))).size;
+        if (!name.endsWith(".type") && !name.endsWith(".name")) usage += (await stat(path.join(dir, name))).size;
       }
       return { limit: 15 * 1024 ** 3, usage };
     },

@@ -258,7 +258,7 @@ export function VaultDrive({
               <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-hover text-muted">
                 {item.kind === "folder" ? (
                   <Icon name="folder" size={20} />
-                ) : kindOf(item.mime_type ?? "") === "image" && Number(item.bytes) <= VAULT_SMALL_BYTES && !bin ? (
+                ) : kindOf(item.mime_type ?? "") === "image" && Number(item.bytes) <= VAULT_SMALL_BYTES && !bin && !item.link ? (
                   // eslint-disable-next-line @next/next/no-img-element -- served by our own file route
                   <img src={vaultFileSrc(shortId, item.id)} alt="" loading="lazy" className="h-full w-full object-cover" />
                 ) : (
@@ -284,6 +284,12 @@ export function VaultDrive({
                       <span className="sr-only">{v.restricted}</span>
                     </span>
                   )}
+                  {item.link && (
+                    <span title={v.google.linkHint} data-vault-link>
+                      <Icon name="link" size={12} />
+                      <span className="sr-only">{v.google.linkHint}</span>
+                    </span>
+                  )}
                   {item.shared && (
                     <span title={v.shared}>
                       <Icon name="users" size={12} />
@@ -291,7 +297,7 @@ export function VaultDrive({
                     </span>
                   )}
                   <span className="truncate">
-                    {[item.kind === "file" ? formatBytes(Number(item.bytes)) : v.folder, (item.version ?? 1) > 1 ? v.versions.badge(item.version ?? 1) : "", when(bin && item.deleted_at ? item.deleted_at : item.updated_at), item.owner_id ? ownerOf.get(item.owner_id) : ""].filter(Boolean).join(" · ")}
+                    {[item.kind === "file" ? (item.link && (item.mime_type ?? "").startsWith("application/vnd.google-apps.") ? v.google.document : formatBytes(Number(item.bytes))) : v.folder, (item.version ?? 1) > 1 ? v.versions.badge(item.version ?? 1) : "", when(bin && item.deleted_at ? item.deleted_at : item.updated_at), item.owner_id ? ownerOf.get(item.owner_id) : ""].filter(Boolean).join(" · ")}
                   </span>
                 </span>
               </div>
@@ -416,8 +422,8 @@ function MenuItems({ item, onPick }: { item: VaultItem; onPick: (what: MenuActio
     <div role="menu">
       {edit && entry("rename", "edit", v.rename)}
       {edit && entry("move", "arrow-right", v.move)}
-      {edit && file && entry("newVersion", "upload", v.versions.upload)}
-      {file && entry("versions", "history", v.versions.title)}
+      {edit && file && !item.link && entry("newVersion", "upload", v.versions.upload)}
+      {file && !item.link && entry("versions", "history", v.versions.title)}
       {entry("share", "users", v.share)}
       {edit && entry("trash", "trash", v.toBin)}
     </div>

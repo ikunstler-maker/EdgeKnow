@@ -1,12 +1,12 @@
 # Vault — file manager
 
-> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-2b). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
+> **Service card.** Read with `docs/context/00-overview-en.md`. **State as of:** 2026-11-13 (VAULT-7). Source of truth: `docs/decisions.md`, `docs/backlog.md`. Ukrainian twin: `vault-uk.md`.
 
 ## 1. Purpose
 
 Browse and manage all files of the workspace storage right in the product.
 
-- **State:** ✅ VAULT-1 ("All files") and VAULT-2 (own folders and files). VAULT-3 ("From Vault"). Next VAULT-2b (access mirrored to Google Drive, later), VAULT-4 (rest of Google Drive, versions) — `docs/backlog.md`.
+- **State:** ✅ VAULT-1 ("All files"), VAULT-2 (own folders and files), VAULT-3 ("From Vault"), VAULT-4 (space), VAULT-6 (versions), VAULT-2b (access on Google Drive), VAULT-7 ("Team Drive" tab) — `docs/backlog.md`.
 - **Storage:** the single workspace storage (Google Drive or database storage); files over 4 MB only on the Drive.
 
 ## 1a. What works (VAULT-1)
@@ -48,6 +48,12 @@ Browse and manage all files of the workspace storage right in the product.
 - `src/lib/drive/vault-shares.ts`: `syncVaultDriveShares` compares `vault_drive_wanted` (who should have a file: members with a role, no guests or former members) with `vault_drive_shares` and shares/changes/unshares on the Drive without emails; `syncVaultSharesLater` after a change (via `after()`), `syncAllVaultDriveShares` daily.
 - Refusals (an address with no Google account) — `vault_drive_failures` in the Access dialog for editors.
 
+## 1g. Team Drive inside Vault (VAULT-7)
+
+- Tab "Team Drive" (`?tab=google`, `src/components/files/vault-google.tsx`): members (not guests) browse the Drive connected to the workspace (one workspace = one Drive) through `/api/vault/drive` (a folder, paged) and `/api/vault/drive/file` (download; picture/PDF shown; Google documents exported as PDF). Server only (`src/lib/drive/vault-browse.ts`, `browseContext`).
+- Owner's switch `vault_settings.drive_browse` (on by default; `set_vault_drive_browse`, owner only). Reading the whole Drive needs `drive_connections.can_browse`: the owner allows it once (`/api/drive/connect?browse=1`, the same Google account; scope `drive.readonly`; no new folders).
+- "Add to Vault" (`linkDriveFile`): `begin_vault_link` (user session) + the server points the record at the Drive file → `storage_backend = 'drive_link'`. No copy, no space (`large`), no versions (`check_vault_link_version`), the bin removes only the link (no tombstone); `vault_list` returns `link`. Links aren't shared on the Drive by VAULT-2b. A link goes to the top of Vault.
+
 ## 2. Intent
 
 - List and grid views, folders, preview (images, PDF, video, documents).
@@ -68,7 +74,6 @@ Browse and manage all files of the workspace storage right in the product.
 
 - Access to a file not attached to any object: needs rules of its own.
 - Space accounting and limits by plan; "storage beyond the included" is a paid extra.
-- File versions.
 
 ## Rules shared by any new service
 

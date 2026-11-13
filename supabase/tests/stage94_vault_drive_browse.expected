@@ -1,0 +1,15 @@
+admin turns it off: forbidden
+bob starts a link (on by default): true
+a guest starts a link: forbidden
+owner turns it off: true
+off: forbidden
+members read it: false
+owner turns it on: true
+large, no limit of ours: true
+psql: ERROR:  new row for relation "vault_items" violates check constraint "vault_items_drive_link_check"
+takes no space: 0
+listed as a link: Big video.mp4 true
+usage of files: none
+psql: ERROR:  vault_link_version
+tombstones for it: 0
+browse permission by default: false

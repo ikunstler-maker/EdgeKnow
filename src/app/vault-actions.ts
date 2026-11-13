@@ -5,6 +5,10 @@ import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
 import { syncVaultSharesLater } from "@/lib/drive/vault-shares";
+import { driveApi } from "@/lib/drive/google-drive";
+import { refreshTokenOf } from "@/lib/drive/storage";
+import { filesHome } from "@/lib/drive/task-files";
+import { browseContext, driveOpenable } from "@/lib/drive/vault-browse";
 import type { VaultListing, VaultSharing } from "@/lib/vault";
 
 // Vault (VAULT-2): every check — who sees, adds, changes or shares what — is in the
@@ -129,4 +133,46 @@ export async function vaultDriveFailures(shortId: string, id: string): Promise<s
   const { data } = await db.rpc("vault_drive_failures", { target: id });
   const result = data as { ok: boolean; emails?: string[] } | null;
   return result?.ok ? (result.emails ?? []) : [];
+}
+
+// VAULT-7: the owner's switch for the team's Drive in Vault (on by default).
+export async function setVaultDriveBrowse(shortId: string, workspaceId: string, browse: boolean) {
+  return call(shortId, "set_vault_drive_browse", { ws: workspaceId, browse });
+}
+
+// VAULT-7: "Add to Vault" — a link to the same Drive file (no copy, no space). The person
+// may add here (checked by the database with their own session); the server checks the
+// file on the Drive and points the new record at it.
+export async function linkDriveFile(shortId: string, folder: string | null, fileId: string): Promise<ActionResult<{ id: string }>> {
+  if (!/^[a-zA-Z0-9_-]{1,200}$/.test(fileId)) return { ok: false, error: "invalid" };
+  const context = await browseContext(shortId);
+  if (!context?.state.ok || !context.connection) return { ok: false, error: context?.state.ok === false ? context.state.error : "forbidden" };
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" };
+  let entry;
+  try {
+    entry = await driveApi().entry(refreshTokenOf(context.connection), fileId);
+  } catch {
+    return { ok: false, error: "drive_error" };
+  }
+  if (entry.folder || entry.trashed || !driveOpenable(entry.mimeType)) return { ok: false, error: "not_linkable" };
+  const { data, error } = await db.rpc("begin_vault_link", {
+    ws: context.workspaceId,
+    folder,
+    file_name: entry.name.slice(0, 200) || fileId,
+    file_type: entry.mimeType,
+    // A Google document has no size of its own.
+    file_bytes: Math.max(1, entry.size ?? 1),
+  });
+  const begun = data as ActionResult<{ id: string }> | null;
+  if (error || !begun?.ok) return begun && !begun.ok ? begun : { ok: false, error: "unknown" };
+  const { rows } = await filesHome(context.admin, context.workspaceId);
+  const { error: pointError } = await rows
+    .from("vault_items")
+    .update({ storage_backend: "drive_link", drive_source: "wiki", drive_account_id: context.connection.id, drive_file_id: fileId })
+    .eq("id", begun.id)
+    .eq("storage_backend", "pending");
+  if (pointError) return { ok: false, error: "unknown" };
+  revalidatePath(`/w/${shortId}/files`);
+  return { ok: true, id: begun.id };
 }

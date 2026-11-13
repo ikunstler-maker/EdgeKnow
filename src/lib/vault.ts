@@ -165,6 +165,8 @@ export type VaultItem = {
   deleted_at: string | null;
   // VAULT-6: the current version's number (1: never replaced).
   version?: number;
+  // VAULT-7: a link to a file on the team's Drive (no copy; no versions).
+  link?: boolean;
   role: VaultRole;
   // Nobody in the workspace has it from "general access" (only the people listed).
   restricted: boolean;

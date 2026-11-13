@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dataClient } from "@/lib/team-db/data";
 import { STREAM_FROM_BYTES, VAULT_FILE_COLUMNS, VAULT_VERSION_COLUMNS, filesHome, readTaskFile, streamTaskFile, type StoredFile } from "@/lib/drive/task-files";
+import { linkResponse } from "@/lib/drive/vault-browse";
 import { vaultShowsInline } from "@/lib/vault-files";
 
 // A Vault file (?ws=<short id>[&download]). The record is read with the person's own
@@ -22,6 +23,10 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/api/v
   const found = data as unknown as (StoredFile & { large: boolean }) | null;
   const admin = createAdminClient();
   if (!found || !admin || found.storage_backend === "pending") return new NextResponse(null, { status: 404 });
+  // VAULT-7: a link to a file on the team's Drive is read from the Drive as it is now.
+  if ((found.storage_backend as string) === "drive_link" && !version) {
+    return linkResponse(admin, found, request.nextUrl.searchParams.get("download") === null, request.headers.get("range"));
+  }
   const row: StoredFile = { ...found, vault: true };
   const inline = vaultShowsInline(row.mime_type, found.large) && request.nextUrl.searchParams.get("download") === null;
   const headers = {

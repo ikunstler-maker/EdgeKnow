@@ -393,7 +393,7 @@ const STAGES: Stage[] = [
   },
   { name: "vault access", table: "vault_access", columns: "item_id, workspace_id, user_id, role, granted_by, created_at", order: "item_id,user_id", onConflict: "item_id,user_id", replace: true },
   { name: "vault unit access", table: "vault_group_access", columns: "item_id, workspace_id, group_id, role, granted_by, created_at", order: "item_id,group_id", onConflict: "item_id,group_id", replace: true },
-  { name: "vault settings", table: "vault_settings", columns: "workspace_id, file_limit_mb, updated_at, updated_by", order: "workspace_id", onConflict: "workspace_id" },
+  { name: "vault settings", table: "vault_settings", columns: "workspace_id, file_limit_mb, drive_browse, updated_at, updated_by", order: "workspace_id", onConflict: "workspace_id" },
   { name: "notification settings", table: "notification_prefs", columns: "workspace_id, user_id, muted, updated_at", order: "user_id", onConflict: "workspace_id,user_id" },
   {
     name: "notifications",

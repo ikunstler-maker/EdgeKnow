@@ -33,6 +33,17 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-13-vault-team-drive",
+    version: "0.55.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: Диск команди всередині", en: "Vault: the team Drive inside" },
+    items: [
+      { id: "vault-team-drive-tab", type: "added", scope: "files", title: { uk: "Вкладка «Диск команди»: учасники переглядають Google Диск простору прямо у Vault, відкривають і завантажують файли. Власник простору може вимкнути її.", en: "A \"Team Drive\" tab: members browse the workspace's Google Drive right in Vault, open and download files. The workspace owner can turn it off." } },
+      { id: "vault-drive-link", type: "added", scope: "files", title: { uk: "«Додати у Vault» — посилання на той самий файл Диска, без копії: місця не займає, а кошик Vault прибирає лише посилання.", en: "\"Add to Vault\" makes a link to the same Drive file, not a copy: it takes no space, and Vault's bin removes only the link." } },
+      { id: "vault-settings-read", type: "fixed", scope: "files", title: { uk: "Учасники знову бачать налаштування Vault (наприклад, ліміт розміру файлу) ще до завантаження.", en: "Members see Vault's settings again (such as the file size limit) before uploading." } },
+    ],
+  },
+  {
     id: "2026-11-13-vault-drive-access",
     version: "0.54.0",
     date: "2026-11-13",
