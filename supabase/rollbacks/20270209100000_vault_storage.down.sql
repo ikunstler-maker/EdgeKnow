@@ -1,4 +1,4 @@
--- Undo 20270208100000_vault_storage.
+-- Undo 20270209100000_vault_storage.
 
 drop function public.vault_storage_usage(uuid);
 

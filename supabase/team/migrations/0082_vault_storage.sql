@@ -1,6 +1,6 @@
--- VAULT-4 in a team's own database (as supabase/migrations/20270208100000_vault_storage.sql,
+-- VAULT-4 in a team's own database (as supabase/migrations/20270209100000_vault_storage.sql,
 -- without the storage limit: a team's own storage has none of ours).
--- Rollback: supabase/team/rollbacks/0081_vault_storage.down.sql
+-- Rollback: supabase/team/rollbacks/0082_vault_storage.down.sql
 
 -- The pages and Vault items of people no longer in the workspace, for the owner and admins.
 create or replace function public.departed_page_owners(ws uuid)

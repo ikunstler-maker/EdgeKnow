@@ -1,6 +1,6 @@
 -- The same (without the storage limit, which a team's own storage doesn't have) in
--- supabase/team/migrations/0081_vault_storage.sql.
--- Rollback: supabase/rollbacks/20270208100000_vault_storage.down.sql
+-- supabase/team/migrations/0082_vault_storage.sql.
+-- Rollback: supabase/rollbacks/20270209100000_vault_storage.down.sql
 
 -- VAULT-4 (owner, 2026-11-13: "Так, погоджую зміну бази для А"):
 -- * one count of what the workspace keeps in EdgeKnow's storage, used by every upload:
