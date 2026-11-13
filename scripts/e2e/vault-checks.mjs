@@ -133,6 +133,8 @@ async function vaultEmbedChecks(fileId) {
   const saved = await aliceClient.rpc("save_page_content", { target_page: page.id, new_content: [{ id: "v1", type: "vaultFile", props: { fileId }, children: [] }], base_version: 1 });
   // A new page is a draft only its author sees until it is published.
   const published = await aliceClient.rpc("publish_page", { target_page: page.id, with_children: false });
+  // A new page is the author's own until shared: the colleague gets it to read.
+  await aliceClient.rpc("set_page_workspace_role", { target_page: page.id, new_role: "viewer" });
   check("(setup) a message, a task link and a page with the Vault file", Boolean(channel?.id) && added.data?.ok === true && saved.data?.ok === true, JSON.stringify([added.data, saved.data]));
 
   const places = {
