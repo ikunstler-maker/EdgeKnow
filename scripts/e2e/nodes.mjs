@@ -834,7 +834,6 @@ await vaultChecks();
   const theirs = colleague.locator('[data-sheet="Renamed sheet"]');
   await theirs.waitFor({ timeout: 20000 });
   check("…a viewer sees only Share", (await theirs.locator("[data-row-action]").evaluateAll((els) => els.map((e) => e.getAttribute("data-row-action")).join(","))) === "share");
-  alice.once("dialog", (dialog) => dialog.accept());
   await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="bin"]').click();
   check("…to the bin from the list", await until(() => sql(`select (deleted_at is not null)::text from public.service_objects where id = '${listed}'`) === "true", 10000));
   // Every list shows the service's own mark on each row.
