@@ -1,4 +1,4 @@
--- Undo 20270212100000_core_fast_access_2: the per-row rules come back.
+-- Undo 20270212170000_core_fast_access_2: the per-row rules come back.
 
 drop policy "Members see comments on tasks open to them" on public.task_comments;
 create policy "Members see comments on tasks open to them"

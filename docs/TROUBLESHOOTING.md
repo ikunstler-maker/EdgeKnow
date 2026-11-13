@@ -75,6 +75,12 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Fix: before merging, `git fetch origin main` and compare `ls supabase/migrations | tail`, `ls supabase/team/migrations | tail`; renumber yours above main's (and its rollback, header comments, tests, card/decision references). Test files and their user ids must not repeat either.
 - Seen: 2026-11-12 (#170 vs #174)
 
+## "Found local migration files to be inserted before the last migration on remote database" — DB
+- Symptom: `migrate` job on main fails, lists a migration older than the newest already applied (parallel PRs: one merged with a later timestamp first).
+- Root cause: `supabase db push` refuses out-of-order files; every later push on main fails too, so nothing new is applied.
+- Fix: rename the stuck central migration(s) and rollback(s) to timestamps after the newest applied one (content unchanged; keep their own order; update upgrade tests' `before`/`rollback_to`). Not `--include-all`. Before merging, give a new migration a timestamp above main's newest.
+- Seen: 2026-11-13 (CORE-4/CORE-5 after VAULT-6)
+
 ## plpgsql trigger: "record new has no field …" — DB
 - Symptom: one trigger function for several tables fails on a field another table has, even inside an `if tg_table_name = …` branch with `and`.
 - Fix: put the field in its own nested `if`, or read it as `to_jsonb(new) ->> 'field'`.
