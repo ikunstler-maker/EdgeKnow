@@ -112,6 +112,26 @@ async function vaultDriveChecks() {
   await until(() => sql(`select count(*) from public.vault_items where workspace_id = '${alphaId}' and deleted_at is not null`) === "0", 10000);
   check("…to the bin with what is inside, and restored", sql(`select (deleted_at is null)::text from public.vault_items where id = '${fileId}'`) === "true");
 
+  // VAULT-6: a new version replaces the file; the old one is kept and opens.
+  await alice.goto(`${top}?folder=${folderId}`);
+  await alice.locator('[data-vault-item="notes.txt"] [data-vault-menu]').click();
+  const versionInput = alice.locator("[data-vault-version-input]");
+  await alice.locator('[data-vault-action="newVersion"]').click();
+  await versionInput.setInputFiles({ name: "notes v2.txt", mimeType: "text/plain", buffer: Buffer.from("hello vault, again") });
+  await until(() => sql(`select version || ' ' || bytes from public.vault_items where id = '${fileId}'`) === "2 18", 15000);
+  const now = await alice.evaluate(async (url) => (await (await fetch(url, { cache: "no-store" })).text()), `/api/vault/files/${fileId}?ws=${alphaShort}&download`);
+  const oldId = sql(`select id from public.vault_versions where item_id = '${fileId}' and version_no = 1`);
+  const old = await alice.evaluate(async (url) => (await (await fetch(url, { cache: "no-store" })).text()), `/api/vault/files/${fileId}?ws=${alphaShort}&version=${oldId}&download`);
+  check("Vault: a new version replaces the file under the same link, the old one still opens", now === "hello vault, again" && old === "hello vault", `${now} / ${old}`);
+  await alice.reload();
+  await alice.locator('[data-vault-item="notes.txt"] [data-vault-menu]').click();
+  await alice.locator('[data-vault-action="versions"]').click();
+  await alice.locator('[data-vault-versions] [data-vault-version="1"]').waitFor({ timeout: 15000 });
+  await alice.locator('[data-vault-versions] [data-vault-version="1"] [data-vault-version-restore]').click();
+  await until(() => sql(`select version || ' ' || bytes from public.vault_items where id = '${fileId}'`) === "3 11", 15000);
+  check("…and an earlier version can be made current again", sql(`select version || ' ' || bytes from public.vault_items where id = '${fileId}'`) === "3 11");
+  await alice.keyboard.press("Escape");
+
   // VAULT-4: "Used" by service, for the owner only.
   await alice.goto(top);
   const used = await alice.locator("[data-vault-usage]").textContent({ timeout: 15000 }).catch(() => "");

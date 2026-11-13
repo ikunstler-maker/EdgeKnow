@@ -1,0 +1,12 @@
+carol starts a version: forbidden
+finished before its bytes are there: forbidden
+carol sees the upload: 0, finishes it: forbidden
+bob lists: plan.pdf; finishes: 2
+the file now: plan.pdf v2 2000 true; the upload row is gone: 0
+carol sees the versions: v1 1000, restores: forbidden, deletes: forbidden
+bob restores v1: 3
+now v3 1000, kept: v2 2000
+the owner sees the space of versions too: 3000
+bob deletes v2: true
+its bytes queued for removal: 1
+cleaned: 1, the file stays: 1

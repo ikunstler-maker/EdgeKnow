@@ -14,6 +14,7 @@ import { VAULT_PART_BYTES, VAULT_SMALL_BYTES } from "@/lib/vault-files";
 import { createVaultFolder, deleteVaultItem, moveVaultItem, renameVaultItem, restoreVaultItem, trashVaultItem } from "@/app/vault-actions";
 import { VaultMoveDialog } from "./vault-move-dialog";
 import { VaultShareDialog } from "./vault-share-dialog";
+import { VaultVersionsDialog } from "./vault-versions-dialog";
 import { Dialog } from "@/components/ui/dialog";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Popover } from "@/components/ui/popover";
@@ -29,7 +30,8 @@ type Dialogs =
   | { kind: "rename"; item: VaultItem }
   | { kind: "move"; item: VaultItem }
   | { kind: "share"; item: VaultItem }
-  | { kind: "delete"; item: VaultItem };
+  | { kind: "delete"; item: VaultItem }
+  | { kind: "versions"; item: VaultItem };
 
 // Vault's own folders and files (VAULT-2): one folder at a time, uploads by button or by
 // dropping files, and per item: open, download, rename, move, access, bin. The bin lists
@@ -82,14 +84,15 @@ export function VaultDrive({
 
   const setUpload = (key: string, patch: Partial<Upload>) => setUploads((list) => list.map((u) => (u.key === key ? { ...u, ...patch } : u)));
 
-  async function uploadOne(file: File, key: string): Promise<boolean> {
+  // replace: a new version of this file instead of a new file (VAULT-6).
+  async function uploadOne(file: File, key: string, replace?: string): Promise<boolean> {
     const fail = (code: string) => {
       setUpload(key, { error: errorText(code) });
       return false;
     };
     if (limitMb !== null && file.size > limitMb * 1048576) return fail("too_large");
     if (!file.size) return fail("invalid_file");
-    const query = `ws=${shortId}&folder=${folderId ?? ""}&name=${encodeURIComponent(file.name.slice(0, 200))}`;
+    const query = `ws=${shortId}&folder=${folderId ?? ""}&name=${encodeURIComponent(file.name.slice(0, 200))}${replace ? `&replace=${replace}` : ""}`;
     if (file.size <= VAULT_SMALL_BYTES) {
       const response = await fetch(`/api/vault/files?${query}`, { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file }).catch(() => null);
       const result = (await response?.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
@@ -120,6 +123,18 @@ export function VaultDrive({
     setUploads((list) => [...list.filter((u) => !u.error && u.percent < 100), ...batch]);
     // One after another: a large file goes in many parts, and the server takes one at a time.
     for (let i = 0; i < files.length; i++) await uploadOne(files[i], batch[i].key);
+    setUploads((list) => list.filter((u) => u.error));
+    router.refresh();
+  }
+
+  // A new version of one file (whoever edits it): the same upload, then it takes the file's place.
+  const versionInput = useRef<HTMLInputElement>(null);
+  const [versionOf, setVersionOf] = useState<VaultItem | null>(null);
+  async function uploadVersion(file: File | undefined, item: VaultItem | null) {
+    if (!file || !item) return;
+    const key = `${Date.now()}-v-${file.name}`;
+    setUploads((list) => [...list.filter((u) => !u.error && u.percent < 100), { key, name: file.name, percent: 0 }]);
+    await uploadOne(file, key, item.id);
     setUploads((list) => list.filter((u) => u.error));
     router.refresh();
   }
@@ -276,7 +291,7 @@ export function VaultDrive({
                     </span>
                   )}
                   <span className="truncate">
-                    {[item.kind === "file" ? formatBytes(Number(item.bytes)) : v.folder, when(bin && item.deleted_at ? item.deleted_at : item.updated_at), item.owner_id ? ownerOf.get(item.owner_id) : ""].filter(Boolean).join(" · ")}
+                    {[item.kind === "file" ? formatBytes(Number(item.bytes)) : v.folder, (item.version ?? 1) > 1 ? v.versions.badge(item.version ?? 1) : "", when(bin && item.deleted_at ? item.deleted_at : item.updated_at), item.owner_id ? ownerOf.get(item.owner_id) : ""].filter(Boolean).join(" · ")}
                   </span>
                 </span>
               </div>
@@ -326,12 +341,29 @@ export function VaultDrive({
             onPick={(next) => {
               setMenu(null);
               if (next === "trash") run(() => trashVaultItem(shortId, menu.item.id));
-              else setDialog({ kind: next, item: menu.item } as Dialogs);
+              else if (next === "newVersion") {
+                setVersionOf(menu.item);
+                versionInput.current?.click();
+              } else setDialog({ kind: next, item: menu.item } as Dialogs);
             }}
           />
         </Popover>
       )}
 
+      <input
+        ref={versionInput}
+        type="file"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          void uploadVersion(file, versionOf);
+        }}
+        data-vault-version-input
+      />
+      {dialog?.kind === "versions" && <VaultVersionsDialog shortId={shortId} item={dialog.item} members={members} onClose={() => setDialog(null)} />}
       {dialog?.kind === "folder" && (
         <NameDialog title={v.newFolder} label={v.folderName} initial="" submit={v.create} onClose={() => setDialog(null)} onSave={(name) => createVaultFolder(shortId, workspaceId, folderId, name)} />
       )}
@@ -370,9 +402,11 @@ const asItem = (folder: NonNullable<VaultListing["folder"]>): VaultItem => ({
   updated_at: "", deleted_at: null, role: folder.role, restricted: false, shared: false,
 });
 
-function MenuItems({ item, onPick }: { item: VaultItem; onPick: (what: "rename" | "move" | "share" | "trash") => void }) {
+type MenuAction = "rename" | "move" | "share" | "trash" | "newVersion" | "versions";
+function MenuItems({ item, onPick }: { item: VaultItem; onPick: (what: MenuAction) => void }) {
   const edit = canEditVault(item.role);
-  const entry = (what: "rename" | "move" | "share" | "trash", icon: IconName, label: string): ReactNode => (
+  const file = item.kind === "file";
+  const entry = (what: MenuAction, icon: IconName, label: string): ReactNode => (
     <button key={what} type="button" onClick={() => onPick(what)} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm hover:bg-hover md:min-h-9" data-vault-action={what}>
       <Icon name={icon} size={16} />
       {label}
@@ -382,6 +416,8 @@ function MenuItems({ item, onPick }: { item: VaultItem; onPick: (what: "rename" 
     <div role="menu">
       {edit && entry("rename", "edit", v.rename)}
       {edit && entry("move", "arrow-right", v.move)}
+      {edit && file && entry("newVersion", "upload", v.versions.upload)}
+      {file && entry("versions", "history", v.versions.title)}
       {entry("share", "users", v.share)}
       {edit && entry("trash", "trash", v.toBin)}
     </div>

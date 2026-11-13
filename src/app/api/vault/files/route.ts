@@ -16,9 +16,11 @@ export async function POST(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const ws = params.get("ws") ?? "";
   const folder = params.get("folder") || null;
+  // VAULT-6: a new version of this file instead of a new file.
+  const replace = params.get("replace") || null;
   const name = (params.get("name") ?? "").trim().slice(0, 200);
   const declared = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-  if (!/^[a-z0-9]{4,16}$/.test(ws) || (folder && !/^[0-9a-f-]{36}$/.test(folder)) || !name) return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
+  if (!/^[a-z0-9]{4,16}$/.test(ws) || (folder && !/^[0-9a-f-]{36}$/.test(folder)) || (replace && !/^[0-9a-f-]{36}$/.test(replace)) || !name) return NextResponse.json({ ok: false, error: "invalid" }, { status: 400 });
 
   const central = await createClient();
   const { data: claims } = await central.auth.getClaims();
@@ -32,7 +34,9 @@ export async function POST(request: NextRequest) {
   const type = vaultChecked(declared, bytes, chatFileLooksLike);
   if (!type) return NextResponse.json({ ok: false, error: "invalid_file" }, { status: 400 });
 
-  const { data: registered } = await db.rpc("begin_vault_file", { ws: workspace.id, folder, file_name: name, file_type: type, file_bytes: bytes.length });
+  const { data: registered } = replace
+    ? await db.rpc("begin_vault_version", { target: replace, file_name: name, file_type: type, file_bytes: bytes.length })
+    : await db.rpc("begin_vault_file", { ws: workspace.id, folder, file_name: name, file_type: type, file_bytes: bytes.length });
   const reg = registered as { ok: boolean; error?: string; id?: string; workspace_id?: string } | null;
   if (!reg?.ok || !reg.id) return NextResponse.json({ ok: false, error: reg?.error ?? "unknown" }, { status: 403 });
 
@@ -49,6 +53,16 @@ export async function POST(request: NextRequest) {
   } catch {
     await forget();
     return NextResponse.json({ ok: false, error: "upload_failed" }, { status: 502 });
+  }
+  if (replace) {
+    // The stored bytes become the file's current version (with the person's own session).
+    const { data: done } = await db.rpc("vault_finish_version", { upload: reg.id });
+    const result = done as { ok: boolean; error?: string } | null;
+    if (!result?.ok) {
+      await forget();
+      return NextResponse.json({ ok: false, error: result?.error ?? "unknown" }, { status: 403 });
+    }
+    return NextResponse.json({ ok: true, id: replace });
   }
   return NextResponse.json({ ok: true, id: reg.id });
 }
