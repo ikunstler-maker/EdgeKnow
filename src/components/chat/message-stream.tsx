@@ -9,6 +9,8 @@ import { EmojiPicker } from "@/components/pages/emoji-picker";
 import { Popover, MenuItem } from "@/components/ui/popover";
 import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, firstLink, uploadChatFile, type Pending } from "./chat-files";
 import { levelsOf } from "./voice-player";
+import { MessageChips, useHost } from "./chat-chips";
+import { AwayBadge } from "./chat-presence";
 
 const c = () => t.chat;
 // Messages of one author within this gap read as one group (one name, one avatar).
@@ -30,6 +32,17 @@ function withMentions(text: string, names: string[], key: string): ReactNode[] {
     }
   }
   return text ? [<Fragment key={key}>{text}</Fragment>] : [];
+}
+
+// The first link of a message that leads off this site (own links become chips).
+function outsideLink(body: string, host: string) {
+  const link = firstLink(body);
+  if (!link || !host) return null;
+  try {
+    return new URL(link).host === host ? null : link;
+  } catch {
+    return null;
+  }
 }
 
 // Plain text with links (only http and https) and highlighted mentions.
@@ -86,6 +99,8 @@ export type MessageActions = {
   onThread?: (id: string) => void;
   // A channel where chosen people publish: threads read as comments, offered under each post.
   comments?: boolean;
+  // A task, note or event from the message (or the selected part of it); absent for guests.
+  onCreateFrom?: (message: ChatMessage, kind: "task" | "note" | "event", text: string) => void;
 };
 
 // The channel's stream (or a thread's replies): older pages on scrolling up, kept at
@@ -128,7 +143,9 @@ export function MessageStream({
   const lastId = messages[messages.length - 1]?.id;
   const [editing, setEditing] = useState<string | null>(null);
   const [picker, setPicker] = useState<{ id: string; anchor: HTMLElement } | null>(null);
+  const [making, setMaking] = useState<{ message: ChatMessage; text: string; anchor: HTMLElement } | null>(null);
   const everyone = [...people.values()];
+  const host = useHost();
 
   // New at the bottom: follow if the person was at the bottom. Older pages added on
   // top: keep the same message in view.
@@ -214,6 +231,7 @@ export function MessageStream({
                   <header className="flex items-baseline gap-2">
                     <span className="truncate text-sm font-semibold">{author?.name ?? c().formerMember}</span>
                     {author?.guest && <span className="rounded border border-border px-1 text-[10px] uppercase text-muted">{c().guest}</span>}
+                    <AwayBadge userId={m.author_id} />
                     <time dateTime={m.created_at} className="text-xs text-muted">{time(m.created_at)}</time>
                   </header>
                 )}
@@ -241,7 +259,8 @@ export function MessageStream({
                   </p>
                 )}
                 {!m.deleted_at && <MessageFiles files={files.get(m.id) ?? []} shortId={shortId} />}
-                {!m.deleted_at && !m.file_count && editing !== m.id && firstLink(m.body) && <LinkCard url={firstLink(m.body)!} />}
+                {!m.deleted_at && editing !== m.id && <MessageChips body={m.body} />}
+                {!m.deleted_at && !m.file_count && editing !== m.id && outsideLink(m.body, host) && <LinkCard url={outsideLink(m.body, host)!} />}
                 {pending && <p className="text-xs text-muted">{c().sending}</p>}
                 {signs.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-1" data-chat-reactions>
@@ -278,19 +297,56 @@ export function MessageStream({
                   </button>
                 )}
               </div>
-              {live && (actions.canWrite || mine || actions.canModerate) && (
+              {live && (actions.canWrite || mine || actions.canModerate || actions.onCreateFrom) && (
                 <div className="absolute -top-3 right-2 hidden gap-0.5 rounded-lg border border-border bg-overlay p-0.5 shadow-sm group-focus-within:flex group-hover:flex" data-chat-tools>
                   {actions.canWrite && tool("smile", c().react, (anchor) => setPicker({ id: m.id, anchor }))}
                   {actions.canWrite && actions.onThread && !m.thread_root_id && tool("comment", actions.comments ? c().publish.comment : c().replyInThread, () => actions.onThread?.(m.id))}
                   {actions.canWrite && tool("pin", m.pinned_at ? c().unpin : c().pin, () => actions.onPin(m.id, !m.pinned_at), Boolean(m.pinned_at))}
                   {mine && actions.canWrite && tool("edit", c().edit, () => setEditing(m.id))}
                   {(mine || actions.canModerate) && tool("trash", c().delete, () => actions.onDelete(m.id))}
+                  {actions.onCreateFrom && (
+                    <button
+                      type="button"
+                      // Keeps a selection inside the message: only that part goes into the new thing.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        const selection = window.getSelection();
+                        const article = e.currentTarget.closest("article");
+                        const part = selection && !selection.isCollapsed && article?.contains(selection.anchorNode) ? selection.toString().trim() : "";
+                        setMaking({ message: m, text: part || m.body, anchor: e.currentTarget });
+                      }}
+                      aria-label={c().fromMessage.menu}
+                      title={c().fromMessage.menu}
+                      aria-haspopup="menu"
+                      className={iconButtonClass("ghost")}
+                      data-chat-make
+                    >
+                      <Icon name="more" size={15} />
+                    </button>
+                  )}
                 </div>
               )}
             </article>
           </Fragment>
         );
       })}
+      {making && actions.onCreateFrom && (
+        <Popover anchor={making.anchor} onClose={() => setMaking(null)} width={240}>
+          {making.text !== making.message.body && <p className="px-3 pb-1 pt-2 text-xs text-muted">{c().fromMessage.fragment}</p>}
+          {(["task", "note", "event"] as const).map((kind) => (
+            <MenuItem
+              key={kind}
+              onSelect={() => {
+                setMaking(null);
+                actions.onCreateFrom?.(making.message, kind, making.text);
+              }}
+            >
+              <Icon name={kind === "task" ? "task" : kind === "note" ? "file-text" : "calendar"} size={16} />
+              <span data-chat-make-kind={kind}>{c().fromMessage[kind]}</span>
+            </MenuItem>
+          ))}
+        </Popover>
+      )}
       {picker && (
         <EmojiPicker
           anchor={picker.anchor}
@@ -447,6 +503,7 @@ export function Composer({
   draft,
   onDraft,
   upload,
+  onSchedule,
 }: {
   placeholder: string;
   people: ChatPerson[];
@@ -456,9 +513,12 @@ export function Composer({
   draft: string;
   onDraft: (value: string) => void;
   upload: { shortId: string; channelId: string } | null;
+  // Send later (text only): answers whether it was planned.
+  onSchedule?: (body: string, at: Date) => Promise<boolean>;
 }) {
   const [items, setItems] = useState<Pending[]>([]);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
+  const [later, setLater] = useState<HTMLElement | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploading = items.some((p) => p.state === "uploading");
@@ -517,6 +577,11 @@ export function Composer({
             <div className="min-w-0 flex-1">
               <MentionTextarea value={draft} onChange={onDraft} people={people} label={placeholder} placeholder={placeholder} disabled={disabled} onSubmit={send} />
             </div>
+            {onSchedule && draft.trim() && !items.length && (
+              <button type="button" onClick={(e) => setLater(e.currentTarget)} disabled={disabled} aria-label={c().later.title} title={c().later.title} className={iconButtonClass("ghost")} data-chat-later>
+                <Icon name="clock" size={18} />
+              </button>
+            )}
             {upload && !draft.trim() && !ready.length ? (
               <VoiceButton
                 disabled={disabled || items.length >= 10}
@@ -546,6 +611,17 @@ export function Composer({
       )}
       <input ref={photoInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onChange={(e) => { pick(e.target.files, true); e.target.value = ""; }} />
       <input ref={fileInput} type="file" multiple hidden onChange={(e) => { pick(e.target.files, false); e.target.value = ""; }} />
+      {later && onSchedule && (
+        <LaterMenu
+          anchor={later}
+          onClose={() => setLater(null)}
+          onPick={async (at) => {
+            setLater(null);
+            const body = draft.trim();
+            if (body && (await onSchedule(body, at))) onDraft("");
+          }}
+        />
+      )}
       {menu && (
         <Popover anchor={menu} onClose={() => setMenu(null)} width={260}>
           <MenuItem onSelect={() => { setMenu(null); photoInput.current?.click(); }}>
@@ -565,5 +641,50 @@ export function Composer({
         </Popover>
       )}
     </div>
+  );
+}
+
+// When to send: in an hour, tomorrow at 9, Monday at 9, or a chosen moment.
+function LaterMenu({ anchor, onClose, onPick }: { anchor: HTMLElement; onClose: () => void; onPick: (at: Date) => void }) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // The choices as of opening the menu.
+  const [choice] = useState(() => {
+    const now = new Date();
+    const at = (days: number, hour: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() + days);
+      d.setHours(hour, 0, 0, 0);
+      return d;
+    };
+    return { inHour: new Date(now.getTime() + 60 * 60_000), tomorrow: at(1, 9), monday: at((8 - now.getDay()) % 7 || 7, 9), min: local(now) };
+  });
+  const [custom, setCustom] = useState(() => local(choice.tomorrow));
+  const label = (d: Date) => d.toLocaleString(dateLocale(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return (
+    <Popover anchor={anchor} onClose={onClose} width={280}>
+      <p className="px-3 pt-1 text-xs font-medium text-muted">{c().later.title}</p>
+      {[
+        [c().later.inHour, choice.inHour],
+        [c().later.tomorrow, choice.tomorrow],
+        [c().later.monday, choice.monday],
+      ].map(([text, date]) => (
+        <MenuItem key={String(text)} onSelect={() => onPick(date as Date)}>
+          <span className="flex-1">{text as string}</span>
+          <span className="text-xs text-muted">{label(date as Date)}</span>
+        </MenuItem>
+      ))}
+      <form
+        className="flex gap-2 border-t border-border p-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const d = new Date(custom);
+          if (!Number.isNaN(d.getTime())) onPick(d);
+        }}
+      >
+        <input type="datetime-local" value={custom} min={choice.min} onChange={(e) => setCustom(e.target.value)} aria-label={c().later.custom} className="min-h-11 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-sm md:min-h-8" />
+        <button type="submit" className="min-h-11 rounded-md bg-accent px-3 text-sm text-white md:min-h-8">{c().later.set}</button>
+      </form>
+    </Popover>
   );
 }

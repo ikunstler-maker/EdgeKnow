@@ -145,7 +145,7 @@ The tables exist in both the central and the team database.
 | **Kadry** (presentations) | task card and project task list on a slide |
 | **Core** | notifications (bell), analytics (created, done, overdue), search, units as rule recipients and board owners, file storage |
 | **Doba** | tasks with a due date show on the calendar (mine or all the person can read; read-only there). The calendar calls `project_tasks` for every project, so it follows the task visibility rules by itself — private tasks included |
-| **Toker** | task from a message ↔ link to the thread; status change from a chip in chat (see "Planned") |
+| **Toker** | task from a message (or a selected part) with a link back, the link left in the thread — done (Toker 3b); status and assignee change from a chip in a chat message — done (Toker 3a) |
 | **Spilno** | planned links; no details yet |
 | **Profile** | "Link a wishlist": live wishlist cards in a task (`task_wishlist_links`), rights as for files |
 

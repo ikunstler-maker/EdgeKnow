@@ -21,6 +21,7 @@ export type ChipTask = {
   status: string;
   category: StatusCategory;
   assignee: string | null;
+  assigneeId: string | null;
   deleted: boolean;
   canEdit: boolean;
 };
@@ -31,13 +32,14 @@ type Row = {
   title: string;
   type: TaskType;
   project_id: string;
+  assignee_id: string | null;
   deleted_at: string | null;
   project: { key: string } | null;
   status: { name: string; category: StatusCategory } | null;
   assignee: { name: string | null; email: string } | null;
 };
 const CHIP_COLUMNS =
-  "id, number, title, type, project_id, deleted_at, project:task_projects(key), status:task_statuses(name, category), assignee:profiles!tasks_assignee_id_fkey(name, email)";
+  "id, number, title, type, project_id, assignee_id, deleted_at, project:task_projects(key), status:task_statuses(name, category), assignee:profiles!tasks_assignee_id_fkey(name, email)";
 
 async function editableProjects(db: Awaited<ReturnType<typeof dataClient>>, projectIds: string[]) {
   const roles = await Promise.all([...new Set(projectIds)].map(async (id) => [id, (await db.rpc("task_project_role", { target_project: id })).data as string | null] as const));
@@ -57,6 +59,7 @@ function toChip(row: Row, editable: Set<string>): ChipTask {
     status: row.status?.name ?? "",
     category: row.status?.category ?? "todo",
     assignee: row.assignee ? row.assignee.name || row.assignee.email : null,
+    assigneeId: row.assignee_id,
     deleted: row.deleted_at !== null,
     canEdit: editable.has(row.project_id) && row.deleted_at === null,
   };
@@ -119,6 +122,16 @@ export async function setTaskStatusFromPage(shortId: string, taskId: string, sta
   const db = await writeClient(shortId);
   if (!db) return { ok: false, error: "team_setup" };
   const { data, error } = await db.rpc("update_task", { target_task: taskId, changes: { status_id: statusId } });
+  if (error || !data) return { ok: false, error: "unknown" };
+  return data as ActionResult;
+}
+
+// An assignee change from a chip (in a chat message); update_task checks who may assign whom.
+export async function setTaskAssigneeFromChip(shortId: string, taskId: string, assigneeId: string | null): Promise<ActionResult> {
+  if (assigneeId !== null && !/^[0-9a-f-]{36}$/.test(assigneeId)) return { ok: false, error: "unknown" };
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" };
+  const { data, error } = await db.rpc("update_task", { target_task: taskId, changes: { assignee_id: assigneeId } });
   if (error || !data) return { ok: false, error: "unknown" };
   return data as ActionResult;
 }

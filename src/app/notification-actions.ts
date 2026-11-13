@@ -22,7 +22,11 @@ export async function loadNotifications(shortId: string, workspaceId: string): P
   // Reminders run on no clock: the bell asking for news is what makes the ones that are due
   // (an older database has no such function yet — then there are simply none).
   const writer = await writeClient(shortId);
-  if (writer) await writer.rpc("calendar_remind_me", { ws: workspaceId });
+  if (writer) {
+    await writer.rpc("calendar_remind_me", { ws: workspaceId });
+    // Chat messages planned for later whose time has come go out with the same check.
+    await writer.rpc("chat_send_due", { ws: workspaceId });
+  }
   const { data, error } = await supabase.rpc("my_notifications", { ws: workspaceId, max_rows: 40 });
   if (error || !data) return null;
   return data as NotificationList;

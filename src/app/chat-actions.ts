@@ -1,8 +1,10 @@
 "use server";
 
+import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/action-result";
 import { dataClient, writeClient } from "@/lib/team-db/data";
-import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatFile, type ChatNotify, type ChatReaction } from "@/lib/chat";
+import { CHIP_SERVICES, type ChatChip, type ChipRef, type ChipService } from "@/lib/chat-chips";
+import { MESSAGE_PAGE, type ChatCategory, type ChatCategoryAccess, type ChatChannel, type ChatMember, type ChatMessage, type ChatFile, type ChatNotify, type ChatReaction, type ChatScheduled, type ChatSearchHit } from "@/lib/chat";
 
 // Toker: the screen's reads and changes. The database decides who sees and does
 // what (chat_* functions, row level security); these only forward to wherever the
@@ -25,6 +27,8 @@ const ids = (list: string[]) => list.filter((id) => UUID.test(id));
 
 export async function loadChat(shortId: string, workspaceId: string): Promise<{ channels: ChatChannel[]; categories: ChatCategory[] } | null> {
   if (!UUID.test(workspaceId)) return null;
+  // Messages planned for later whose time has come go out first (anyone's open page sends them).
+  await sendDue(shortId, workspaceId);
   const supabase = await dataClient(shortId);
   const [{ data: channels, error }, { data: categories }] = await Promise.all([
     supabase.rpc("chat_my_channels", { ws: workspaceId }),
@@ -89,6 +93,26 @@ export async function loadFiles(shortId: string, messageIds: string[]): Promise<
     .order("created_at")
     .limit(2000);
   return (data ?? []) as ChatFile[];
+}
+
+export async function searchChat(shortId: string, workspaceId: string, query: string, channelId: string | null = null): Promise<ChatSearchHit[]> {
+  if (!UUID.test(workspaceId) || query.trim().length < 2) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.rpc("chat_search", { ws: workspaceId, query: query.trim().slice(0, 200), ch: channelId && UUID.test(channelId) ? channelId : null });
+  return (data ?? []) as ChatSearchHit[];
+}
+
+export async function loadScheduled(shortId: string, workspaceId: string): Promise<ChatScheduled[]> {
+  if (!UUID.test(workspaceId)) return [];
+  const supabase = await dataClient(shortId);
+  const { data } = await supabase.from("chat_scheduled").select("id, channel_id, thread_root_id, body, send_at").eq("workspace_id", workspaceId).order("send_at");
+  return (data ?? []) as ChatScheduled[];
+}
+
+// Sends what is due (an older database without the function simply has none).
+export async function sendDue(shortId: string, workspaceId: string) {
+  const writer = await writeClient(shortId);
+  if (writer && UUID.test(workspaceId)) await writer.rpc("chat_send_due", { ws: workspaceId });
 }
 
 export async function loadReactions(shortId: string, messageIds: string[]): Promise<ChatReaction[]> {
@@ -202,6 +226,14 @@ export async function editMessage(shortId: string, messageId: string, body: stri
   return call(shortId, "chat_edit_message", { msg: messageId, new_body: body, mention_ids: ids(mentions) });
 }
 
+export async function scheduleMessage(shortId: string, channelId: string, body: string, at: string, threadRootId: string | null = null, mentions: string[] = []) {
+  return call<{ id: string }>(shortId, "chat_schedule_message", { ch: channelId, new_body: body, thread_root: threadRootId, mention_ids: ids(mentions), at });
+}
+
+export async function cancelScheduled(shortId: string, scheduledId: string) {
+  return call(shortId, "chat_cancel_scheduled", { target: scheduledId });
+}
+
 export async function pinMessage(shortId: string, messageId: string, pinned: boolean) {
   return call(shortId, "chat_pin_message", { msg: messageId, pinned });
 }
@@ -230,4 +262,85 @@ export async function reorderCategories(shortId: string, workspaceId: string, or
 
 export async function setCategoryAccess(shortId: string, workspaceId: string, categoryId: string, groupIds: string[], userIds: string[]) {
   return call(shortId, "chat_set_category_access", { ws: workspaceId, cat: categoryId, group_ids: ids(groupIds), user_ids: ids(userIds) });
+}
+
+// ---------------------------------------------------------------- live chips (stage 3a)
+
+type ChipTaskRow = { id: string; number: number; project: { key: string } | null };
+
+// What the workspace links of messages point at, as the reader may see them (their
+// own access in the database): anything hidden or gone comes back as "none". A task
+// comes back as its id only; its card reads it live like a chip on a wiki page.
+export async function loadChatChips(shortId: string, workspaceId: string, refs: ChipRef[]): Promise<Record<string, ChatChip>> {
+  const result: Record<string, ChatChip> = {};
+  if (!UUID.test(workspaceId) || !Array.isArray(refs)) return result;
+  const list = refs.slice(0, 40);
+  for (const ref of list) result[ref.key] = { kind: "none" };
+  const db = await dataClient(shortId);
+  const pageIds = list.flatMap((r) => (r.kind === "page" && UUID.test(r.id) ? [r.id] : []));
+  const objectIds = list.flatMap((r) => (r.kind === "object" && UUID.test(r.id) && (CHIP_SERVICES as readonly string[]).includes(r.service) ? [r.id] : []));
+  const tasks = list.flatMap((r) => (r.kind === "task" && /^[A-Z][A-Z0-9]{1,9}$/.test(r.project) && Number.isInteger(r.number) && r.number > 0 ? [r] : []));
+  const [pages, objects, ...taskRows] = await Promise.all([
+    pageIds.length ? db.from("pages").select("id, title, icon").eq("workspace_id", workspaceId).in("id", pageIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
+    objectIds.length ? db.from("service_objects").select("id, service, title, icon").eq("workspace_id", workspaceId).in("id", objectIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
+    ...tasks.map((r) =>
+      db
+        .from("tasks")
+        .select("id, number, project:task_projects!inner(key)")
+        .eq("workspace_id", workspaceId)
+        .eq("project.key", r.project)
+        .eq("number", r.number)
+        .is("deleted_at", null)
+        .maybeSingle()
+        .overrideTypes<ChipTaskRow | null, { merge: false }>(),
+    ),
+  ]);
+  for (const p of (pages.data ?? []) as { id: string; title: string; icon: string | null }[]) result[`page:${p.id}`] = { kind: "page", title: p.title, icon: p.icon };
+  for (const o of (objects.data ?? []) as { id: string; service: ChipService; title: string; icon: string | null }[]) {
+    // The link's own service must match (a table link never shows a board).
+    const ref = list.find((r) => r.kind === "object" && r.id === o.id);
+    if (ref?.kind === "object" && ref.service === o.service) result[`object:${o.id}`] = { kind: "object", service: o.service, title: o.title, icon: o.icon };
+  }
+  for (const { data: row } of taskRows) if (row?.project) result[`task:${row.project.key}-${row.number}`] = { kind: "task", id: row.id };
+  return result;
+}
+
+// ---------------------------------------------------------------- from a message (stage 3b)
+
+type Block = { type: string; content?: unknown[]; props?: Record<string, unknown> };
+
+// The message (or the chosen part of it) as paragraphs, then "From the chat:" with a
+// link back to the message. Plain text only: links stay text the editor shows as is.
+function fromMessageBlocks(text: string, link: string, label: string): Block[] {
+  const lines = text.slice(0, 4000).split(/\n/);
+  return [
+    ...lines.map((line) => ({ type: "paragraph", content: line ? [{ type: "text", text: line, styles: {} }] : [] })),
+    { type: "paragraph", content: [{ type: "text", text: `${label} `, styles: {} }, { type: "link", href: link, content: [{ type: "text", text: link, styles: {} }] }] },
+  ];
+}
+
+// Only links to this site's own chat may go back into a task or a page.
+const chatLink = (link: string) => /^https?:\/\/[^/\s]+\/w\/[^/\s]+\/chat\?[\w=&-]{1,200}$/.test(link);
+
+export async function taskFromMessage(shortId: string, projectId: string, title: string, text: string, link: string): Promise<ActionResult<{ id: string; key: string }>> {
+  if (!UUID.test(projectId) || !title.trim() || !chatLink(link)) return { ok: false, error: "unknown" };
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" };
+  const description = fromMessageBlocks(text, link, t.chat.fromMessage.backLink);
+  const { data, error } = await db.rpc("create_task", { target_project: projectId, fields: { title: title.trim().slice(0, 300), description } });
+  if (error || !data) return { ok: false, error: "unknown" };
+  return data as ActionResult<{ id: string; key: string }>;
+}
+
+export async function noteFromMessage(shortId: string, workspaceId: string, title: string, text: string, link: string): Promise<ActionResult<{ id: string }>> {
+  if (!UUID.test(workspaceId) || !title.trim() || !chatLink(link)) return { ok: false, error: "unknown" };
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false, error: "team_setup" };
+  const { data, error } = await db.rpc("create_page", { ws: workspaceId, parent: null, new_title: title.trim().slice(0, 200) });
+  const made = data as ActionResult<{ id: string }> | null;
+  if (error || !made) return { ok: false, error: "unknown" };
+  if (!made.ok) return made;
+  const saved = await db.rpc("save_page_content", { target_page: made.id, new_content: fromMessageBlocks(text, link, t.chat.fromMessage.backLink), base_version: 1 });
+  if (saved.error || !(saved.data as ActionResult | null)?.ok) return { ok: false, error: "unknown" };
+  return made;
 }

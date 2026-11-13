@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { dateLocale, t } from "@/i18n";
-import type { ChatFile, ChatMessage, ChatPerson, ChatReaction } from "@/lib/chat";
+import type { ChatFile, ChatMessage, ChatPerson, ChatReaction, ChatSearchHit } from "@/lib/chat";
+import { searchChat } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
 import { Composer, MessageStream, type MessageActions } from "./message-stream";
@@ -39,6 +40,7 @@ export function ThreadPanel({
   files,
   shortId,
   upload,
+  onSchedule,
 }: {
   channelName: string;
   root: ChatMessage | null;
@@ -54,6 +56,7 @@ export function ThreadPanel({
   files: Map<string, ChatFile[]>;
   shortId: string;
   upload: { shortId: string; channelId: string } | null;
+  onSchedule?: (body: string, at: Date) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState("");
   const everyone = [...people.values()];
@@ -87,6 +90,7 @@ export function ThreadPanel({
             draft={draft}
             onDraft={setDraft}
             upload={upload}
+            onSchedule={onSchedule}
           />
         </>
       )}
@@ -134,6 +138,82 @@ export function PinsPanel({
                     <Icon name="close" size={14} />
                   </button>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Search in the chat: this channel or everything the person sees; a result opens the
+// message (in its thread when it is a reply).
+export function SearchPanel({
+  shortId,
+  workspaceId,
+  channelId,
+  people,
+  onOpen,
+  onClose,
+}: {
+  shortId: string;
+  workspaceId: string;
+  channelId: string;
+  people: Map<string, ChatPerson>;
+  onOpen: (hit: ChatSearchHit) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [here, setHere] = useState(true);
+  const [hits, setHits] = useState<ChatSearchHit[] | null>(null);
+  const latest = useRef(0);
+  useEffect(() => {
+    const id = ++latest.current;
+    const words = query.trim();
+    const timer = setTimeout(async () => {
+      if (words.length < 2) return setHits(null);
+      const found = await searchChat(shortId, workspaceId, words, here ? channelId : null);
+      if (id === latest.current) setHits(found);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [query, here, shortId, workspaceId, channelId]);
+  return (
+    <div className="flex h-full min-h-0 flex-col" data-chat-search>
+      <PanelHeader title={c().search.title} onClose={onClose} />
+      <div className="flex flex-col gap-2 border-b border-border p-3">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={c().search.placeholder}
+          aria-label={c().search.placeholder}
+          autoFocus
+          className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-accent md:h-9 md:min-h-0"
+          data-chat-search-input
+        />
+        <label className="flex min-h-11 items-center gap-2 text-xs text-muted md:min-h-0">
+          <input type="checkbox" checked={here} onChange={(e) => setHere(e.target.checked)} />
+          {c().search.here}
+        </label>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {hits === null ? (
+          <p className="p-2 text-sm text-muted">{c().search.hint}</p>
+        ) : hits.length === 0 ? (
+          <p className="p-2 text-sm text-muted">{c().search.none}</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {hits.map((hit) => (
+              <li key={hit.id}>
+                <button type="button" onClick={() => onOpen(hit)} className="block w-full rounded-lg px-2 py-2 text-left hover:bg-hover" data-chat-search-hit={hit.id}>
+                  <span className="flex items-baseline gap-2 text-xs text-muted">
+                    <span className="truncate font-medium text-foreground">{(hit.author_id && people.get(hit.author_id)?.name) || c().formerMember}</span>
+                    <span className="truncate">{hit.visibility === "direct" ? c().direct.title : `#${hit.channel}`}</span>
+                    <span className="ml-auto shrink-0">{new Date(hit.created_at).toLocaleDateString(dateLocale(), { day: "numeric", month: "short" })}</span>
+                  </span>
+                  <span className="mt-0.5 line-clamp-3 whitespace-pre-wrap break-words text-sm">{hit.body}</span>
+                </button>
               </li>
             ))}
           </ul>

@@ -10,6 +10,8 @@ import { searchBlocks, searchPages, type BlockHit, type BlockKind, type SearchHi
 import { searchNodeObjects, type NodeObjectHit } from "@/app/node-actions";
 import { searchBoards, type BoardHit } from "@/app/board-actions";
 import { searchEvents } from "@/app/calendar-actions";
+import { searchChat } from "@/app/chat-actions";
+import type { ChatSearchHit } from "@/lib/chat";
 import type { EventHit } from "@/lib/calendar";
 import { searchSheets, type SheetHit } from "@/app/sheet-actions";
 import { searchSurveys, type SurveyHit } from "@/app/survey-actions";
@@ -101,7 +103,7 @@ function SearchDialog({
   const [depth, setDepth] = useState("all");
   const [hits, setHits] = useState<SearchHit[] | null>(null);
   // "" lets the words decide; "text" is plain text search even for "картинка".
-  const [kind, setKind] = useState<BlockKind | "" | "text" | "maps" | "boards" | "sheets" | "surveys" | "events">("");
+  const [kind, setKind] = useState<BlockKind | "" | "text" | "maps" | "boards" | "sheets" | "surveys" | "events" | "chat">("");
   const [blockHits, setBlockHits] = useState<BlockHit[] | null>(null);
   // Maps and diagrams of the node space (step Н3): their own chip, and below page results.
   const [mapHits, setMapHits] = useState<NodeObjectHit[] | null>(null);
@@ -118,6 +120,9 @@ function SearchDialog({
   // Calendar events (Doba): only those the person sees; coming ones first.
   const [eventHits, setEventHits] = useState<EventHit[] | null>(null);
   const eventsMode = kind === "events";
+  // Toker: messages of the channels the person sees.
+  const [chatHits, setChatHits] = useState<ChatSearchHit[] | null>(null);
+  const chatMode = kind === "chat";
   const [pending, startTransition] = useTransition();
   const latest = useRef(0);
   const currentPage = currentPageId ? pages.find((p) => p.id === currentPageId) : undefined;
@@ -131,7 +136,7 @@ function SearchDialog({
 
   // A kind chosen with a button, or said in words: "картинка", "заголовки бюджет"…
   const said = kind ? null : detectKind(query);
-  const activeKind: BlockKind | "" = kind === "text" || kind === "maps" || kind === "boards" || kind === "sheets" || kind === "surveys" || kind === "events" ? "" : kind || said?.kind || "";
+  const activeKind: BlockKind | "" = kind === "text" || kind === "maps" || kind === "boards" || kind === "sheets" || kind === "surveys" || kind === "events" || kind === "chat" ? "" : kind || said?.kind || "";
   const words = said ? said.rest : query.trim();
 
   // Searches after a short pause in typing; only the latest answer is shown.
@@ -151,6 +156,13 @@ function SearchDialog({
         startTransition(async () => {
           const result = await searchSheets(workspace.shortId, words);
           if (id === latest.current) setSheetHits(result);
+        });
+        return;
+      }
+      if (chatMode) {
+        startTransition(async () => {
+          const result = await searchChat(workspace.shortId, workspace.id, words);
+          if (id === latest.current) setChatHits(result);
         });
         return;
       }
@@ -184,13 +196,14 @@ function SearchDialog({
       }
       if (!words) return;
       startTransition(async () => {
-        const [result, maps, boards, tables, forms, events] = await Promise.all([
+        const [result, maps, boards, tables, forms, events, chat] = await Promise.all([
           searchPages(workspace.id, words, root, levels),
           effectiveScope === "workspace" ? searchNodeObjects(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchBoards(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchSheets(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchSurveys(workspace.shortId, words) : Promise.resolve([]),
           effectiveScope === "workspace" ? searchEvents(workspace.shortId, words) : Promise.resolve([]),
+          effectiveScope === "workspace" ? searchChat(workspace.shortId, workspace.id, words) : Promise.resolve([]),
         ]);
         if (id === latest.current) {
           setHits(result);
@@ -199,13 +212,35 @@ function SearchDialog({
           setSheetHits(tables.slice(0, 5));
           setSurveyHits(forms.slice(0, 5));
           setEventHits(events.slice(0, 5));
+          setChatHits(chat.slice(0, 5));
         }
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [words, activeKind, mapsMode, boardsMode, sheetsMode, surveysMode, eventsMode, effectiveScope, depth, workspace.id, workspace.shortId, currentPageId]);
+  }, [words, activeKind, mapsMode, boardsMode, sheetsMode, surveysMode, eventsMode, chatMode, effectiveScope, depth, workspace.id, workspace.shortId, currentPageId]);
 
-  const shown = !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && !eventsMode && query.trim() ? hits : null;
+  const shown = !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && !eventsMode && !chatMode && query.trim() ? hits : null;
+  const chatList = (list: ChatSearchHit[]) => (
+    <ul aria-label={s.chat} data-chat-results>
+      {list.map((hit) => (
+        <li key={hit.id}>
+          <Link
+            href={workspacePath(workspace.shortId, `/chat?c=${hit.channel_id}${hit.thread_root_id ? `&t=${hit.thread_root_id}` : ""}&m=${hit.id}`)}
+            onClick={onNavigate}
+            className="flex gap-3 rounded-md px-3 py-2 hover:bg-surface"
+          >
+            <ServiceIcon serviceId="chat" size={22} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm">{hit.body}</span>
+              <span className="block truncate text-xs text-muted">
+                {[hit.visibility === "direct" ? t.chat.direct.title : `#${hit.channel}`, new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(hit.created_at))].join(" · ")}
+              </span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
   const sheetList = (list: SheetHit[]) => (
     <ul aria-label={s.sheets} data-sheet-results>
       {list.map((hit) => (
@@ -337,7 +372,7 @@ function SearchDialog({
           </div>
           <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label={s.kindLabel}>
             {(["text", ...KINDS] as const).map((value) => {
-              const on = value === "text" ? !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && !eventsMode : activeKind === value;
+              const on = value === "text" ? !activeKind && !mapsMode && !boardsMode && !sheetsMode && !surveysMode && !eventsMode && !chatMode : activeKind === value;
               return (
                 <button
                   key={value}
@@ -382,6 +417,15 @@ function SearchDialog({
             </button>
             <button
               type="button"
+              aria-pressed={chatMode}
+              onClick={() => setKind("chat")}
+              data-search-mode="chat"
+              className={`min-h-9 rounded-full border px-3 text-xs ${chatMode ? "border-accent bg-accent text-white" : "border-border hover:bg-surface"}`}
+            >
+              <span title={s.chat}>{SERVICE_BRANDS.chat.name}</span>
+            </button>
+            <button
+              type="button"
               aria-pressed={sheetsMode}
               onClick={() => setKind("sheets")}
               data-search-mode="sheets"
@@ -417,6 +461,14 @@ function SearchDialog({
               <p className="p-3 text-sm text-muted">{pending ? s.searching : s.nothing}</p>
             ) : (
               sheetList(sheetHits)
+            )
+          ) : chatMode ? (
+            !chatHits ? (
+              <p className="p-3 text-sm text-muted">{s.searching}</p>
+            ) : chatHits.length === 0 ? (
+              <p className="p-3 text-sm text-muted">{pending ? s.searching : s.nothing}</p>
+            ) : (
+              chatList(chatHits)
             )
           ) : eventsMode ? (
             !eventHits ? (
@@ -515,6 +567,12 @@ function SearchDialog({
             <div className="mt-2 border-t border-border pt-2">
               <p className="px-3 pb-1 text-xs font-medium text-muted">{s.events}</p>
               {eventList(eventHits)}
+            </div>
+          )}
+          {shown && chatHits && chatHits.length > 0 && (
+            <div className="mt-2 border-t border-border pt-2">
+              <p className="px-3 pb-1 text-xs font-medium text-muted">{s.chat}</p>
+              {chatList(chatHits)}
             </div>
           )}
           {shown && sheetHits && sheetHits.length > 0 && (

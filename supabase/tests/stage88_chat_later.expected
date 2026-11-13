@@ -1,0 +1,17 @@
+bob finds: Budget 100% (a_b), Secret budget numbers, The budget for May
+bob in general only: 2
+one letter: 0
+a percent sign is a sign, not a wildcard: 1
+carol finds: Budget 100% (a_b), The budget for May
+a stranger finds: nothing
+too soon: invalid_time, in two years: invalid_time, in his own new closed channel: true
+bob sees his planned: 3
+carol sees bob's planned: 0, cancels one: not_found
+nothing due yet: 0
+carol's page sends what is due: 2
+and not twice: 0
+sent as bob: Good morning by true, Reply later by true
+the thread counts it: 2
+carol's bell (mentioned): 1
+when bob may no longer publish in general: 1 sent (the other channel), 0 there
+left planned: 0

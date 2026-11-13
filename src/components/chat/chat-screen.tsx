@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@/i18n";
 import {
@@ -14,9 +15,13 @@ import {
   type ChatMessage,
   type ChatPerson,
   type ChatReaction,
+  type ChatScheduled,
+  type ChatSearchHit,
 } from "@/lib/chat";
 import {
+  cancelScheduled,
   deleteMessage,
+  loadMembers,
   editMessage,
   joinChannel,
   loadChat,
@@ -25,10 +30,12 @@ import {
   loadMessagesById,
   loadPinned,
   loadReactions,
+  loadScheduled,
   loadThread,
   markRead,
   pinMessage,
   postMessage,
+  scheduleMessage,
   toggleReaction,
 } from "@/app/chat-actions";
 import { Icon } from "@/components/ui/icon";
@@ -36,9 +43,11 @@ import { iconButtonClass } from "@/components/ui/button";
 import { ChannelList, channelIcon } from "./channel-list";
 import { Composer, MessageStream, type MessageActions } from "./message-stream";
 import { MembersPanel } from "./members-panel";
-import { PinsPanel, ThreadPanel } from "./side-panels";
-import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, NewDirectDialog } from "./chat-dialogs";
+import { PinsPanel, SearchPanel, ThreadPanel } from "./side-panels";
+import { BrowseDialog, CategoriesDialog, ChannelSettingsDialog, CreateChannelDialog, FromMessageDialog, NewDirectDialog, type FromMessageKind } from "./chat-dialogs";
 import { useChatLive, type ChatSignal } from "./use-chat-live";
+import { ChatChipsProvider } from "./chat-chips";
+import { ChatPresenceProvider } from "./chat-presence";
 
 const c = () => t.chat;
 const POLL_MS = 5_000;
@@ -66,7 +75,7 @@ export type ChatScreenProps = {
 };
 
 type Dialog = "create" | "direct" | "settings" | "browse" | "categories" | null;
-type Panel = { kind: "members" } | { kind: "pins" } | { kind: "thread"; id: string } | null;
+type Panel = { kind: "members" } | { kind: "pins" } | { kind: "search" } | { kind: "thread"; id: string } | null;
 type Stream = { messages: ChatMessage[]; hasMore: boolean; loaded: boolean };
 
 const errorText = (code: string) => (c().errors as Record<string, string>)[code] ?? c().errors.unknown;
@@ -93,13 +102,46 @@ export function ChatScreen(props: ChatScreenProps) {
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [scheduled, setScheduled] = useState<ChatScheduled[]>([]);
+  const [showScheduled, setShowScheduled] = useState(false);
+  // Drafts are kept on this device (per workspace), so a reload keeps them.
+  const draftsKey = `chat-drafts:${workspaceId}`;
+  const draftsLoaded = useRef(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(draftsKey) ?? "{}") as Record<string, string>;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDrafts((d) => ({ ...saved, ...d }));
+    } catch {
+      // No storage here: drafts live while the tab is open.
+    }
+    draftsLoaded.current = true;
+  }, [draftsKey]);
+  useEffect(() => {
+    if (!draftsLoaded.current) return;
+    const timer = setTimeout(() => {
+      try {
+        const kept = Object.fromEntries(Object.entries(drafts).filter(([, v]) => v.trim()));
+        localStorage.setItem(draftsKey, JSON.stringify(kept));
+      } catch {
+        // Not kept on this device.
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [drafts, draftsKey]);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // A task, note or event being made from a message (stage 3b).
+  const [making, setMaking] = useState<{ message: ChatMessage; kind: FromMessageKind; text: string; invitees: string[] } | null>(null);
   const [panel, setPanel] = useState<Panel>(props.initialThread ? { kind: "thread", id: props.initialThread } : null);
   const [highlight, setHighlight] = useState<string | null>(props.initialMessage);
   const [error, setError] = useState<string | null>(props.failed ? c().errors.load : null);
+  // What was just made from a message, when its link was not left in the thread.
+  const [made, setMade] = useState<{ kind: FromMessageKind; path: string } | null>(null);
 
   const people = useMemo(() => new Map(props.people.map((p) => [p.id, p])), [props.people]);
   const reactions = useMemo(() => new Map(Object.entries(reactionRows)), [reactionRows]);
+  // Task chips offer workspace members (not guests) as assignees; the database checks.
+  const chipsAt = useMemo(() => ({ shortId, workspaceId, people: props.people.filter((p) => !p.guest).map((p) => ({ id: p.id, name: p.name })) }), [shortId, workspaceId, props.people]);
   const files = useMemo(() => new Map(Object.entries(fileRows)), [fileRows]);
   const active = channels.find((ch) => ch.id === activeId) ?? null;
   const stream = activeId ? streams[activeId] : undefined;
@@ -159,12 +201,18 @@ export function ChatScreen(props: ChatScreenProps) {
       });
   }, [fetchFiles]);
 
+  const refreshScheduled = useCallback(async () => setScheduled(await loadScheduled(shortId, workspaceId)), [shortId, workspaceId]);
   const refreshList = useCallback(async () => {
     const fresh = await loadChat(shortId, workspaceId);
     if (!fresh) return;
     setChannels(fresh.channels);
     setCategories(fresh.categories);
-  }, [shortId, workspaceId]);
+    void refreshScheduled();
+  }, [shortId, workspaceId, refreshScheduled]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshScheduled();
+  }, [refreshScheduled]);
 
   const loadLatest = useCallback(
     async (channelId: string) => {
@@ -412,6 +460,36 @@ export function ChatScreen(props: ChatScreenProps) {
     },
     onThread: (id) => setPanel({ kind: "thread", id }),
     comments: active?.post_policy === "chosen",
+    onCreateFrom: props.guest
+      ? undefined
+      : async (message, kind, text) => {
+          // An event from a closed channel or a conversation may invite its people (up to 50).
+          let invitees: string[] = [];
+          if (kind === "event" && active && active.visibility !== "open") {
+            const others = (await loadMembers(shortId, active.id)).map((m) => m.user_id).filter((id) => id !== me);
+            if (others.length <= 50) invitees = others;
+          }
+          setMaking({ message, kind, text, invitees });
+        },
+  };
+
+  const plan = async (body: string, at: Date, rootId: string | null = null) => {
+    if (!active) return false;
+    const result = await scheduleMessage(shortId, active.id, body, at.toISOString(), rootId, mentionsIn(body, props.people));
+    if (!result.ok) {
+      setError(errorText(result.error));
+      return false;
+    }
+    await refreshScheduled();
+    setShowScheduled(true);
+    return true;
+  };
+
+  const openHit = async (hit: ChatSearchHit) => {
+    if (hit.channel_id !== activeId) select(hit.channel_id);
+    putMessages(hit.channel_id, await loadMessagesById(shortId, [hit.thread_root_id ?? hit.id]));
+    if (hit.thread_root_id) setPanel({ kind: "thread", id: hit.thread_root_id });
+    setHighlight(hit.thread_root_id ?? hit.id);
   };
 
   const join = async () => {
@@ -449,7 +527,7 @@ export function ChatScreen(props: ChatScreenProps) {
   const composerNote = threadNote ?? (active && active.joined && !active.can_publish ? c().publish.onlyChosen : null);
   const unit = active?.unit_id ? props.units.find((u) => u.id === active.unit_id) : undefined;
   const threadRoot = threadId ? (stream?.messages.find((m) => m.id === threadId) ?? null) : null;
-  const panelButton = (kind: "members" | "pins", icon: "users" | "pin", label: string) => (
+  const panelButton = (kind: "members" | "pins" | "search", icon: "users" | "pin" | "search", label: string) => (
     <button
       type="button"
       onClick={() => setPanel((p) => (p?.kind === kind ? null : { kind }))}
@@ -464,6 +542,8 @@ export function ChatScreen(props: ChatScreenProps) {
   );
 
   return (
+    <ChatChipsProvider value={chipsAt}>
+    <ChatPresenceProvider shortId={shortId} workspaceId={workspaceId} guest={props.guest}>
     <div className="flex h-[calc(100dvh-3.25rem)] w-full min-w-0 overflow-hidden md:h-dvh" data-chat>
       <aside className={`w-full shrink-0 border-r border-border bg-shell md:block md:w-64 ${showList || !active ? "block" : "hidden"}`}>
         <ChannelList
@@ -499,12 +579,22 @@ export function ChatScreen(props: ChatScreenProps) {
                   </p>
                 )}
               </div>
+              {panelButton("search", "search", c().search.title)}
               {panelButton("pins", "pin", c().pins)}
               {panelButton("members", "users", c().members.title)}
               <button type="button" onClick={() => setDialog("settings")} aria-label={c().settings.title} title={c().settings.title} className={iconButtonClass("ghost")} data-chat-settings>
                 <Icon name="settings" size={18} />
               </button>
             </header>
+            {made && (
+              <div role="status" className="flex items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm" data-chat-made>
+                <span className="flex-1">{c().fromMessage.created[made.kind]}</span>
+                <Link href={made.path} prefetch={false} className="font-medium text-accent hover:underline">{c().fromMessage.open}</Link>
+                <button type="button" onClick={() => setMade(null)} aria-label={t.common.close} className={iconButtonClass("ghost")}>
+                  <Icon name="close" size={16} />
+                </button>
+              </div>
+            )}
             {error && (
               <div role="alert" className="flex items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm">
                 <span className="flex-1">{error}</span>
@@ -528,7 +618,46 @@ export function ChatScreen(props: ChatScreenProps) {
               shortId={shortId}
               empty={<p className="py-10 text-center text-sm text-muted">{active.visibility === "direct" ? c().direct.empty(activeTitle) : c().emptyChannel(active.name)}</p>}
             />
+            {(() => {
+              const here = scheduled.filter((x) => x.channel_id === active.id);
+              if (!here.length) return null;
+              return (
+                <div className="shrink-0 border-t border-border px-2 pt-2 md:px-4" data-chat-scheduled>
+                  <button type="button" onClick={() => setShowScheduled((v) => !v)} aria-expanded={showScheduled} className="flex min-h-11 items-center gap-1.5 text-xs text-muted hover:text-foreground md:min-h-6">
+                    <Icon name="clock" size={13} />
+                    {c().later.planned(here.length)}
+                    <Icon name={showScheduled ? "chevron-up" : "chevron-down"} size={12} />
+                  </button>
+                  {showScheduled && (
+                    <ul className="mt-1 flex max-h-40 flex-col gap-1 overflow-y-auto">
+                      {here.map((x) => (
+                        <li key={x.id} className="flex items-center gap-2 rounded-md bg-surface px-2 py-1 text-xs">
+                          <span className="shrink-0 tabular-nums text-muted">
+                            {new Date(x.send_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate">{x.thread_root_id ? `${c().later.reply} · ` : ""}{x.body}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const result = await cancelScheduled(shortId, x.id);
+                              if (!result.ok) setError(errorText(result.error));
+                              await refreshScheduled();
+                            }}
+                            aria-label={c().later.cancel}
+                            title={c().later.cancel}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded hover:bg-hover"
+                          >
+                            <Icon name="close" size={12} />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
             <Composer
+              onSchedule={(body, at) => plan(body, at)}
               placeholder={active.visibility === "direct" ? c().direct.composer(activeTitle) : c().composer(active.name)}
               people={props.people}
               disabled={false}
@@ -576,6 +705,9 @@ export function ChatScreen(props: ChatScreenProps) {
               onClose={() => setPanel(null)}
             />
           )}
+          {panel.kind === "search" && (
+            <SearchPanel shortId={shortId} workspaceId={workspaceId} channelId={active.id} people={people} onOpen={(hit) => void openHit(hit)} onClose={() => setPanel(null)} />
+          )}
           {panel.kind === "thread" && (
             <ThreadPanel
               key={panel.id}
@@ -589,6 +721,7 @@ export function ChatScreen(props: ChatScreenProps) {
               pendingIds={pending}
               note={threadNote}
               onSend={(body, fileIds) => void send(body, fileIds, panel.id)}
+              onSchedule={(body, at) => plan(body, at, panel.id)}
               files={files}
               shortId={shortId}
               upload={canWrite ? { shortId, channelId: active.id } : null}
@@ -611,6 +744,26 @@ export function ChatScreen(props: ChatScreenProps) {
             setDialog(null);
             await refreshList();
             select(id);
+          }}
+        />
+      )}
+      {making && active && (
+        <FromMessageDialog
+          kind={making.kind}
+          shortId={shortId}
+          workspaceId={workspaceId}
+          text={making.text}
+          link={`${window.location.origin}/w/${shortId}/chat?c=${making.message.channel_id}${making.message.thread_root_id ? `&t=${making.message.thread_root_id}` : ""}&m=${making.message.id}`}
+          invitees={making.invitees}
+          privateChannel={active.visibility !== "open"}
+          canReply={canWrite && making.message.channel_id === active.id}
+          onClose={() => setMaking(null)}
+          onCreated={(path, reply) => {
+            const message = making.message;
+            setMaking(null);
+            // The new thing's link in the message's thread shows as a live chip.
+            if (reply) void send(`${c().fromMessage.created[making.kind]} ${window.location.origin}${path}`, [], message.thread_root_id ?? message.id);
+            else setMade({ kind: making.kind, path });
           }}
         />
       )}
@@ -669,5 +822,7 @@ export function ChatScreen(props: ChatScreenProps) {
         />
       )}
     </div>
+    </ChatPresenceProvider>
+    </ChatChipsProvider>
   );
 }
