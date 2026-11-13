@@ -80,6 +80,9 @@ export const en: Dictionary = {
     tryAnotherAccount: "Use another account",
   },
   nodes: {
+    chip: "Chip",
+    chipHint: "Attach a chip to the node: a page, task, table, board or file",
+    chipRemove: "Remove chip",
     title: "Node space",
     intro: "Your team's mind maps and diagrams.",
     newMap: "Mind map",
@@ -155,6 +158,10 @@ export const en: Dictionary = {
     } as Record<string, string>,
   },
   boards: {
+    chips: {
+      insert: "Chip",
+      insertHint: "Insert a chip: a link to a page, task, table, board or file. With an element selected, the link goes onto it",
+    },
     keys: "Keys",
     title: "Boards",
     intro: "The team's endless canvas: sticky notes, shapes, arrows, text, frames and freehand drawing.",

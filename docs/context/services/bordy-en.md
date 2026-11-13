@@ -42,6 +42,9 @@ A space for thinking together and for mock-ups. Two kinds of files:
 - Merged without Yjs, by the canvas library's own element versions (`src/lib/live/board-sync.ts`, `use-live-board.ts`): the newer version of an element wins, on a tie the lower random nonce; deletions travel as tombstones; what a person is changing right now stays theirs until they finish. Only changed elements are sent; pictures travel as storage links.
 - Undo is the canvas's own history; others' changes don't enter it. Votes and the timer stay as they were (server, polled).
 
+### Chips on idea boards (UI-3, 2026-11-13)
+- An element whose link points to this workspace shows a chip above it (service mark + live title with the viewer's access; "No access" otherwise). The "Chip" button next to the sticky colours puts the link onto the selected element, or adds a link card labelled with the service's name only.
+
 ### Shared by both
 - List, trash, access (owner, admins, whole workspace, people, units; guests only if shared).
 - Collections in the left panel.
