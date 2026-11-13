@@ -11,6 +11,7 @@ import { toStored, type SheetData } from "@/lib/sheets";
 import { fortuneUk } from "./fortune-uk";
 import { cellChipOf, drawCellChip, onCellChips, rememberCellChip, type CellChip } from "./sheet-chips";
 import { ChipPicker } from "./chip-picker";
+import { applySpill, spillWrites } from "./sheet-spill";
 import { Icon } from "@/components/ui/icon";
 
 // The editor's own texts in Ukrainian (it ships none), read by its patched locale lookup.
@@ -47,9 +48,9 @@ export default function SheetEditor({
   // from a file) opens it again under a new key. Handing it a new copy on every
   // render would make it start over each time.
   const [data] = useState(() => initial.sheets as never);
-  const callbacks = useRef({ onChange, onSelection, chips });
+  const callbacks = useRef({ onChange, onSelection, chips, editable });
   useEffect(() => {
-    callbacks.current = { onChange, onSelection, chips };
+    callbacks.current = { onChange, onSelection, chips, editable };
   });
   // The selected cell's chip (for "Open"), and the "Insert chip" dialog.
   const [selected, setSelected] = useState<{ title: string; href: string } | null>(null);
@@ -112,6 +113,15 @@ export default function SheetEditor({
       if (key === last.current) return;
       last.current = key;
       callbacks.current.onChange(stored);
+      // Tables a formula gives fill the cells next to it (SOTA-1); the writes come back here
+      // once more and then find nothing left to do.
+      if (callbacks.current.editable)
+        // A moment later: a person's own value typed over a spilled cell is theirs by then.
+        setTimeout(() => {
+          const data = (book.current?.getSheet() as { data?: unknown[][] } | undefined)?.data;
+          const writes = data ? spillWrites(data as never) : [];
+          if (writes.length && book.current) applySpill(book.current, writes);
+        }, 0);
     },
     [],
   );
