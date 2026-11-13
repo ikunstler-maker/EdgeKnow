@@ -2,7 +2,8 @@
 
 import "@xyflow/react/dist/style.css";
 import { createContext, memo, use, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
+import { Background, BackgroundVariant, Handle, Position, ReactFlow, ReactFlowProvider, ViewportPortal, useReactFlow, useViewport, type Edge, type Node, type NodeProps } from "@xyflow/react";
+import type { LiveDoc } from "@/lib/live/use-live-doc";
 import { t } from "@/i18n";
 import { useResolvedTheme } from "@/lib/use-theme";
 import { useRouter } from "next/navigation";
@@ -107,6 +108,44 @@ function NodeChip({ link }: { link?: string }) {
 
 const nodeTypes = { map: MapNodeView };
 
+// Others in the room (CORE-4): their cursors with names and the node they have selected, in
+// their colour; drawn in map coordinates, kept the same size at any zoom.
+function LiveCursors({ live, positions }: { live: LiveDoc<MapData>; positions: Map<string, { x: number; y: number }> }) {
+  const { zoom } = useViewport();
+  const unit = 1 / zoom;
+  return (
+    <ViewportPortal>
+      <div className="pointer-events-none" data-live-layer>
+        {live.peers
+          .filter((p) => !p.me && live.cursors[p.key]?.at === "map")
+          .map((p) => {
+            const c = live.cursors[p.key];
+            const label = p.name.length > 24 ? `${p.name.slice(0, 23)}…` : p.name;
+            return (
+              <div key={p.key}>
+                {c.sel.map((id) => {
+                  const at = positions.get(id);
+                  if (!at) return null;
+                  return <div key={id} className="absolute rounded-xl border-2 border-dashed" style={{ left: at.x - 4, top: at.y - 4, width: NODE_WIDTH + 8, height: 48, borderColor: p.color }} data-live-selection />;
+                })}
+                {Number.isFinite(c.x) && Number.isFinite(c.y) && (
+                  <div className="absolute" style={{ left: c.x, top: c.y, transform: `scale(${unit})`, transformOrigin: "0 0", transition: "left 180ms linear, top 180ms linear" }} data-live-cursor={p.name}>
+                    <svg width="14" height="21" viewBox="0 0 14 21" aria-hidden>
+                      <path d="M0,0 L0,17 L4.5,13 L7.5,20 L10.5,18.8 L7.6,12 L13,12 Z" fill={p.color} stroke="#fff" strokeWidth={1.2} />
+                    </svg>
+                    <span className="absolute left-3 top-[18px] whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-white" style={{ background: p.color }}>
+                      {label}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+      </div>
+    </ViewportPortal>
+  );
+}
+
 // The text field of the node being typed in: over the node, there from the first
 // moment (a new node is hidden by React Flow until it is measured).
 function EditField({ text, x, y, root, onCommit }: { text: string; x: number; y: number; root: boolean; onCommit: (text: string, then?: "child" | "sibling") => void }) {
@@ -144,9 +183,9 @@ function EditField({ text, x, y, root, onCommit }: { text: string; x: number; y:
 }
 
 // compact: inside a wiki page — fold branches and rename nodes only, a smaller canvas.
-type CanvasProps = { shortId: string; map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void; compact?: boolean };
+type CanvasProps = { shortId: string; map: MapData; editable: boolean; onChange: (next: MapData) => void; onLocalChange: (next: MapData) => void; compact?: boolean; live?: LiveDoc<MapData> | null };
 
-function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = false }: CanvasProps) {
+function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = false, live = null }: CanvasProps) {
   const guest = useOptionalPages()?.workspace.role === "guest";
   const router = useRouter();
   const [pasting, setPasting] = useState(false);
@@ -244,6 +283,28 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
   }, []);
 
   const positions = useMemo(() => layoutMap(map), [map]);
+
+  // ---- Live (CORE-4): own cursor with the selected node and the middle of the view.
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const sendCursor = () => {
+    if (!live?.active || !wrapper.current) return;
+    const box = wrapper.current.getBoundingClientRect();
+    const middle = flow.screenToFlowPosition({ x: box.left + box.width / 2, y: box.top + box.height / 2 });
+    live.sendCursor({ x: pointer.current?.x ?? Number.NaN, y: pointer.current?.y ?? Number.NaN, at: "map", sel: [selected], view: { x: middle.x, y: middle.y, z: flow.getZoom() } });
+  };
+  // Following someone: the view goes where theirs goes; any own action stops it.
+  const followView = live?.following ? live.cursors[live.following]?.view : undefined;
+  useEffect(() => {
+    if (followView) void flow.setCenter(followView.x, followView.y, { zoom: followView.z, duration: 150 });
+  }, [flow, followView]);
+  const stopFollowing = () => {
+    if (live?.following) live.follow(null);
+  };
+  // The selected node shows at the others' at once.
+  useEffect(() => {
+    sendCursor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, live?.active]);
   const nodes: Node<NodeView>[] = useMemo(
     () =>
       map.nodes
@@ -484,7 +545,21 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
       <div
         ref={wrapper}
         tabIndex={0}
-        onKeyDown={onKey}
+        onKeyDown={(e) => {
+          stopFollowing();
+          onKey(e);
+        }}
+        onPointerDownCapture={stopFollowing}
+        onWheelCapture={stopFollowing}
+        onPointerMove={(e) => {
+          if (!live?.active) return;
+          pointer.current = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+          sendCursor();
+        }}
+        onPointerLeave={() => {
+          pointer.current = null;
+          if (live?.active) live.sendCursor(null);
+        }}
         aria-label={t.nodes.kinds.mindmap}
         data-mind-map
         className={`relative ${compact ? "h-96 rounded-xl border border-border" : "min-h-80 flex-1"} overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent`}
@@ -523,7 +598,9 @@ function Canvas({ shortId, map, editable, onChange, onLocalChange, compact = fal
             else callbacks.select(clicked.id);
           }}
           zoomOnDoubleClick={false}
+          onMoveEnd={() => sendCursor()}
         >
+          {live?.active && <LiveCursors live={live} positions={positions} />}
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
           {editing && positions.get(editing) && (
             <ViewportPortal>

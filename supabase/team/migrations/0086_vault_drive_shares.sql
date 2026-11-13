@@ -1,5 +1,5 @@
 -- VAULT-2b in a team's own database (as supabase/migrations/20270212150000_vault_drive_shares.sql).
--- Rollback: supabase/team/rollbacks/0085_vault_drive_shares.down.sql
+-- Rollback: supabase/team/rollbacks/0086_vault_drive_shares.down.sql
 
 -- VAULT-2b (owner, 2026-11-13: "Так, погоджую VAULT-2б"): Vault's access mirrored on the
 -- team's Google Drive. A Vault file kept on the Drive is shared there with every member

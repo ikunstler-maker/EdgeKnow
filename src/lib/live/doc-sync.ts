@@ -13,6 +13,8 @@ export type ListSpec = { lists?: Record<string, ListSpec> };
 
 export const DECK_SPEC: ListSpec = { lists: { slides: { lists: { nodes: {} } } } };
 export const DESIGN_SPEC: ListSpec = { lists: { pages: { lists: { nodes: {}, flows: {} } } } };
+// Mind maps of Nodo (phase 3, CORE-4): nodes keyed by id; a node's parent, text, colour and link merge field by field.
+export const MAP_SPEC: ListSpec = { lists: { nodes: {} } };
 
 const ORDER = "_o";
 type Json = Record<string, unknown>;

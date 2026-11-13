@@ -81,7 +81,7 @@ select 'gwen, guest viewer: ' || pg_temp.can(:'gwen', :'deck');
 select 'vera, commenter on the design: ' || pg_temp.can(:'vera', :'design');
 select 'gwen, guest without the design: ' || pg_temp.can(:'gwen', :'design');
 select 'carol, other workspace: ' || pg_temp.can(:'carol', :'deck');
-select 'bob, a map (not in phase 1): ' || pg_temp.can(:'bob', :'map');
+select 'bob, a map (phase 3): ' || pg_temp.can(:'bob', :'map');
 
 set role authenticated;
 set request.jwt.claim.sub = :'vera';

@@ -251,6 +251,38 @@ const untilAsync = async (condition, ms = 8000) => {
   await colleague.locator("[data-live-unfollow]").click();
 }
 
+// Mind maps of Nodo (phase 3, CORE-4): the same channels, merged with Yjs like presentations.
+{
+  const mapId = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "nodes", new_kind: "mindmap", new_title: "Live map", new_data: { nodes: [{ id: "root1", parent: null, text: "Root" }] } })).data?.id;
+  check("a mind map for the live test", Boolean(mapId));
+  const url = `${APP}/w/${alphaShort}/nodes/${mapId}`;
+  await alice.goto(url);
+  await colleague.goto(url);
+  await alice.locator("[data-mind-map]").waitFor({ timeout: 30000 });
+  await colleague.locator("[data-mind-map]").waitFor({ timeout: 30000 });
+  let met = false;
+  for (let i = 0; i < 40 && !met; i++) {
+    met = (await alice.locator("[data-live-peer]").count()) > 0 && (await colleague.locator("[data-live-peer]").count()) > 0;
+    if (!met) await alice.waitForTimeout(500);
+  }
+  check("Map: two editors see each other", met);
+  await alice.waitForTimeout(1500);
+  const shown = async (page) => page.locator("[data-map-node]").count();
+  await alice.locator("[data-mind-map]").focus();
+  await alice.keyboard.press("F2");
+  await alice.keyboard.press("End");
+  await alice.keyboard.press("Tab");
+  await alice.keyboard.type("From Alice");
+  await alice.keyboard.press("Escape");
+  check("Map: a node added by one shows at the other's at once", await untilAsync(async () => (await colleague.locator('[data-map-node="From Alice"]').count()) === 1, 8000));
+  const savedNodes = () => JSON.parse(sql(`select data::text from public.service_objects where id = '${mapId}'`)).nodes?.length ?? 0;
+  check("Map: one of them saves it", await until(() => savedNodes() === 2, 15000), String(savedNodes()));
+  const area = await alice.locator("[data-mind-map]").boundingBox();
+  for (let i = 0; i < 6; i++) await alice.mouse.move(area.x + area.width * (0.3 + i * 0.05), area.y + area.height * 0.7, { steps: 2 });
+  check("Map: the other person's cursor shows", await colleague.locator("[data-live-cursor]").first().waitFor({ timeout: 6000 }).then(() => true, () => false));
+  check("Map: both see the same nodes", (await shown(alice)) === (await shown(colleague)));
+}
+
 // Switched off: the studio bar shows no one, saving goes on as before.
 await aliceClient.rpc("set_live_collab", { ws: alphaId, enabled: false });
 await alice.goto(deckUrl);
