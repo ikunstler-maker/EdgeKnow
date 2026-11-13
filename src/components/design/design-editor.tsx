@@ -22,6 +22,8 @@ import {
 } from "@/lib/design";
 import { align, boxOf, distribute, intersects, snap, unionBox, type AlignMode, type Guide } from "@/lib/slide-guides";
 import { NodeShape, pointsPath } from "@/components/slides/slide-view";
+import { LiveLayer } from "@/components/live/live-layer";
+import type { LiveDoc } from "@/lib/live/use-live-doc";
 import { DesignPanel } from "@/components/slides/inspector";
 import { DesignLayers } from "./design-layers";
 import { ChildPanel, FramePanel, PaintsPanel, PrototypePanel, Section } from "./design-inspector";
@@ -53,7 +55,7 @@ const STYLE_KEYS = ["fill", "gradient", "fills", "stroke", "strokes", "strokeWid
 // The design editor (Bordy «Дизайн»): pages, an endless canvas, frames with nesting, the
 // layer tree, design and prototype panels. Every change goes through commit() (undo,
 // saving); auto layouts are recomputed after each change.
-export function DesignEditor({ shortId, fileId, initial, editable, onChange, onPlay }: { shortId: string; fileId: string; initial: DesignDoc; editable: boolean; onChange: (doc: DesignDoc) => void; onPlay: (path: string) => void }) {
+export function DesignEditor({ shortId, fileId, initial, editable, onChange, onPlay, live }: { shortId: string; fileId: string; initial: DesignDoc; editable: boolean; onChange: (doc: DesignDoc) => void; onPlay: (path: string) => void; live?: LiveDoc<DesignDoc> }) {
   const [doc, setDoc] = useState(initial);
   const docRef = useRef(doc);
   const [past, setPast] = useState<DesignDoc[]>([]);
@@ -91,19 +93,38 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   const picked = nodes.filter((n) => selected.includes(n.id));
 
   // ---- state changes -------------------------------------------------------------------------
+  // Real-time co-editing: while a drag goes on, each step is a change from the previous step.
+  const liveFrame = useRef<DesignDoc | null>(null);
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
   const commit = useCallback(
     (next: DesignDoc, record = true, before?: DesignDoc) => {
       if (!editable) return;
-      if (record) {
+      const base = record ? docRef.current : (liveFrame.current ?? docRef.current);
+      liveFrame.current = record ? null : next;
+      if (record && !live?.active) {
         setPast((list) => [...list.slice(-99), before ?? docRef.current]);
         setFuture([]);
       }
       docRef.current = next;
       setDoc(next);
+      // Live: shared through the room (undo and saving there too).
+      if (live?.change(base, next, record)) return;
       onChange(next);
     },
-    [editable, onChange],
+    [editable, onChange, live],
   );
+
+  // Others' changes come in here; what they deleted leaves the selection.
+  useEffect(() => {
+    live?.bind((next) => {
+      docRef.current = next;
+      setDoc(next);
+      setSelected((list) => {
+        const ids = new Set(next.pages.flatMap((x) => x.nodes.map((n) => n.id)));
+        return list.every((id) => ids.has(id)) ? list : list.filter((id) => ids.has(id));
+      });
+    });
+  }, [live]);
   const pageAt = (d: DesignDoc) => d.pages[Math.min(pageIndex, d.pages.length - 1)];
   const withPage = (d: DesignDoc, change: (p: DesignPage) => DesignPage): DesignDoc => ({ ...d, pages: d.pages.map((p, i) => (i === Math.min(pageIndex, d.pages.length - 1) ? change(p) : p)) });
   // Layers of the page from `base` (default: now), then layouts.
@@ -112,6 +133,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   const update = (ids: string[], change: (n: SlideNode) => SlideNode) => setNodes((list) => list.map((n) => (ids.includes(n.id) ? change(n) : n)));
 
   const undo = () => {
+    if (live?.undo()) return setSelected([]);
     const prev = past.at(-1);
     if (!prev) return;
     setPast(past.slice(0, -1));
@@ -122,6 +144,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
     setSelected([]);
   };
   const redo = () => {
+    if (live?.redo()) return setSelected([]);
     const next = future[0];
     if (!next) return;
     setFuture(future.slice(1));
@@ -130,6 +153,31 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
     setDoc(next);
     onChange(next);
     setSelected([]);
+  };
+
+  // ---- live: page, view and selection to the room; following someone ------------------------
+  // The visible area as its centre and zoom (screens differ in size).
+  const liveView = () => ({ x: cam.x + view.w / 2 / cam.z, y: cam.y + view.h / 2 / cam.z, z: cam.z });
+  const livePageId = page.id;
+  useEffect(() => {
+    if (!live?.active) return;
+    const p = lastPointer.current;
+    live.sendCursor({ x: p?.x ?? NaN, y: p?.y ?? NaN, at: livePageId, sel: selected, view: { x: cam.x + view.w / 2 / cam.z, y: cam.y + view.h / 2 / cam.z, z: cam.z } });
+  }, [live, livePageId, selected, cam, view]);
+  const followed = live?.following ? live.cursors[live.following] : undefined;
+  const followedPage = followed?.at;
+  const followedView = followed?.view ? `${followed.view.x},${followed.view.y},${followed.view.z}` : "";
+  useEffect(() => {
+    if (!followedPage) return;
+    const at = docRef.current.pages.findIndex((x) => x.id === followedPage);
+    if (at >= 0) setPageIndex(at);
+    const [x, y, z] = followedView.split(",").map(Number);
+    if (followedView && z > 0) setCam({ z, x: x - view.w / 2 / z, y: y - view.h / 2 / z });
+    // Only when the followed person moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followedPage, followedView]);
+  const stopFollowing = () => {
+    if (live?.following) live.follow(null);
   };
 
   // ---- camera ----------------------------------------------------------------------------------
@@ -421,6 +469,10 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   };
 
   const onMove = (e: React.PointerEvent) => {
+    if (live?.active) {
+      lastPointer.current = point(e);
+      live.sendCursor({ ...lastPointer.current, at: page.id, sel: selected, view: liveView() });
+    }
     const d = drag.current;
     if (pen && !d) return setPenHover(point(e));
     if (!d) return;
@@ -583,6 +635,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
       if (out !== now) setNodes(() => out, false);
     }
     if (JSON.stringify(d.before) !== JSON.stringify(docRef.current)) commit(docRef.current, true, d.before);
+    liveFrame.current = null;
   };
 
   // ---- pen (step Д-2) --------------------------------------------------------------------------
@@ -729,7 +782,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
   const textForTask = one?.type === "TEXT" ? one.text?.trim() : undefined;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#090B0E] text-gray-100 [color-scheme:dark]" style={DARK} data-design-editor>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#090B0E] text-gray-100 [color-scheme:dark]" style={DARK} onPointerDownCapture={stopFollowing} onKeyDownCapture={stopFollowing} onWheelCapture={stopFollowing} data-design-editor>
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-1 border-b border-white/10 bg-[#151922] px-2 py-1" role="toolbar" aria-label={g.tools.select}>
         {editable &&
@@ -779,10 +832,10 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
           </>
         )}
         <span className="mx-1 h-5 w-px bg-white/10" />
-        <button type="button" onClick={undo} disabled={!past.length} className={btn} title={s.undo} aria-label={s.undo}>
+        <button type="button" onClick={undo} disabled={!(live?.active ? live.canUndo : past.length)} className={btn} title={s.undo} aria-label={s.undo}>
           <Icon name="undo" />
         </button>
-        <button type="button" onClick={redo} disabled={!future.length} className={btn} title={s.redo} aria-label={s.redo}>
+        <button type="button" onClick={redo} disabled={!(live?.active ? live.canRedo : future.length)} className={btn} title={s.redo} aria-label={s.redo}>
           <Icon name="redo" />
         </button>
         <span className="mx-1 h-5 w-px bg-white/10" />
@@ -895,6 +948,10 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
             onPointerMove={(e) => (pen && penDrag(e), onMove(e))}
             onPointerUp={onUp}
             onPointerCancel={onUp}
+            onPointerLeave={() => {
+              lastPointer.current = null;
+              if (live?.active) live.sendCursor({ x: NaN, y: NaN, at: page.id, sel: selected, view: liveView() });
+            }}
             role="img"
             aria-label={page.name}
           >
@@ -941,6 +998,7 @@ export function DesignEditor({ shortId, fileId, initial, editable, onChange, onP
                 ))}
               </g>
             )}
+            {live?.active && <LiveLayer cursors={live.cursors} peers={live.peers} at={page.id} nodes={nodes} unit={sw} />}
             {/* Selection */}
             {picked.map((n) =>
               LINEAR(n.type) ? (

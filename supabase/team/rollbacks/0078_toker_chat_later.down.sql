@@ -1,4 +1,4 @@
--- Undo 20270203150000_chat_later.
+-- Undo 0078_toker_chat_later.
 drop function public.chat_send_due(uuid);
 drop function public.chat_cancel_scheduled(uuid);
 drop function public.chat_schedule_message(uuid, text, uuid, uuid[], timestamptz);

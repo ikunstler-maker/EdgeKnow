@@ -13,6 +13,7 @@ import {
   removeDomain,
   renameWorkspace,
   setPrivateTasksAdmin,
+  setLiveCollab,
   revokeInvitation,
   setDomainActive,
   transferOwnership,
@@ -105,7 +106,7 @@ function useOrigin() {
   return useSyncExternalStore(noop, () => window.location.origin, () => "");
 }
 
-export function GeneralPanel({ workspace, members, privateTasksAdmin = false }: { workspace: Workspace; members: MemberItem[]; privateTasksAdmin?: boolean }) {
+export function GeneralPanel({ workspace, members, privateTasksAdmin = false, liveCollab = false }: { workspace: Workspace; members: MemberItem[]; privateTasksAdmin?: boolean; liveCollab?: boolean }) {
   const { pending, run, errorLine } = useAction();
   const [name, setName] = useState(workspace.name);
   const [newOwner, setNewOwner] = useState("");
@@ -143,6 +144,15 @@ export function GeneralPanel({ workspace, members, privateTasksAdmin = false }: 
             <span>
               {s.general.privateTasksAdmin}
               <span className="block text-xs text-muted">{s.general.privateTasksAdminHint}</span>
+            </span>
+          </label>
+        )}
+        {isOwner && (
+          <label className="mt-4 flex min-h-11 items-start gap-2 text-sm md:min-h-9" data-live-collab>
+            <input type="checkbox" defaultChecked={liveCollab} disabled={pending} onChange={(e) => run(() => setLiveCollab(workspace.id, e.target.checked))} className="mt-1" />
+            <span>
+              {s.general.liveCollab}
+              <span className="block text-xs text-muted">{s.general.liveCollabHint}</span>
             </span>
           </label>
         )}

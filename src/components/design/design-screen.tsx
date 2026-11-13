@@ -10,6 +10,9 @@ import { ObjectAccessButton, type ObjectAccess } from "@/components/access/objec
 import { saveBoard, setBoardGroupRole, setBoardMemberRole, setBoardWorkspaceRole, trashBoard } from "@/app/board-actions";
 import { DesignEditor } from "./design-editor";
 import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
+import { LivePresence, liveMenu } from "@/components/live/live-presence";
+import { DESIGN_SPEC } from "@/lib/live/doc-sync";
+import { useLiveDoc } from "@/lib/live/use-live-doc";
 
 const s = t.slides;
 const g = t.design;
@@ -46,6 +49,7 @@ export function DesignScreen({
   const pending = useRef<{ title: string | null; data: DesignDoc | null } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saving = useRef(false);
+  const liveRef = useRef<ReturnType<typeof useLiveDoc<DesignDoc>> | null>(null);
 
   const flush = useCallback(async () => {
     if (saving.current) return;
@@ -57,6 +61,7 @@ export function DesignScreen({
       const result = await saveBoard(shortId, id, next.title, next.data, version.current).catch(() => null);
       if (result?.ok) {
         version.current = result.version;
+        liveRef.current?.saved(result.version);
         setStatus("saved");
         setError(null);
         continue;
@@ -103,7 +108,22 @@ export function DesignScreen({
     return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
-  const editable = canEdit && status !== "conflict";
+  // Real-time co-editing: the room shares every change; one editor (the leader) saves.
+  const live = useLiveDoc<DesignDoc>({
+    shortId,
+    objectId: id,
+    spec: DESIGN_SPEC,
+    initial,
+    initialTitle,
+    versionRef: version,
+    pageCanEdit: canEdit,
+    onTitle: setTitle,
+    onSave: (data, name) => schedule({ data, title: name }),
+  });
+  useEffect(() => {
+    liveRef.current = live;
+  });
+  const editable = live.canEdit && status !== "conflict";
   return (
     <StudioShell
       service="boards"
@@ -114,7 +134,7 @@ export function DesignScreen({
         canEdit
           ? (value) => {
               setTitle(value);
-              schedule({ title: value });
+              if (!live.changeTitle(value)) schedule({ title: value });
             }
           : undefined
       }
@@ -124,6 +144,7 @@ export function DesignScreen({
       savingLabel={s.saving}
       savedLabel={s.saved}
       center={undefined}
+      presence={<LivePresence live={live} />}
       files={[]}
       access={
         access && (
@@ -143,6 +164,7 @@ export function DesignScreen({
       }
       primary={{ label: g.prototype.play, icon: "play", onSelect: () => void open("/prototype"), attrs: { "data-prototype-open": "" } }}
       more={[
+        ...liveMenu(live),
         ...(canEdit
           ? [
               {
@@ -160,7 +182,7 @@ export function DesignScreen({
       ]}
       notices={<StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
     >
-      <DesignEditor shortId={shortId} fileId={id} initial={initial} editable={editable} onChange={(doc) => schedule({ data: doc })} onPlay={(path) => void open(path)} />
+      <DesignEditor shortId={shortId} fileId={id} initial={initial} editable={editable} onChange={(doc) => schedule({ data: doc })} onPlay={(path) => void open(path)} live={live} />
     </StudioShell>
   );
 }
