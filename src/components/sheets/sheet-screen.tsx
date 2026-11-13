@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import { readWorkbook, type SheetData } from "@/lib/sheets";
@@ -60,7 +60,9 @@ export function SheetScreen({
   const [newChart, setNewChart] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // A guest doesn't take the table away as a file.
-  const canExport = useOptionalPages()?.workspace.role !== "guest";
+  const pagesContext = useOptionalPages();
+  const canExport = pagesContext?.workspace.role !== "guest";
+  const chips = useMemo(() => (pagesContext ? { shortId: pagesContext.workspace.shortId, workspaceId: pagesContext.workspace.id } : undefined), [pagesContext]);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("cut") === "1") setTimeout(() => setNotice(s.files.cut), 0);
   }, []);
@@ -261,6 +263,7 @@ export function SheetScreen({
             key={round}
             initial={initial}
             editable={editable}
+            chips={chips}
             onChange={(data) => {
               latest.current = { ...data, charts };
               setLiveSheets(data.sheets);
