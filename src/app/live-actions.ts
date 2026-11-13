@@ -11,7 +11,7 @@ import { getWorkspace } from "@/lib/workspace";
 // fresh pass; every new pass makes the channels re-check the person's rights.
 // Who may join and send is decided by the database (live_channel_allowed), not here.
 
-const LIVE_SERVICES = new Set(["slides", "boards"]);
+const LIVE_SERVICES = new Set(["slides", "boards", "nodes"]);
 
 export type LiveSession =
   | { enabled: false }

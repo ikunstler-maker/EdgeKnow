@@ -72,7 +72,8 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - CORE-1 Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — DONE (#172).
   - Owner's action: in the central Supabase project set the sign-in token lifetime (JWT expiry) to 10 minutes, so a revoked access stops in the channels within 10 minutes there too.
   - CORE-2 Phase 2: the idea board — elements merged by the canvas library's own versions (newer wins, tombstones for deletions), same channels, presence, cursors, follow and leader; no DB change — DONE (#189). Later: shared transport code with phase 1 (today two hooks).
-  - Then Nodo, Sota, Wika: extend `live_channel_allowed` to their services (central + team migration), Wika pages need their own table rules.
+  - CORE-4 Nodo mind maps — in review (decision 2026-11-13): `nodes` in `live_channel_allowed` and `LIVE_SERVICES`, Yjs with `MAP_SPEC`, cursors and follow on the map. Flows of Nodo are not live yet.
+  - Then Sota, Wika: extend `live_channel_allowed` to their services (central + team migration), Wika pages need their own table rules.
   - Later: live comments on the canvas; time-limited "presenter follows" for shows.
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
 
