@@ -217,7 +217,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 
 ## Known gaps / follow-ups
 - CI-1 `until()` in `scripts/e2e/common.mjs` awaits async conditions (12 checks in calendar, wishlist and other e2e passed without checking anything) — DONE (#195); they all pass for real.
-- Storage limit counted unevenly — fixed for uploads by VAULT-4 (`workspace_storage_used`); `workspace_storage_status.supabase_bytes` in Settings → Storage still shows wiki files only. Settings → Storage "move files to the workspace storage" does not move chat files yet.
+- VAULT-5 (owner, 2026-11-13): Settings → Storage shows every service's files in EdgeKnow's storage; "move files to the workspace storage" moves chat files too; Vault files are never kept by the browser (taken access works at once) — in review.
 - Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).
 - Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.

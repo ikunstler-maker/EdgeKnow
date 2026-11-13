@@ -37,6 +37,9 @@ export const CHAT_BUCKET = "chat-files";
 export const VAULT_BUCKET = "vault-files";
 const bucketOf = (row: StoredFile) => (row.vault ? VAULT_BUCKET : row.channel_id ? CHAT_BUCKET : TASK_BUCKET);
 
+export const CHAT_FILE_COLUMNS =
+  "id, workspace_id, channel_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
+
 export const VAULT_FILE_COLUMNS =
   "id, workspace_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by:owner_id, created_at, large";
 
