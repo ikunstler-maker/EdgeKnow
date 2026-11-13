@@ -1,4 +1,4 @@
--- The same in supabase/team/migrations/0086_vault_drive_shares.sql.
+-- The same in supabase/team/migrations/0087_vault_drive_shares.sql.
 -- Rollback: supabase/rollbacks/20270212150000_vault_drive_shares.down.sql
 
 -- VAULT-2b (owner, 2026-11-13: "Так, погоджую VAULT-2б"): Vault's access mirrored on the
