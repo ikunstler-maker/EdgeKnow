@@ -35,6 +35,7 @@ export function StoragePanel({
   workspaceId,
   status,
   taskFiles,
+  usedBytes = null,
   team,
   isOwner,
   configured,
@@ -43,6 +44,8 @@ export function StoragePanel({
   workspaceId: string;
   status: StorageStatus;
   taskFiles: TaskFilesStatus | null;
+  // Every service's files in EdgeKnow's storage (VAULT-4 count), not only the wiki's.
+  usedBytes?: number | null;
   team: boolean;
   isOwner: boolean;
   configured: boolean;
@@ -150,7 +153,7 @@ export function StoragePanel({
           </div>
         ) : (
           <>
-            <p className="text-sm">{team ? st.teamStorage : st.supabase((status.supabase_bytes / 1048576).toFixed(1), status.limit_mb)}</p>
+            <p className="text-sm">{team ? st.teamStorage : st.supabase(((usedBytes ?? status.supabase_bytes) / 1048576).toFixed(1), status.limit_mb)}</p>
             <p className="text-sm text-muted">{st.driveIntro}</p>
           </>
         )}
