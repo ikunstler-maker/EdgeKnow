@@ -9,7 +9,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
 ## List actions (owner, 2026-11-13)
-- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — in review. Next: copy pictures with a duplicated board or deck (needs a DB change → owner's approval).
+- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — DONE (#211). UI-5b: duplicate copies pictures too (no DB change) — in review.
 
 ## Design system & UI overhaul (owner, 2026-11-11; decision 2026-11-11) — 6 PRs, in order
 - PR 1 Foundation: surface tokens, hairlines, radii, thin scrollbars; `Icon` set; `ServiceIcon` for 15 services + home; shared `Button`/`Dialog`/`Segmented`/`Hint`; four service categories; no comparisons with other products in UI strings — DONE (#144).

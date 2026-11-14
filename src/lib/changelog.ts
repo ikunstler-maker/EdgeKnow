@@ -42,6 +42,15 @@ export const RELEASES: ReleaseLog[] = [
     ],
   },
   {
+    id: "2026-11-14-copy-pictures",
+    version: "0.56.2",
+    date: "2026-11-14",
+    summaryTitle: { uk: "Копія дошки чи презентації — з власними картинками", en: "A copied board or deck has its own pictures" },
+    items: [
+      { id: "copy-pictures", type: "improved", scope: "global", title: { uk: "«Дублювати» в списку копіює й картинки: копія не залежить від оригіналу.", en: "\"Duplicate\" in a list copies the pictures too: the copy doesn't depend on the original." } },
+    ],
+  },
+  {
     id: "2026-11-13-vault-team-drive",
     version: "0.57.0",
     date: "2026-11-13",
