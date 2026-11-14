@@ -9,7 +9,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
 ## Platform panel (owner, 2026-11-14)
-- ADMIN-1 road map at `/admin/roadmap` (data in `src/lib/roadmap.ts`, updated by every PR that moves a stage) — in review.
+- ADMIN-1 road map at `/admin/roadmap` (data in `src/lib/roadmap.ts`, updated by every PR that moves a stage) — DONE (#215).
 - ADMIN-2 monitoring: gauges for the central database and storage against the plan's limits (70 % / 85 %), 90-day trend + forecast, per-workspace load (members, all files vs limit, last activity, where the data lives); DB approved 2026-11-14: wider `platform_workspaces`, daily snapshots table (platform admin only) — in review. Set `PLATFORM_DATABASE_LIMIT_MB` / `PLATFORM_STORAGE_LIMIT_MB` in Vercel when the Supabase plan changes. Later: the load of workspaces with their own database (read from their databases).
 - ADMIN-3 hosting: deployments per day, traffic, function time vs plan limits via a read-only Vercel key the owner adds to the environment (approved 2026-11-14) — after ADMIN-2; check first what the free plan's API returns.
 
