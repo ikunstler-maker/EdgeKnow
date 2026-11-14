@@ -113,7 +113,7 @@ export const ROADMAP: Track[] = [
       s("DOBA-2", "Повтори, нагадування, політики відпусток", "Repeats, reminders, leave policies", "done", { pr: 137 }),
       s("DOBA-3а", "Власна стрічка для календарних застосунків", "Own feed for calendar apps", "done", { pr: 138, flags: ["security"] }),
       s("DOBA-3б", "Зайнятість із зовнішнього календаря", "Busy time from an outside calendar", "done", { pr: 139, flags: ["owner", "external"], note: { uk: "Потрібен CALENDAR_TOKEN_KEY у Vercel.", en: "Needs CALENDAR_TOKEN_KEY in Vercel." } }),
-      s("DOBA-3в", "Вхід через провайдера календаря", "Sign-in with a calendar provider", "paused", { flags: ["owner", "external", "security"], note: { uk: "Налаштування й перевірка застосунку в консолі провайдера.", en: "App setup and review in the provider's console." } }),
+      s("DOBA-3в", "Календар через вхід: назви подій, календар «Doba», Google Meet", "Calendar by signing in: event titles, the \"Doba\" calendar, Google Meet", "done", { pr: 213, flags: ["owner", "external", "security", "db"], note: { uk: "Код готовий (DOBA-1). Ви: дозволи, адреса повернення й перевірка застосунку в Google Cloud — docs/setup-uk.md.", en: "Code done (DOBA-1). You: scopes, redirect address and app review in Google Cloud — docs/setup-uk.md." } }),
       s("DOBA-BDAY", "Дні народження", "Birthdays", "done", { pr: 167, extra: true, flags: ["security"] }),
       s("DOBA-DRAG", "Перетягування подій, створення на телефоні", "Dragging events, creating on a phone", "later"),
     ],
@@ -221,7 +221,10 @@ export const ROADMAP: Track[] = [
     key: "meet",
     service: "meet",
     name: { uk: "Visio — відеозустрічі", en: "Visio — video meetings" },
-    stages: [s("VISIO-1", "План: відео з каналів, календаря й задач", "Plan: video from channels, calendar and tasks", "planned", { flags: ["owner", "cost", "external", "security"], note: { uk: "Спершу перевірити вартість сервера для відео.", en: "Check the video server's cost first." } })],
+    stages: [
+      s("VISIO-1", "Зустрічі Zoom для подій Doba", "Zoom meetings for Doba events", "planned", { flags: ["owner", "external", "security", "db"], note: { uk: "Чекає погодження змін бази; застосунок у кабінеті розробника Zoom.", en: "Waits for the DB approval; an app in Zoom's developer console." } }),
+      s("VISIO-OWN", "Власні відеозустрічі", "Own video meetings", "later", { flags: ["cost", "external"], note: { uk: "Відкладено власницею (2026-11-13): спершу Google Meet і Zoom.", en: "Put off by the owner (2026-11-13): Google Meet and Zoom first." } }),
+    ],
   },
   {
     key: "ai",
