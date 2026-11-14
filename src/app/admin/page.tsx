@@ -83,6 +83,10 @@ export default async function PlatformAdminPage() {
       {back}
       <h1 className="mt-4 text-2xl font-semibold">{t.platform.title}</h1>
       <p className="mt-2 text-muted">{t.platform.intro}</p>
+      <Link href="/admin/roadmap" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 text-sm font-medium hover:bg-hover md:min-h-9" data-roadmap-link>
+        <Icon name="chart" size={16} />
+        {t.platform.roadmap.link}
+      </Link>
 
       <section className="mt-8 rounded-lg border border-border p-4">
         <h2 className="font-semibold">{t.platform.registrationHeading}</h2>

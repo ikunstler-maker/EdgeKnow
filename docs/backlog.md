@@ -8,8 +8,13 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 3 Left panel shows only the current section (tasks: projects/boards/tasks; wiki: pages; tables: tables…); fix the old fish name near Apus. — DONE (#109).
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
+## Platform panel (owner, 2026-11-14)
+- ADMIN-1 road map at `/admin/roadmap` (data in `src/lib/roadmap.ts`, updated by every PR that moves a stage) — in review.
+- ADMIN-2 monitoring: gauges for the central database and storage against the plan's limits (70 % / 85 %), 90-day trend + forecast, per-workspace load (members, all files vs limit, last activity, where the data lives); DB approved 2026-11-14: wider `platform_workspaces`, daily snapshots table (platform admin only) — next.
+- ADMIN-3 hosting: deployments per day, traffic, function time vs plan limits via a read-only Vercel key the owner adds to the environment (approved 2026-11-14) — after ADMIN-2; check first what the free plan's API returns.
+
 ## List actions (owner, 2026-11-13)
-- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — DONE (#211). UI-5b: duplicate copies pictures too (no DB change) — in review.
+- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — DONE (#211). UI-5b: duplicate copies pictures too (no DB change) — DONE (#212).
 
 ## Design system & UI overhaul (owner, 2026-11-11; decision 2026-11-11) — 6 PRs, in order
 - PR 1 Foundation: surface tokens, hairlines, radii, thin scrollbars; `Icon` set; `ServiceIcon` for 15 services + home; shared `Button`/`Dialog`/`Segmented`/`Hint`; four service categories; no comparisons with other products in UI strings — DONE (#144).
