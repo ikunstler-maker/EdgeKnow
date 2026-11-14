@@ -6,6 +6,11 @@ import { Icon } from "@/components/ui/icon";
 import { RoadmapView } from "./roadmap-view";
 import { createClient } from "@/lib/supabase/server";
 import { Monitoring, type DailyStat, type WorkspaceLoad } from "./monitoring";
+import { Hosting } from "./hosting";
+import { hostingStats } from "@/lib/vercel-monitor";
+
+// The time of this request (the page is drawn per request).
+const requestTime = () => Date.now();
 
 // The plan's limits of the main project (free plan by default; set when the plan changes).
 const limitMb = (value: string | undefined, fallback: number) => (Number(value) > 0 ? Number(value) : fallback);
@@ -33,10 +38,11 @@ export default async function RoadmapPage() {
     );
   }
   const supabase = await createClient();
-  const [{ data: size }, { data: history }, { data: load }] = await Promise.all([
+  const [{ data: size }, { data: history }, { data: load }, hosting] = await Promise.all([
     supabase.rpc("platform_database_size"),
     supabase.rpc("platform_stats_history"),
     supabase.rpc("platform_workspace_load"),
+    hostingStats(requestTime()),
   ]);
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10" data-roadmap>
@@ -52,6 +58,7 @@ export default async function RoadmapPage() {
         workspaces={(load ?? []) as WorkspaceLoad[]}
         limits={{ databaseMb: limitMb(process.env.PLATFORM_DATABASE_LIMIT_MB, 500), storageMb: limitMb(process.env.PLATFORM_STORAGE_LIMIT_MB, 1024) }}
       />
+      <Hosting stats={hosting} />
       <RoadmapView />
     </main>
   );

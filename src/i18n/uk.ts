@@ -3519,6 +3519,21 @@ export const uk = {
     minutes: (minutes: number) => (minutes ? `≈ ${minutes} хв` : "—"),
   },
   platform: {
+    hosting: {
+      title: "Хостинг",
+      notSet: "Ключ Vercel для моніторингу ще не додано: у налаштуваннях проєкту Vercel потрібні змінні VERCEL_MONITOR_TOKEN і VERCEL_MONITOR_TEAM_ID.",
+      error: "Не вдалося прочитати дані Vercel. Можливо, ключ прострочений або без доступу до команди.",
+      deployments24h: "Розгортання за 24 години",
+      levels: { good: "у межах денного ліміту", warning: "наближаєтесь до денного ліміту", critical: "ліміт майже вичерпано — нові збірки можуть не пройти" },
+      failed: "Збірки з помилкою (7 днів)",
+      buildTime: "Середній час збірки",
+      seconds: (n: number) => (n >= 60 ? `${Math.floor(n / 60)} хв ${n % 60} с` : `${n} с`),
+      lastProduction: "Останнє розгортання робочого сайту",
+      states: { READY: "успішно", ERROR: "з помилкою", BUILDING: "збирається", QUEUED: "у черзі", CANCELED: "скасовано", INITIALIZING: "готується" },
+      week: "Розгортання за 7 днів",
+      dayTitle: (total: number, failed: number) => `${total} розгортань${failed ? `, з помилкою ${failed}` : ""}`,
+      paidOnly: "Трафік і час роботи функцій Vercel показує лише на платному плані; на безкоштовному їх видно тільки в кабінеті Vercel (Usage).",
+    },
     monitoring: {
       title: "Ресурси й навантаження",
       intro: (db: number, storage: number) => `Головний проєкт відносно ліміту плану: база ${db} МБ, сховище ${storage} МБ. Жовтий від 70 %, червоний від 85 %.`,
