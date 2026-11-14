@@ -8,14 +8,14 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000096a1', 'alice@gcal.test', now()),
- ('00000000-0000-0000-0000-0000000096b1', 'bob@gcal.test', now()),
- ('00000000-0000-0000-0000-0000000096c1', 'carl@gcal.test', now()),
- ('00000000-0000-0000-0000-0000000096e1', 'gwen@client-gcal.test', now());
-\set alice '00000000-0000-0000-0000-0000000096a1'
-\set bob '00000000-0000-0000-0000-0000000096b1'
-\set carl '00000000-0000-0000-0000-0000000096c1'
-\set gwen '00000000-0000-0000-0000-0000000096e1'
+ ('00000000-0000-0000-0000-0000000097a1', 'alice@gcal.test', now()),
+ ('00000000-0000-0000-0000-0000000097b1', 'bob@gcal.test', now()),
+ ('00000000-0000-0000-0000-0000000097c1', 'carl@gcal.test', now()),
+ ('00000000-0000-0000-0000-0000000097e1', 'gwen@client-gcal.test', now());
+\set alice '00000000-0000-0000-0000-0000000097a1'
+\set bob '00000000-0000-0000-0000-0000000097b1'
+\set carl '00000000-0000-0000-0000-0000000097c1'
+\set gwen '00000000-0000-0000-0000-0000000097e1'
 \set base '{"description": "Secret notes", "location": "Room 1", "time_zone": "Europe/Kyiv", "all_day": false, "visibility": "invite"}'
 update public.platform_settings set open_registration = true;
 set role authenticated;
