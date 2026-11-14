@@ -127,3 +127,8 @@ Grep before debugging. Rules: `docs/MASTER_GUIDE.md` A2.
 - Symptom: Gemini draws 10–12 tiles when asked for 9.
 - Fix: generate, then use the image-edit call to remove extras; or let the owner pick. Make edges transparent (luma key + padding) so no frame shows on the dark page.
 - Seen: 2026-11-03
+
+### Two parallel PRs, same migration timestamp or test number (CI-3, 2026-11-14)
+- **Symptom:** after both merged, main's `api`/`e2e` fail with `duplicate key … schema_migrations_pkey … Key (version)=(…) already exists`; `test-db.sh` fails on `users_pkey` in a `stage<N>` test.
+- **Cause:** each PR was green alone, but both used the same migration timestamp (ADMIN-2 and DOBA-1: `20270216100000`) and the same test number and test user ids (`stage97`, `…97a1`). The first one reached production; the second was never applied.
+- **Fix:** give the later PR's migration (and rollback) a newer timestamp, its test the next free number and its own user ids. Before merging, re-check `supabase/migrations`, `supabase/tests` and the team numbers on the newest main, and run `test-db.sh` checking its exit code (a stopped local Postgres prints connection errors that a `grep -c FAIL` reads as "0 failures").

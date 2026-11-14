@@ -6,14 +6,14 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000098a1', 'alice@cards.test', now()),
- ('00000000-0000-0000-0000-0000000098b1', 'bob@cards.test', now()),
- ('00000000-0000-0000-0000-0000000098c1', 'carol@cards.test', now()),
- ('00000000-0000-0000-0000-0000000098d1', 'dave@cards.test', now());
-\set alice '00000000-0000-0000-0000-0000000098a1'
-\set bob '00000000-0000-0000-0000-0000000098b1'
-\set carol '00000000-0000-0000-0000-0000000098c1'
-\set dave '00000000-0000-0000-0000-0000000098d1'
+ ('00000000-0000-0000-0000-0000000099a1', 'alice@cards.test', now()),
+ ('00000000-0000-0000-0000-0000000099b1', 'bob@cards.test', now()),
+ ('00000000-0000-0000-0000-0000000099c1', 'carol@cards.test', now()),
+ ('00000000-0000-0000-0000-0000000099d1', 'dave@cards.test', now());
+\set alice '00000000-0000-0000-0000-0000000099a1'
+\set bob '00000000-0000-0000-0000-0000000099b1'
+\set carol '00000000-0000-0000-0000-0000000099c1'
+\set dave '00000000-0000-0000-0000-0000000099d1'
 \set cards '(select count(*) from public.chat_messages where kind = ''system'')'
 update public.platform_settings set open_registration = true;
 set role authenticated;

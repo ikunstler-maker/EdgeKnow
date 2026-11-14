@@ -5,10 +5,10 @@
 \set VERBOSITY terse
 
 insert into auth.users (id, email, email_confirmed_at) values
- ('00000000-0000-0000-0000-0000000097a1', 'alice@monitor97.test', now()),
- ('00000000-0000-0000-0000-0000000097b1', 'bob@other97.test', now());
-\set alice '00000000-0000-0000-0000-0000000097a1'
-\set bob '00000000-0000-0000-0000-0000000097b1'
+ ('00000000-0000-0000-0000-0000000098a1', 'alice@monitor98.test', now()),
+ ('00000000-0000-0000-0000-0000000098b1', 'bob@other98.test', now());
+\set alice '00000000-0000-0000-0000-0000000098a1'
+\set bob '00000000-0000-0000-0000-0000000098b1'
 update public.platform_settings set open_registration = true;
 set role authenticated;
 set request.jwt.claim.sub = :'alice';
