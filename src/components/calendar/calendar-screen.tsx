@@ -82,6 +82,12 @@ const sameDay = (a: Date, b: Date) => dayKey(a) === dayKey(b);
 
 // How an event looks by what it is to me: mine and accepted — filled; waiting for my
 // answer — outlined; the rest — quiet.
+// One's own slot from an outside calendar: its title when a sign-in gives one (DOBA-1).
+function outsideLabel(slot: BusySlot): string {
+  if (!slot.title) return c.outside.mine;
+  return slot.busy === false ? `${slot.title} · ${c.outside.free}` : slot.title;
+}
+
 function chipClass(event: CalendarEvent) {
   if (event.my_status === "accepted") return "border-accent bg-accent text-white";
   if (event.my_status === "invited" || event.my_status === "tentative" || event.my_status === "requested") return "border-accent bg-accent/10 text-foreground border-dashed";
@@ -101,6 +107,7 @@ export function CalendarScreen({
   initialView,
   initialDay,
   initialEvent,
+  googleResult: initialGoogleResult = null,
 }: {
   shortId: string;
   workspaceId: string;
@@ -113,6 +120,8 @@ export function CalendarScreen({
   initialView: CalendarView | null;
   initialDay: string | null;
   initialEvent: string | null;
+  // DOBA-1: back from connecting a calendar by signing in — how it went (shown once).
+  googleResult?: string | null;
 }) {
   const [view, setView] = useState<CalendarView>(initialView ?? "week");
   const [anchor, setAnchor] = useState<Date>(() => (initialDay ? fromDayKey(initialDay) : startOfDay(new Date())));
@@ -142,7 +151,15 @@ export function CalendarScreen({
     for (const listener of taskModeListeners) listener();
   };
   const [showSettings, setShowSettings] = useState(false);
-  const [showFeed, setShowFeed] = useState(false);
+  const [showFeed, setShowFeed] = useState(Boolean(initialGoogleResult));
+  const [googleResult, setGoogleResult] = useState<string | null>(initialGoogleResult);
+  useEffect(() => {
+    if (!initialGoogleResult) return;
+    // A reload doesn't say it again.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("google");
+    window.history.replaceState(window.history.state, "", url);
+  }, [initialGoogleResult]);
   const [createMode, setCreateMode] = useState<CreateMode>("event");
   // My own time off (balances, policies, requests) — for the request window and "withdraw".
   const [myLeave, setMyLeave] = useState<MyLeave | null>(null);
@@ -532,7 +549,19 @@ export function CalendarScreen({
       {myAbsence && myLeave && (
         <MyAbsenceDialog shortId={shortId} request={myAbsence} policy={policyName(myAbsence.policy_id)} today={myLeave.today} onClose={() => setMyAbsence(null)} onChanged={reload} />
       )}
-      {showFeed && <FeedDialog shortId={shortId} workspaceId={workspaceId} guest={guest} onOutsideChanged={() => setOutsideTick((n) => n + 1)} onClose={() => setShowFeed(false)} />}
+      {showFeed && (
+        <FeedDialog
+          shortId={shortId}
+          workspaceId={workspaceId}
+          guest={guest}
+          googleResult={googleResult}
+          onOutsideChanged={() => setOutsideTick((n) => n + 1)}
+          onClose={() => {
+            setShowFeed(false);
+            setGoogleResult(null);
+          }}
+        />
+      )}
       {showSettings && (
         <CalendarSettingsDialog
           shortId={shortId}
@@ -961,8 +990,8 @@ function WeekView({
               ))}
               <DayTasks tasks={dueOn(tasks, day)} taskHref={taskHref} />
               {wholeBusy.map((slot, i) => (
-                <div key={i} className="truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted" data-busy={slot.outside ? "outside" : ""}>
-                  {slot.outside ? c.outside.mine : c.busyOf(nameOf(slot.user_id))}
+                <div key={i} className="truncate rounded border border-border bg-surface px-1 text-xs leading-5 text-muted" data-busy={slot.outside ? "outside" : ""} title={slot.outside ? outsideLabel(slot) : undefined}>
+                  {slot.outside ? outsideLabel(slot) : c.busyOf(nameOf(slot.user_id))}
                 </div>
               ))}
             </div>
@@ -1067,7 +1096,7 @@ function WeekView({
                     }}
                     data-busy={p.item.outside ? "outside" : ""}
                   >
-                    {p.item.outside ? c.outside.mine : c.busyOf(nameOf(p.item.user_id))}
+                    {p.item.outside ? outsideLabel(p.item) : c.busyOf(nameOf(p.item.user_id))}
                   </div>
                 ))}
                 {timed.map((p) => (

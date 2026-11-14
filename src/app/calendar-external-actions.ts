@@ -4,6 +4,7 @@ import { after } from "next/server";
 import type { ActionResult } from "@/lib/action-result";
 import { getCurrentUser } from "@/lib/auth";
 import { connectCalendar, connectionState, disconnectCalendar, refreshNow, refreshStale, type ConnectionState } from "@/lib/calendar-external";
+import { disconnectGoogle, newMeeting } from "@/lib/calendar-google";
 import type { BusySlot } from "@/lib/calendar";
 import { dataClient } from "@/lib/team-db/data";
 import { getWorkspace } from "@/lib/workspace";
@@ -42,6 +43,20 @@ export async function disconnectOutsideCalendar(shortId: string): Promise<Action
   return (await disconnectCalendar(who.workspaceId, who.userId)) ? { ok: true } : { ok: false, error: "unknown" };
 }
 
+// DOBA-1: a sign-in with the provider goes, with or without the app's "Doba" calendar there.
+export async function disconnectGoogleCalendar(shortId: string, removeCalendar: boolean): Promise<ActionResult> {
+  const who = await me(shortId);
+  if (!who) return { ok: false, error: "forbidden" };
+  return (await disconnectGoogle(who.workspaceId, who.userId, removeCalendar === true)) ? { ok: true } : { ok: false, error: "unknown" };
+}
+
+// DOBA-1: a new video meeting room in the person's own account, for an event's link.
+export async function newVideoMeeting(shortId: string): Promise<ActionResult<{ url: string }>> {
+  const who = await me(shortId);
+  if (!who) return { ok: false, error: "forbidden" };
+  return newMeeting(who.workspaceId, who.userId);
+}
+
 // The person's own outside busy time of a period, for their calendar. What is there is
 // shown at once; an address not read for an hour is read again after the response.
 export async function loadMyOutsideBusy(shortId: string, from: string, to: string): Promise<BusySlot[]> {
@@ -51,7 +66,7 @@ export async function loadMyOutsideBusy(shortId: string, from: string, to: strin
   const db = await dataClient(shortId);
   const { data } = await db
     .from("calendar_external_busy")
-    .select("user_id, starts_at, ends_at, all_day")
+    .select("user_id, starts_at, ends_at, all_day, title, busy")
     .eq("workspace_id", who.workspaceId)
     .eq("user_id", who.userId)
     .lt("starts_at", to)

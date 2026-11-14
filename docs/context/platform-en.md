@@ -113,7 +113,7 @@ The core gives every service people, access, storage, search, notifications and 
 | `notifications`, `notification_prefs` | notifications (links: task, page, calendar event, time-off request, chat message) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: events, their people, working days and time zone |
 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_holidays`, `leave_member_settings` | Doba: time-off policies, the balance ledger, requests, holidays, start dates |
-| `calendar_external_busy`, `calendar_connections` (central only) | Doba: busy slots read from a person's outside calendar (start and end only); the calendar's address, encrypted, closed to everyone |
+| `calendar_external_busy`, `calendar_connections`, `calendar_external_links` (the last two central only) | Doba: slots read from a person's outside calendar (start and end; with a sign-in also the title, theirs alone, and busy/free); the calendar's address or sign-in access, encrypted, closed to everyone; links between Doba events and their copies in the person's "Doba" calendar (DOBA-1) |
 | `calendar_feeds` | Doba: the hash of a person's calendar-feed secret (closed to everyone; the server reads the feed) |
 | `audit_log`, `admin_audit_log` | action logs |
 | `platform_settings`, `rate_limits` | platform settings and limits |

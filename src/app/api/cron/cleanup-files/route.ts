@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshAllStale } from "@/lib/calendar-external";
+import { pushAllStale } from "@/lib/calendar-google";
 import { driveApi } from "@/lib/drive/google-drive";
 import { connectionById, refreshTokenOf } from "@/lib/drive/storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -53,7 +54,10 @@ export async function GET(request: NextRequest) {
   const vaultShares = await syncAllVaultDriveShares(admin).catch(() => null);
   // Outside calendars nobody looked at lately are read again (busy time only).
   const calendars = await refreshAllStale(admin).catch(() => null);
-  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars, vaultShares });
+  // DOBA-1: people's "Doba" calendars at the provider are brought in line; a sign-in of
+  // someone who left the workspace is taken back there.
+  const calendarCopies = await pushAllStale(admin).catch(() => null);
+  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars, calendarCopies, vaultShares });
 }
 
 // Task files and board pictures share their bucket.
