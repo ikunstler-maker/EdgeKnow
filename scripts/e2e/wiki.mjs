@@ -82,6 +82,17 @@ const betaShortId = sql(`select short_id from public.workspaces where id = '${be
 check("admin page lists all workspaces", (await alice.getByRole("cell", { name: /Alpha/ }).count()) > 0 && (await alice.getByRole("cell", { name: betaShortId }).count()) > 0);
 check("…a workspace she isn't in shows only its ID: no name, no owner's email", (await alice.getByRole("link", { name: "Beta", exact: true }).count()) === 0 && (await alice.getByText("bob@beta.test").count()) === 0);
 check("admin page shows no page titles", (await alice.getByText("Alpha secret").count()) === 0);
+// ADMIN-1: the road map — the platform admin sees it; anyone else is refused.
+await alice.locator("[data-roadmap-link]").click();
+await alice.locator("[data-roadmap-overall]").waitFor({ timeout: 15000 });
+const allStages = await alice.locator("[data-roadmap-stage]").count();
+check("ADMIN-1: the road map shows the overall state and every service's stages", allStages > 20 && (await alice.locator("[data-roadmap-track]").count()) > 10, String(allStages));
+await alice.locator('[data-roadmap-flag-filter="owner"]').click();
+const ownerStages = await alice.locator("[data-roadmap-stage]").count();
+const ownerMarked = await alice.locator("[data-roadmap-stage]").evaluateAll((els) => els.every((el) => el.querySelector('[data-roadmap-stage-flag="owner"]')));
+check("…\"Your involvement\" narrows it to the stages that need the owner", ownerStages > 0 && ownerStages < allStages && ownerMarked, `${ownerStages}/${allStages}`);
+await colleague.goto(`${APP}/admin/roadmap`);
+check("…a member who isn't the platform admin is refused", (await colleague.locator("[data-roadmap-forbidden]").count()) === 1 && (await colleague.locator("[data-roadmap-stage]").count()) === 0);
 
 // --- Domains proven through DNS ---------------------------------------------------------------
 // The server reads DNS from DNS_FAKE_FILE in CI; writing it is "adding the record".
