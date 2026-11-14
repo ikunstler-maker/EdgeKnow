@@ -53,7 +53,7 @@ export const ROADMAP: Track[] = [
       s("ORG-1", "Рівень організації: спільні об'єкти між командами", "Organization level: objects shared between workspaces", "later", { flags: ["db", "security"] }),
       s("ADMIN-1", "Дорожня карта в панелі платформи", "Road map in the platform panel", "done", { pr: 215, extra: true }),
       s("ADMIN-2", "Моніторинг команд, бази й сховища", "Monitoring of workspaces, database and storage", "done", { pr: 216, extra: true, flags: ["db"] }),
-      s("ADMIN-3", "Моніторинг хостингу", "Hosting monitoring", "review", { extra: true, flags: ["owner", "external", "security"], note: { uk: "Ключ Vercel у налаштуваннях проєкту Vercel; трафік і функції — лише на платному плані.", en: "Vercel key in the Vercel project settings; traffic and functions only on the paid plan." } }),
+      s("ADMIN-3", "Моніторинг хостингу", "Hosting monitoring", "done", { pr: 219, extra: true, flags: ["owner", "external", "security"], note: { uk: "Ключ Vercel у налаштуваннях проєкту Vercel; трафік і функції — лише на платному плані.", en: "Vercel key in the Vercel project settings; traffic and functions only on the paid plan." } }),
     ],
   },
   {
