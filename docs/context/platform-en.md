@@ -46,6 +46,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **Collections:** shared folders of workspace objects; one object in many collections, no copies.
 - **List row actions (UI-5):** rename, duplicate, share, access (owner), bin on each row of the object lists; shown by role.
 - **Road map (ADMIN-1):** `/admin/roadmap`, platform admin only; data in `src/lib/roadmap.ts`, every PR that moves a stage updates it.
+- **Monitoring (ADMIN-2):** gauges, 90-day trend and forecast, per-workspace load on `/admin/roadmap`; `platform_daily_stats` (daily snapshot, platform admin reads only), `platform_workspace_load()`.
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics

@@ -1,0 +1,14 @@
+member sees load rows: 0
+member sees history rows: 0
+psql: ERROR:  permission denied for function platform_take_snapshot
+
+
+snapshots today: 1
+admin sees both workspaces: 2
+own name shown: Monitor mine
+other name hidden: (hidden)
+members counted: 1
+admin sees today in history: 1
+admin reads the table: 1
+psql: ERROR:  permission denied for table platform_daily_stats
+other member reads the table: 0
