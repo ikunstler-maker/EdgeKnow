@@ -126,7 +126,7 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   // The start page: a tile per service; those still being built say "Soon".
   await alice.goto(`${APP}/w/${alphaShort}`);
   await alice.locator('[data-service="tasks"]').waitFor({ timeout: 15000 });
-  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 15 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 5);
+  check("the start page shows every service, the unbuilt ones as “Soon”", (await alice.locator("[data-service]").count()) === 15 && (await alice.locator("[data-service]", { hasText: "Скоро" }).count()) === 4);
   check("…as a launcher: no page buttons at the top", (await alice.locator("main").getByRole("button", { name: /Нова сторінка/ }).count()) === 0);
   await alice.locator('[data-service="tasks"]').getByRole("link", { name: "Rukh" }).click();
   await alice.waitForURL(new RegExp(`/w/${alphaShort}/tasks$`), { timeout: 15000 });
@@ -823,6 +823,62 @@ if (sql(`select count(*) from public.drive_connections where workspace_id = '${a
   await alice.waitForTimeout(2500);
   await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/1`);
   check("a task lists the pages that mention it", (await alice.locator("[data-mentioned-on]").getByText("Sprint notes").count()) === 1);
+}
+
+// --- Smart chips everywhere (UI-1): any workspace thing as a chip in a task description and the wiki ---
+{
+  const untilAsync = async (condition, ms = 8000) => {
+    for (let i = 0; i < ms / 250; i++) {
+      if (await condition().catch(() => false)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return false;
+  };
+  const board = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "board", new_title: "Chip board", new_data: { elements: [], appState: {}, files: {} } })).data?.id;
+  const sheet = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "sheets", new_kind: "sheet", new_title: "Chip sheet", new_data: {} })).data?.id;
+  check("(setup) a board and a table to point at", Boolean(board && sheet));
+  const taskId = sql("select t.id from public.tasks t join public.task_projects p on p.id = t.project_id where p.key = 'MAR' and t.number = 2");
+  const description = () => sql(`select coalesce(description::text, '') from public.tasks where id = '${taskId}'`);
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/MAR/2`);
+  const editor = alice.locator('[data-task-description] .bn-editor[contenteditable="true"]');
+  await editor.waitFor({ timeout: 20000 });
+  await editor.click();
+  await alice.keyboard.press("Control+End");
+  await alice.keyboard.type(" @Chip bo");
+  await alice.locator(".bn-suggestion-menu-item", { hasText: "Chip board" }).click({ timeout: 15000 });
+  const boardChip = alice.locator('[data-task-description] [data-object-chip="boards"]');
+  check("“@” in a task description finds a board and puts its chip in", await untilAsync(async () => (await boardChip.innerText()).includes("Chip board"), 10000));
+  check("…saved as a link only (kind and id, no title)", await until(() => description().includes(`"objectId": "${board}"`) || description().includes(`"objectId":"${board}"`), 10000) && !description().includes("Chip board"));
+
+  // A workspace link pasted on its own becomes its chip.
+  await alice.evaluate((url) => {
+    const target = document.querySelector('[data-task-description] .bn-editor[contenteditable="true"]');
+    const data = new DataTransfer();
+    data.setData("text/plain", url);
+    target.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, `${APP}/w/${alphaShort}/sheets/${sheet}`);
+  check("a pasted table link becomes a table chip", await untilAsync(async () => (await alice.locator('[data-task-description] [data-object-chip="sheets"]').innerText()).includes("Chip sheet"), 10000));
+
+  // Renamed elsewhere: the chip shows the new name.
+  sql(`update public.service_objects set title = 'Renamed board' where id = '${board}'`);
+  await alice.waitForTimeout(2000);
+  await alice.reload();
+  check("a renamed board's chip shows the new name", await untilAsync(async () => (await alice.locator('[data-task-description] [data-object-chip="boards"]').innerText()).includes("Renamed board"), 15000));
+
+  // In the wiki: a chip of something the reader can't see (or that is gone) says "No access" without a title.
+  const page = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Chips page" })).data.id;
+  await aliceClient.rpc("save_page_content", {
+    target_page: page,
+    new_content: [{ id: "o1", type: "paragraph", props: {}, content: [
+      { type: "objectChip", props: { kind: "boards", objectId: board } }, { type: "text", text: " and ", styles: {} },
+      { type: "objectChip", props: { kind: "sheets", objectId: "00000000-0000-4000-8000-000000000123" } },
+    ], children: [] }],
+    base_version: 1,
+  });
+  await alice.goto(`${APP}/w/${alphaShort}/p/${page}`);
+  await alice.locator('[data-object-chip="boards"]').waitFor({ timeout: 20000 }).catch(() => {});
+  check("a wiki page shows the board chip", (await alice.locator('[data-object-chip="boards"]').innerText().catch(() => "")).includes("Renamed board"));
+  check("…and “No access” for one that can't be seen", await untilAsync(async () => (await alice.locator('[data-object-chip="none"]').count()) === 1, 15000));
 }
 
 // --- Groups of people ---------------------------------------------------------------------------

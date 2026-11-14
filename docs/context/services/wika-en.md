@@ -21,7 +21,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 - Blocks: text, headings H1–H3, lists, checklists, table with cell colours, code, quote, callout, image (upload or link), YouTube, link card, navigation, table of contents.
 - **Gallery:** images, YouTube, audio; four layouts.
 - **Diagram** (node diagram) right in the page.
-- **Chips:** page, person, task; switch chip (status, version, priority).
+- **Chips:** page, person, task, event, and any table, board, map, slide deck, survey, app, wishlist or Vault file (`objectChip`, UI-1: kind + id only; the title is read live with the reader's access, "No access" otherwise); "@" searches them all; a workspace link pasted on its own becomes its chip; switch chip (status, version, priority). Shared code: `src/components/editor/object-chip.tsx`, `chip-menu.tsx`, `src/app/chip-actions.ts`.
 - **Text shows at once:** the server draws the saved page text while the editor's code is loading.
 - Autosave. **Edit conflict:** if someone saved first — choose "open their version" or "keep mine".
 - Content is an editor document (JSON), up to 1 MB of text per page.
@@ -58,7 +58,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | Page templates | planned | |
 | Import from other tools and Markdown | planned | |
 | Public knowledge base (read without sign-in) | planned | access change → approval |
-| Smart chips for any object | owner's request | |
+| Smart chips in tables, boards, maps, event notes | planned (UI-1 steps 2–3) | table cells are drawn on a canvas: approach first |
 | AI assistant in the page | planned | with the team's own key |
 
 ## 4. Data
@@ -92,6 +92,7 @@ The team's knowledge base: a page tree with a block editor, comments and access 
 | **Kadry** (presentations) | a wiki page is embedded in a slide as a card |
 | **Core** | search, mention notifications, analytics, file storage. No collections in the wiki: the page tree replaces them |
 | **Profile** | "Wishlist" block: a live card of a colleague's wishlist, access checked |
+| **Vault** | "File from Vault" block (`vaultFile`): a live file card, access checked; without access — "File unavailable" (VAULT-3) |
 
 **Embed rule:** the page stores only the object's ID. Rights are checked every time against the object, not the page.
 

@@ -55,9 +55,9 @@ dave grants left: 0
 dave sees after leaving: 0
 member lists departed: {"ok": false, "error": "forbidden"}
 member reassigns: {"ok": false, "error": "forbidden"}
-departed: [{"name": "Dave", "email": "dave@access.test", "pages": 2, "user_id": "00000000-0000-0000-0000-0000000005d1"}]
+departed: [{"name": "Dave", "email": "dave@access.test", "files": 0, "pages": 2, "user_id": "00000000-0000-0000-0000-0000000005d1"}]
 reassign active member: {"ok": false, "error": "still_a_member"}
 reassign to outsider: {"ok": false, "error": "not_a_member"}
-reassign: {"ok": true, "pages": 2}
+reassign: {"ok": true, "files": 0, "pages": 2}
 carol now owns: Child, Dave sub
-audit: access_denied {"attempted": "reassign_member_pages"}; pages_reassigned {"to": "carol@access.test", "from": "dave@access.test", "pages": 2}
+audit: access_denied {"attempted": "reassign_member_pages"}; pages_reassigned {"to": "carol@access.test", "from": "dave@access.test", "files": 0, "pages": 2}

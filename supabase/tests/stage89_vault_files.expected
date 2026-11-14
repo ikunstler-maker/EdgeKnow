@@ -1,0 +1,37 @@
+a name of spaces: invalid_name, a file of 0 bytes: invalid_file
+an odd kind is kept as bytes: application/octet-stream
+carol sees: Team, plan.pdf; her role on the file: viewer
+carol renames bob's file: forbidden, adds to his folder: forbidden, trashes it: forbidden, shares it: forbidden
+carol adds at the top: true
+the top for carol: Carol's:owner, Team:viewer
+the guest sees 0 items, lists: forbidden, adds: forbidden, starts a file: forbidden
+another workspace sees 0 items, lists: forbidden, adds: forbidden, reads the sharing: forbidden
+bob restricts the folder: true
+carol sees in it: 0, opens it: not_found
+the workspace owner (no role on it) sees: 0
+shares with carol: true, with the unit: true, with the guest: invalid, with someone outside: invalid, with a unit elsewhere: invalid
+the sharing: false - 1 1
+carol now: editor on the folder, editor on the file inside, renames the file: true, adds a folder: true
+dave (Design) is a viewer of the file, renames it: forbidden
+shares the inner folder with alice: true
+alice's top shows it: Carol's, Inner; its path for her: []
+into its own folder below: invalid_folder, the file to the top: true
+at the top it no longer has the folder's grant: carol is a viewer, moves it back: forbidden
+bob (its owner) moves it back: true
+dave moves it out: forbidden
+carol sets a limit: forbidden
+alice sets 1 MB: true
+2 MB then: too_large
+no limit again: true
+a 300 MB file goes in parts: true
+a 2 MB file over the workspace's storage: quota_exceeded
+bob bins the folder: true
+carol's top: Carol's; her bin: Team; renames inside the bin: forbidden; restores the file alone: forbidden
+dave (viewer) restores: forbidden
+carol restores it: true
+all back: 0
+bins and deletes for good: true true
+left of the folder: 0, the file's bytes queued for removal: 1
+cleaned: 2
+pending left: 0
+carol, removed, sees 0

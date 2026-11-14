@@ -194,6 +194,95 @@ check("…then the viewer's cursor shows", viewerCursor);
   check("Design: saved once for both", await until(() => (JSON.parse(sql(`select data::text from public.service_objects where id = '${designId}'`)).pages?.[0]?.nodes ?? []).length === 1, 15000));
 }
 
+// Idea boards (phase 2): merged by the canvas library's own element versions.
+const untilAsync = async (condition, ms = 8000) => {
+  for (let i = 0; i < ms / 200; i++) {
+    if (await condition()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return false;
+};
+{
+  const boardId = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "board", new_title: "Live ideas", new_data: { elements: [], appState: {}, files: {} } })).data?.id;
+  check("an idea board for the live test", Boolean(boardId));
+  const url = `${APP}/w/${alphaShort}/boards/${boardId}`;
+  const stickiesSaved = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${boardId}' and e -> 'customData' ->> 'sticky' = 'true' and coalesce((e ->> 'isDeleted')::boolean, false) = false`);
+  const shownStickies = async (page) => Number(await page.locator("[data-board-canvas]").getAttribute("data-board-stickies"));
+  for (const page of [alice, colleague]) {
+    await page.goto(url);
+    await page.locator("[data-board-canvas] canvas").first().waitFor({ timeout: 30000 });
+    // An empty board offers templates: start empty.
+    const chooser = page.locator("[data-template-chooser] button").last();
+    if (await chooser.isVisible().catch(() => false)) await chooser.click();
+  }
+  let met = false;
+  for (let i = 0; i < 40 && !met; i++) {
+    met = (await alice.locator("[data-live-peer]").count()) > 0 && (await colleague.locator("[data-live-peer]").count()) > 0;
+    if (!met) await alice.waitForTimeout(500);
+  }
+  check("Idea board: two editors see each other", met);
+  await alice.waitForTimeout(1500);
+
+  await alice.locator('[data-sticky-color="yellow"]').click();
+  check("Idea board: a sticky note added by one shows at the other's at once", await untilAsync(async () => (await shownStickies(colleague)) === 1, 6000), String(await shownStickies(colleague)));
+
+  // Both add one at the same time: nothing is lost, one of them saves it all.
+  await Promise.all([colleague.locator('[data-sticky-color="green"]').click(), alice.locator('[data-sticky-color="blue"]').click()]);
+  check("Idea board: notes added at the same time reach both", await untilAsync(async () => (await shownStickies(alice)) === 3 && (await shownStickies(colleague)) === 3, 8000), `${await shownStickies(alice)} ${await shownStickies(colleague)}`);
+  check("Idea board: …and one of them saves it all", await until(() => stickiesSaved() === "3", 15000), stickiesSaved());
+
+  // The other person's cursor.
+  const area = alice.locator("[data-board-canvas] .excalidraw__canvas.interactive");
+  const box = await area.boundingBox();
+  for (let i = 0; i < 6; i++) await alice.mouse.move(box.x + box.width * (0.35 + i * 0.05), box.y + box.height * 0.6, { steps: 2 });
+  check("Idea board: the other person's cursor shows", await colleague.locator("[data-live-cursor]").first().waitFor({ timeout: 6000 }).then(() => true, () => false));
+
+  // Undo takes back only one's own note.
+  const cbox = await colleague.locator("[data-board-canvas] .excalidraw__canvas.interactive").boundingBox();
+  await colleague.mouse.click(cbox.x + cbox.width * 0.05, cbox.y + cbox.height * 0.95);
+  await colleague.keyboard.press("Control+z");
+  check("Idea board: undo takes back only one's own note", await untilAsync(async () => stickiesSaved() === "2" && (await shownStickies(alice)) === 2, 15000), `${stickiesSaved()} ${await shownStickies(alice)}`);
+
+  // Follow.
+  await colleague.locator("[data-live-peer]").first().click();
+  await colleague.locator("[data-live-following]").waitFor({ timeout: 5000 });
+  await alice.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5, { steps: 2 });
+  check("Idea board: the person sees who follows them", await alice.locator("[data-live-followers]").waitFor({ timeout: 8000 }).then(() => true, () => false));
+  await colleague.locator("[data-live-unfollow]").click();
+}
+
+// Mind maps of Nodo (phase 3, CORE-4): the same channels, merged with Yjs like presentations.
+{
+  const mapId = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "nodes", new_kind: "mindmap", new_title: "Live map", new_data: { nodes: [{ id: "root1", parent: null, text: "Root" }] } })).data?.id;
+  check("a mind map for the live test", Boolean(mapId));
+  const url = `${APP}/w/${alphaShort}/nodes/${mapId}`;
+  await alice.goto(url);
+  await colleague.goto(url);
+  await alice.locator("[data-mind-map]").waitFor({ timeout: 30000 });
+  await colleague.locator("[data-mind-map]").waitFor({ timeout: 30000 });
+  let met = false;
+  for (let i = 0; i < 40 && !met; i++) {
+    met = (await alice.locator("[data-live-peer]").count()) > 0 && (await colleague.locator("[data-live-peer]").count()) > 0;
+    if (!met) await alice.waitForTimeout(500);
+  }
+  check("Map: two editors see each other", met);
+  await alice.waitForTimeout(1500);
+  const shown = async (page) => page.locator("[data-map-node]").count();
+  await alice.locator("[data-mind-map]").focus();
+  await alice.keyboard.press("F2");
+  await alice.keyboard.press("End");
+  await alice.keyboard.press("Tab");
+  await alice.keyboard.type("From Alice");
+  await alice.keyboard.press("Escape");
+  check("Map: a node added by one shows at the other's at once", await untilAsync(async () => (await colleague.locator('[data-map-node="From Alice"]').count()) === 1, 8000));
+  const savedNodes = () => JSON.parse(sql(`select data::text from public.service_objects where id = '${mapId}'`)).nodes?.length ?? 0;
+  check("Map: one of them saves it", await until(() => savedNodes() === 2, 15000), String(savedNodes()));
+  const area = await alice.locator("[data-mind-map]").boundingBox();
+  for (let i = 0; i < 6; i++) await alice.mouse.move(area.x + area.width * (0.3 + i * 0.05), area.y + area.height * 0.7, { steps: 2 });
+  check("Map: the other person's cursor shows", await colleague.locator("[data-live-cursor]").first().waitFor({ timeout: 6000 }).then(() => true, () => false));
+  check("Map: both see the same nodes", (await shown(alice)) === (await shown(colleague)));
+}
+
 // Switched off: the studio bar shows no one, saving goes on as before.
 await aliceClient.rpc("set_live_collab", { ws: alphaId, enabled: false });
 await alice.goto(deckUrl);

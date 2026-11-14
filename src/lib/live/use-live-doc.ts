@@ -55,6 +55,24 @@ export function colorOf(id: string) {
 type Json = Record<string, unknown>;
 type Presence = { userId: string; name: string; avatarUrl: string | null; editor: boolean; ready: boolean; following: string | null };
 
+// What the studio bar's presence and the "More" menu need, for any live document.
+export type LiveRoom = {
+  status: LiveStatus;
+  active: boolean;
+  canEdit: boolean;
+  leader: boolean;
+  me: string;
+  peers: LivePeer[];
+  cursors: Record<string, LiveCursor>;
+  following: string | null;
+  followers: LivePeer[];
+  viewerCursors: boolean;
+  hideCursors: boolean;
+  follow: (key: string | null) => void;
+  setViewerCursors: (on: boolean) => void;
+  setHideCursors: (on: boolean) => void;
+};
+
 export type LiveDoc<T> = {
   status: LiveStatus;
   // The editor's changes go through Yjs (and undo/redo too) once this is true.
@@ -95,9 +113,12 @@ export function useLiveDoc<T extends object>({
   pageCanEdit,
   onTitle,
   onSave,
+  disabled = false,
 }: {
   shortId: string;
   objectId: string;
+  // Never live (a kind of document the room doesn't cover, e.g. a Nodo flow).
+  disabled?: boolean;
   spec: ListSpec;
   initial: T;
   initialTitle: string;
@@ -427,6 +448,7 @@ export function useLiveDoc<T extends object>({
       await client.current?.realtime.setAuth(session.token).catch(() => {});
     };
 
+    if (disabled) return;
     void start();
     refresh = setInterval(() => void renew(), REFRESH_MS);
     const onLeave = () => {
@@ -444,7 +466,7 @@ export function useLiveDoc<T extends object>({
     };
     // One connection per document and person.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shortId, objectId, pageCanEdit]);
+  }, [shortId, objectId, pageCanEdit, disabled]);
 
   // ---- What the editor calls -------------------------------------------------------
   const change = useCallback(

@@ -4,6 +4,7 @@
 
 import { birthdayChecks, calendarChecks, feedChecks, gridChecks, outsideChecks, holidayChecks, linkChecks, repeatChecks, timeOffChecks } from "./calendar-checks.mjs";
 import { appsChecks } from "./apps-checks.mjs";
+import { vaultChecks } from "./vault-checks.mjs";
 import { APP, alice, aliceClient, alphaId, alphaShort, bob, check, colleague, colleagueClient, finish, newPage, readdirSync, sql, until } from "./common.mjs";
 
 const mapData = (title) => JSON.parse(sql(`select coalesce((select data from public.service_objects where title = '${title}' and service = 'nodes'), 'null'::jsonb)::text`));
@@ -12,7 +13,7 @@ const texts = (title) => (mapData(title)?.nodes ?? []).map((node) => node.text);
 // The start page shows the node space working, and opens it.
 await alice.goto(`${APP}/w/${alphaShort}`);
 await alice.locator('[data-service="nodes"]').waitFor({ timeout: 15000 });
-check("the start page has the node space and the chat working, the file manager coming", (await alice.locator('[data-service="nodes"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="chat"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="files"]', { hasText: "Скоро" }).count()) === 1);
+check("the start page has the node space and the chat and the file manager working", (await alice.locator('[data-service="nodes"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="chat"]', { hasText: "Скоро" }).count()) === 0 && (await alice.locator('[data-service="files"]', { hasText: "Скоро" }).count()) === 0);
 // Not pinned to the dock: opened from the list of all services.
 await alice.locator("[data-service-menu-button]").first().click();
 await alice.locator("[data-service-menu]").getByRole("link", { name: "Нодовий простір" }).click();
@@ -395,6 +396,43 @@ check("…while a map they may view shows as usual", shownMap, screen);
   await alice.locator("[data-player]").waitFor({ timeout: 20000 });
   await alice.locator("[data-embed-page]").first().waitFor({ timeout: 15000 }).catch(() => {});
   check("…and shows the card in the show", (await alice.locator("[data-embed-page]").count()) >= 1);
+  // UI-4: a chip on a slide — any page, task, table, board or file, with its live title.
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-embed-add]").click();
+  await alice.locator('[data-embed-kind="chip"]').click();
+  await alice.locator("[data-embed-chip-pick]").first().click({ timeout: 15000 });
+  await alice.locator("[data-chip-picker-item]").first().click({ timeout: 15000 });
+  await alice.locator('[data-save-status="saved"]').waitFor({ timeout: 15000 }).catch(() => {});
+  await alice.waitForTimeout(1500);
+  const chipLinks = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'slides') s, jsonb_array_elements(s -> 'nodes') n where o.id = '${deckId}' and n #>> '{embed,kind}' = 'chip' and n #>> '{embed,link}' like 'http%/w/${alphaShort}/%'`);
+  check("a slide takes a chip (the link only)", await until(() => chipLinks() === "1", 15000), chipLinks());
+  check("…drawn with the linked thing's name", await alice.locator("[data-slide-chip]").first().waitFor({ timeout: 15000 }).then(async () => !["loading", "none"].includes(await alice.locator("[data-slide-chip]").first().getAttribute("data-slide-chip")), () => false));
+  // KADRY-1: an object that appears on a click, and the show through a link without signing in.
+  sql(`update public.service_objects set data = jsonb_set(data, '{slides,0,nodes}', coalesce(data #> '{slides,0,nodes}', '[]'::jsonb) || '[{"id":"b1","type":"RECTANGLE","x":100,"y":100,"width":200,"height":120,"rotation":0,"fill":"#2563eb","build":"fade"}]'::jsonb) where id = '${deckId}'`);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}/play`);
+  await alice.locator("[data-player]").waitFor({ timeout: 20000 });
+  let stepped = false;
+  for (let i = 0; i < 10 && !stepped; i++) {
+    await alice.keyboard.press("ArrowRight");
+    await alice.waitForTimeout(400);
+    stepped = (await alice.locator("[data-player]").getAttribute("data-player-step")) === "1" && (await alice.locator("[data-player-count]").innerText()).trim().startsWith("1 /");
+  }
+  check("a click first brings in the slide's object that appears on a click", stepped);
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deckId}`);
+  await alice.locator("[data-studio-more]").click();
+  await alice.locator("[data-show-link-open]").click();
+  await alice.locator("[data-show-link-on]").click();
+  const showToken = () => sql(`select coalesce((select token from public.deck_public_links where object_id = '${deckId}' and enabled), '')`);
+  check("the owner turns the show link on", await until(() => showToken().length === 32, 10000));
+  const stranger = await newPage();
+  await stranger.goto(`${APP}/s/${alphaShort}/${showToken()}`);
+  check("…anyone with the link sees the show without signing in", await stranger.locator("[data-player]").waitFor({ timeout: 20000 }).then(() => true, () => false));
+  await alice.locator("[data-show-link-off]").click();
+  await until(() => showToken() === "", 10000);
+  const offToken = sql(`select token from public.deck_public_links where object_id = '${deckId}'`);
+  await stranger.goto(`${APP}/s/${alphaShort}/${offToken}`);
+  check("…and nobody once it is off", (await stranger.locator("[data-public-show-missing]").count()) === 1 && (await stranger.locator("[data-player]").count()) === 0);
+  await stranger.close();
 }
 
 // --- Design (steps Д-1…Д-4): a frame with a shape inside, auto layout, the prototype player ------
@@ -544,6 +582,85 @@ check("…while a map they may view shows as usual", shownMap, screen);
   sql(`update public.service_objects set workspace_role = 'editor' where id = '${sheetId}'`);
 }
 
+// --- Chips in table cells (UI-2): a link to this workspace drawn as a chip with its live title ---
+{
+  const board = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "board", new_title: "Grid board", new_data: { elements: [], appState: {}, files: {} } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/sheets`);
+  await alice.getByRole("button", { name: "Нова таблиця" }).click();
+  await alice.waitForURL(/\/sheets\/[0-9a-f-]{36}$/, { timeout: 20000 });
+  const tableId = alice.url().split("/").pop();
+  const overlay = alice.locator("[data-sheet] .fortune-sheet-overlay").first();
+  await overlay.waitFor({ timeout: 30000 });
+  await alice.waitForTimeout(800);
+  const box = await overlay.boundingBox();
+  const c1 = [box.x + 46 + 73 * 2 + 30, box.y + 20 + 10];
+  await alice.mouse.click(...c1);
+  await alice.locator("[data-sheet-insert-chip]").click();
+  await alice.locator("[data-chip-picker-search]").fill("Grid bo");
+  await alice.locator('[data-chip-picker-item="Grid board"]').click({ timeout: 15000 });
+  const value = () => sql(`select coalesce((select e -> 'v' ->> 'v' from public.service_objects o, jsonb_array_elements(o.data -> 'sheets' -> 0 -> 'celldata') e where o.id = '${tableId}' and (e ->> 'r')::int = 0 and (e ->> 'c')::int = 2), '')`);
+  check("“Insert chip” puts the board's link into the cell (the link only, no title)", await until(() => value().endsWith(`/w/${alphaShort}/boards/${board}`), 15000), value());
+  const openLink = alice.locator("[data-sheet-open-chip]");
+  await alice.mouse.click(box.x + 46 + 30, box.y + 20 + 50);
+  await alice.mouse.click(...c1);
+  check("…the selected chip cell offers to open the board by its name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board"));
+  check("…and the link opens it", (await openLink.getAttribute("href")) === `/w/${alphaShort}/boards/${board}`);
+  sql(`update public.service_objects set title = 'Grid board renamed' where id = '${board}'`);
+  await alice.waitForTimeout(2500);
+  await alice.reload();
+  await overlay.waitFor({ timeout: 30000 });
+  await alice.waitForTimeout(1500);
+  await alice.mouse.click(...c1);
+  check("a renamed board shows its new name", (await openLink.innerText({ timeout: 10000 }).catch(() => "")).includes("Grid board renamed"));
+}
+
+// --- "Design": comments pinned on the canvas (BORDY-1) ------------------------------------------------
+{
+  const file = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "design", new_title: "Comment screens", new_data: { version: 1, kind: "design", pages: [{ id: "cp1", name: "Page 1", background: "#1e1f24", nodes: [], flows: [] }] } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/boards/${file}`);
+  const canvas = alice.locator("[data-design-canvas] svg");
+  await canvas.waitFor({ timeout: 30000 });
+  await alice.locator('[data-mode="comments"]').click();
+  const b = await canvas.boundingBox();
+  await alice.mouse.click(b.x + b.width * 0.4, b.y + b.height * 0.4);
+  await alice.locator("[data-comment-new] textarea").fill("Move this up");
+  await alice.locator("[data-comment-send]").click();
+  const count = () => sql(`select count(*) from public.design_comments where object_id = '${file}'`);
+  check("a comment is pinned on the Design canvas", await until(() => count() === "1", 10000), count());
+  check("…and shows as a pin and in the list", await alice.locator("[data-comment-pin]").first().waitFor({ timeout: 10000 }).then(() => true, () => false) && (await alice.locator('[data-comment-thread="Move this up"]').count()) === 1);
+  await alice.locator('[data-comment-thread="Move this up"] button').first().click();
+  await alice.locator("[data-comment-reply-box]").fill("Done");
+  await alice.locator("[data-comment-reply-send]").click();
+  check("…takes a reply", await until(() => count() === "2", 10000));
+  await alice.locator("[data-comment-resolve]").click();
+  check("…and is resolved", await until(() => sql(`select count(*) from public.design_comments where object_id = '${file}' and resolved_at is not null`) === "1", 10000));
+}
+
+// --- Chips on idea boards and mind maps (UI-3) -------------------------------------------------------
+{
+  const target = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "sheets", new_kind: "sheet", new_title: "Linked table", new_data: {} })).data?.id;
+  const link = `${APP}/w/${alphaShort}/sheets/${target}`;
+  const element = { type: "rectangle", id: "chip-el", x: 100, y: 120, width: 200, height: 100, angle: 0, strokeColor: "#1e1e1e", backgroundColor: "transparent", fillStyle: "solid", strokeWidth: 2, strokeStyle: "solid", roughness: 0, opacity: 100, groupIds: [], frameId: null, roundness: null, seed: 1, version: 1, versionNonce: 1, isDeleted: false, boundElements: null, updated: 1, link, locked: false, index: "a0" };
+  const board = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "boards", new_kind: "board", new_title: "Chips board", new_data: { elements: [element], appState: {}, files: {} } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/boards/${board}`);
+  await alice.locator("[data-board-canvas] canvas").first().waitFor({ timeout: 30000 });
+  check("an element linking to a table shows a chip with the table's name", await alice.locator('[data-board-chip="Linked table"]').waitFor({ timeout: 15000 }).then(() => true, () => false));
+  await alice.locator("[data-board-canvas]").click({ position: { x: 600, y: 400 } });
+  await alice.locator("[data-board-insert-chip]").click();
+  await alice.locator("[data-chip-picker-search]").fill("Chips bo");
+  await alice.locator('[data-chip-picker-item="Chips board"]').click({ timeout: 15000 });
+  const links = () => sql(`select count(*) from public.service_objects o, jsonb_array_elements(o.data -> 'elements') e where o.id = '${board}' and e ->> 'link' like '%/boards/${board}'`);
+  check("“Chip” puts a link card on the board (saved without the title)", await until(() => links() === "1", 15000) && !sql(`select data::text from public.service_objects where id = '${board}'`).includes("Chips board"), links());
+
+  const map = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "nodes", new_kind: "mindmap", new_title: "Chips map", new_data: { nodes: [{ id: "r1", parent: null, text: "Plan", link }] } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/nodes/${map}`);
+  check("a mind-map node shows its linked table as a chip", await alice.locator('[data-node-chip="Linked table"]').waitFor({ timeout: 20000 }).then(() => true, () => false));
+  sql(`update public.service_objects set title = 'Linked table renamed' where id = '${target}'`);
+  await alice.waitForTimeout(2500);
+  await alice.reload();
+  check("…and its new name after a rename", await alice.locator('[data-node-chip="Linked table renamed"]').waitFor({ timeout: 20000 }).then(() => true, () => false));
+}
+
 // --- Surveys (steps О1, О2, О4): a form, answers into a connected table, results, on a page --------
 {
   await alice.goto(`${APP}/w/${alphaShort}`);
@@ -690,5 +807,47 @@ await feedChecks();
 await outsideChecks();
 await birthdayChecks();
 await appsChecks();
+await vaultChecks();
+
+// --- UI-5: a list's row buttons (rename, duplicate, share, access, bin); Wika opens the first page ---
+{
+  const aliceId = sql("select id from auth.users where email = 'alice@alpha.test'");
+  const listed = sql(`insert into public.service_objects (workspace_id, service, kind, title, owner_id, created_by, data) values ('${alphaId}', 'sheets', 'sheet', 'Row actions sheet', '${aliceId}', '${aliceId}', '{"cells":{"A1":"kept"}}'::jsonb) returning id`).split("\n")[0];
+  await alice.goto(`${APP}/w/${alphaShort}/sheets`);
+  const row = alice.locator('[data-sheet="Row actions sheet"]');
+  await row.waitFor({ timeout: 20000 });
+  check("UI-5: the owner sees rename, duplicate, share, access and bin on the row", (await row.locator("[data-row-action]").evaluateAll((els) => els.map((e) => e.getAttribute("data-row-action")).join(","))) === "rename,duplicate,share,access,bin");
+  await row.locator('[data-row-action="rename"]').click();
+  await row.locator("[data-row-rename] input").fill("Renamed sheet");
+  await row.locator("[data-row-rename-save]").click();
+  check("…renaming saves the new name", await until(() => sql(`select title from public.service_objects where id = '${listed}'`) === "Renamed sheet", 10000));
+  check("…and the list shows it", await alice.locator('[data-sheet="Renamed sheet"]').waitFor({ timeout: 10000 }).then(() => true, () => false));
+  await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="duplicate"]').click();
+  const copyData = () => sql(`select coalesce((select data ->> 'cells' from public.service_objects where service = 'sheets' and title like 'Renamed sheet (%' and deleted_at is null limit 1), '')`);
+  check("…duplicating makes a copy with the same contents", await until(() => copyData().includes("kept"), 10000), copyData());
+  await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="access"]').click();
+  check("…access opens the same dialog as in the editor", await alice.locator('[role="dialog"]').first().waitFor({ timeout: 10000 }).then(() => true, () => false));
+  await alice.keyboard.press("Escape");
+  // A colleague who may only view sees "Share" alone.
+  sql(`update public.service_objects set workspace_role = 'viewer' where id = '${listed}'`);
+  await colleague.goto(`${APP}/w/${alphaShort}/sheets`);
+  const theirs = colleague.locator('[data-sheet="Renamed sheet"]');
+  await theirs.waitFor({ timeout: 20000 });
+  check("…a viewer sees only Share", (await theirs.locator("[data-row-action]").evaluateAll((els) => els.map((e) => e.getAttribute("data-row-action")).join(","))) === "share");
+  await alice.locator('[data-sheet="Renamed sheet"] [data-row-action="bin"]').click();
+  check("…to the bin from the list", await until(() => sql(`select (deleted_at is not null)::text from public.service_objects where id = '${listed}'`) === "true", 10000));
+  // Every list shows the service's own mark on each row.
+  for (const service of ["boards", "nodes", "sheets", "slides", "surveys"]) {
+    await alice.goto(`${APP}/w/${alphaShort}/${service}`);
+    const rows = await alice.locator("main ul > li").count();
+    const marked = await alice.locator("main ul > li [data-service-icon]").count();
+    check(`…${service}: every row has the service's mark`, rows === 0 || marked >= rows, `${marked}/${rows}`);
+  }
+  // Wika opens the page at the top of the tree.
+  await alice.goto(`${APP}/w/${alphaShort}`);
+  const wikiLink = alice.locator('[aria-label="Wika"], [title^="Wika"]').first();
+  const href = await wikiLink.getAttribute("href").catch(() => null);
+  check("Wika opens the first page of the tree, not the home page", Boolean(href && href.includes(`/w/${alphaShort}/p/`)), String(href));
+}
 
 await finish("nodes");

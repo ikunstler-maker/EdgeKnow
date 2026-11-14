@@ -171,3 +171,36 @@ export async function searchBoards(shortId: string, query: string): Promise<Boar
     return { id: row.id, title: row.title, snippet: at >= 0 ? row.search_text.slice(Math.max(0, at - 30), at + words.length + 50) : row.search_text.slice(0, 80) };
   });
 }
+
+// BORDY-1: comments pinned on a "Design" canvas. Read with the person's access; written
+// through the database's functions (it checks who may comment, resolve and delete).
+export type DesignComment = { id: string; page_id: string; parent_id: string | null; x: number; y: number; node_id: string | null; body: string; author_id: string | null; author: string; created_at: string; resolved_at: string | null };
+
+export async function designComments(shortId: string, fileId: string): Promise<DesignComment[]> {
+  const db = await dataClient(shortId);
+  const { data } = await db
+    .from("design_comments")
+    .select("id, page_id, parent_id, x, y, node_id, body, author_id, created_at, resolved_at, profile:profiles!design_comments_author_id_fkey(name, email)")
+    .eq("object_id", fileId)
+    .order("created_at", { ascending: true })
+    .limit(1000);
+  return ((data ?? []) as unknown as (Omit<DesignComment, "author"> & { profile: { name: string | null; email: string } | null })[]).map(({ profile, ...c }) => ({ ...c, author: profile ? profile.name || profile.email.split("@")[0] : "" }));
+}
+
+async function designCall(shortId: string, fn: string, args: Record<string, unknown>) {
+  const db = await writeClient(shortId);
+  if (!db) return { ok: false as const, error: "team_setup" };
+  const { data, error } = await db.rpc(fn, args);
+  if (error || !data) return { ok: false as const, error: "unknown" };
+  return data as { ok: true; id?: string } | { ok: false; error: string };
+}
+
+export async function addDesignComment(shortId: string, fileId: string, page: string, x: number, y: number, node: string | null, body: string, replyTo: string | null = null) {
+  return designCall(shortId, "add_design_comment", { target: fileId, page, at_x: x, at_y: y, node, text_body: body, reply_to: replyTo });
+}
+export async function resolveDesignComment(shortId: string, id: string, resolved: boolean) {
+  return designCall(shortId, "resolve_design_comment", { target: id, resolved });
+}
+export async function deleteDesignComment(shortId: string, id: string) {
+  return designCall(shortId, "delete_design_comment", { target: id });
+}

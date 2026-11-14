@@ -23,6 +23,7 @@ GitHub assigns PR numbers itself; we never reserve them. Every step instead gets
 | `VISIO` | Visio |
 | `APUS` | Apus (AI) |
 | `CORE` | Platform: sign-in, access/RLS, proxy, navigation |
+| `ADMIN` | Platform panel: road map, monitoring |
 | `UI` | Design system, shared components |
 | `PROF` | Profile, WishList |
 | `DB` | Shared database changes touching several services |

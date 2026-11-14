@@ -55,3 +55,15 @@ export async function setDeckMemberRole(shortId: string, id: string, member: str
 export async function setDeckGroupRole(shortId: string, id: string, group: string, role: string | null) {
   return call(shortId, "set_service_object_group_role", { target_object: id, target_group: group, new_role: role });
 }
+
+// KADRY-1: the show through a link. The deck's owners read and change it (the database checks).
+export async function deckShowLink(shortId: string, id: string): Promise<{ enabled: boolean; token: string } | null> {
+  const db = await writeClient(shortId);
+  if (!db) return null;
+  const { data } = await db.from("deck_public_links").select("enabled, token").eq("object_id", id).maybeSingle();
+  return (data as { enabled: boolean; token: string } | null) ?? null;
+}
+
+export async function setDeckShowLink(shortId: string, id: string, on: boolean, renew = false) {
+  return call<{ enabled: boolean; token: string }>(shortId, "set_deck_public_link", { target: id, turn_on: on, renew }, false);
+}

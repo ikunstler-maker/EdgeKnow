@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshAllStale } from "@/lib/calendar-external";
+import { pushAllStale } from "@/lib/calendar-google";
 import { driveApi } from "@/lib/drive/google-drive";
 import { connectionById, refreshTokenOf } from "@/lib/drive/storage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readyTeams, teamAdmin } from "@/lib/team-db/files";
 import { checkAllTeams } from "@/lib/team-db/health";
+import { syncAllVaultDriveShares } from "@/lib/drive/vault-shares";
 import { recheckDomains } from "@/lib/domain-dns";
 import { rekeyTeamSecrets } from "@/lib/team-db/rekey";
 
@@ -48,15 +50,22 @@ export async function GET(request: NextRequest) {
   const rekeyed = process.env.TEAM_DB_KEY ? await rekeyTeamSecrets(admin).catch(() => ({ changed: 0, failed: 1 })) : null;
   // Domains proven through DNS: is the record still there (weekly per domain)?
   const domains = await recheckDomains(admin);
+  // Vault's access mirrored on each team's Google Drive (VAULT-2b).
+  const vaultShares = await syncAllVaultDriveShares(admin).catch(() => null);
   // Outside calendars nobody looked at lately are read again (busy time only).
   const calendars = await refreshAllStale(admin).catch(() => null);
-  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars });
+  // DOBA-1: people's "Doba" calendars at the provider are brought in line; a sign-in of
+  // someone who left the workspace is taken back there.
+  const calendarCopies = await pushAllStale(admin).catch(() => null);
+  return NextResponse.json({ removed: central + teams, repeated, health, domains, rekeyed, calendars, calendarCopies, vaultShares });
 }
 
 // Task files and board pictures share their bucket.
 const TASK_FILE_PATH = /^[0-9a-f-]{36}\/(tasks|objects)\//;
 // Chat files ("<ws>/chat/…") have theirs.
 const CHAT_FILE_PATH = /^[0-9a-f-]{36}\/chat\//;
+// So do Vault's ("<ws>/vault/…").
+const VAULT_FILE_PATH = /^[0-9a-f-]{36}\/vault\//;
 
 // Files whose record is gone, from Supabase Storage (`rows`' own) or the Drive.
 async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promise<number | null> {
@@ -64,6 +73,8 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   await rows.rpc("clean_survey_files");
   // Chat files added to a message that was never sent (after a day) too.
   await rows.rpc("clean_chat_files");
+  // Vault: the bin after 30 days, uploads never finished after a day (a database not yet upgraded has no such function).
+  await rows.rpc("clean_vault_items");
   // Events cancelled over 30 days ago go for good (a database not yet upgraded has no such function).
   await rows.rpc("purge_calendar_events");
   // Time-off policies that accrue by themselves are brought up to date (nothing is given twice).
@@ -77,15 +88,17 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   if (!found.length) return 0;
   // A path that has a record again (a workspace moved back and forth) keeps its file.
   const paths = found.map((row) => row.storage_path as string);
-  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }, { data: chatFilesInUse }] = await Promise.all([
+  const [{ data: inUse, error: inUseError }, { data: taskFilesInUse }, { data: picturesInUse }, { data: chatFilesInUse }, { data: vaultInUse }, { data: versionsInUse }] = await Promise.all([
     rows.from("attachments").select("storage_path").in("storage_path", paths),
     // Task files and board pictures (tables that may not exist yet in an older team database).
     rows.from("task_files").select("storage_path").in("storage_path", paths),
     rows.from("object_files").select("storage_path").in("storage_path", paths),
     rows.from("chat_files").select("storage_path").in("storage_path", paths),
+    rows.from("vault_items").select("storage_path").in("storage_path", paths),
+    rows.from("vault_versions").select("storage_path").in("storage_path", paths),
   ]);
   if (inUseError) return null;
-  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? []), ...(chatFilesInUse ?? [])].map((row) => row.storage_path as string));
+  const used = new Set([...(inUse ?? []), ...(taskFilesInUse ?? []), ...(picturesInUse ?? []), ...(chatFilesInUse ?? []), ...(vaultInUse ?? []), ...(versionsInUse ?? [])].map((row) => row.storage_path as string));
   if (used.size) await rows.from("attachment_tombstones").delete().in("storage_path", [...used]);
   const tombstones = found.filter((row) => !used.has(row.storage_path as string));
 
@@ -93,9 +106,10 @@ async function removeDeleted(admin: SupabaseClient, rows: SupabaseClient): Promi
   const onSupabase = tombstones.filter((row) => row.storage_backend !== "drive").map((row) => row.storage_path as string);
   // Task files ("<ws>/tasks/…") have their own bucket.
   for (const [bucket, paths] of [
-    ["attachments", onSupabase.filter((path) => !TASK_FILE_PATH.test(path) && !CHAT_FILE_PATH.test(path))],
+    ["attachments", onSupabase.filter((path) => !TASK_FILE_PATH.test(path) && !CHAT_FILE_PATH.test(path) && !VAULT_FILE_PATH.test(path))],
     ["task-files", onSupabase.filter((path) => TASK_FILE_PATH.test(path))],
     ["chat-files", onSupabase.filter((path) => CHAT_FILE_PATH.test(path))],
+    ["vault-files", onSupabase.filter((path) => VAULT_FILE_PATH.test(path))],
   ] as const) {
     if (!paths.length) continue;
     const removed = await rows.storage.from(bucket).remove(paths);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 import type { ServiceKey } from "@/lib/services";
 import { setSidebarCollapsed, useSidebarCollapsed } from "@/components/app-shell";
@@ -67,6 +68,18 @@ export function StudioShell({
   children: ReactNode;
 }) {
   const collapsed = useSidebarCollapsed();
+  // A new name, once saved, also shows in the sidebar's list (it comes from the server).
+  const router = useRouter();
+  const titleChanged = useRef(false);
+  useEffect(() => {
+    if (!titleChanged.current) return;
+    // A few seconds after the last keystroke (the save, possibly by a co-editor, is done by then).
+    const timer = setTimeout(() => {
+      titleChanged.current = false;
+      router.refresh();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [title, router]);
   const [menu, setMenu] = useState<{ kind: "files" | "more"; anchor: HTMLElement } | null>(null);
   const toggle = (kind: "files" | "more") => (event: React.MouseEvent<HTMLElement>) => setMenu(menu?.kind === kind ? null : { kind, anchor: event.currentTarget });
   const items = menu?.kind === "files" ? files : more;
@@ -92,7 +105,10 @@ export function StudioShell({
         {onTitle ? (
           <input
             value={title}
-            onChange={(event) => onTitle(event.target.value)}
+            onChange={(event) => {
+              titleChanged.current = true;
+              onTitle(event.target.value);
+            }}
             placeholder={titleLabel}
             aria-label={titleLabel}
             maxLength={200}

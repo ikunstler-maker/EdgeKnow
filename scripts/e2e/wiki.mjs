@@ -82,6 +82,22 @@ const betaShortId = sql(`select short_id from public.workspaces where id = '${be
 check("admin page lists all workspaces", (await alice.getByRole("cell", { name: /Alpha/ }).count()) > 0 && (await alice.getByRole("cell", { name: betaShortId }).count()) > 0);
 check("…a workspace she isn't in shows only its ID: no name, no owner's email", (await alice.getByRole("link", { name: "Beta", exact: true }).count()) === 0 && (await alice.getByText("bob@beta.test").count()) === 0);
 check("admin page shows no page titles", (await alice.getByText("Alpha secret").count()) === 0);
+// ADMIN-1: the road map — the platform admin sees it; anyone else is refused.
+await alice.locator("[data-roadmap-link]").click();
+await alice.locator("[data-roadmap-overall]").waitFor({ timeout: 15000 });
+const allStages = await alice.locator("[data-roadmap-stage]").count();
+check("ADMIN-1: the road map shows the overall state and every service's stages", allStages > 20 && (await alice.locator("[data-roadmap-track]").count()) > 10, String(allStages));
+await alice.locator('[data-roadmap-flag-filter="owner"]').click();
+const ownerStages = await alice.locator("[data-roadmap-stage]").count();
+const ownerMarked = await alice.locator("[data-roadmap-stage]").evaluateAll((els) => els.every((el) => el.querySelector('[data-roadmap-stage-flag="owner"]')));
+check("…\"Your involvement\" narrows it to the stages that need the owner", ownerStages > 0 && ownerStages < allStages && ownerMarked, `${ownerStages}/${allStages}`);
+sql("select public.platform_take_snapshot()");
+await alice.reload();
+await alice.locator("[data-monitoring]").waitFor({ timeout: 15000 });
+check("ADMIN-2: database and storage gauges with a level and a forecast line", (await alice.locator("[data-monitor-gauge]").count()) === 2 && (await alice.locator("[data-monitor-gauge] [data-monitor-forecast]").count()) === 2);
+check("…every workspace's load, names only of her own", (await alice.locator("[data-monitor-workspace]").count()) >= 2 && (await alice.locator(`[data-monitor-workspace="${alphaShort}"]`).getByText("Alpha").count()) > 0 && (await alice.locator(`[data-monitor-workspace="${betaShortId}"]`).getByText("Beta", { exact: true }).count()) === 0);
+await colleague.goto(`${APP}/admin/roadmap`);
+check("…a member who isn't the platform admin is refused", (await colleague.locator("[data-roadmap-forbidden]").count()) === 1 && (await colleague.locator("[data-roadmap-stage]").count()) === 0 && (await colleague.locator("[data-monitoring]").count()) === 0);
 
 // --- Domains proven through DNS ---------------------------------------------------------------
 // The server reads DNS from DNS_FAKE_FILE in CI; writing it is "adding the record".
@@ -943,6 +959,45 @@ check("upload of the registered image accepted", (await upload(webp)) === 200);
 check("new file stored on Drive", sql(`select storage_backend from public.attachments where storage_path = '${reg.path}'`) === "drive");
 const colleagueUpload = await colleague.evaluate(async (p) => (await fetch(`/api/files/upload?path=${encodeURIComponent(p)}`, { method: "POST", body: new Uint8Array([1, 2, 3]) })).status, reg.path);
 check("someone else can't upload into a registered path", colleagueUpload === 403, String(colleagueUpload));
+
+// VAULT-7: the team's Drive inside Vault — allowed once by the owner, links without copies.
+const listDrive = (page) => page.evaluate(async (ws) => {
+  const response = await fetch(`/api/vault/drive?ws=${ws}`);
+  return { status: response.status, body: await response.json().catch(() => null) };
+}, alphaShort);
+const notYet = await listDrive(colleague);
+check("the Drive can't be browsed before the owner allows it", notYet.status === 403 && notYet.body?.error === "not_allowed", JSON.stringify(notYet));
+await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+await wide.locator("[data-vault-google-allow]").click();
+await wide.waitForURL(/files\?drive=allowed/);
+check("owner allows browsing the same Drive", (await wide.locator('[data-vault-google-notice="allowed"]').count()) === 1 && sql(`select can_browse from public.drive_connections where workspace_id = '${alphaId}' and active`) === "t");
+const listed = await listDrive(colleague);
+check("a member browses the team's Drive", listed.status === 200 && (listed.body?.entries ?? []).length > 0, `${listed.status} ${(listed.body?.entries ?? []).length}`);
+const filesOnDrive = fakeFiles().length;
+await colleague.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+// The person picks where: a folder of their own in Vault.
+const linkFolder = (await colleagueClient.rpc("vault_create_folder", { ws: alphaId, folder: null, folder_name: "From the Drive" })).data?.id;
+await colleague.locator("[data-vault-google-add]").first().click();
+await colleague.locator('[data-vault-move-folder="From the Drive"]').click();
+await colleague.locator("[data-vault-move-here]").click();
+await colleague.getByText("Додано у Vault (посилання, без копії).").waitFor({ timeout: 15000 });
+const linkId = sql(`select id from public.vault_items where workspace_id = '${alphaId}' and storage_backend = 'drive_link' limit 1`);
+check("Add to Vault makes a link, not a copy", Boolean(linkId) && fakeFiles().length === filesOnDrive, `${linkId} ${fakeFiles().length}/${filesOnDrive}`);
+check("…into the folder the person chose", Boolean(linkFolder) && sql(`select parent_id from public.vault_items where id = '${linkId}'`) === linkFolder, String(linkFolder));
+const linkFile = await colleague.evaluate(async ([ws, id]) => (await fetch(`/api/vault/files/${id}?ws=${ws}&download`)).status, [alphaShort, linkId]);
+check("the link opens the Drive's file", linkFile === 200, String(linkFile));
+await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+await wide.locator("[data-vault-google-list]").waitFor({ timeout: 15000 });
+await wide.locator("[data-vault-google-switch]").uncheck();
+// Saved once the page has refreshed without the Drive's list (the switch is enabled again).
+await wide.locator("[data-vault-google-list]").waitFor({ state: "detached", timeout: 15000 });
+await wide.locator("[data-vault-google-switch]:not([disabled])").waitFor({ timeout: 15000 });
+const off = await listDrive(colleague);
+check("the owner's switch turns browsing off", off.status === 403 && off.body?.error === "off", JSON.stringify(off));
+await colleague.goto(`${APP}/w/${alphaShort}/files`);
+check("…and the tab is gone for members", (await colleague.locator('[data-vault-tab="google"]').count()) === 0);
+await wide.locator("[data-vault-google-switch]").check();
+await wide.locator("[data-vault-google-list]").waitFor({ timeout: 15000 });
 
 // Page backups.
 await wide.goto(settingsUrl);

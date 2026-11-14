@@ -47,7 +47,25 @@ import {
   type SeriesScope,
 } from "@/lib/calendar";
 import { PeoplePicker, buttonClass, inputClass, primaryClass } from "./calendar-parts";
+import { loadConnection, newVideoMeeting } from "@/app/calendar-external-actions";
 import { Icon } from "@/components/ui/icon";
+import { ChatChipsProvider, MessageChips } from "@/components/chat/chat-chips";
+import { useOptionalPages } from "@/components/pages/pages-provider";
+
+// Links to this workspace in an event's description show as chips under it (smart chips,
+// step 3 — UI-3), the same cards as under a chat message, read with the viewer's access.
+function DescriptionChips({ text }: { text: string }) {
+  const pages = useOptionalPages();
+  const where = useMemo(() => (pages ? { shortId: pages.workspace.shortId, workspaceId: pages.workspace.id, people: [] } : null), [pages]);
+  if (!where) return null;
+  return (
+    <div data-event-chips>
+      <ChatChipsProvider value={where}>
+        <MessageChips body={text} />
+      </ChatChipsProvider>
+    </div>
+  );
+}
 
 const c = t.calendar;
 
@@ -316,6 +334,7 @@ function EventView({
         </p>
       )}
       {event.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm">{event.description}</p>}
+      {event.description && <DescriptionChips text={event.description} />}
 
       {!event.cancelled && !iOrganize && (
         <div className="mt-4 rounded-lg border border-border p-3" data-my-answer={mine ?? "none"}>
@@ -566,6 +585,27 @@ function EventForm({
   const [description, setDescription] = useState(initial.description);
   const [location, setLocation] = useState(initial.location);
   const [link, setLink] = useState(initial.link);
+  // DOBA-1: with a calendar connected by signing in, a video meeting room in one click.
+  const [meetOn, setMeetOn] = useState(false);
+  const [meetBusy, setMeetBusy] = useState(false);
+  const [meetError, setMeetError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loadConnection(shortId).then((state) => {
+      if (alive) setMeetOn(Boolean(state?.google && state.connected && state.kind === "google"));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [shortId]);
+  const addMeeting = async () => {
+    setMeetBusy(true);
+    setMeetError(null);
+    const made = await newVideoMeeting(shortId);
+    setMeetBusy(false);
+    if (made.ok) setLink(made.url);
+    else setMeetError(c.outside.errors[made.error] ?? c.outside.errors.unknown);
+  };
   const [allDay, setAllDay] = useState(initial.allDay);
   const [zone, setZone] = useState(initial.zone);
   const [start, setStart] = useState(initial.start);
@@ -897,6 +937,14 @@ function EventForm({
           <input type="url" inputMode="url" value={link} onChange={(e) => setLink(e.target.value)} maxLength={500} placeholder="https://" className={`${inputClass} mt-1`} data-event-field="link" />
           {!linkOk && <span className="mt-1 block text-xs text-danger">{c.errors.bad_link}</span>}
         </label>
+        {meetOn && !link.trim() && (
+          <div className="-mt-1">
+            <button type="button" onClick={addMeeting} disabled={meetBusy} className={buttonClass} data-event-meet>
+              {c.outside.google.addMeet}
+            </button>
+            {meetError && <span className="mt-1 block text-xs text-danger">{meetError}</span>}
+          </div>
+        )}
         {!oneDay && (
           <label className="block text-sm">
             <span className="text-muted">{c.reminder.title}</span>

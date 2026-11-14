@@ -2,7 +2,7 @@
 
 import "./excalidraw-assets";
 import "@excalidraw/excalidraw/index.css";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CaptureUpdateAction, Excalidraw, FONT_FAMILY, MainMenu, convertToExcalidrawElements, hashElementsVersion } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { currentLocale, t } from "@/i18n";
@@ -12,6 +12,12 @@ import { templateParts, type TemplateKey, type TemplatePart } from "@/lib/board-
 import { useOptionalPages } from "@/components/pages/pages-provider";
 import { prepareImage } from "@/lib/image-compression";
 import { Icon } from "@/components/ui/icon";
+import { ServiceIcon } from "@/components/services/service-icon";
+import { cellChipOf, onCellChips, rememberCellChip } from "@/components/sheets/sheet-chips";
+import { ChipPicker } from "@/components/sheets/chip-picker";
+import { SERVICE_BRANDS, type ServiceKey } from "@/lib/services";
+import { mergeElements, type BoardElement, type BoardScene } from "@/lib/live/board-sync";
+import type { LiveBoard } from "@/lib/live/use-live-board";
 
 const b = t.boards;
 
@@ -50,6 +56,7 @@ export default function BoardCanvas({
   votes,
   onVote,
   chips,
+  live = null,
 }: {
   // Inside a wiki page (step Д4): no template chooser.
   compact?: boolean;
@@ -65,10 +72,23 @@ export default function BoardCanvas({
   votes?: Votes | null;
   onVote?: (stickyId: string) => void;
   chips?: Record<string, Chip | null>;
+  // Real-time co-editing (phase 2), on the board's own page only.
+  live?: LiveBoard | null;
 }) {
   const theme = useResolvedTheme();
   // A guest doesn't take the board away as a picture.
-  const canExport = useOptionalPages()?.workspace.role !== "guest";
+  const pagesContext = useOptionalPages();
+  const canExport = pagesContext?.workspace.role !== "guest";
+  // Chips on the board (UI-3): an element linking to this workspace shows the linked thing's live title.
+  const chipWhere = !compact && pagesContext ? { shortId: pagesContext.workspace.shortId, workspaceId: pagesContext.workspace.id } : null;
+  const [, setChipTick] = useState(0);
+  useEffect(() => {
+    const off = onCellChips(() => setChipTick((n) => n + 1));
+    return () => {
+      off();
+    };
+  }, []);
+  const [pickingChip, setPickingChip] = useState(false);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const [color, setColor] = useState<StickyColor>("yellow");
   const [view, setView] = useState({ scrollX: 0, scrollY: 0, zoom: 1 });
@@ -95,23 +115,29 @@ export default function BoardCanvas({
     };
   }, []);
 
-  // The saved pictures come back from the storage when the board opens.
-  useEffect(() => {
-    if (!api || !shortId) return;
-    let alive = true;
-    for (const [fileId, link] of Object.entries(stored.current)) {
+  // A stored picture comes back from the storage (when the board opens, or when someone
+  // else in the room has put it on the board).
+  const alive = useRef(true);
+  const fetchPicture = useCallback(
+    (fileId: string, link: { file: string; mimeType: string }) => {
+      if (!api || !shortId) return;
       void fetch(`/api/boards/files/${link.file}?ws=${shortId}`)
         .then((response) => (response.ok ? response.blob() : null))
         .then((blob) => (blob ? readAsDataUrl(blob) : null))
         .then((dataURL) => {
-          if (alive && dataURL) api.addFiles([{ id: fileId as never, dataURL: dataURL as never, mimeType: link.mimeType as never, created: Date.now() }]);
+          if (alive.current && dataURL) api.addFiles([{ id: fileId as never, dataURL: dataURL as never, mimeType: link.mimeType as never, created: Date.now() }]);
         })
         .catch(() => {});
-    }
+    },
+    [api, shortId],
+  );
+  useEffect(() => {
+    alive.current = true;
+    for (const [fileId, link] of Object.entries(stored.current)) fetchPicture(fileId, link);
     return () => {
-      alive = false;
+      alive.current = false;
     };
-  }, [api, shortId]);
+  }, [fetchPicture]);
 
   // A picture put on the board (inserted, dropped or pasted) is made smaller and
   // stored; then the board is saved with its link.
@@ -262,6 +288,84 @@ export default function BoardCanvas({
     if (api) onReady?.({ insertTemplate, linkTask, insertLink });
   }, [api, insertTemplate, linkTask, insertLink, onReady]);
 
+  // ---- Real-time co-editing ------------------------------------------------------
+  const sceneOf = useCallback(
+    (all: readonly unknown[], appState: { viewBackgroundColor: string; gridModeEnabled: boolean }): BoardScene => ({
+      elements: all as BoardElement[],
+      appState: { viewBackgroundColor: appState.viewBackgroundColor, ...(appState.gridModeEnabled ? { gridModeEnabled: true } : {}) },
+      files: { ...stored.current },
+    }),
+    [],
+  );
+  useEffect(() => {
+    if (!api || !live) return;
+    live.bind({
+      scene: () => sceneOf(api.getSceneElementsIncludingDeleted(), api.getAppState()),
+      apply: (part) => {
+        for (const [fileId, link] of Object.entries(part.files ?? {})) {
+          if (stored.current[fileId]) continue;
+          stored.current[fileId] = link;
+          fetchPicture(fileId, link);
+        }
+        const state = api.getAppState();
+        let elements: BoardElement[] | null = null;
+        if (part.elements?.length) {
+          // What the person is changing right now stays theirs until they finish.
+          const busy = new Set<string>(
+            [state.editingTextElement?.id, state.resizingElement?.id, state.newElement?.id].filter((id): id is string => Boolean(id)),
+          );
+          if (state.selectedElementsAreBeingDragged) Object.keys(state.selectedElementIds).forEach((id) => busy.add(id));
+          elements = mergeElements(api.getSceneElementsIncludingDeleted() as unknown as BoardElement[], part.elements, busy);
+        }
+        const look = part.appState;
+        if (look) grid.current = Boolean(look.gridModeEnabled);
+        if (!elements && !look) return;
+        api.updateScene({
+          ...(elements ? { elements: elements as never } : {}),
+          ...(look ? { appState: { viewBackgroundColor: look.viewBackgroundColor ?? state.viewBackgroundColor, gridModeEnabled: Boolean(look.gridModeEnabled) } } : {}),
+          // Others' changes never enter this person's undo.
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+      },
+    });
+    return () => live.bind(null);
+    // The live object changes on every render; its bind is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, live?.bind, sceneOf, fetchPicture]);
+
+  // Own cursor with the selection and the middle of the view (for those who follow).
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const sendCursor = useCallback(() => {
+    if (!api || !live?.active) return;
+    const state = api.getAppState();
+    const zoom = state.zoom.value;
+    const at = pointer.current;
+    live.sendCursor({
+      x: at?.x ?? Number.NaN,
+      y: at?.y ?? Number.NaN,
+      at: "board",
+      sel: Object.keys(state.selectedElementIds).filter((id) => state.selectedElementIds[id]).slice(0, 50),
+      view: { x: -state.scrollX + state.width / 2 / zoom, y: -state.scrollY + state.height / 2 / zoom, z: zoom },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, live?.active, live?.sendCursor]);
+
+  // Following someone: this view goes where theirs goes; any own action stops it.
+  const followed = live?.following ? live.cursors[live.following] : undefined;
+  const followView = followed?.view;
+  useEffect(() => {
+    if (!api || !followView) return;
+    const state = api.getAppState();
+    const z = followView.z;
+    api.updateScene({
+      appState: { scrollX: -followView.x + state.width / 2 / z, scrollY: -followView.y + state.height / 2 / z, zoom: { value: z as never } },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, [api, followView]);
+  const stopFollowing = () => {
+    if (live?.following) live.follow(null);
+  };
+
   // The sticky notes with their text (a note's text is in the text bound to it).
   const stickies = useMemo(() => {
     const textOf = new Map(elements.filter((e) => e.type === "text" && e.containerId && !e.isDeleted).map((e) => [e.containerId!, (e.text ?? "").trim()]));
@@ -291,9 +395,30 @@ export default function BoardCanvas({
 
   const toScreen = (x: number, y: number) => ({ left: (x + view.scrollX) * view.zoom, top: (y + view.scrollY) * view.zoom });
   const showMarks = Boolean(votes && (votes.open || votes.show));
+  const byId = useMemo(() => (live?.active ? new Map(elements.map((e) => [e.id, e])) : null), [live?.active, elements]);
 
   return (
-    <div ref={box} className="relative h-full w-full" data-board-canvas>
+    <div
+      ref={box}
+      className="relative h-full w-full"
+      data-board-canvas
+      data-board-stickies={stickies.length}
+      onPointerDownCapture={stopFollowing}
+      onWheelCapture={stopFollowing}
+      onKeyDownCapture={stopFollowing}
+      onPointerMoveCapture={(event) => {
+        if (!api || !live?.active) return;
+        // Screen → board coordinates.
+        const state = api.getAppState();
+        const zoom = state.zoom.value;
+        pointer.current = { x: (event.clientX - state.offsetLeft) / zoom - state.scrollX, y: (event.clientY - state.offsetTop) / zoom - state.scrollY };
+        sendCursor();
+      }}
+      onPointerLeave={() => {
+        pointer.current = null;
+        if (live?.active) live.sendCursor(null);
+      }}
+    >
       <Excalidraw
         excalidrawAPI={setApi}
         initialData={{
@@ -316,7 +441,10 @@ export default function BoardCanvas({
           // Pictures (step Д3b) only where they can be stored.
           tools: { image: Boolean(shortId && boardId) },
         }}
-        onScrollChange={(scrollX, scrollY, zoom) => setView({ scrollX, scrollY, zoom: zoom.value })}
+        onScrollChange={(scrollX, scrollY, zoom) => {
+          setView({ scrollX, scrollY, zoom: zoom.value });
+          sendCursor();
+        }}
         renderTopRightUI={(isMobile) =>
           editable ? (
             <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1" role="group" aria-label={b.sticky}>
@@ -337,6 +465,19 @@ export default function BoardCanvas({
                   style={{ background: STICKY_COLORS[key] }}
                 />
               ))}
+              {chipWhere && (
+                <button
+                  type="button"
+                  onClick={() => setPickingChip(true)}
+                  title={b.chips.insertHint}
+                  aria-label={b.chips.insert}
+                  className="flex h-8 items-center gap-1 rounded px-2 text-sm hover:bg-surface"
+                  data-board-insert-chip
+                >
+                  <Icon name="plus" size={14} />
+                  {!isMobile && b.chips.insert}
+                </button>
+              )}
             </div>
           ) : null
         }
@@ -362,6 +503,8 @@ export default function BoardCanvas({
           }
           if (key === last.current) return;
           last.current = key;
+          // Live: the room shares the change and one editor saves for everyone.
+          if (live?.changed(sceneOf(next, appState))) return;
           onChange(dataOf(next, appState));
         }}
       >
@@ -417,6 +560,109 @@ export default function BoardCanvas({
           );
         })}
       </div>
+
+      {/* Others in the room: their cursors and outlines of what they have selected. */}
+      {live?.active && byId && (
+        <div className="pointer-events-none absolute inset-0 z-[4] overflow-hidden" data-live-layer>
+          {live.peers
+            .filter((p) => !p.me && live.cursors[p.key]?.at === "board")
+            .map((p) => {
+              const c = live.cursors[p.key];
+              const label = p.name.length > 24 ? `${p.name.slice(0, 23)}…` : p.name;
+              const spot = Number.isFinite(c.x) && Number.isFinite(c.y) ? toScreen(c.x, c.y) : null;
+              return (
+                <Fragment key={p.key}>
+                  {c.sel.map((id) => {
+                    const e = byId.get(id);
+                    if (!e || e.isDeleted) return null;
+                    const from = toScreen(Math.min(e.x, e.x + e.width), Math.min(e.y, e.y + e.height));
+                    return (
+                      <div
+                        key={id}
+                        className="absolute rounded-sm border-2 border-dashed"
+                        style={{ left: from.left - 3, top: from.top - 3, width: Math.abs(e.width) * view.zoom + 6, height: Math.abs(e.height) * view.zoom + 6, borderColor: p.color }}
+                        data-live-selection
+                      />
+                    );
+                  })}
+                  {spot && (
+                    <div className="absolute h-[21px] w-[14px]" style={{ left: spot.left, top: spot.top, transition: "left 180ms linear, top 180ms linear" }} data-live-cursor={p.name}>
+                      <svg width="14" height="21" viewBox="0 0 14 21" aria-hidden>
+                        <path d="M0,0 L0,17 L4.5,13 L7.5,20 L10.5,18.8 L7.6,12 L13,12 Z" fill={p.color} stroke="#fff" strokeWidth={1.2} />
+                      </svg>
+                      <span className="absolute left-3 top-[18px] whitespace-nowrap rounded px-1.5 py-0.5 text-xs text-white" style={{ background: p.color }}>
+                        {label}
+                      </span>
+                    </div>
+                  )}
+                </Fragment>
+              );
+            })}
+        </div>
+      )}
+
+      {/* Elements linking to this workspace: a chip with the linked thing's live title (UI-3). */}
+      {chipWhere && (
+        <div className="pointer-events-none absolute inset-0 z-[3] overflow-hidden">
+          {elements.map((e) => {
+            if (e.isDeleted || !e.link || e.customData?.task) return null;
+            const chip = cellChipOf(e.link, chipWhere.shortId, chipWhere.workspaceId);
+            if (!chip) return null;
+            const at = toScreen(e.x, e.y);
+            const style = { left: at.left, top: at.top - 4, transform: "translateY(-100%)" };
+            if (chip.state !== "ok")
+              return (
+                <span key={e.id} className="absolute flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-muted shadow" style={style} data-board-chip={chip.state}>
+                  {chip.state === "none" ? (
+                    <>
+                      <Icon name="lock" size={12} />
+                      {t.editor.chips.noAccess}
+                    </>
+                  ) : (
+                    "…"
+                  )}
+                </span>
+              );
+            return (
+              <a
+                key={e.id}
+                href={chip.href}
+                className="pointer-events-auto absolute flex max-w-56 items-center gap-1 truncate rounded-full border border-border bg-background px-2 py-0.5 text-xs shadow"
+                style={style}
+                data-board-chip={chip.title}
+              >
+                {chip.service === "home" ? <Icon name="gift" size={12} /> : <ServiceIcon serviceId={chip.service} size={12} />}
+                <span className="truncate">{chip.title || t.editor.chips.untitledObject}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {pickingChip && (
+        <ChipPicker
+          onClose={() => setPickingChip(false)}
+          onPick={(picked) => {
+            setPickingChip(false);
+            if (!api || !chipWhere) return;
+            const url = `${window.location.origin}${picked.path}`;
+            rememberCellChip(url, chipWhere.shortId, { state: "ok", service: picked.service, title: picked.title, href: picked.path });
+            const state = api.getAppState();
+            const selected = Object.keys(state.selectedElementIds).filter((id) => state.selectedElementIds[id]);
+            if (selected.length === 1) {
+              // The selected element gets the link (a sticky note, a shape…).
+              api.updateScene({
+                elements: api.getSceneElementsIncludingDeleted().map((e) => (e.id === selected[0] ? { ...e, link: url, version: e.version + 1, versionNonce: Math.floor(Math.random() * 2 ** 31) } : e)),
+                captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+              });
+              return;
+            }
+            // Otherwise a small card: only the service's name is written on the board, never the title.
+            const kind = picked.service === "home" ? t.chat.chips.wishlist : (SERVICE_BRANDS[picked.service as ServiceKey]?.name ?? "");
+            insertLink(kind, url, "#64748b");
+          }}
+        />
+      )}
 
       {chooser && (
         <div className="absolute inset-x-4 top-20 z-10 mx-auto max-w-lg rounded-xl border border-border border border-border-strong bg-overlay p-4 shadow-2xl" role="dialog" aria-label={b.templates.title} data-template-chooser>

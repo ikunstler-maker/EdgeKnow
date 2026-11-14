@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dataClient } from "@/lib/team-db/data";
-import { filesHome, readTaskFile, showsInline, type StoredFile } from "@/lib/drive/task-files";
+import { CHAT_FILE_COLUMNS, filesHome, readTaskFile, showsInline, type StoredFile } from "@/lib/drive/task-files";
 
-const CHAT_FILE_COLUMNS =
-  "id, workspace_id, channel_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
 const AUDIO = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg"];
 
 // A chat file (?ws=<short id>[&download]). The record is read with the person's own

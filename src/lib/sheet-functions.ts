@@ -447,6 +447,8 @@ function rewriteLet(text: string): string {
         const [name, value] = pairs[i];
         const escaped = name.replace(/[.]/g, "\\.");
         out = out.replace(new RegExp(`(?<![\\p{L}\\w.$!])${escaped}(?![\\p{L}\\w.(!])`, "giu"), () => `(${substitute(value, i)})`);
+        // A name bound to a LAMBDA is called like a function: f(3) → (LAMBDA(…))(3).
+        if (/^\s*LAMBDA\(/i.test(value)) out = out.replace(new RegExp(`(?<![\\p{L}\\w.$!])${escaped}(?=\\()`, "giu"), () => `(${substitute(value, i)})`);
       }
       return out;
     };
@@ -459,11 +461,97 @@ function rewriteLet(text: string): string {
 // --(…) turns TRUE/FALSE into 1/0 (the engine's minus can't take a range): 1*(…) does the same.
 const rewriteDoubleMinus = (text: string) => text.replace(/(^|[(,=<>+*/^&\s])--\(/g, "$11*(");
 
-export function rewriteFormula(formula: string) {
-  if (!/[{]|ROW|COLUMN|LET|--/i.test(formula)) return formula;
-  const { text, restore } = protectStrings(formula);
-  return restore(rewriteDoubleMinus(rewriteLet(rewriteArrays(rewriteReferences(text)))));
+// LAMBDA (SOTA-1). Called on the spot — LAMBDA(x,y,body)(1,2), or through a LET name — its
+// parameters are replaced by the arguments in brackets (as LET does). Passed to MAP, REDUCE,
+// SCAN, BYROW, BYCOL or MAKEARRAY it is kept aside and those functions work it out per value.
+const LAMBDAS = new Map<string, { params: string[]; body: string }>();
+const NAME = /^[\p{L}_][\p{L}\w.]*$/u;
+function substituteParams(body: string, params: string[], values: string[]) {
+  let out = body;
+  params.forEach((name, i) => {
+    const escaped = name.replace(/[.]/g, "\\.");
+    out = out.replace(new RegExp(`(?<![\\p{L}\\w.$!])${escaped}(?![\\p{L}\\w.(!])`, "giu"), () => `(${values[i]})`);
+  });
+  return out;
 }
+function rewriteLambda(text: string, restore: (value: string) => string): string {
+  const pattern = /(?<![\p{L}\w.])LAMBDA\(/giu;
+  for (let guard = 0; guard < 50; guard++) {
+    const starts = [...text.matchAll(pattern)].map((m) => m.index! + m[0].length - 1);
+    if (!starts.length) return text;
+    const open = starts[starts.length - 1];
+    const call = argumentsAt(text, open);
+    if (!call || call.args.length < 1) return text;
+    const params = call.args.slice(0, -1).map((p) => p.trim());
+    if (params.some((p) => !NAME.test(p) || new RegExp(`^${CELL}$`, "u").test(p))) return text;
+    const body = call.args[call.args.length - 1];
+    let from = open - 6;
+    let to = call.end + 1;
+    // (LAMBDA(…)) in brackets, as LET leaves it.
+    const wrapped = text[from - 1] === "(" && text[to] === ")";
+    const after = wrapped ? to + 1 : to;
+    if (text[after] === "(") {
+      const invoke = argumentsAt(text, after);
+      if (!invoke) return text;
+      const values = invoke.args.length === 1 && invoke.args[0].trim() === "" ? [] : invoke.args;
+      if (values.length !== params.length) return text;
+      if (wrapped) from -= 1;
+      to = invoke.end + 1;
+      text = `${text.slice(0, from)}(${substituteParams(body, params, values)})${text.slice(to)}`;
+      continue;
+    }
+    const key = `__ek_lambda_${LAMBDAS.size}`;
+    if (LAMBDAS.size > 5000) LAMBDAS.clear();
+    LAMBDAS.set(key, { params, body: restore(body) });
+    text = `${text.slice(0, from)}"${key}"${text.slice(to)}`;
+  }
+  return text;
+}
+
+export function rewriteFormula(formula: string) {
+  if (!/[{]|ROW|COLUMN|LET|LAMBDA|--/i.test(formula)) return formula;
+  const { text, restore } = protectStrings(formula);
+  return restore(rewriteDoubleMinus(rewriteLambda(rewriteLet(rewriteArrays(rewriteReferences(text))), restore)));
+}
+
+// A value written back into a formula (for a LAMBDA's parameter).
+function literal(value: unknown): string {
+  if (Array.isArray(value)) {
+    const grid = rows(value);
+    return `{${grid.map((row) => row.map(literal).join(",")).join(";")}}`;
+  }
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (value === null || value === undefined || value === "") return "0";
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+type Parse = (formula: string) => { result: unknown; error: unknown };
+function callLambda(parse: Parse, ref: unknown, values: unknown[]): Value {
+  const lambda = typeof ref === "string" ? LAMBDAS.get(ref) : undefined;
+  if (!lambda || lambda.params.length !== values.length) return VALUE();
+  const { result, error } = parse(substituteParams(lambda.body, lambda.params, values.map(literal)));
+  return (error ? new Error(String(error)) : result) as Value;
+}
+const LAMBDA_FUNCTIONS: Record<string, (parse: Parse, params: unknown[]) => unknown> = {
+  MAP: (parse, params) => {
+    const lambda = params[params.length - 1];
+    const grids = params.slice(0, -1).map((p) => rows(p));
+    if (!grids.length) return VALUE();
+    return grids[0].map((row, i) => row.map((_, j) => callLambda(parse, lambda, grids.map((g) => g[i]?.[j] ?? null))));
+  },
+  REDUCE: (parse, [initial, array, lambda]) => rows(array).flat().reduce((acc, v) => callLambda(parse, lambda, [acc, v]), initial as Value),
+  SCAN: (parse, [initial, array, lambda]) => {
+    let acc = initial as Value;
+    return rows(array).map((row) => row.map((v) => (acc = callLambda(parse, lambda, [acc, v]))));
+  },
+  BYROW: (parse, [array, lambda]) => rows(array).map((row) => [callLambda(parse, lambda, [[row]])]),
+  BYCOL: (parse, [array, lambda]) => {
+    const grid = rows(array);
+    return [grid[0].map((_, j) => callLambda(parse, lambda, [grid.map((row) => [row[j]])]))];
+  },
+  MAKEARRAY: (parse, [height, width, lambda]) =>
+    Array.from({ length: Number(height) }, (_, i) => Array.from({ length: Number(width) }, (_, j) => callLambda(parse, lambda, [i + 1, j + 1]))),
+};
 
 // Operators on ranges work cell by cell, as Excel's dynamic arrays do: A1:A4>2, A1:A4*B1:B4.
 type Operators = { evaluateByOperator: (op: string, params: unknown[]) => unknown; invertNumber: (n: unknown) => unknown; __ekArrays?: boolean };
@@ -504,6 +592,12 @@ export function installSheetFunctions() {
   const original = proto.getFunction;
   proto.getFunction = function (name: string) {
     const upper = String(name).toUpperCase();
+    // Functions that take a LAMBDA work it out with this same parser (the cells it reads stay the same).
+    const withLambda = LAMBDA_FUNCTIONS[upper];
+    if (withLambda) {
+      const self = this as unknown as { parse: Parse };
+      return (params: unknown[]) => withLambda((formula) => self.parse(formula), params);
+    }
     const fn = (EXTRA_FUNCTIONS[upper] ?? this.functions?.[name] ?? dotted(upper) ?? original.call(this, name)) as ((params: unknown[]) => unknown) | undefined;
     if (fn || !DATE_FUNCTIONS.has(upper)) return fn;
     // formula.js gives dates as JavaScript dates: shown as Excel shows them (a date in the cell).

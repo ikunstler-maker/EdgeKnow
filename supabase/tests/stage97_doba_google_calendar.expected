@@ -1,0 +1,27 @@
+carl declines the review: declined
+bob lists his own events:
+psql: ERROR:  permission denied for function calendar_person_events
+bob reads the links:
+psql: ERROR:  permission denied for table calendar_external_links
+bob reads the connections:
+psql: ERROR:  permission denied for table calendar_connections
+bob's events: Planning, Review
+carl's events: Planning
+their fields: all_day,ends_at,id,location,meeting_url,occurrence,starts_at,status,title
+for the guest: null, a range too long: null
+a sign-in without access:
+psql: ERROR:  new row for relation "calendar_connections" violates check constraint "calendar_connections_secret"
+a sign-in with an address too:
+psql: ERROR:  new row for relation "calendar_connections" violates check constraint "calendar_connections_secret"
+a link to nobody's connection:
+psql: ERROR:  insert or update on table "calendar_external_links" violates foreign key constraint "calendar_external_links_workspace_id_user_id_fkey"
+kept for bob: 3
+the long title kept: 300
+bob reads his own: Dentist/true, Lunch maybe/false, xxxxxxxxxxxx/true
+alice sees bob busy (outside only, beyond his own events): 2
+any title in what alice gets: false
+alice reads bob's rows: 0
+alice removes bob: true, carl: true
+connections left: google, links: 1, bob's outside rows: 0
+bob's events now: null, kept for him: 0
+links after: 0

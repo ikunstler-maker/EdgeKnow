@@ -144,3 +144,13 @@ export function movePageLocally(
       : p,
   );
 }
+
+// UI-5: the page at the top of the sidebar's tree (sections: team, mine, shared) — where "Wika" opens.
+export function firstPageId(pages: PageNode[], userId: string): string | null {
+  const roots = rootsOf(pages);
+  for (const section of ["workspace", "mine", "shared"] as const) {
+    const first = roots.find((p) => sectionOf(p, userId) === section);
+    if (first) return first.id;
+  }
+  return null;
+}

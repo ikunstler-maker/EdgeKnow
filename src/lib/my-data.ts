@@ -52,6 +52,8 @@ export async function exportMyData(userId: string) {
       task_comments: await rows(db.from("task_comments").select("id, task_id, body, created_at, edited_at").eq("workspace_id", m.workspace_id).eq("author_id", userId)),
       service_objects: await rows(db.from("service_objects").select("id, service, kind, title, data, created_at, updated_at").eq("workspace_id", m.workspace_id).eq("created_by", userId)),
       task_files: await rows(db.from("task_files").select("id, task_id, name, mime_type, bytes, drive_source, created_at").eq("workspace_id", m.workspace_id).eq("uploaded_by", userId)),
+      // Vault (VAULT-4): the person's own folders and files (names, sizes, dates; the bytes are downloaded from Vault).
+      vault_items: await rows(db.from("vault_items").select("id, parent_id, kind, name, mime_type, bytes, created_at, updated_at, deleted_at").eq("workspace_id", m.workspace_id).eq("owner_id", userId)),
       board_pictures: await rows(db.from("object_files").select("id, object_id, name, mime_type, bytes, created_at").eq("workspace_id", m.workspace_id).eq("uploaded_by", userId)),
       // Answer tables are function-only: the database returns just this person's named answers.
       survey_answers: (await db.rpc("my_survey_answers", { ws: m.workspace_id })).data ?? [],
@@ -65,7 +67,7 @@ export async function exportMyData(userId: string) {
       time_off_start: await rows(db.from("leave_member_settings").select("started_on, birth_month, birth_day, birth_year, birthday_shown").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       time_off_ledger: await rows(db.from("leave_balances").select("policy_id, year, kind, month, days, note, created_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       // Busy time read from the person's outside calendar (starts and ends; the address itself is not kept readable).
-      calendar_outside_busy: await rows(db.from("calendar_external_busy").select("starts_at, ends_at, all_day").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
+      calendar_outside_busy: await rows(db.from("calendar_external_busy").select("starts_at, ends_at, all_day, title, busy").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       calendar_answers: await rows(db.from("calendar_event_attendees").select("event_id, status, created_at, responded_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
       statistics: await rows(db.from("page_contributions").select("page_id, chars_added, chars_removed, saves, last_saved_at").eq("workspace_id", m.workspace_id).eq("user_id", userId)),
     });

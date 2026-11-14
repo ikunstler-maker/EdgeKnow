@@ -1,4 +1,4 @@
--- Undo 20270207100000_toker_leave_cards.
+-- Undo 20270217100000_toker_leave_cards.
 drop trigger leave_requests_chat_touch on public.leave_requests;
 drop function public.chat_leave_touch();
 drop trigger leave_requests_chat_post on public.leave_requests;

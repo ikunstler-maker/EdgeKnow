@@ -1,4 +1,4 @@
--- Undo 0080_toker_leave_cards.
+-- Undo 0091_toker_leave_cards.
 drop trigger leave_requests_chat_touch on public.leave_requests;
 drop function public.chat_leave_touch();
 drop trigger leave_requests_chat_post on public.leave_requests;

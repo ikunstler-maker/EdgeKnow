@@ -29,7 +29,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - The platform admin sees no content.
 
 **Links with the ecosystem**
-- Live chips: a link to a page, task, table or board becomes a card; a task's status and assignee can be changed right from chat. No rights to the object — a neutral "No access" badge without the title.
+- Live chips: a link to a page, task, table or board becomes a card (the same pill as in the wiki and task descriptions since UI-1); a task's status and assignee can be changed right from chat. No rights to the object — a neutral "No access" badge without the title.
 - Actions from a message or a selected fragment: a Rukh task (with a link back to the thread), a Wika note, a Doba event.
 - Questa surveys are answered right in the channel.
 - Doba sets the "On leave" status; a unit lead approves time off with a button in a system message.
@@ -67,7 +67,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 - **Live chips (3a):** `src/lib/chat-chips.ts` finds links to this workspace in a message (`/w/<id>/p|tasks|sheets|boards|nodes|slides|surveys|apps|wishlists/…`, up to 5); `loadChatChips` (`chat-actions.ts`) reads them with the reader's access (hidden or gone → "No access", no title); `src/components/chat/chat-chips.tsx` draws them (batched, re-read every minute). A task is the wiki chip `TaskChipView` (live status; in chat also the assignee via `setTaskAssigneeFromChip`). No DB change.
 - **From a message (3b):** the message menu ("…") → `FromMessageDialog` (`chat-dialogs.tsx`): `taskFromMessage` (`create_task` with the text and a "From the chat:" link), `noteFromMessage` (`create_page` + `save_page_content`), Doba `createEvent` (closed channel/conversation → "invite", its people up to 50). A selected part of the message goes instead of the whole text. The new link is left as a reply in the message's thread (live chip) or shown in a "Created" bar. No DB change.
 - **Surveys and status (3c-1):** a survey link renders the wiki `SurveyEmbed` (form) in the message (`workspace` prop); `chat-presence.tsx` reads today's approved absences (`loadAbsences` → `team_absences`, members only) every 10 min and shows `AwayBadge` ("On leave" / "Remote", until, deputy) next to names in messages and the members panel. No DB change.
-- **Time-off cards (3c-2):** `chat_messages.kind` (`user`/`system`) and `leave_request_id`; trigger `leave_requests_chat_post` → `chat_leave_post` writes a system message (as the requester, empty body) into `chat_direct_between(requester, decider)` for each decider (as `notify_leave_deciders`), only for the person's own pending request; `chat_system_guard` forbids editing/deleting system messages and turning a message into one; `leave_requests_chat_touch` signals cards on a status change. UI `chat-leave-card.tsx` (`loadLeaveCard`, `decideLeave`). Migrations `20270207100000_toker_leave_cards.sql`, team `0080_toker_leave_cards.sql`; tests `stage89_toker_leave_cards`, `team9z6_toker_leave_cards`.
+- **Time-off cards (3c-2):** `chat_messages.kind` (`user`/`system`) and `leave_request_id`; trigger `leave_requests_chat_post` → `chat_leave_post` writes a system message (as the requester, empty body) into `chat_direct_between(requester, decider)` for each decider (as `notify_leave_deciders`), only for the person's own pending request; `chat_system_guard` forbids editing/deleting system messages and turning a message into one; `leave_requests_chat_touch` signals cards on a status change. UI `chat-leave-card.tsx` (`loadLeaveCard`, `decideLeave`). Migrations `20270217100000_toker_leave_cards.sql`, team `0091_toker_leave_cards.sql`; tests `stage98_toker_leave_cards`, `team9zc_toker_leave_cards`.
 - **Realtime:** triggers send id-only signals to private topics `chat:<channel>` and `chat-user:<person>`; who may join — `chat_topic_allowed`.
 
 ## 5. Expected links
@@ -80,7 +80,7 @@ Team chat next to the work: channels, direct messages, threads, voice rooms. Com
 | **Visio** | call from a channel; persistent voice rooms in the left panel |
 | **Wika** | page chips; note from a message |
 | **Apus AI** | voice-message transcription; thread summary |
-| **Vault** | chat files and voice messages in the file manager — with channel access |
+| **Vault** | chat files and voice messages in the file manager — with channel access; "From Vault" in the paperclip menu, a Vault file link shows as a live card in the message (VAULT-3) |
 | **Core** | global search, "My data", notifications when the site is closed |
 | **Free / Team** | on Free limited history and no shared channels — draft, open pricing question |
 

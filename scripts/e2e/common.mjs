@@ -85,9 +85,12 @@ export async function newPage(cookies = []) {
 // The page whose on-screen alerts a crash reports.
 export const setLastPage = (page) => (lastPage = page);
 
+// Waits for a condition, plain or async (an async one is awaited, never taken as truthy);
+// a condition that throws (an element not there yet) counts as not yet.
 export const until = async (condition, ms = 8000) => {
-  for (let i = 0; i < ms / 200; i++) {
-    if (condition()) return true;
+  const started = Date.now();
+  while (Date.now() - started < ms) {
+    if (await Promise.resolve().then(condition).catch(() => false)) return true;
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   return false;

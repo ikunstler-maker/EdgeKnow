@@ -7,6 +7,8 @@ import { getWorkspace } from "@/lib/workspace";
 import { BoardBinActions, NewBoardButton, NewDesignButton } from "@/components/boards/board-list-actions";
 import { Icon } from "@/components/ui/icon";
 import { ServiceIcon } from "@/components/services/service-icon";
+import { ObjectRowActions } from "@/components/services/object-row-actions";
+import { rolesOf } from "@/lib/object-roles";
 import { Hint } from "@/components/ui/hint";
 import { buttonClass } from "@/components/ui/button";
 
@@ -25,6 +27,7 @@ export default async function BoardsPage({ params, searchParams }: PageProps<"/w
   request = bin ? request.not("deleted_at", "is", null) : request.is("deleted_at", null);
   const { data } = await request.order("updated_at", { ascending: false }).limit(500);
   const rows = (data ?? []) as Row[];
+  const roles = bin ? new Map<string, string | null>() : await rolesOf(db, rows.map((row) => row.id));
   const when = (value: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
   const base = workspacePath(workspace.shortId, "/boards");
   const b = t.boards;
@@ -66,6 +69,7 @@ export default async function BoardsPage({ params, searchParams }: PageProps<"/w
                 <span className="text-xs text-muted">{b.updated(when(row.updated_at))}</span>
               </div>
               {bin && <BoardBinActions shortId={workspace.shortId} id={row.id} title={row.title || b.untitled} />}
+              {!bin && <ObjectRowActions shortId={workspace.shortId} id={row.id} title={row.title || b.untitled} href={`${base}/${row.id}`} role={roles.get(row.id) ?? null} />}
             </li>
           ))}
         </ul>

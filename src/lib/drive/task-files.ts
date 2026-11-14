@@ -28,12 +28,25 @@ export type TaskFileRow = {
 // A board picture (object_files) is kept the same way: the same bucket and Drive
 // folder, its own table.
 // Chat files (chat_files) too, in their own bucket.
-export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string; channel_id?: string };
+// Vault's own files (vault_items, `vault: true`) too, in their own bucket.
+// (An earlier version of a Vault file: `vaultVersion`, in vault_versions, the same bucket.)
+export type StoredFile = Omit<TaskFileRow, "task_id"> & { task_id?: string; object_id?: string; channel_id?: string; vault?: boolean; vaultVersion?: boolean };
 export const OBJECT_FILE_COLUMNS =
   "id, workspace_id, object_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
-const tableOf = (row: StoredFile) => (row.channel_id ? "chat_files" : row.object_id ? "object_files" : "task_files");
+const tableOf = (row: StoredFile) => (row.vaultVersion ? "vault_versions" : row.vault ? "vault_items" : row.channel_id ? "chat_files" : row.object_id ? "object_files" : "task_files");
 export const CHAT_BUCKET = "chat-files";
-const bucketOf = (row: StoredFile) => (row.channel_id ? CHAT_BUCKET : TASK_BUCKET);
+export const VAULT_BUCKET = "vault-files";
+const bucketOf = (row: StoredFile) => (row.vault || row.vaultVersion ? VAULT_BUCKET : row.channel_id ? CHAT_BUCKET : TASK_BUCKET);
+
+export const CHAT_FILE_COLUMNS =
+  "id, workspace_id, channel_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
+
+export const VAULT_FILE_COLUMNS =
+  "id, workspace_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by:owner_id, created_at, large";
+
+// An earlier version of a Vault file (read only; the same bucket).
+export const VAULT_VERSION_COLUMNS =
+  "id, workspace_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at, large";
 
 export const TASK_FILE_COLUMNS =
   "id, workspace_id, task_id, name, mime_type, bytes, storage_path, storage_backend, drive_source, drive_account_id, drive_file_id, uploaded_by, created_at";
@@ -149,15 +162,16 @@ export async function spaceAt(admin: SupabaseClient, to: Destination, workspaceI
     const { data } = await admin.from("team_databases").select("storage_bytes").eq("workspace_id", workspaceId).maybeSingle();
     return { limit: 1024 ** 3, used: Number(data?.storage_bytes ?? 0) };
   }
-  const [{ data: ws }, { data: images }, { data: files }, { data: pictures }, { data: chat }] = await Promise.all([
+  const [{ data: ws }, { data: images }, { data: files }, { data: pictures }, { data: chat }, { data: vault }] = await Promise.all([
     admin.from("workspaces").select("storage_limit_mb").eq("id", workspaceId).maybeSingle(),
     admin.from("attachments").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
     admin.from("task_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
     admin.from("object_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
     admin.from("chat_files").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
+    admin.from("vault_items").select("bytes").eq("workspace_id", workspaceId).eq("storage_backend", "supabase"),
   ]);
   const sum = (list: { bytes: number }[] | null) => (list ?? []).reduce((total, r) => total + Number(r.bytes), 0);
-  return { limit: Number(ws?.storage_limit_mb ?? 0) * 1024 * 1024, used: sum(images) + sum(files) + sum(pictures) + sum(chat) };
+  return { limit: Number(ws?.storage_limit_mb ?? 0) * 1024 * 1024, used: sum(images) + sum(files) + sum(pictures) + sum(chat) + sum(vault) };
 }
 
 // The first bytes must fit the declared type: nothing else is stored or served.

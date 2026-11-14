@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { busyFromCalendar, normalizeCalendarUrl, type BusySlotInput } from "@/lib/calendar-external-parse";
 import { calendarKeyConfigured, decrypt, encryptCalendar } from "@/lib/drive/secret-box";
 import { fetchFromSource } from "@/lib/external-source";
+import { GoogleCalendarError, googleCalendarConfigured, listOwnEvents } from "@/lib/google-calendar";
 import { checkUrl } from "@/lib/link-preview";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { teamAdmin } from "@/lib/team-db/files";
@@ -16,24 +17,47 @@ import { teamDatabase, teamReady } from "@/lib/team-db/sync";
 // database only, never sent back to the browser, never logged. From the file only
 // starts and ends are taken (src/lib/calendar-external-parse.ts) and written where
 // the workspace keeps its data.
+// DOBA-1 (phase 3c): a connection may instead be a sign-in with the provider; then the
+// person's own events are read with their titles (shown to them alone) and whether they
+// make them busy. The sign-in's own parts (connecting, the "Doba" calendar, video
+// meetings, disconnecting) are in src/lib/calendar-google.ts.
 
 export const EXTERNAL_REFRESH_MS = 60 * 60 * 1000;
 // "Refresh now" and a failing address are not tried more often than this.
 const RETRY_MS = 60 * 1000;
 export const EXTERNAL_DAYS = 90;
 const MAX_FILE = 2 * 1024 * 1024;
-const COLUMNS = "workspace_id, user_id, url_encrypted, checked_at, synced_at, last_error, slots";
+export const COLUMNS = "workspace_id, user_id, kind, url_encrypted, token_encrypted, account_email, doba_calendar_id, checked_at, synced_at, last_error, slots, pushed_at, push_error";
 
-type Connection = {
+export type Connection = {
   workspace_id: string;
   user_id: string;
-  url_encrypted: string;
+  kind: "feed" | "google";
+  url_encrypted: string | null;
+  token_encrypted: string | null;
+  account_email: string | null;
+  doba_calendar_id: string | null;
   checked_at: string | null;
   synced_at: string | null;
   last_error: string | null;
   slots: number;
+  pushed_at: string | null;
+  push_error: string | null;
 };
-export type ConnectionState = { configured: boolean; connected: boolean; synced_at: string | null; error: string | null; slots: number };
+// `google`: a sign-in with the provider can be offered; `kind`/`account`: what is connected
+// (the account is the person's own, shown to them alone).
+export type ConnectionState = {
+  configured: boolean;
+  google: boolean;
+  connected: boolean;
+  kind: "feed" | "google" | null;
+  account: string | null;
+  synced_at: string | null;
+  error: string | null;
+  push_error: string | null;
+  slots: number;
+};
+const NOT_CONFIGURED: ConnectionState = { configured: false, google: false, connected: false, kind: null, account: null, synced_at: null, error: null, push_error: null, slots: 0 };
 
 export const externalCalendarsConfigured = () => calendarKeyConfigured() && Boolean(process.env.SUPABASE_SECRET_KEY);
 
@@ -64,6 +88,7 @@ async function download(url: string): Promise<string> {
 // The short reason shown to the person (never the address or the server's message).
 function reasonOf(error: unknown): string {
   const code = (error as { code?: string })?.code ?? "";
+  if (error instanceof GoogleCalendarError) return error.revoked ? "revoked" : "unreachable";
   const known: Record<string, string> = { EBADURL: "bad_url", EBLOCKED: "bad_url", ELOGIN: "private", EOTHERSITE: "private", EHTTP: "unreachable", ETOOLARGE: "too_large", EPARSE: "not_calendar" };
   return known[code] ?? "unreachable";
 }
@@ -80,36 +105,46 @@ async function readBusy(url: string): Promise<BusySlotInput[]> {
 
 // Where the workspace keeps its data, with the server's own key; null while a team
 // database is being connected or handed back (nothing is written then).
-async function busyStore(admin: SupabaseClient, workspaceId: string): Promise<SupabaseClient | null> {
+export async function busyStore(admin: SupabaseClient, workspaceId: string): Promise<SupabaseClient | null> {
   const team = await teamDatabase(admin, workspaceId);
   if (!team) return admin;
   if (!teamReady(team) || team.return_step) return null;
   return teamAdmin(team);
 }
 
-async function writeBusy(admin: SupabaseClient, workspaceId: string, userId: string, slots: BusySlotInput[]): Promise<number | null> {
+export async function writeBusy(admin: SupabaseClient, workspaceId: string, userId: string, slots: (BusySlotInput & { title?: string; busy?: boolean })[]): Promise<number | null> {
   const store = await busyStore(admin, workspaceId);
   if (!store) return null;
   const { data, error } = await store.rpc("set_calendar_external_busy", { ws: workspaceId, person: userId, slots });
   return error ? null : Number(data ?? 0);
 }
 
-const stateOf = (row: Connection | null): ConnectionState => ({
+export const stateOf = (row: Connection | null): ConnectionState => ({
   configured: true,
+  google: googleCalendarConfigured(),
   connected: Boolean(row),
+  kind: row?.kind ?? null,
+  account: row?.kind === "google" ? row.account_email : null,
   synced_at: row?.synced_at ?? null,
   error: row?.last_error ?? null,
+  push_error: row?.push_error ?? null,
   slots: row?.slots ?? 0,
 });
 
+// The person's own events at the provider: with titles, busy or free.
+async function readGoogle(token: string) {
+  const now = new Date();
+  return listOwnEvents(token, now, new Date(now.getTime() + EXTERNAL_DAYS * 24 * 60 * 60 * 1000));
+}
+
 // One connection is read again and its slots replaced. A failure keeps the old slots
 // (those already over drop out when read) and remembers the reason.
-async function refreshOne(admin: SupabaseClient, row: Connection): Promise<Connection> {
+export async function refreshOne(admin: SupabaseClient, row: Connection): Promise<Connection> {
   const key = { workspace_id: row.workspace_id, user_id: row.user_id };
   const now = new Date().toISOString();
   let patch: Partial<Connection>;
   try {
-    const slots = await readBusy(decrypt(row.url_encrypted));
+    const slots = row.kind === "google" ? await readGoogle(decrypt(row.token_encrypted ?? "")) : await readBusy(decrypt(row.url_encrypted ?? ""));
     const kept = await writeBusy(admin, row.workspace_id, row.user_id, slots);
     patch = kept === null ? { checked_at: now, last_error: "not_ready" } : { checked_at: now, synced_at: now, last_error: null, slots: kept };
   } catch (error) {
@@ -121,7 +156,7 @@ async function refreshOne(admin: SupabaseClient, row: Connection): Promise<Conne
 
 export async function connectionState(workspaceId: string, userId: string): Promise<ConnectionState> {
   const admin = createAdminClient();
-  if (!admin || !externalCalendarsConfigured()) return { configured: false, connected: false, synced_at: null, error: null, slots: 0 };
+  if (!admin || !externalCalendarsConfigured()) return NOT_CONFIGURED;
   const { data } = await admin.from("calendar_connections").select(COLUMNS).match({ workspace_id: workspaceId, user_id: userId }).maybeSingle();
   return stateOf(data as Connection | null);
 }
@@ -130,6 +165,9 @@ export async function connectionState(workspaceId: string, userId: string): Prom
 export async function connectCalendar(workspaceId: string, userId: string, rawUrl: string): Promise<{ ok: true; state: ConnectionState } | { ok: false; error: string }> {
   const admin = createAdminClient();
   if (!admin || !externalCalendarsConfigured()) return { ok: false, error: "not_configured" };
+  // A sign-in in place stays until it is disconnected on purpose.
+  const { data: current } = await admin.from("calendar_connections").select("kind").match({ workspace_id: workspaceId, user_id: userId }).maybeSingle();
+  if (current?.kind === "google") return { ok: false, error: "google_connected" };
   const url = normalizeCalendarUrl(rawUrl);
   if (url.length > 2000 || !checkUrl(url)) return { ok: false, error: "bad_url" };
   let slots: BusySlotInput[];
@@ -141,7 +179,21 @@ export async function connectCalendar(workspaceId: string, userId: string, rawUr
   const kept = await writeBusy(admin, workspaceId, userId, slots);
   if (kept === null) return { ok: false, error: "not_ready" };
   const now = new Date().toISOString();
-  const row = { workspace_id: workspaceId, user_id: userId, url_encrypted: encryptCalendar(url), checked_at: now, synced_at: now, last_error: null, slots: kept };
+  const row: Connection = {
+    workspace_id: workspaceId,
+    user_id: userId,
+    kind: "feed",
+    url_encrypted: encryptCalendar(url),
+    token_encrypted: null,
+    account_email: null,
+    doba_calendar_id: null,
+    checked_at: now,
+    synced_at: now,
+    last_error: null,
+    slots: kept,
+    pushed_at: null,
+    push_error: null,
+  };
   const { error } = await admin.from("calendar_connections").upsert(row, { onConflict: "workspace_id,user_id" });
   if (error) {
     await writeBusy(admin, workspaceId, userId, []);
@@ -150,11 +202,11 @@ export async function connectCalendar(workspaceId: string, userId: string, rawUr
   return { ok: true, state: stateOf(row) };
 }
 
-// The address and every slot go at once.
+// The address and every slot go at once (a sign-in: src/lib/calendar-google.ts).
 export async function disconnectCalendar(workspaceId: string, userId: string): Promise<boolean> {
   const admin = createAdminClient();
   if (!admin) return false;
-  const { error } = await admin.from("calendar_connections").delete().match({ workspace_id: workspaceId, user_id: userId });
+  const { error } = await admin.from("calendar_connections").delete().match({ workspace_id: workspaceId, user_id: userId, kind: "feed" });
   if (error) return false;
   return (await writeBusy(admin, workspaceId, userId, [])) !== null;
 }
@@ -162,7 +214,7 @@ export async function disconnectCalendar(workspaceId: string, userId: string): P
 // "Refresh now": the person's own connection, at most once a minute.
 export async function refreshNow(workspaceId: string, userId: string): Promise<ConnectionState> {
   const admin = createAdminClient();
-  if (!admin || !externalCalendarsConfigured()) return { configured: false, connected: false, synced_at: null, error: null, slots: 0 };
+  if (!admin || !externalCalendarsConfigured()) return NOT_CONFIGURED;
   const [row] = await claim(admin, RETRY_MS, { workspaceId, userIds: [userId] });
   if (row) return stateOf(await refreshOne(admin, row));
   return connectionState(workspaceId, userId);

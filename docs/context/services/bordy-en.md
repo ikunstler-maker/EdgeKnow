@@ -37,6 +37,18 @@ A space for thinking together and for mock-ups. Two kinds of files:
 - Viewers' and commenters' cursors only when an editor of the document turns on "Show viewers' cursors" (the "More" menu); anyone can hide others' cursors for themselves.
 - Undo takes back only one's own changes. One editor (the "leader") saves for everyone; viewers can't change the document through the channel (the database checks).
 
+### Live co-editing — idea board (phase 2, 2026-11-13)
+- The same switches, avatars, cursors with selection outlines, "Follow" and leader as in "Design".
+- Merged without Yjs, by the canvas library's own element versions (`src/lib/live/board-sync.ts`, `use-live-board.ts`): the newer version of an element wins, on a tie the lower random nonce; deletions travel as tombstones; what a person is changing right now stays theirs until they finish. Only changed elements are sent; pictures travel as storage links.
+- Undo is the canvas's own history; others' changes don't enter it. Votes and the timer stay as they were (server, polled).
+
+### Comments, components and variants in "Design" (BORDY-1, 2026-11-13)
+- "Comments" mode: a click pins a comment (page, spot, layer); threads with replies, resolve/reopen, delete (`design_comments`; read by who sees the file, written by commenters and up; resolve/delete by the author or editors and owners).
+- A frame can be a component; copies (`instanceOf`) take its look and layers after every change (`syncInstances` in `layoutAll`, copied layers locked, `fromComponent`); "Set/Variant" names make variants a copy can switch between; "Detach" makes the layers its own. No overrides inside copies yet.
+
+### Chips on idea boards (UI-3, 2026-11-13)
+- An element whose link points to this workspace shows a chip above it (service mark + live title with the viewer's access; "No access" otherwise). The "Chip" button next to the sticky colours puts the link onto the selected element, or adds a link card labelled with the service's name only.
+
 ### Shared by both
 - List, trash, access (owner, admins, whole workspace, people, units; guests only if shared).
 - Collections in the left panel.
@@ -45,7 +57,6 @@ A space for thinking together and for mock-ups. Two kinds of files:
 
 | What | State | Note |
 |---|---|---|
-| Co-editing for the idea board | planned (phase 2) | same channels and presence; no DB change expected |
 | Comments pinned on the canvas | planned | new table and access rules → approval |
 | Components and variants | planned | |
 | Per-frame version history | planned | |
@@ -70,6 +81,7 @@ A space for thinking together and for mock-ups. Two kinds of files:
 | **Kadry** | board as an embed on a slide; **shared canvas engine** with "Design" |
 | **Core** | search, collections, file storage, access |
 | **Profile** | "Wishlist" button: a "Wishlist · name" link element (no title); a live card in "Design" |
+| **Vault** | "From Vault" button: a "File from Vault" link element, no file name (VAULT-3) |
 
 ## 6. Key files
 

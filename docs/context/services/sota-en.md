@@ -20,6 +20,8 @@ Spreadsheets with formulas people already know, Excel/CSV files and charts that 
 - Present: array literals, ROW/COLUMN, LET, operations on ranges, FILTER, SORT, SORTBY, UNIQUE, SEQUENCE inside other formulas.
 - **Missing:** spilling a result into neighbouring cells, and LAMBDA.
 
+- **Spill and LAMBDA (SOTA-1, 2026-11-13):** a formula whose result is a table fills the cells below and to the right (`src/components/sheets/sheet-spill.ts`: cells marked `ekSpill`, #SPILL! when blocked, a typed value wins); LAMBDA on the spot or through LET, and MAP, REDUCE, SCAN, BYROW, BYCOL, MAKEARRAY (`sheet-functions.ts`, checked against Excel in `scripts/test-sheet-formulas.mjs`).
+
 ### Files
 - Open Excel or CSV as a new table; add sheets from a file.
 - Save to Excel (whole table) or CSV (current sheet).
@@ -28,6 +30,10 @@ Spreadsheets with formulas people already know, Excel/CSV files and charts that 
 ### Charts
 - Kinds: columns, bars, lines, areas, pie, doughnut, scatter.
 - A chart stores only "where the data is and how to draw", so it updates with every cell change.
+
+### Chips in cells (UI-2, 2026-11-13)
+- A cell whose text is a link to this workspace (page, task, table, board, map, slides, survey, app, wishlist, Vault file) is drawn as a chip: the service's mark and the current title, read with the viewer's access ("No access" otherwise). The cell keeps the link only; formulas and exports see the link.
+- "Insert chip" above the toolbar searches what the person sees and writes the link into the selected cell; a selected chip cell offers "Open «title»". Drawn through the table's own `afterRenderCell` hook (`src/components/sheets/sheet-chips.ts`, `chip-picker.tsx`); titles load batched and the table redraws itself when they arrive.
 
 ### Shared
 - List, trash, access, collections. Table size limit — 1 MB.

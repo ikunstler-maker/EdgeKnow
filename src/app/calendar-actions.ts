@@ -6,6 +6,7 @@ import type { Birthday, BusySlot, CalendarEvent, CalendarSettings, CalendarTask,
 import { createHash, randomBytes } from "node:crypto";
 import { after } from "next/server";
 import { refreshStale } from "@/lib/calendar-external";
+import { pushWorkspace } from "@/lib/calendar-google";
 import { getWorkspace } from "@/lib/workspace";
 import { FEED_PATH } from "@/lib/calendar-feed";
 
@@ -16,11 +17,33 @@ import { dataClient, workspaceData, writeClient } from "@/lib/team-db/data";
 // forward to wherever the workspace keeps its data. No page re-render: the calendar
 // reloads its own period after a change.
 
+// Changes to events: after them, the copies in people's "Doba" calendars at the provider
+// are brought in line (DOBA-1).
+const EVENT_CHANGES = new Set([
+  "create_calendar_event",
+  "update_calendar_event",
+  "remove_calendar_event_attendee",
+  "invite_to_calendar_event",
+  "change_calendar_occurrence",
+  "split_calendar_event",
+  "cancel_calendar_occurrence",
+  "end_calendar_series",
+  "invite_unit_to_calendar_event",
+  "refresh_calendar_event_units",
+  "respond_to_calendar_event",
+  "decide_calendar_event_request",
+  "cancel_calendar_event",
+]);
+
 async function call<T extends object = object>(shortId: string, fn: string, args: Record<string, unknown>): Promise<ActionResult<T>> {
   const db = await writeClient(shortId);
   if (!db) return { ok: false, error: "team_setup" };
   const { data, error } = await db.rpc(fn, args);
   if (error || !data) return { ok: false, error: "unknown" };
+  if (EVENT_CHANGES.has(fn) && (data as { ok?: boolean }).ok) {
+    const workspace = await getWorkspace(shortId);
+    if (workspace) after(() => pushWorkspace(workspace.id).catch(() => {}));
+  }
   return data as ActionResult<T>;
 }
 

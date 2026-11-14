@@ -302,6 +302,12 @@ export async function loadChatChips(shortId: string, workspaceId: string, refs: 
     if (ref?.kind === "object" && ref.service === o.service) result[`object:${o.id}`] = { kind: "object", service: o.service, title: o.title, icon: o.icon };
   }
   for (const { data: row } of taskRows) if (row?.project) result[`task:${row.project.key}-${row.number}`] = { kind: "task", id: row.id };
+  // Vault files the reader sees (not in the bin, fully uploaded); the card itself reads the rest.
+  const fileIds = list.flatMap((r) => (r.kind === "file" && UUID.test(r.id) ? [r.id] : []));
+  if (fileIds.length) {
+    const { data: files } = await db.from("vault_items").select("id, name").eq("workspace_id", workspaceId).eq("kind", "file").in("id", fileIds).is("deleted_at", null).neq("storage_backend", "pending");
+    for (const f of (files ?? []) as { id: string; name: string }[]) result[`file:${f.id}`] = { kind: "file", id: f.id, title: f.name };
+  }
   return result;
 }
 

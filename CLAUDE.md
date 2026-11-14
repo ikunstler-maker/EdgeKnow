@@ -19,6 +19,7 @@ Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries p
 ## Workflow (strict)
 - Plan (short, Ukrainian) → owner's explicit OK → code → verify "Готово, коли" → PR → merge.
 - Log every product/architecture decision in `docs/decisions.md`.
+- A PR that starts, finishes or changes a stage updates `src/lib/roadmap.ts` (status, PR number, marks) in the same PR.
 - Merge only own PRs, only when all checks are green.
 - Merging without green checks: only with the owner's explicit permission for that specific change; never carries over.
 - Before pushing: run locally `tsc`, `eslint`, `next build`, `scripts/test-db.sh`, `scripts/test-team-db.sh` (GitHub Actions minutes are limited; one PR per batch of work).
@@ -39,7 +40,7 @@ Solved problems: `docs/TROUBLESHOOTING.md` (grep before debugging; add entries p
 - Multi-tenant: every team table has `workspace_id`; policies start with `is_workspace_member(workspace_id)`;
   `effective_role()` checks membership first. Platform admin sees statistics only, never contents.
 - Workspace URLs: `/w/<short_id>/...` (short_id permanent, name not).
-- `src/proxy.ts` refreshes the session and re-checks access on every request; `/about`, `/f/*`, `/api/f/*`, `/api/calendar-feed/*` (a secret in the address) are open.
+- `src/proxy.ts` refreshes the session and re-checks access on every request; `/about`, `/f/*`, `/api/f/*`, `/api/calendar-feed/*`, `/s/*`, `/api/s/*` (a secret in the address) are open.
 - `cacheComponents` is off: every page is per-user.
 - Code, identifiers, commits in English.
 

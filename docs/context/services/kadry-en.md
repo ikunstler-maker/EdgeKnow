@@ -37,6 +37,10 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 ### Shared
 - List, trash, access, collections, search by slide text.
 
+- **Chip embed (UI-4, 2026-11-13):** "Chip (link)" puts a workspace link on a slide, drawn as a chip with the live title (`Embed.link`, the link only).
+
+- **Builds and the show link (KADRY-1, 2026-11-13):** an object can appear on a click (fade, rise, zoom; layer order; the presenter window follows). The deck's owner turns on a show link (`deck_public_links`, `set_deck_public_link`, `public_deck`; open `/s/<ws>/<key>`, pictures through `/api/s/files/<ws>/<key>/<file>`, embeds stay placeholders).
+
 ## 3. Planned
 
 | What | State | Note |
@@ -60,6 +64,7 @@ Presentations with slides, styling, a show mode and live embeds from other servi
 | **Rukh, Sota, Wika, Questa, Bordy, Nodo** | live embeds on a slide with the viewer's rights: without access — "No access" with no name |
 | **Core** | search, collections, file storage, access |
 | **Profile** | "Wishlist" embed on a slide (live card) |
+| **Vault** | "File from Vault" embed on a slide and in "Design" (live card, VAULT-3) |
 
 ## 6. Key files
 

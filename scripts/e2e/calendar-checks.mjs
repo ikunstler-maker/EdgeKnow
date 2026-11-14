@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 // Doba (company calendar), run at the end of the "nodes" part: an event made in the
 // browser, a request to join and its approval, a private event that others see only
 // as "busy", an outsider, the week on a phone.
@@ -271,6 +272,22 @@ export async function linkChecks() {
   const base = `${APP}/w/${alphaShort}/calendar`;
   const one = (query) => sql(query);
   const day = new Date(Date.now() + 9 * 864e5).toISOString().slice(0, 10);
+
+  // UI-3: a link to this workspace in an event's description shows as a chip under it.
+  {
+    const page = (await aliceClient.rpc("create_page", { ws: alphaId, parent: null, new_title: "Agenda page" })).data.id;
+    const { data: made } = await aliceClient.rpc("create_calendar_event", {
+      ws: alphaId,
+      fields: { title: "Chip meeting", description: `Agenda: ${APP}/w/${alphaShort}/p/${page}`, location: "", meeting_url: "", starts_at: `${day}T07:00:00Z`, ends_at: `${day}T07:30:00Z`, all_day: false, time_zone: "UTC", visibility: "open" },
+      people: [],
+    });
+    check("(setup) an event with a page link in its description", made?.ok === true, JSON.stringify(made));
+    await alice.goto(`${base}?view=week&date=${day}`);
+    await alice.locator(`[data-day-column="${day}"] [data-event="Chip meeting"]`).click({ timeout: 15000 });
+    const chip = alice.locator('[data-event-chips] [data-chat-chip="page"]');
+    check("a page link in an event's description shows as a chip with the page's name", (await chip.innerText({ timeout: 15000 }).catch(() => "")).includes("Agenda page"));
+    await alice.keyboard.press("Escape");
+  }
 
   // Five open tasks due on one day (one is the colleague's) and Alice's private one.
   const { data: project } = await aliceClient.rpc("create_task_project", { ws: alphaId, new_name: "Calendar", new_key: "CAL", new_icon: null, status_names: null });
@@ -659,6 +676,34 @@ export async function birthdayChecks() {
     (await alice.locator("[data-wishlist-editor]").count()) === 0);
   await bob.goto(wishlistUrl).catch(() => {});
   check("an outsider never sees it", (await bob.locator("[data-wishlist-view]").count()) === 0);
+  // Embeds (PROF-4): the published wishlist as a live card in a Wika page, a task and a
+  // slide; an outsider gets nothing, and once it is unpublished: "unavailable", no title.
+  const wishlistId = wishlistUrl.split("/").pop();
+  const embedPage = (await aliceClient.rpc("create_page_at", { ws: alphaId, parent: null, new_title: "Wishlist embed", page_id: randomUUID() })).data?.id;
+  check("(setup) a page for the embed", /^[0-9a-f-]{36}$/.test(embedPage ?? ""), String(embedPage));
+  sql(`update public.pages set content = '[{"id":"wl1","type":"wishlistEmbed","props":{"wishlistId":"${wishlistId}"},"children":[]}]'::jsonb where id = '${embedPage}'`);
+  await alice.goto(`${APP}/w/${alphaShort}/p/${embedPage}`);
+  check("a wiki page shows the wishlist as a live card", await until(async () => (await alice.locator("[data-wishlist-block] [data-wishlist-embed-card]", { hasText: "Birthday ideas" }).count()) === 1, 15000));
+  const { data: wlProject } = await aliceClient.rpc("create_task_project", { ws: alphaId, new_name: "Gifts", new_key: "GFT", new_icon: null, status_names: null });
+  const { data: wlTask } = await aliceClient.rpc("create_task", { target_project: wlProject.id, fields: { title: "Buy a present" } });
+  const { data: linked } = await aliceClient.rpc("add_task_wishlist_link", { target_task: wlTask.id, target_wishlist: wishlistId });
+  check("a wishlist links to a task", linked?.ok === true, JSON.stringify(linked));
+  await alice.goto(`${APP}/w/${alphaShort}/tasks/GFT/1`);
+  check("the task shows the linked wishlist card", await until(async () => (await alice.locator("[data-task-wishlist] [data-wishlist-embed-card]").count()) === 1, 15000));
+  const deck = (await aliceClient.rpc("create_service_object", { ws: alphaId, target_service: "slides", new_kind: "deck", new_title: "Wishlist deck",
+    new_data: { version: 1, slides: [{ id: "s1", background: "#ffffff", nodes: [{ id: "n1", type: "EMBED", name: "Wishlist", x: 100, y: 100, width: 600, height: 400, rotation: 0, embed: { kind: "wishlist", id: wishlistId } }] }] } })).data?.id;
+  await alice.goto(`${APP}/w/${alphaShort}/slides/${deck}`);
+  check("a slide shows the wishlist card", await until(async () => (await alice.locator('[data-slide-embed="wishlist"] [data-wishlist-embed-card]').count()) >= 1, 15000));
+  await bob.goto(`${APP}/w/${alphaShort}/p/${embedPage}`).catch(() => {});
+  check("an outsider sees no wishlist card", (await bob.locator("[data-wishlist-embed-card]").count()) === 0);
+  await own.locator("[data-wishlist-unpublish]").click();
+  await until(() => wishes().endsWith("|false"), 15000);
+  await alice.goto(`${APP}/w/${alphaShort}/p/${embedPage}`);
+  check("an unpublished wishlist shows only \"unavailable\", without its title",
+    await until(async () => (await alice.locator("[data-wishlist-unavailable]").count()) === 1, 15000) && (await alice.getByText("Birthday ideas").count()) === 0);
+  await own.locator("[data-wishlist-publish]").click();
+  await until(() => wishes().endsWith("|true"), 15000);
+
   // Home screen and the colleague's profile.
   await alice.goto(`${APP}/w/${alphaShort}`);
   check("the home birthday block has a festive wishlist button", await until(async () => (await alice.locator("[data-home-birthdays] [data-home-wishlist]").count()) === 1, 15000));

@@ -1,0 +1,7 @@
+bob is: member
+bob (not the owner) switches: forbidden
+listed as a link: team video.mp4 true
+the owner turns it off: true
+bob reads the switch: false
+bob starts a link while off: forbidden
+tombstones for it: 0

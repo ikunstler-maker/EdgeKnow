@@ -8,13 +8,21 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 3 Left panel shows only the current section (tasks: projects/boards/tasks; wiki: pages; tables: tables…); fix the old fish name near Apus. — DONE (#109).
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
+## Platform panel (owner, 2026-11-14)
+- ADMIN-1 road map at `/admin/roadmap` (data in `src/lib/roadmap.ts`, updated by every PR that moves a stage) — DONE (#215).
+- ADMIN-2 monitoring: gauges for the central database and storage against the plan's limits (70 % / 85 %), 90-day trend + forecast, per-workspace load (members, all files vs limit, last activity, where the data lives); DB approved 2026-11-14: wider `platform_workspaces`, daily snapshots table (platform admin only) — in review. Set `PLATFORM_DATABASE_LIMIT_MB` / `PLATFORM_STORAGE_LIMIT_MB` in Vercel when the Supabase plan changes. Later: the load of workspaces with their own database (read from their databases).
+- ADMIN-3 hosting: deployments per day, traffic, function time vs plan limits via a read-only Vercel key the owner adds to the environment (approved 2026-11-14) — after ADMIN-2; check first what the free plan's API returns.
+
+## List actions (owner, 2026-11-13)
+- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — DONE (#211). UI-5b: duplicate copies pictures too (no DB change) — DONE (#212).
+
 ## Design system & UI overhaul (owner, 2026-11-11; decision 2026-11-11) — 6 PRs, in order
 - PR 1 Foundation: surface tokens, hairlines, radii, thin scrollbars; `Icon` set; `ServiceIcon` for 15 services + home; shared `Button`/`Dialog`/`Segmented`/`Hint`; four service categories; no comparisons with other products in UI strings — DONE (#144).
 - PR 2 Navigation: left panel (workspace & account menu, service switcher with Ctrl/Cmd+E, dock, collapse with Ctrl/Cmd+\, no task list), start page grouped by category, search, notifications, Apus 40×40; service marks as block glyphs from the owner's file — DONE (#145).
 - PR 3 Rukh & Doba: project creation in a dialog, one header row + one filter row, new task cards; calendar header, time off; settings mark is a gear — DONE (#146).
 - PR 4 Studio editors: full-viewport shell with a 48 px top bar for Sota, Kadry, Bordy, Nodo; Export / Import and More menus; file-format names instead of program names in the table strings — DONE (#147).
 - PR 5 Wika, Questa, Obriy: page top bar, the title once, contents rail on the right; survey tabs and builder; app gallery — DONE (#148).
-- PR 6 The rest: profile, settings, every dialog, trash, analytics, sign-in, `/about` (its emoji), `/changelog`, `/help`; final emoji sweep with an automatic check (`scripts/check-ui-emoji.mjs`, runs before every build) — DONE (#149). Follow-up: Kadry side panel closed by default — in review.
+- PR 6 The rest: profile, settings, every dialog, trash, analytics, sign-in, `/about` (its emoji), `/changelog`, `/help`; final emoji sweep with an automatic check (`scripts/check-ui-emoji.mjs`, runs before every build) — DONE (#149). Follow-up: Kadry side panel closed by default — DONE (#150).
 - Rules for all six: no database, access or server-action changes; phone controls stay 44 px; test hooks stay, a scenario step is updated only where the control itself changes kind; pinned services and the collapsed panel are remembered per browser. Emoji a person picked (Wika page icons, Rukh project icons) stay.
 
 ## Rukh: task card, quick view, move from another tracker (owner, 2026-11-11; decision 2026-11-11)
@@ -36,7 +44,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
   - Package 4-1: time tracking (per project: on/off and who sees entries; entries from the tracker; a per-person total in the project's settings) and "My tasks" — DONE. Later: time totals in the workspace's Analytics; editing an entry in place (today: remove and log again).
   - Package 4-2: larger attachments with a per-project limit a workspace admin sets (up to 250 MB, ZIP 10 GB, in parts to the team's Drive) — DONE. Open: an upload left unfinished stays as a waiting record until the files clean-up removes it; not verified on the real Drive.
   - Package 4-3: repeating tasks every N days/weeks (chosen weekdays)/months/years, copies made by the daily job, the next one at once when a copy is done early — DONE.
-  - Found, not fixed (separate task suggested): a task's `done_at` is not set when it is moved to a done column on the board or by the status buttons, so analytics of finished tasks miss it.
+  - RUKH-2 a task's `done_at` follows its column by any route (board, status buttons, rules, removing a column), cleared when it leaves "Done"; older tasks corrected once (owner approved 2026-11-13, items 1–2) — in review.
   - Sprints — POSTPONED by the owner (2026-11-12: "спринти поки відкладаємо"; the team does not use them). Draft plan, not approved, for when it comes back: a per-project switch (the `task_projects.sprints` column exists, unused); a sprint with a name, dates and a goal, states planned → active → finished, one active per project; a backlog screen with drag between sprints; the board shows the active sprint with an "all tasks" switch; on finish the open tasks go to the next sprint or the backlog; sprints and membership from the tracker in the import; DB: a sprints table, a task's sprint, create/start/finish functions, a "manage sprints" action in project permissions. Open questions: story points and a burndown chart.
 - **Access rights one to one with the tracker's permission scheme (owner, 2026-11-12: "all permissions are needed, prepare a plan; anything non-standard is added later").** Plan sent to the owner, waits for her OK on the DB list. Three PRs:
   - Д-1: a project's permission table for tasks (create, edit, delete, assign and who may be assigned, dates, move, link), enforced by the database, with a settings screen — DONE (#162).
@@ -50,7 +58,7 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 
 ## Workspace settings (owner, 2026-11-11; decision 2026-11-11)
 - PR 1: 8 tabs → 5 (Team & structure, Roles & security, Data & storage), members table + member card — DONE (#142).
-- PR 2: active sessions — admin sees a member's devices (type, last activity, no IP) and ends all their sessions (signed out everywhere, logged); the person sees and ends own devices in the profile; proxy checks the session still exists. Reads Supabase's own sessions, no new table. DB/sign-in → approved 2026-11-11 — in review.
+- PR 2: active sessions — admin sees a member's devices (type, last activity, no IP) and ends all their sessions (signed out everywhere, logged); the person sees and ends own devices in the profile; proxy checks the session still exists. Reads Supabase's own sessions, no new table. DB/sign-in → approved 2026-11-11 — DONE (#143).
 - Later: device limit 3 per email (card shows «Скоро»); SSO (PRO).
 
 ## Next (owner, 2027-01-05)
@@ -65,14 +73,15 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - П-1 deck editor — DONE (#116).
 - П-2 look — DONE (#117).
 - П-3а show (sizes, player, transitions, presenter, PDF) + П-3б embeds — DONE (#118).
-- Later (owner may decide): per-object build animations; public show link without sign-in (access change → approval).
+- KADRY-1 — DONE (#209; owner approved 2026-11-13): objects that appear on a click in the show (fade, rise, zoom; in layer order; presenter in sync), and the show through a link without signing in (`deck_public_links`, owner turns it on/off/renews; `/s/<ws>/<key>`, pictures via `/api/s/files/…`, embeds stay placeholders).
 - Bordy «Дизайн» Д-1…Д-4 (pages, frames, layer tree, auto layout, constraints, pen, stacked fills, SVG import, prototypes + player, task from text, copy style, PNG/SVG/PDF export) — DONE (#119).
-- Д later: comments pinned on the canvas (new table + RLS → owner's approval first); variants/components; per-frame version history.
+- BORDY-1 — DONE (#210; owner approved 2026-11-13): comments pinned on the Design canvas (`design_comments`, threads, replies, resolve, delete; a "Comments" mode) and components with variants (a frame made a component; copies follow it; "Set/Variant" names; detach). Later: per-frame version history; overrides inside copies.
 - Original Д scope: Bordy «Дизайн» on the same engine: frames with device sizes and clipping, auto layout, constraints, pen (Bezier), stacked fills, PDF/SVG on canvas, live service embeds, prototyping (triggers, actions, transitions, overlays, flows), prototype player in a separate tab with device frames. Current boards stay as «Дошка для ідей».
-- CORE-1 Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — in review (decision 2026-11-12).
+- CORE-1 Realtime co-editing, phase 1 («Дизайн» + presentations: cursors, presence, follow, viewers' cursors switch, owner's workspace switch) — DONE (#172).
   - Owner's action: in the central Supabase project set the sign-in token lifetime (JWT expiry) to 10 minutes, so a revoked access stops in the channels within 10 minutes there too.
-  - Phase 2: the idea board (its canvas library has its own merge; same channels and presence, no Yjs) — no DB change expected: the channel rules already cover all Bordy files.
-  - Then Nodo, Sota, Wika: extend `live_channel_allowed` to their services (central + team migration), Wika pages need their own table rules.
+  - CORE-2 Phase 2: the idea board — elements merged by the canvas library's own versions (newer wins, tombstones for deletions), same channels, presence, cursors, follow and leader; no DB change — DONE (#189). Later: shared transport code with phase 1 (today two hooks).
+  - CORE-4 Nodo mind maps — in review (decision 2026-11-13): `nodes` in `live_channel_allowed` and `LIVE_SERVICES`, Yjs with `MAP_SPEC`, cursors and follow on the map. Flows of Nodo are not live yet.
+  - Then Sota, Wika: extend `live_channel_allowed` to their services (central + team migration), Wika pages need their own table rules.
   - Later: live comments on the canvas; time-limited "presenter follows" for shows.
 - Owner's source spec: uploaded design note (2027-01-09); no third-party product names in the repo.
 
@@ -80,13 +89,13 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - Confirm button, frozen page, statistics, new revisions — DONE (#120).
 
 ## Wiki: order agreed (owner, 2026-11-10)
-- 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — in review (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
-- 2. Drafts by default + Publish — in review (owner approved the rules; decision 2027-01-26). Later: "back to draft".
-- 3. Page version history — in review (decision 2027-01-29). Later: longer history on paid plans (1 year / unlimited).
+- 1. Export menu: copy link + PDF/MD (free); JSON/CSV/DOCX/HTML shown disabled with PRO badge — DONE (decision 2027-01-23). Formats behind PRO arrive with payments (stage 4).
+- 2. Drafts by default + Publish — DONE (owner approved the rules; decision 2027-01-26). Later: "back to draft".
+- 3. Page version history — DONE (#136; decision 2027-01-29). Later: longer history on paid plans (1 year / unlimited).
 - Later: templates (base + own); import from Markdown and other tools; smart chips for any object (files, events, any service object); public knowledge base (access change → approval); realtime co-editing with cursors; AI helper with the team's own key; readers never load the editor.
 - Later, promised on the landing («Знання, яким довіряють», marked «Скоро»): glossary with hover hints; "what changed since your last visit" (new/changed paragraphs highlighted); review-by date with a reminder to the page owner; onboarding routes ("first week", per-person progress, mini-quizzes); approval before publishing (readers see only the approved version — builds on drafts).
 
-## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — stage 3c-2 in review
+## Toker — team chat (owner, 2026-11-12; decision 2026-11-12) — paused 2026-11-13, resumed the same day by the owner's approvals; stage 3c-2 in review
 Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; DB/RLS of every stage → separate approval first.
 - 0. Docs: decisions, Toker card, links in Platform/Rukh/Doba/Visio/Apus/Vault cards — DONE (#168).
 - 1. Core: open/closed channels, categories, members, messages, threads, reactions, mentions, pins, edit/delete, unread, realtime; unit-bound closed channels; guests only in invited channels. Tables + RLS approved 2026-11-12 (decision "Toker, етап 1").
@@ -102,7 +111,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
   - Voice player: "Transcribe" (with Apus, stage 6) and "Task" (with Rukh links, stage 3) buttons from the mock.
   - 2c search (chat panel + global search), drafts on the device, scheduled send (published with the bell's check) — DONE (#180).
   - Later: files in scheduled messages; search index (trigram) if chats grow large.
-  - Later: file from shared storage — with Vault (Google picker needs a new key/scope → approval).
+  - Later: file from shared storage — DONE with VAULT-3 (from Vault); the Google picker still needs a new key/scope → approval.
 - 3. Plan approved 2026-11-13 (decision "TOKER-3 Toker, етап 3").
   - 3a live chips: workspace links in messages (Wika pages, Rukh tasks, tables, boards, maps, slides, surveys, apps, wishlists) → cards read with the reader's access; hidden or gone → "No access" without the title; task chip = the wiki chip (live status) + status and assignee change — DONE (#183).
   - 3b message (or selected part) → Rukh task / Wika note / Doba event with a link back to the message; the new link left in the message's thread (a live chip); events from closed channels and conversations invite their people (≤ 50, "by invitation") — DONE (#184).
@@ -117,7 +126,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 
 ## Next by plan
 - Chat (suite plan, after surveys) → Presentations → Files manager (roadmap stage 2b).
-- Boards Д2: realtime co-editing — phase 1 in review (see Canvas engine); idea board is phase 2.
+- Boards Д2: realtime co-editing — phase 1 DONE (#172); idea board (phase 2, CORE-2) DONE (#189).
 - Organization level, shared objects between workspaces (later).
 
 ## New directions (2026-11-05, roadmap stage 2c) — each needs its own plan + OK
@@ -125,7 +134,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Tables: user scripts (sandboxed). AI: transcription, dictation, node automations, local LLM / MCP models.
 - Service «Персональна сторінка»: company landing builder (Free blocks, Team custom code), custom-code corporate pages (Business), block business cards (company + profile, Free).
 - Service «Корпоративні додатки» (Obriy; decision 2027-02-02):
-  - О-1 gallery of the company's outside apps (tiles, metadata from the link, admins manage, opens in a new tab) — in review.
+  - О-1 gallery of the company's outside apps (tiles, metadata from the link, admins manage, opens in a new tab) — DONE (#141).
   - О-2 financial monitoring (FinPulse) inside the platform: data in the workspace DB, workspace admins only (= "organization admin" until the Organization level), Team+. New tables/RLS → owner's approval first; needs the FinPulse repository.
   - Later: search across apps (with presentations); showing an app inside the platform (site policy change → approval); app catalogue.
 - Shown on `/about` and the start page as «Скоро» (done 2026-11-05).
@@ -147,9 +156,10 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
   - 3а the person's own feed (read-only address for calendar apps; table `calendar_feeds`, open route `/api/calendar-feed/`) — DONE (#138).
   - 3б busy time from an outside calendar by its feed address (decision 2027-01-31) — DONE (#139). Needs `CALENDAR_TOKEN_KEY` in Vercel (owner); until then the section says "not set up yet".
   - Later for 3б: several addresses per person; own outside busy time in the month and list views (today: the week only).
-  - 3в sign-in with a provider — architecture decided (2027-02-01), **code on hold until the owner's separate OK**: first watch 3а and 3б in use; the owner sets up the permissions and the app review in the provider's console. Strictly minimal access (busy time without details from the primary calendar + writing only into the app's own "Doba" calendar); 3в-1 sign-in and busy time, 3в-2 Doba events into the "Doba" calendar; on disconnect ask whether to delete that calendar and always revoke the token at the provider; `calendar_connections` gets new fields, new central `calendar_external_links`; PRO mark.
-- Profile card and wishlists (owner, 2026-11-12; decision 2026-11-12) — steps 1 (#170), 2 (#175), 3 (#178) DONE; step 4 — in review: a wishlist as a live card in Wika (block), slides and "Design" boards (embed), tasks (linked wishlists, `task_wishlist_links`); plain boards get a "Wishlist · name" link element. Later: a wishlist embed in plain boards as a live card if the canvas engine allows it safely.
-- Birthdays (owner, 2026-11-12; decision 2026-11-12) — in review: kept per person and workspace; day and month to colleagues, the year to the person and HR only; calendar mark every year, a festive but quiet block under the home greeting (today + next 7 days), the bell on the day for the person's units. Later: a greeting card or a shared congratulation thread; birthdays in the member card of workspace settings.
+  - 3в → **DOBA-1 (2026-11-13, owner's OK, DB approved): sign-in, own event titles (to oneself), "Doba" calendar, Google Meet button — in PR.** Owner: Google Cloud scopes, redirect URI, verification (`docs/setup-uk.md`). Next: VISIO-1 Zoom (create/update/delete a meeting with the event; own PR, DB approval first).
+  - (Earlier text) 3в sign-in with a provider — architecture decided (2027-02-01), **code on hold until the owner's separate OK**: first watch 3а and 3б in use; the owner sets up the permissions and the app review in the provider's console. Strictly minimal access (busy time without details from the primary calendar + writing only into the app's own "Doba" calendar); 3в-1 sign-in and busy time, 3в-2 Doba events into the "Doba" calendar; on disconnect ask whether to delete that calendar and always revoke the token at the provider; `calendar_connections` gets new fields, new central `calendar_external_links`; PRO mark.
+- Profile card and wishlists (owner, 2026-11-12; decision 2026-11-12) — steps 1 (#170), 2 (#175), 3 (#178), 4 (#182, e2e #187) DONE; step 4: a wishlist as a live card in Wika (block), slides and "Design" boards (embed), tasks (linked wishlists, `task_wishlist_links`); plain boards get a "Wishlist · name" link element. Later: a wishlist embed in plain boards as a live card if the canvas engine allows it safely.
+- Birthdays (owner, 2026-11-12; decision 2026-11-12) — DONE (#167): kept per person and workspace; day and month to colleagues, the year to the person and HR only; calendar mark every year, a festive but quiet block under the home greeting (today + next 7 days), the bell on the day for the person's units. Later: a greeting card or a shared congratulation thread; birthdays in the member card of workspace settings.
 - Follow-up: the landing and the comparison table still name third-party calendars (older text) — clean up with the rename work.
 
 ## Tasks: templates (owner, 2026-12-16) — DONE (package 3; project + personal templates)
@@ -166,7 +176,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 
 ## New requests (owner, 2026-12-28) — each needs its own plan + OK
 - **Wiki: media galleries:** DONE (block «Галерея», 4 layouts, audio upload). Was: A block with images, YouTube videos and audio; layouts: (1) featured — large viewer + thumbnail strip; (2) carousel/slider; (3) list — small thumbnails or text only; (4) grid/masonry with adjustable thumbnail size. Layout chosen per block.
-- **Smart chips everywhere (owner, 2026-12-29).** Link any workspace thing anywhere: in a table cell, task, board, etc. insert a chip for a task, wiki page, file, calendar event, person or any service object. Look: rounded pill, light background, the service's icon first (as Google-Docs-like chips). The wiki already has page/person/task chips — extend to all services and into tables/tasks.
+- **UI-1 Smart chips everywhere** — step 1 in review (decision 2026-11-13): one chip for pages, tasks, events, people, tables, boards, maps, slides, surveys, apps, wishlists and Vault files; "@" finds them all in the wiki and the task description; a pasted workspace link becomes its chip; Toker uses the same pill. Step 1 DONE (#197). UI-2 step 2 table cells — DONE (#198): links drawn as chips in cells, "Insert chip" above the toolbar, "Open" for a selected chip cell; no item in the cell's right-click menu yet (the table's menu is fixed). UI-3 step 3 — in review (decision 2026-11-13): chips next to idea-board elements that link to the workspace and a "Chip" button; a mind-map node's own link (`MapNode.link`) shown as a chip, "Chip" in the map toolbar; links in Doba event descriptions shown as chips under the text. UI-4 — in review: a link field of a task shows a chip under it and has "Chip" (pick a page, task, table, board or file); slides and "Design" files take a "Chip (link)" embed. Original request: **Smart chips everywhere (owner, 2026-12-29).** Link any workspace thing anywhere: in a table cell, task, board, etc. insert a chip for a task, wiki page, file, calendar event, person or any service object. Look: rounded pill, light background, the service's icon first (as Google-Docs-like chips). The wiki already has page/person/task chips — extend to all services and into tables/tasks.
 - **Own icons everywhere** — in progress, see «Design system & UI overhaul» above. Was: Redraw all system icons (now emoji) as our own drawn set, so nothing depends on third-party emoji artwork; same look in every OS. Mascot style; light/dark.
 - **Mini-game «territory» with Apus.** Original game in the paint-the-ground genre: Apus leaves painted trail; enclosing area claims it; cutting/enclosing opponents' trails knocks them out.
   - Modes: offline vs bots; online real-time — joins active sessions of the same workspace, guests too (admin switch «guests may play», off → guests can't join). Needs realtime (cost/limits to check) and access change → separate approval.
@@ -203,13 +213,24 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - Step 4 loading indicator — NOT done: a `loading.tsx` for `/w/[wid]` was tried and removed (2026-11-10): the page then wakes up (hydrates) later behind its Suspense boundary and end-to-end checks that act right after a page shows failed (deck player keys, task files, epic progress). Do it as a thin progress bar at the top instead (link status / transition), which doesn't change how pages load.
 - External-source pictures: every picture is fetched from the source on each cold view (~2 s each in the owner's Lighthouse report, 2026-11-10); keep a copy after the first fetch (storage → plan first). Its route also asks the auth server (`getUser`) per picture.
 - Measured in production (2026-11-10, `/api/admin/timing`): any database call 26–50 ms; page tree of 19 pages 136–224 ms; workspace lookup three calls deep. DONE in response: `workspace_context()` (one call) and `my_page_tree()` (one pass; locally 310 pages 200–270 ms → 4–5 ms, same rows). Next candidates by the same method: tasks of a project (`task_project_role`/`task_read_until` per row), service objects.
-- Step 5 access checks once per query, not per row (RLS → approved by the owner in principle; same visibility, security tests must give the same output). Measured locally: 310 pages 0.2–0.27 s, 300 tasks ~1 s vs 0.0002 s without checks (`effective_role`, `task_project_role`, `task_read_until` per row). Small workspaces don't feel it yet; needed before big ones and before realtime co-editing.
+- CORE-3 Step 5 access checks once per query, not per row (owner approved 2026-11-13) — in review: tasks, pages and service objects; membership and project roles as sets once per query. Measured locally (300 tasks / 311 pages / 300 objects, one person): tasks 1.47 s → 0.14 s, objects 0.6 s → 0.33 s, pages 1.0 s → 0.8 s; one task by id 5.3 → 6.8 ms. Same rows for every test person (a permanent test compares old and new rules). DONE (#194). CORE-5 (owner approved 2026-11-13) — in review: pages read through the one-pass tree (`my_readable_page_ids`, bin pages per row), comments/history/files/links/time/board places of tasks check membership and project roles once per query; 311 pages 0.68 s → 0.008 s, 600 comments 1.9 s → 0.23 s; one page 3.4 → 7.3 ms. The equivalence tests now compare the rules in force (as each person) with the original per-row rules for tasks, pages, objects and all task records. Was: Measured locally: 310 pages 0.2–0.27 s, 300 tasks ~1 s vs 0.0002 s without checks (`effective_role`, `task_project_role`, `task_read_until` per row). Small workspaces don't feel it yet; needed before big ones and before realtime co-editing.
 - Later: ship only the current language's strings to the browser (both dictionaries, ~390 KB source, go to every page now).
 - Worldwide: one server region serves one database region well; team-owned databases in other regions and far-away users need a separate plan (regions per workspace or edge reads).
 
+## VAULT Vault — file manager (owner, 2026-11-13; decision 2026-11-13)
+- VAULT-1 "All files" (no DB): `/w/<id>/files` lists the files the person sees in Wika, Rukh, Toker, Bordy, Kadry, Nodo, Sota, Questa (each table read with the person's session); list/grid, filter by service and type, search, sort, preview of images/audio/video, "where used", download; the tile loses "Soon" — DONE (#190).
+- VAULT-2 own folders and files (DB approved 2026-11-13, option A): access as on a shared drive (members view by default, guests never; people/units viewer/editor; restrict), all members upload, admin's size limit (none by default), bin 30 days, files over 4 MB to the Drive in parts — DONE (#192).
+- VAULT-2б Vault access mirrored on the team's Google Drive (no emails; failures shown to editors; daily + on every change) — DONE (#203). Not checked against the real Google Drive (fake Drive in tests).
+- VAULT-4 "Used" by service (owner/admins), one storage count for every upload (incl. Vault), a former member's Vault items handed over with their pages, Vault in "My data" — in review.
+- VAULT-3 "From Vault" (no DB): Wika block, task (as a task link shown as a card), slides/"Design" embed, idea board link, Toker message card; only the id kept, read with the viewer's access — DONE (#193).
+- VAULT-7 "Team Drive" tab (owner approved plan and DB 2026-11-13; replaces the Picker idea and VAULT-8: one workspace = one Drive): members (not guests) browse the Drive connected to the workspace, open/download (Google documents as PDF), "Add to Vault" = a link to the same Drive file (no copy, no space, no versions; the bin removes only the link); owner's switch, on by default; the owner allows reading the whole Drive once (drive.readonly, same account, no new folders) — DONE (#207). Restricted Google scope: Google app verification needed for many workspaces (owner's step). Not checked against the real Google Drive (fake Drive in tests). VAULT-7b: "Add to Vault" asks for the folder (the same picker as Move) — in review.
+- VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
+
 ## Known gaps / follow-ups
-- Storage limit is counted unevenly: wiki images (`register_attachment`, `workspace_storage_status`) count only wiki images; tasks, boards, surveys and chat count each other. Settings → Storage "move files to the workspace storage" does not move chat files yet.
+- CI-1 `until()` in `scripts/e2e/common.mjs` awaits async conditions (12 checks in calendar, wishlist and other e2e passed without checking anything) — DONE (#195); they all pass for real.
+- VAULT-5 (owner, 2026-11-13): Settings → Storage shows every service's files in EdgeKnow's storage; "move files to the workspace storage" moves chat files too; Vault files are never kept by the browser (taken access works at once) — DONE (#200).
+- VAULT-6 file versions: "New version" keeps the file's id, links and access; versions list, make current, delete; up to 50 kept; counted in space — DONE (#202). Earlier versions now move with "move files to the workspace storage" (VAULT-2б PR).
 - Doba: duplicate reminders from two calls of `calendar_remind_me` at once (flaky e2e in #171) — fixed with a per-person lock; muting event reminders no longer silences birthdays — DONE (#174).
-- Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). Left: spill into neighbouring cells (needs the editor engine to support it; separate step), LAMBDA.
+- Tables: package 4 DONE (array literals, ROW/COLUMN/ROWS/COLUMNS of a reference, LET, operators on ranges, FILTER/SORT/SORTBY/UNIQUE/SEQUENCE inside formulas; `scripts/test-sheet-formulas.mjs`). SOTA-1 — in review: spill into neighbouring cells (results laid out from the formula's cell, `ekSpill` mark, #SPILL! when blocked, a person's own value wins) and LAMBDA (on the spot, through LET, MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY).
 - Turnstile: confirm the check shows on open forms once both Vercel keys are set.
 - Open registration is a switch in the platform panel (turns on "own database first").

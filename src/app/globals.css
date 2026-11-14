@@ -846,3 +846,28 @@ nav[data-angler-on] > :not([data-sidebar-bottom]):not(.ek-angler-guide) {
     opacity: 0.6;
   }
 }
+
+/* ADMIN-1 road map: stage status colours (validated categorical slots 1–5, light and dark steps). */
+:root {
+  --rm-done: #2a78d6;
+  --rm-review: #eb6834;
+  --rm-planned: #1baf7a;
+  --rm-paused: #eda100;
+  --rm-later: #e87ba4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --rm-done: #3987e5;
+    --rm-review: #d95926;
+    --rm-planned: #199e70;
+    --rm-paused: #c98500;
+    --rm-later: #d55181;
+  }
+}
+:root[data-theme="dark"] {
+  --rm-done: #3987e5;
+  --rm-review: #d95926;
+  --rm-planned: #199e70;
+  --rm-paused: #c98500;
+  --rm-later: #d55181;
+}

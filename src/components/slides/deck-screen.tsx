@@ -11,6 +11,7 @@ import { saveDeck, setDeckGroupRole, setDeckMemberRole, setDeckWorkspaceRole, tr
 import { DeckEditor } from "./deck-editor";
 import { StudioNotices, StudioShell } from "@/components/ui/studio-shell";
 import { LivePresence, liveMenu } from "@/components/live/live-presence";
+import { ShowLinkDialog } from "./show-link-dialog";
 import { DECK_SPEC } from "@/lib/live/doc-sync";
 import { useLiveDoc } from "@/lib/live/use-live-doc";
 
@@ -41,6 +42,7 @@ export function DeckScreen({
 }) {
   const router = useRouter();
   const canEdit = role === "owner" || role === "editor";
+  const [showLink, setShowLink] = useState(false);
   const [title, setTitle] = useState(initialTitle);
   const [initial] = useState(() => readDeck(initialData));
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "conflict" | "error">("idle");
@@ -168,6 +170,7 @@ export function DeckScreen({
       more={[
         ...liveMenu(live),
         { label: s.player.presenter, icon: "monitor" as const, onSelect: () => void open("/play?presenter=1"), attrs: { "data-presenter-open": "" } },
+        ...(role === "owner" ? [{ label: s.publicShow.menu, icon: "link" as const, onSelect: () => setShowLink(true), attrs: { "data-show-link-open": "" } }] : []),
         ...(canEdit
           ? [
               {
@@ -185,6 +188,7 @@ export function DeckScreen({
       ]}
       notices={<StudioNotices readOnly={canEdit ? null : s.readOnly} conflict={status === "conflict" ? s.conflict : null} reloadLabel={s.reload} error={status === "error" ? error : null} />}
     >
+      {showLink && <ShowLinkDialog shortId={shortId} deckId={id} onClose={() => setShowLink(false)} />}
       <DeckEditor shortId={shortId} deckId={id} initial={initial} editable={editable} onChange={(deck) => schedule({ data: deck })} onPlay={(n) => void open(`/play?at=${n}`)} live={live} />
     </StudioShell>
   );

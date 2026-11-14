@@ -7,6 +7,9 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { iconButtonClass } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/pages/emoji-picker";
 import { Popover, MenuItem } from "@/components/ui/popover";
+import { Dialog } from "@/components/ui/dialog";
+import { VaultFilePicker } from "@/components/files/vault-file-embed";
+import { vaultFileHref } from "@/lib/vault-links";
 import { LinkCard, MessageFiles, PendingFiles, VoiceButton, compressImage, firstLink, uploadChatFile, type Pending } from "./chat-files";
 import { levelsOf } from "./voice-player";
 import { MessageChips, useHost } from "./chat-chips";
@@ -522,6 +525,8 @@ export function Composer({
   const [items, setItems] = useState<Pending[]>([]);
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const [later, setLater] = useState<HTMLElement | null>(null);
+  // VAULT-3: a link to a Vault file goes into the message; each reader sees its card with their own access.
+  const [fromVault, setFromVault] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const uploading = items.some((p) => p.state === "uploading");
@@ -641,7 +646,23 @@ export function Composer({
               <span className="block text-xs text-muted">{c().files.asFileHint}</span>
             </span>
           </MenuItem>
+          <MenuItem onSelect={() => { setMenu(null); setFromVault(true); }}>
+            <Icon name="folder" size={16} />
+            <span data-chat-from-vault>{t.vault.embed.fromVault}</span>
+          </MenuItem>
         </Popover>
+      )}
+      {fromVault && upload && (
+        <Dialog title={t.vault.embed.pick} onClose={() => setFromVault(false)}>
+          <VaultFilePicker
+            shortId={upload.shortId}
+            onPick={(fileId) => {
+              setFromVault(false);
+              const link = `${window.location.origin}${vaultFileHref(upload.shortId, fileId)}`;
+              onDraft(draft.trim() ? `${draft.trimEnd()}\n${link}` : link);
+            }}
+          />
+        </Dialog>
       )}
     </div>
   );

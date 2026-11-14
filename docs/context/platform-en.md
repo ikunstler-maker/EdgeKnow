@@ -35,15 +35,18 @@ The core gives every service people, access, storage, search, notifications and 
 - Bordy, Nodo, Sota, Kadry and Questa are built on it. A new "file-like" service starts from it.
 
 ### Live co-editing (layer of the core; phase 1 since 2026-11-12)
-- The workspace owner's switch (`workspaces.live_collab`, copied to a team database). Phase 1 covers presentations and Bordy files.
+- The workspace owner's switch (`workspaces.live_collab`, copied to a team database). Phase 1 covers presentations and "Design" files, phase 2 (2026-11-13) idea boards, phase 3 (CORE-4) Nodo mind maps.
 - Per document two private Supabase Realtime channels: `live:<id>:doc` (Yjs changes; only owners and editors send) and `live:<id>:room` (presence, cursors, "Follow"; viewers' cursors only with the document's switch `service_objects.live_viewer_cursors`). The database decides: `live_channel_allowed` in the policies on `realtime.messages`; in a team database it also checks that the pass is ours and for this workspace.
 - The browser gets the database address, its public key and a pass (central: the person's session token; team: our 10-minute pass) from `liveSession` (`src/app/live-actions.ts`, `liveConnection` in `src/lib/team-db/data.ts`) and renews it every 2 minutes — each renewal re-checks rights in the channels.
-- The document stays JSON in `service_objects` with the version check; one editor (the leader) saves. Code: `src/lib/live/` (`doc-sync.ts` JSON ↔ Yjs, `use-live-doc.ts`), `src/components/live/`. A new service joins by giving its list shape (`ListSpec`) and adding its service to `live_channel_allowed`.
+- The document stays JSON in `service_objects` with the version check; one editor (the leader) saves. Code: `src/lib/live/` (`doc-sync.ts` JSON ↔ Yjs, `use-live-doc.ts`), `src/components/live/`. A new service joins by giving its list shape (`ListSpec`) and adding its service to `live_channel_allowed`. Idea boards use the same channels with their own merge by element versions (`board-sync.ts`, `use-live-board.ts`); `LiveRoom` is the shape the presence bar and menu take.
 
 ### Navigation
 - **Start page**: service tiles in four categories (mark, name, one-line description, recent items or "Create").
 - **Left panel** (top to bottom): the workspace name opens the workspace and account menu (other workspaces, profile, settings, theme, language, "What's new", help, sign-out); a dock of pinned services and a button for the list of all services by category (Ctrl/Cmd+E; pins are kept in the browser); search, notifications; the current section's content (in Rukh: projects and boards, no tasks); at the bottom the bin and Apus. Resizable; collapses to a slim rail (button or Ctrl/Cmd+\; kept in the browser).
 - **Collections:** shared folders of workspace objects; one object in many collections, no copies.
+- **List row actions (UI-5):** rename, duplicate, share, access (owner), bin on each row of the object lists; shown by role.
+- **Road map (ADMIN-1):** `/admin/roadmap`, platform admin only; data in `src/lib/roadmap.ts`, every PR that moves a stage updates it.
+- **Monitoring (ADMIN-2):** gauges, 90-day trend and forecast, per-workspace load on `/admin/roadmap`; `platform_daily_stats` (daily snapshot, platform admin reads only), `platform_workspace_load()`.
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics
@@ -111,7 +114,7 @@ The core gives every service people, access, storage, search, notifications and 
 | `notifications`, `notification_prefs` | notifications (links: task, page, calendar event, time-off request, chat message) |
 | `calendar_events`, `calendar_event_attendees`, `calendar_settings` | Doba: events, their people, working days and time zone |
 | `leave_policies`, `leave_balances`, `leave_requests`, `leave_holidays`, `leave_member_settings` | Doba: time-off policies, the balance ledger, requests, holidays, start dates |
-| `calendar_external_busy`, `calendar_connections` (central only) | Doba: busy slots read from a person's outside calendar (start and end only); the calendar's address, encrypted, closed to everyone |
+| `calendar_external_busy`, `calendar_connections`, `calendar_external_links` (the last two central only) | Doba: slots read from a person's outside calendar (start and end; with a sign-in also the title, theirs alone, and busy/free); the calendar's address or sign-in access, encrypted, closed to everyone; links between Doba events and their copies in the person's "Doba" calendar (DOBA-1) |
 | `calendar_feeds` | Doba: the hash of a person's calendar-feed secret (closed to everyone; the server reads the feed) |
 | `audit_log`, `admin_audit_log` | action logs |
 | `platform_settings`, `rate_limits` | platform settings and limits |
@@ -144,6 +147,7 @@ The core gives every service people, access, storage, search, notifications and 
 2. The database checks access. The UI only hides what is already forbidden.
 3. Embedding an object in another service stores only its ID; without access — "No access" with no name.
 4. Every new table: `workspace_id`, policies in the same migration, rollback, tests, team migration, move between databases.
+4a. Read rules check what is the same for every row (membership, a project role) once per query: an uncorrelated set such as `workspace_id in (select public.my_workspace_ids())`, `project_id in (select public.my_task_project_ids())`; only what depends on the row is a per-row function (CORE-3: tasks, service objects; CORE-5: pages through the one-pass tree `my_readable_page_ids`, and the records of tasks). `stagez_access_equivalence` / `teamz_access_equivalence` read every table as each test person through the rules in force and compare with the original per-row rules; a new or changed read rule of these tables must keep them at zero.
 5. Guests get no access through "whole workspace" or units.
 6. Everything new goes into search, trash, backup and "My data" where it makes sense.
 7. Strings in both languages; phone and both themes are mandatory.

@@ -1,6 +1,6 @@
 -- TOKER-6 Toker, stage 3c-2: a time-off request as a system message with approval buttons.
--- Rollback: supabase/team/rollbacks/0080_toker_leave_cards.down.sql
--- The same in supabase/migrations/20270207100000_toker_leave_cards.sql.
+-- Rollback: supabase/rollbacks/20270217100000_toker_leave_cards.down.sql
+-- The same in supabase/team/migrations/0091_toker_leave_cards.sql.
 --
 -- When someone asks for time off that waits for a decision, the database writes a
 -- system message into the direct conversation of the requester with each person the

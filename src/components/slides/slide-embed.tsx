@@ -14,7 +14,11 @@ import { BoardEmbed } from "@/components/editor/board-block";
 import { NodeMapEmbed } from "@/components/editor/node-map-block";
 import { TaskChipView, TasksEmbedView } from "@/components/editor/task-blocks";
 import { WishlistEmbed } from "@/components/wishlists/wishlist-embed";
+import { VaultFileEmbed } from "@/components/files/vault-file-embed";
 import { Icon } from "@/components/ui/icon";
+import { LinkChip } from "@/components/editor/link-chip";
+import { ChipPicker } from "@/components/sheets/chip-picker";
+import { rememberCellChip } from "@/components/sheets/sheet-chips";
 
 const e = t.slides.embeds;
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-2 text-base md:min-h-9 md:text-sm";
@@ -47,9 +51,40 @@ export function SlideEmbed({ embed, setup, onEmbed }: { embed: Embed; setup: boo
       return embed.id ? <TaskCard taskId={embed.id} /> : setup ? <TaskPicker shortId={shortId} onPick={(id) => onEmbed({ ...embed, id })} /> : <NoAccess />;
     case "wishlist":
       return <WishlistEmbed shortId={shortId} wishlistId={embed.id} editable={setup} onPick={(id) => onEmbed({ ...embed, id })} />;
+    case "file":
+      return <VaultFileEmbed shortId={shortId} fileId={embed.id} editable={setup} onPick={(id) => onEmbed({ ...embed, id })} />;
     case "page":
       return embed.id ? <PageCard shortId={shortId} pageId={embed.id} /> : setup ? <PagePicker onPick={(id) => onEmbed({ ...embed, id })} /> : <NoAccess />;
+    case "chip":
+      return <ChipEmbed link={embed.link} setup={setup} onLink={(link) => onEmbed({ ...embed, link })} />;
   }
+}
+
+// A chip on a slide (UI-4): any page, task, table, board or file of the workspace, its live title.
+function ChipEmbed({ link, setup, onLink }: { link?: string; setup: boolean; onLink: (link: string) => void }) {
+  const [picking, setPicking] = useState(false);
+  const pages = useOptionalPages();
+  return (
+    <div className="flex h-full items-center justify-center gap-2 p-2 text-base" data-embed-chip>
+      {link ? <LinkChip link={link} className="text-sm" attr="data-slide-chip" /> : !setup && <NoAccess />}
+      {setup && pages && (
+        <button type="button" onClick={() => setPicking(true)} className="rounded-md border border-border bg-background px-2 py-1 text-sm hover:bg-surface" data-embed-chip-pick>
+          {link ? e.chipChange : e.chipPick}
+        </button>
+      )}
+      {picking && pages && (
+        <ChipPicker
+          onClose={() => setPicking(false)}
+          onPick={(picked) => {
+            setPicking(false);
+            const url = `${window.location.origin}${picked.path}`;
+            rememberCellChip(url, pages.workspace.shortId, { state: "ok", service: picked.service, title: picked.title, href: picked.path });
+            onLink(url);
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
 const NoAccess = () => (

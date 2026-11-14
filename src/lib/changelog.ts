@@ -33,6 +33,250 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-14-vault-drive-folder",
+    version: "0.57.1",
+    date: "2026-11-14",
+    summaryTitle: { uk: "Vault: посилання з Диска — у потрібну папку", en: "Vault: Drive links into the folder you choose" },
+    items: [
+      { id: "vault-drive-link-folder", type: "improved", scope: "files", title: { uk: "«Додати у Vault» з Диска команди тепер питає, у яку папку покласти посилання.", en: "\"Add to Vault\" from the team Drive now asks which folder the link goes to." } },
+    ],
+  },
+  {
+    id: "2026-11-14-copy-pictures",
+    version: "0.56.2",
+    date: "2026-11-14",
+    summaryTitle: { uk: "Копія дошки чи презентації — з власними картинками", en: "A copied board or deck has its own pictures" },
+    items: [
+      { id: "copy-pictures", type: "improved", scope: "global", title: { uk: "«Дублювати» в списку копіює й картинки: копія не залежить від оригіналу.", en: "\"Duplicate\" in a list copies the pictures too: the copy doesn't depend on the original." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-team-drive",
+    version: "0.57.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: Диск команди всередині", en: "Vault: the team Drive inside" },
+    items: [
+      { id: "vault-team-drive-tab", type: "added", scope: "files", title: { uk: "Вкладка «Диск команди»: учасники переглядають Google Диск простору прямо у Vault, відкривають і завантажують файли. Власник простору може вимкнути її.", en: "A \"Team Drive\" tab: members browse the workspace's Google Drive right in Vault, open and download files. The workspace owner can turn it off." } },
+      { id: "vault-drive-link", type: "added", scope: "files", title: { uk: "«Додати у Vault» — посилання на той самий файл Диска, без копії: місця не займає, а кошик Vault прибирає лише посилання.", en: "\"Add to Vault\" makes a link to the same Drive file, not a copy: it takes no space, and Vault's bin removes only the link." } },
+      { id: "vault-settings-read", type: "fixed", scope: "files", title: { uk: "Учасники знову бачать налаштування Vault (наприклад, ліміт розміру файлу) ще до завантаження.", en: "Members see Vault's settings again (such as the file size limit) before uploading." } },
+    ],
+  },
+  {
+    id: "2026-11-13-list-actions",
+    version: "0.56.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Дії з файлами просто в списках", en: "File actions right in the lists" },
+    items: [
+      { id: "row-actions", type: "added", scope: "global", title: { uk: "У списках дошок, карт, таблиць, презентацій і опитувань праворуч від назви: перейменувати, дублювати, поділитися, доступ, у кошик.", en: "Lists of boards, maps, tables, decks and surveys: rename, duplicate, share, access and bin right of the name." } },
+      { id: "row-marks", type: "visual", scope: "global", title: { uk: "Кожен рядок списку має значок свого сервісу.", en: "Every list row carries its service's mark." } },
+      { id: "wiki-first-page", type: "improved", scope: "wiki", title: { uk: "Wika відкривається на першій сторінці дерева.", en: "Wika opens on the first page of the tree." } },
+      { id: "rename-sidebar", type: "fixed", scope: "global", title: { uk: "Нова назва файлу з'являється в панелі ліворуч за кілька секунд.", en: "A new file name shows in the left panel within seconds." } },
+    ],
+  },
+  {
+    id: "2026-11-13-design-comments",
+    version: "0.56.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "«Дизайн»: коментарі на полотні, компоненти й варіанти", en: "\"Design\": comments on the canvas, components and variants" },
+    items: [
+      { id: "design-comments", type: "added", scope: "board", title: { uk: "Режим «Коментарі»: мітки з обговореннями прямо на полотні, відповіді, «Вирішено».", en: "\"Comments\" mode: pinned threads right on the canvas, replies, \"Resolve\"." } },
+      { id: "design-components", type: "added", scope: "board", title: { uk: "Компоненти: копії повторюють компонент після кожної зміни; варіанти за назвою «Набір/Варіант».", en: "Components: copies follow the component after every change; variants by \"Set/Variant\" names." } },
+    ],
+  },
+  {
+    id: "2026-11-13-show-link",
+    version: "0.55.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Презентації: поява об'єктів і показ за посиланням", en: "Presentations: builds and a show link" },
+    items: [
+      { id: "builds", type: "added", scope: "slides", title: { uk: "Об'єкт слайда може з'являтися за кліком: проявлення, виплив знизу або наближення.", en: "A slide object can appear on a click: fade in, rise up or zoom in." } },
+      { id: "show-link", type: "added", scope: "slides", title: { uk: "Посилання на показ без входу: власник вмикає, вимикає й оновлює його в меню «Ще».", en: "A show link without signing in: the owner turns it on, off or renews it in the \"More\" menu." } },
+    ],
+  },
+  {
+    id: "2026-11-13-sheet-spill",
+    version: "0.54.2",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Таблиці: розлив формул і LAMBDA", en: "Tables: spilling formulas and LAMBDA" },
+    items: [
+      { id: "spill", type: "added", scope: "sheets", title: { uk: "Формула, що дає кілька значень (SORT, FILTER, UNIQUE, SEQUENCE…), заповнює сусідні клітинки, як в Excel; на зайнятих — #SPILL!.", en: "A formula giving several values (SORT, FILTER, UNIQUE, SEQUENCE…) fills the cells next to it, as in Excel; blocked — #SPILL!." } },
+      { id: "lambda", type: "added", scope: "sheets", title: { uk: "LAMBDA, а також MAP, REDUCE, SCAN, BYROW, BYCOL і MAKEARRAY.", en: "LAMBDA, plus MAP, REDUCE, SCAN, BYROW, BYCOL and MAKEARRAY." } },
+    ],
+  },
+  {
+    id: "2026-11-13-chips-step4",
+    version: "0.54.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Чипи в полях задач і на слайдах", en: "Chips in task fields and on slides" },
+    items: [
+      { id: "chips-fields", type: "added", scope: "tasks", title: { uk: "Поле-посилання задачі показує чип з актуальною назвою; кнопка «Чип» вставляє посилання на сторінку, задачу, таблицю чи файл.", en: "A task's link field shows a chip with the current title; the \"Chip\" button inserts a link to a page, task, table or file." } },
+      { id: "chips-slides", type: "added", scope: "slides", title: { uk: "Нова вставка на слайді — «Чип (посилання)».", en: "A new slide embed — \"Chip (link)\"." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-drive-access",
+    version: "0.54.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: ті самі доступи на Google Диску", en: "Vault: the same access on Google Drive" },
+    items: [
+      { id: "vault-drive-share", type: "added", scope: "files", title: { uk: "Файл Vault на Google Диску команди відкривається там тим самим людям, що й у Vault, і закривається, коли доступ забирають. Без листів.", en: "A Vault file on the team's Google Drive is open there to the same people as in Vault, and closed when access is taken away. No emails." } },
+    ],
+  },
+  {
+    id: "2026-11-13-faster-pages",
+    version: "0.53.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Швидше відкриваються сторінки й коментарі", en: "Pages and comments open faster" },
+    items: [
+      { id: "faster-pages", type: "improved", scope: "global", title: { uk: "Права на сторінки, коментарі й файли задач перевіряються раз на запит: великі списки відкриваються в рази швидше. Хто що бачить — не змінилося.", en: "Access to pages, task comments and files is checked once per request: large lists open several times faster. Who sees what is unchanged." } },
+    ],
+  },
+  {
+    id: "2026-11-13-live-maps",
+    version: "0.53.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Карти Nodo — разом наживо", en: "Nodo maps, live together" },
+    items: [
+      { id: "live-maps", type: "added", scope: "nodes", title: { uk: "Ментальні карти редагуються разом: зміни, курсори й «Стежити за людиною», як у презентаціях.", en: "Mind maps are edited together: changes, cursors and \"Follow\", as in presentations." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-versions",
+    version: "0.52.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: версії файлів", en: "Vault: file versions" },
+    items: [
+      { id: "vault-new-version", type: "added", scope: "files", title: { uk: "«Нова версія» замінює файл скрізь, де він вставлений; попередні версії зберігаються.", en: "\"New version\" replaces the file wherever it is inserted; earlier versions are kept." } },
+      { id: "vault-versions-list", type: "added", scope: "files", title: { uk: "«Версії»: відкрити, зробити поточною або видалити попередню версію.", en: "\"Versions\": open, make current or delete an earlier version." } },
+    ],
+  },
+  {
+    id: "2026-11-13-chips-step3",
+    version: "0.51.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Чипи на дошках, у картах і подіях", en: "Chips on boards, maps and events" },
+    items: [
+      { id: "chips-boards", type: "added", scope: "board", title: { uk: "Елемент дошки з посиланням показує чип з актуальною назвою; кнопка «Чип» додає посилання.", en: "A board element with a link shows a chip with the current title; the \"Chip\" button adds a link." } },
+      { id: "chips-maps", type: "added", scope: "nodes", title: { uk: "Вузол карти можна прив'язати до сторінки, задачі, таблиці чи файлу — під текстом з'явиться чип.", en: "A map node can link to a page, task, table or file — a chip shows under its text." } },
+      { id: "chips-events", type: "added", scope: "calendar", title: { uk: "Посилання в описі події показуються чипами.", en: "Links in an event's description show as chips." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-space",
+    version: "0.51.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: скільки місця займають файли", en: "Vault: how much space files take" },
+    items: [
+      { id: "vault-used", type: "added", scope: "files", title: { uk: "«Зайнято» у Vault — за сервісами; бачать власник і адміністратори простору.", en: "\"Used\" in Vault by service; seen by the workspace's owner and admins." } },
+      { id: "vault-quota", type: "fixed", scope: "storage", title: { uk: "Ліміт сховища тепер однаково рахує файли всіх сервісів разом із Vault.", en: "The storage limit now counts every service's files, Vault included, the same way." } },
+      { id: "vault-handover", type: "added", scope: "files", title: { uk: "«Передати» для колишнього учасника передає й його файли Vault; вони є й у «Мої дані».", en: "\"Hand over\" for a former member also hands over their Vault files; they are in \"My data\" too." } },
+    ],
+  },
+  {
+    id: "2026-11-13-sheet-chips",
+    version: "0.50.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Чипи в таблицях", en: "Chips in tables" },
+    items: [
+      { id: "sheet-chips", type: "added", scope: "sheets", title: { uk: "Посилання на сторінку, задачу, дошку чи файл у клітинці показується чипом з актуальною назвою; «Вставити чип» над таблицею.", en: "A link to a page, task, board or file in a cell shows as a chip with its current title; \"Insert chip\" above the table." } },
+    ],
+  },
+  {
+    id: "2026-11-13-smart-chips",
+    version: "0.49.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Розумні чипи всюди", en: "Smart chips everywhere" },
+    summaryDescription: {
+      uk: "Згадайте будь-яку таблицю, дошку, карту, презентацію, опитування, застосунок, ВішЛіст чи файл — у Wika й в описі задачі.",
+      en: "Mention any table, board, map, presentation, survey, app, wishlist or file — in the wiki and in task descriptions.",
+    },
+    items: [
+      { id: "chips-at", type: "added", scope: "wiki", title: { uk: "«@» знаходить таблиці, дошки, карти, презентації, опитування, застосунки, ВішЛісти й файли Vault і вставляє їх чипом з актуальною назвою.", en: "\"@\" finds tables, boards, maps, presentations, surveys, apps, wishlists and Vault files and inserts them as a chip with the current title." } },
+      { id: "chips-tasks", type: "added", scope: "tasks", title: { uk: "В описі задачі тепер є чипи: сторінки, задачі, події й будь-які об'єкти.", en: "Task descriptions now take chips: pages, tasks, events and any object." } },
+      { id: "chips-paste", type: "added", scope: "global", title: { uk: "Вставлене посилання на щось у вашому просторі одразу стає чипом.", en: "A pasted link to something in your workspace turns into a chip." } },
+      { id: "chips-access", type: "improved", scope: "security", title: { uk: "Хто не має доступу, бачить «Немає доступу» без назви.", en: "Without access a chip shows \"No access\" and no title." } },
+    ],
+  },
+  {
+    id: "2026-11-13-faster-access",
+    version: "0.48.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Швидше відкриваються задачі", en: "Tasks open faster" },
+    items: [
+      { id: "faster-access", type: "improved", scope: "global", title: { uk: "Права доступу до задач, сторінок і файлів сервісів перевіряються раз на запит, а не для кожного рядка: великі списки задач відкриваються в рази швидше. Хто що бачить — не змінилося.", en: "Access to tasks, pages and service files is checked once per request instead of for every row: large task lists open several times faster. Who sees what is unchanged." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-embeds",
+    version: "0.48.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Файли з Vault у сторінках, задачах, презентаціях і чаті", en: "Vault files in pages, tasks, presentations and chat" },
+    summaryDescription: {
+      uk: "Кнопка «Із Vault» вставляє картку файлу. Її бачать ті, кому файл відкритий; іншим — «Файл недоступний».",
+      en: "\"From Vault\" inserts a file's card. Those the file is open to see it; others see \"File unavailable\".",
+    },
+    items: [
+      { id: "vault-embed-wiki", type: "added", scope: "wiki", title: { uk: "Блок «Файл із Vault» на сторінці (меню «/»).", en: "A \"File from Vault\" block on a page (the \"/\" menu)." } },
+      { id: "vault-embed-tasks", type: "added", scope: "tasks", title: { uk: "«Із Vault» у вкладеннях задачі.", en: "\"From Vault\" in a task's attachments." } },
+      { id: "vault-embed-slides", type: "added", scope: "slides", title: { uk: "Файл із Vault у презентації, файлі «Дизайн» і на дошці для ідей.", en: "A Vault file in a presentation, a \"Design\" file and on an idea board." } },
+      { id: "vault-embed-chat", type: "added", scope: "chat", title: { uk: "«Із Vault» у повідомленні чату: файл показується карткою.", en: "\"From Vault\" in a chat message: the file shows as a card." } },
+    ],
+  },
+  {
+    id: "2026-11-13-done-date",
+    version: "0.47.1",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Дата завершення задач", en: "Task done dates" },
+    items: [
+      { id: "done-date-board", type: "fixed", scope: "tasks", title: { uk: "Задача, перетягнута в «Готово» на дошці чи кнопкою статусу, тепер має дату завершення й потрапляє в аналітику.", en: "A task moved to \"Done\" on the board or with a status button now gets its done date and shows in analytics." } },
+      { id: "done-date-reopen", type: "fixed", scope: "tasks", title: { uk: "Задача, повернута з «Готово» в роботу, знову видно в «Моїх задачах».", en: "A task moved back out of \"Done\" shows in \"My tasks\" again." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault-folders",
+    version: "0.47.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: власні папки й файли команди", en: "Vault: the team's own folders and files" },
+    summaryDescription: {
+      uk: "Папки, завантаження перетягуванням, доступ як на спільному диску, кошик на 30 днів і ліміт розміру від адміністратора.",
+      en: "Folders, drag-and-drop uploads, access as on a shared drive, a 30-day bin and a size limit set by an admin.",
+    },
+    items: [
+      { id: "vault-folders", type: "added", scope: "files", title: { uk: "Папки й файли у Vault: створення, завантаження, перейменування, переміщення, кошик.", en: "Folders and files in Vault: create, upload, rename, move, bin." } },
+      { id: "vault-access", type: "added", scope: "security", title: { uk: "Доступ до папки чи файлу: усім у просторі, окремим людям і підрозділам або лише запрошеним. Гості Vault не бачать.", en: "Access to a folder or file: everyone in the workspace, particular people and units, or invited only. Guests don't see Vault." } },
+      { id: "vault-large", type: "added", scope: "storage", title: { uk: "Великі файли йдуть на Google Диск простору частинами; адміністратор може обмежити розмір файлу.", en: "Large files go to the workspace's Google Drive in parts; an admin can limit a file's size." } },
+    ],
+  },
+  {
+    id: "2026-11-13-vault",
+    version: "0.46.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Vault: усі файли в одному місці", en: "Vault: every file in one place" },
+    summaryDescription: {
+      uk: "Файли сторінок, задач, чату, дошок, презентацій та опитувань в одному списку. Ви бачите лише те, що бачите й у самих сервісах.",
+      en: "Files of pages, tasks, chat, boards, presentations and surveys in one list. You see only what you also see in the services.",
+    },
+    items: [
+      { id: "vault-all", type: "added", scope: "files", title: { uk: "Розділ Vault: список або плитка, фільтр за сервісом і типом, пошук, сортування.", en: "The Vault section: list or grid, filter by service and type, search, sort." } },
+      { id: "vault-preview", type: "added", scope: "files", title: { uk: "Перегляд зображень, аудіо й відео, «Перейти туди» до місця, де файл використано, і завантаження.", en: "Preview of images, audio and video, \"Go there\" to where the file is used, and download." } },
+    ],
+  },
+  {
+    id: "2026-11-13-live-boards",
+    version: "0.45.0",
+    date: "2026-11-13",
+    summaryTitle: { uk: "Дошка для ідей — разом наживо", en: "Idea boards, live together" },
+    summaryDescription: {
+      uk: "Нотатки, фігури й малюнки на дошці для ідей з'являються в усіх одразу; курсори й «Стежити за людиною» — як у презентаціях.",
+      en: "Sticky notes, shapes and drawings on an idea board show for everyone at once; cursors and \"Follow\" as in presentations.",
+    },
+    items: [
+      { id: "live-board-edit", type: "added", scope: "board", title: { uk: "Зміни на дошці для ідей видно всім одразу; дві зміни водночас не губляться.", en: "Changes on an idea board show for everyone at once; two changes at the same time are both kept." } },
+      { id: "live-board-cursors", type: "added", scope: "board", title: { uk: "Аватари, курсори з іменами, рамки виділення й «Стежити за людиною» на дошці для ідей.", en: "Avatars, cursors with names, selection outlines and \"Follow\" on idea boards." } },
+      { id: "live-board-undo", type: "improved", scope: "board", title: { uk: "«Скасувати» прибирає лише ваші дії, а не чужі.", en: "Undo takes back only your own changes, not others'." } },
+    ],
+  },
+  {
     id: "2026-11-12-live",
     version: "0.44.0",
     date: "2026-11-12",
