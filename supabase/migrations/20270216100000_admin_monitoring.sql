@@ -46,7 +46,13 @@ as $$
     taken_at = excluded.taken_at;
 $$;
 revoke execute on function public.platform_take_snapshot() from public, anon, authenticated;
-grant execute on function public.platform_take_snapshot() to service_role;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.platform_take_snapshot() to service_role;
+  end if;
+end;
+$$;
 
 -- Every workspace's load for the platform admin. The name only of workspaces she is in.
 create function public.platform_workspace_load()

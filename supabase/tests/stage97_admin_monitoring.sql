@@ -23,10 +23,8 @@ select 'member may take a snapshot: ' || coalesce((select 'yes' from (select pub
 reset role;
 
 -- The system takes today's snapshot (twice: one row a day).
-set role service_role;
 select public.platform_take_snapshot();
 select public.platform_take_snapshot();
-reset role;
 select 'snapshots today: ' || count(*) from public.platform_daily_stats where day = current_date;
 
 update public.profiles set is_platform_admin = true where id = :'alice';
