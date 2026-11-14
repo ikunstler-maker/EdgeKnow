@@ -15,8 +15,27 @@ const v = t.vault;
 
 // Choosing where an item goes: one folder at a time, starting where it is; only folders
 // the person may add to can be chosen (never the item itself or what is inside it — the
-// database refuses that too).
-export function VaultMoveDialog({ shortId, workspaceId, item, start, onClose, onMove }: { shortId: string; workspaceId: string; item: VaultItem; start: string | null; onClose: () => void; onMove: (folder: string | null) => Promise<ActionResult> }) {
+// database refuses that too). Also where a file of the team's Drive is added (VAULT-7):
+// `title` and `submit` name that instead.
+export function VaultMoveDialog({
+  shortId,
+  workspaceId,
+  item,
+  start,
+  onClose,
+  onMove,
+  title,
+  submit,
+}: {
+  shortId: string;
+  workspaceId: string;
+  item: VaultItem;
+  start: string | null;
+  onClose: () => void;
+  onMove: (folder: string | null) => Promise<ActionResult>;
+  title?: string;
+  submit?: string;
+}) {
   const router = useRouter();
   const [at, setAt] = useState<string | null>(start);
   const [listing, setListing] = useState<VaultListing | null>(null);
@@ -51,7 +70,7 @@ export function VaultMoveDialog({ shortId, workspaceId, item, start, onClose, on
 
   return (
     <Dialog
-      title={v.moveTitle(item.name)}
+      title={title ?? v.moveTitle(item.name)}
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
@@ -59,7 +78,7 @@ export function VaultMoveDialog({ shortId, workspaceId, item, start, onClose, on
             {v.cancel}
           </Button>
           <Button variant="primary" disabled={pending || !listing || !canDropHere || at === item.parent_id} onClick={move} data-vault-move-here>
-            {v.moveHere}
+            {submit ?? v.moveHere}
           </Button>
         </div>
       }

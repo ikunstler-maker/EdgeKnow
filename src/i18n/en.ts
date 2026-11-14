@@ -4341,6 +4341,8 @@ export const en: Dictionary = {
       open: "Open",
       download: "Download",
       add: "Add to Vault",
+      addTitle: (name: string) => `Where to add "${name}"`,
+      addHere: "Add here",
       added: "Added to Vault (a link, no copy).",
       showInVault: "Show in Vault",
       document: "Google document",

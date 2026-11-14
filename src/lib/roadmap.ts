@@ -180,6 +180,7 @@ export const ROADMAP: Track[] = [
       s("VAULT-5", "Дрібниці після Vault", "Small fixes after Vault", "done", { pr: 200 }),
       s("VAULT-6", "Версії файлів", "File versions", "done", { pr: 202, flags: ["db"] }),
       s("VAULT-7", "Диск команди всередині", "The team's Drive inside", "done", { pr: 207, flags: ["db", "external", "security"] }),
+      s("VAULT-7b", "Посилання з Диска — у вибрану папку", "Drive links into the chosen folder", "done", { pr: 214 }),
     ],
   },
   {

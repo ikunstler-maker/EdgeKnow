@@ -4353,6 +4353,8 @@ export const uk = {
       open: "Відкрити",
       download: "Завантажити",
       add: "Додати у Vault",
+      addTitle: (name: string) => `Куди додати «${name}»`,
+      addHere: "Додати сюди",
       added: "Додано у Vault (посилання, без копії).",
       showInVault: "Показати у Vault",
       document: "Документ Google",
