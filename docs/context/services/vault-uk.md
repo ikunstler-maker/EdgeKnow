@@ -52,7 +52,7 @@
 
 - Вкладка «Диск команди» (`?tab=google`, `src/components/files/vault-google.tsx`): учасники (не гості) переглядають Диск, підключений до простору (один простір — один Диск), через `/api/vault/drive` (папка, частинами) і `/api/vault/drive/file` (завантаження; картинка/PDF показуються; документи Google — як PDF). Лише сервер (`src/lib/drive/vault-browse.ts`, `browseContext`).
 - Перемикач власника `vault_settings.drive_browse` (увімкнений за замовчуванням; `set_vault_drive_browse`, лише власник). Читати весь Диск можна з `drive_connections.can_browse`: власник один раз дозволяє (`/api/drive/connect?browse=1`, той самий акаунт Google; дозвіл `drive.readonly`; без нових папок).
-- «Додати у Vault» (`linkDriveFile`): `begin_vault_link` (сесія людини) + сервер спрямовує запис на файл Диска → `storage_backend = 'drive_link'`. Без копії, без місця (`large`), без версій (`check_vault_link_version`), кошик прибирає лише посилання (без «надгробка»); `vault_list` повертає `link`. VAULT-2б не відкриває посилання на Диску. Посилання з'являється на верхньому рівні Vault.
+- «Додати у Vault» (`linkDriveFile`): `begin_vault_link` (сесія людини) + сервер спрямовує запис на файл Диска → `storage_backend = 'drive_link'`. Без копії, без місця (`large`), без версій (`check_vault_link_version`), кошик прибирає лише посилання (без «надгробка»); `vault_list` повертає `link`. VAULT-2б не відкриває посилання на Диску. «Додати у Vault» питає, куди (вікно «Перемістити», `VaultMoveDialog` з `title`/`submit`; лише папки, куди людина може додавати; VAULT-7b).
 
 ## 2. Задум
 

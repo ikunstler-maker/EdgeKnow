@@ -52,7 +52,7 @@ Browse and manage all files of the workspace storage right in the product.
 
 - Tab "Team Drive" (`?tab=google`, `src/components/files/vault-google.tsx`): members (not guests) browse the Drive connected to the workspace (one workspace = one Drive) through `/api/vault/drive` (a folder, paged) and `/api/vault/drive/file` (download; picture/PDF shown; Google documents exported as PDF). Server only (`src/lib/drive/vault-browse.ts`, `browseContext`).
 - Owner's switch `vault_settings.drive_browse` (on by default; `set_vault_drive_browse`, owner only). Reading the whole Drive needs `drive_connections.can_browse`: the owner allows it once (`/api/drive/connect?browse=1`, the same Google account; scope `drive.readonly`; no new folders).
-- "Add to Vault" (`linkDriveFile`): `begin_vault_link` (user session) + the server points the record at the Drive file → `storage_backend = 'drive_link'`. No copy, no space (`large`), no versions (`check_vault_link_version`), the bin removes only the link (no tombstone); `vault_list` returns `link`. Links aren't shared on the Drive by VAULT-2b. A link goes to the top of Vault.
+- "Add to Vault" (`linkDriveFile`): `begin_vault_link` (user session) + the server points the record at the Drive file → `storage_backend = 'drive_link'`. No copy, no space (`large`), no versions (`check_vault_link_version`), the bin removes only the link (no tombstone); `vault_list` returns `link`. Links aren't shared on the Drive by VAULT-2b. "Add to Vault" asks where (the Move dialog, `VaultMoveDialog` with `title`/`submit`; only folders the person may add to; VAULT-7b).
 
 ## 2. Intent
 

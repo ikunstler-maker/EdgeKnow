@@ -11,6 +11,7 @@ import type { BrowseState } from "@/lib/drive/vault-browse";
 import { linkDriveFile, setVaultDriveBrowse } from "@/app/vault-actions";
 import { Button, buttonClass, iconButtonClass } from "@/components/ui/button";
 import { Icon, type IconName } from "@/components/ui/icon";
+import { VaultMoveDialog } from "./vault-move-dialog";
 
 const v = t.vault;
 const g = v.google;
@@ -48,7 +49,7 @@ export function VaultGoogle({
       )}
       {owner && <OwnerPanel shortId={shortId} workspaceId={workspaceId} state={state} browseOn={browseOn} />}
       {state.ok ? (
-        <Browser shortId={shortId} email={state.email} />
+        <Browser shortId={shortId} workspaceId={workspaceId} email={state.email} />
       ) : (
         !owner && <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted">{memberMessage(state.error)}</p>
       )}
@@ -114,7 +115,7 @@ function OwnerPanel({ shortId, workspaceId, state, browseOn }: { shortId: string
   );
 }
 
-function Browser({ shortId, email }: { shortId: string; email: string }) {
+function Browser({ shortId, workspaceId, email }: { shortId: string; workspaceId: string; email: string }) {
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
@@ -165,13 +166,15 @@ function Browser({ shortId, email }: { shortId: string; email: string }) {
     setPath(to);
   };
 
-  const add = async (entry: Entry) => {
+  // "Add to Vault": the person picks the folder (one they may add to), then a link is made there.
+  const [choosing, setChoosing] = useState<Entry | null>(null);
+  const add = async (entry: Entry, folder: string | null) => {
     setAdding(entry.id);
     setError(null);
-    const result = await linkDriveFile(shortId, null, entry.id);
+    const result = await linkDriveFile(shortId, folder, entry.id);
     setAdding(null);
-    if (!result.ok) setError(errorText(result.error));
-    else setAdded((had) => ({ ...had, [entry.id]: result.id }));
+    if (result.ok) setAdded((had) => ({ ...had, [entry.id]: result.id }));
+    return result;
   };
 
   const when = (value: string) => new Intl.DateTimeFormat(dateLocale(), { dateStyle: "medium" }).format(new Date(value));
@@ -243,7 +246,7 @@ function Browser({ shortId, email }: { shortId: string; email: string }) {
                     <a href={fileSrc(entry.id)} className={iconButtonClass("ghost")} aria-label={`${g.download}: ${entry.name}`} title={g.download}>
                       <Icon name="download" size={16} />
                     </a>
-                    <Button variant="subtle" icon="plus" disabled={adding !== null || Boolean(added[entry.id])} onClick={() => void add(entry)} data-vault-google-add>
+                    <Button variant="subtle" icon="plus" disabled={adding !== null || Boolean(added[entry.id])} onClick={() => setChoosing(entry)} data-vault-google-add>
                       <span className="hidden sm:inline">{g.add}</span>
                       <span className="sr-only sm:hidden">{g.add}</span>
                     </Button>
@@ -253,6 +256,18 @@ function Browser({ shortId, email }: { shortId: string; email: string }) {
             );
           })}
         </ul>
+      )}
+      {choosing && (
+        <VaultMoveDialog
+          shortId={shortId}
+          workspaceId={workspaceId}
+          item={{ id: choosing.id, kind: "file", name: choosing.name, mime_type: choosing.mimeType, bytes: choosing.size, parent_id: "drive", owner_id: null, updated_at: "", deleted_at: null, role: "viewer", restricted: false, shared: false }}
+          start={null}
+          title={g.addTitle(choosing.name)}
+          submit={g.addHere}
+          onClose={() => setChoosing(null)}
+          onMove={(folder) => add(choosing, folder)}
+        />
       )}
       {next && (
         <Button variant="ghost" disabled={loading} onClick={loadMore}>

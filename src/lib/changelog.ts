@@ -33,6 +33,15 @@ export const ACTION_TYPES: UpdateActionType[] = ["added", "improved", "fixed", "
 
 export const RELEASES: ReleaseLog[] = [
   {
+    id: "2026-11-14-vault-drive-folder",
+    version: "0.57.1",
+    date: "2026-11-14",
+    summaryTitle: { uk: "Vault: посилання з Диска — у потрібну папку", en: "Vault: Drive links into the folder you choose" },
+    items: [
+      { id: "vault-drive-link-folder", type: "improved", scope: "files", title: { uk: "«Додати у Vault» з Диска команди тепер питає, у яку папку покласти посилання.", en: "\"Add to Vault\" from the team Drive now asks which folder the link goes to." } },
+    ],
+  },
+  {
     id: "2026-11-14-copy-pictures",
     version: "0.56.2",
     date: "2026-11-14",

@@ -959,10 +959,15 @@ const listed = await listDrive(colleague);
 check("a member browses the team's Drive", listed.status === 200 && (listed.body?.entries ?? []).length > 0, `${listed.status} ${(listed.body?.entries ?? []).length}`);
 const filesOnDrive = fakeFiles().length;
 await colleague.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+// The person picks where: a folder of their own in Vault.
+const linkFolder = (await colleagueClient.rpc("vault_create_folder", { ws: alphaId, folder: null, folder_name: "From the Drive" })).data?.id;
 await colleague.locator("[data-vault-google-add]").first().click();
+await colleague.locator('[data-vault-move-folder="From the Drive"]').click();
+await colleague.locator("[data-vault-move-here]").click();
 await colleague.getByText("Додано у Vault (посилання, без копії).").waitFor({ timeout: 15000 });
 const linkId = sql(`select id from public.vault_items where workspace_id = '${alphaId}' and storage_backend = 'drive_link' limit 1`);
 check("Add to Vault makes a link, not a copy", Boolean(linkId) && fakeFiles().length === filesOnDrive, `${linkId} ${fakeFiles().length}/${filesOnDrive}`);
+check("…into the folder the person chose", Boolean(linkFolder) && sql(`select parent_id from public.vault_items where id = '${linkId}'`) === linkFolder, String(linkFolder));
 const linkFile = await colleague.evaluate(async ([ws, id]) => (await fetch(`/api/vault/files/${id}?ws=${ws}&download`)).status, [alphaShort, linkId]);
 check("the link opens the Drive's file", linkFile === 200, String(linkFile));
 await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);
