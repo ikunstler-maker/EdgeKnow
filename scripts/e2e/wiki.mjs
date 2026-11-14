@@ -82,6 +82,17 @@ const betaShortId = sql(`select short_id from public.workspaces where id = '${be
 check("admin page lists all workspaces", (await alice.getByRole("cell", { name: /Alpha/ }).count()) > 0 && (await alice.getByRole("cell", { name: betaShortId }).count()) > 0);
 check("…a workspace she isn't in shows only its ID: no name, no owner's email", (await alice.getByRole("link", { name: "Beta", exact: true }).count()) === 0 && (await alice.getByText("bob@beta.test").count()) === 0);
 check("admin page shows no page titles", (await alice.getByText("Alpha secret").count()) === 0);
+// ADMIN-1: the road map — the platform admin sees it; anyone else is refused.
+await alice.locator("[data-roadmap-link]").click();
+await alice.locator("[data-roadmap-overall]").waitFor({ timeout: 15000 });
+const allStages = await alice.locator("[data-roadmap-stage]").count();
+check("ADMIN-1: the road map shows the overall state and every service's stages", allStages > 20 && (await alice.locator("[data-roadmap-track]").count()) > 10, String(allStages));
+await alice.locator('[data-roadmap-flag-filter="owner"]').click();
+const ownerStages = await alice.locator("[data-roadmap-stage]").count();
+const ownerMarked = await alice.locator("[data-roadmap-stage]").evaluateAll((els) => els.every((el) => el.querySelector('[data-roadmap-stage-flag="owner"]')));
+check("…\"Your involvement\" narrows it to the stages that need the owner", ownerStages > 0 && ownerStages < allStages && ownerMarked, `${ownerStages}/${allStages}`);
+await colleague.goto(`${APP}/admin/roadmap`);
+check("…a member who isn't the platform admin is refused", (await colleague.locator("[data-roadmap-forbidden]").count()) === 1 && (await colleague.locator("[data-roadmap-stage]").count()) === 0);
 
 // --- Domains proven through DNS ---------------------------------------------------------------
 // The server reads DNS from DNS_FAKE_FILE in CI; writing it is "adding the record".
@@ -959,10 +970,15 @@ const listed = await listDrive(colleague);
 check("a member browses the team's Drive", listed.status === 200 && (listed.body?.entries ?? []).length > 0, `${listed.status} ${(listed.body?.entries ?? []).length}`);
 const filesOnDrive = fakeFiles().length;
 await colleague.goto(`${APP}/w/${alphaShort}/files?tab=google`);
+// The person picks where: a folder of their own in Vault.
+const linkFolder = (await colleagueClient.rpc("vault_create_folder", { ws: alphaId, folder: null, folder_name: "From the Drive" })).data?.id;
 await colleague.locator("[data-vault-google-add]").first().click();
+await colleague.locator('[data-vault-move-folder="From the Drive"]').click();
+await colleague.locator("[data-vault-move-here]").click();
 await colleague.getByText("Додано у Vault (посилання, без копії).").waitFor({ timeout: 15000 });
 const linkId = sql(`select id from public.vault_items where workspace_id = '${alphaId}' and storage_backend = 'drive_link' limit 1`);
 check("Add to Vault makes a link, not a copy", Boolean(linkId) && fakeFiles().length === filesOnDrive, `${linkId} ${fakeFiles().length}/${filesOnDrive}`);
+check("…into the folder the person chose", Boolean(linkFolder) && sql(`select parent_id from public.vault_items where id = '${linkId}'`) === linkFolder, String(linkFolder));
 const linkFile = await colleague.evaluate(async ([ws, id]) => (await fetch(`/api/vault/files/${id}?ws=${ws}&download`)).status, [alphaShort, linkId]);
 check("the link opens the Drive's file", linkFile === 200, String(linkFile));
 await wide.goto(`${APP}/w/${alphaShort}/files?tab=google`);

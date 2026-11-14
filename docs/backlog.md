@@ -8,8 +8,13 @@ Long-term plan: `docs/roadmap-uk.md`, `docs/suite-plan-uk.md`. Decisions: `docs/
 - PR 3 Left panel shows only the current section (tasks: projects/boards/tasks; wiki: pages; tables: tables…); fix the old fish name near Apus. — DONE (#109).
 - PR 4 Collections in the left panel (tables, boards, maps, slides, surveys, sites, apps): shared per workspace, editors+admins create; one object in many collections (link table, no copies). DB/RLS → approved 2027-01-01. — DONE (#110).
 
+## Platform panel (owner, 2026-11-14)
+- ADMIN-1 road map at `/admin/roadmap` (data in `src/lib/roadmap.ts`, updated by every PR that moves a stage) — in review.
+- ADMIN-2 monitoring: gauges for the central database and storage against the plan's limits (70 % / 85 %), 90-day trend + forecast, per-workspace load (members, all files vs limit, last activity, where the data lives); DB approved 2026-11-14: wider `platform_workspaces`, daily snapshots table (platform admin only) — next.
+- ADMIN-3 hosting: deployments per day, traffic, function time vs plan limits via a read-only Vercel key the owner adds to the environment (approved 2026-11-14) — after ADMIN-2; check first what the free plan's API returns.
+
 ## List actions (owner, 2026-11-13)
-- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — in review. Next: copy pictures with a duplicated board or deck (needs a DB change → owner's approval).
+- UI-5 rename / duplicate / share / access / bin on each list row (Bordy, Nodo, Sota, Kadry, Questa), service marks on rows, Wika opens the first tree page — DONE (#211). UI-5b: duplicate copies pictures too (no DB change) — DONE (#212).
 
 ## Design system & UI overhaul (owner, 2026-11-11; decision 2026-11-11) — 6 PRs, in order
 - PR 1 Foundation: surface tokens, hairlines, radii, thin scrollbars; `Icon` set; `ServiceIcon` for 15 services + home; shared `Button`/`Dialog`/`Segmented`/`Hint`; four service categories; no comparisons with other products in UI strings — DONE (#144).
@@ -217,7 +222,7 @@ Card: `docs/context/services/toker-en.md`. Each stage needs its own plan + OK; D
 - VAULT-2б Vault access mirrored on the team's Google Drive (no emails; failures shown to editors; daily + on every change) — DONE (#203). Not checked against the real Google Drive (fake Drive in tests).
 - VAULT-4 "Used" by service (owner/admins), one storage count for every upload (incl. Vault), a former member's Vault items handed over with their pages, Vault in "My data" — in review.
 - VAULT-3 "From Vault" (no DB): Wika block, task (as a task link shown as a card), slides/"Design" embed, idea board link, Toker message card; only the id kept, read with the viewer's access — DONE (#193).
-- VAULT-7 "Team Drive" tab (owner approved plan and DB 2026-11-13; replaces the Picker idea and VAULT-8: one workspace = one Drive): members (not guests) browse the Drive connected to the workspace, open/download (Google documents as PDF), "Add to Vault" = a link to the same Drive file (no copy, no space, no versions; the bin removes only the link); owner's switch, on by default; the owner allows reading the whole Drive once (drive.readonly, same account, no new folders) — in review. Restricted Google scope: Google app verification needed for many workspaces (owner's step). Not checked against the real Google Drive (fake Drive in tests). Links go to the top of Vault (choosing a folder: later).
+- VAULT-7 "Team Drive" tab (owner approved plan and DB 2026-11-13; replaces the Picker idea and VAULT-8: one workspace = one Drive): members (not guests) browse the Drive connected to the workspace, open/download (Google documents as PDF), "Add to Vault" = a link to the same Drive file (no copy, no space, no versions; the bin removes only the link); owner's switch, on by default; the owner allows reading the whole Drive once (drive.readonly, same account, no new folders) — DONE (#207). Restricted Google scope: Google app verification needed for many workspaces (owner's step). Not checked against the real Google Drive (fake Drive in tests). VAULT-7b: "Add to Vault" asks for the folder (the same picker as Move) — in review.
 - VAULT-1 limits: the newest 400 files per service; filtering in the browser; wishlist photos and app logos are left out.
 
 ## Known gaps / follow-ups
