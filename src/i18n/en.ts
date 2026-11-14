@@ -3504,6 +3504,21 @@ export const en: Dictionary = {
     minutes: (minutes: number) => (minutes ? `≈ ${minutes} min` : "—"),
   },
   platform: {
+    hosting: {
+      title: "Hosting",
+      notSet: "The Vercel monitoring key isn't added yet: the Vercel project needs VERCEL_MONITOR_TOKEN and VERCEL_MONITOR_TEAM_ID.",
+      error: "Couldn't read Vercel's data. The key may have expired or lack access to the team.",
+      deployments24h: "Deployments in 24 hours",
+      levels: { good: "within the daily limit", warning: "nearing the daily limit", critical: "limit nearly used — new builds may not go through" },
+      failed: "Failed builds (7 days)",
+      buildTime: "Average build time",
+      seconds: (n: number) => (n >= 60 ? `${Math.floor(n / 60)} min ${n % 60} s` : `${n} s`),
+      lastProduction: "Live site's last deployment",
+      states: { READY: "ready", ERROR: "failed", BUILDING: "building", QUEUED: "queued", CANCELED: "cancelled", INITIALIZING: "starting" },
+      week: "Deployments over 7 days",
+      dayTitle: (total: number, failed: number) => `${total} deployments${failed ? `, ${failed} failed` : ""}`,
+      paidOnly: "Vercel gives traffic and function time only on the paid plan; on the free plan they're in the Vercel dashboard (Usage) only.",
+    },
     monitoring: {
       title: "Resources and load",
       intro: (db: number, storage: number) => `The main project against the plan's limits: database ${db} MB, storage ${storage} MB. Amber from 70 %, red from 85 %.`,

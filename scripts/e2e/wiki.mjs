@@ -96,8 +96,9 @@ await alice.reload();
 await alice.locator("[data-monitoring]").waitFor({ timeout: 15000 });
 check("ADMIN-2: database and storage gauges with a level and a forecast line", (await alice.locator("[data-monitor-gauge]").count()) === 2 && (await alice.locator("[data-monitor-gauge] [data-monitor-forecast]").count()) === 2);
 check("…every workspace's load, names only of her own", (await alice.locator("[data-monitor-workspace]").count()) >= 2 && (await alice.locator(`[data-monitor-workspace="${alphaShort}"]`).getByText("Alpha").count()) > 0 && (await alice.locator(`[data-monitor-workspace="${betaShortId}"]`).getByText("Beta", { exact: true }).count()) === 0);
+check("ADMIN-3: without the Vercel key the hosting block says what to add", (await alice.locator('[data-hosting][data-hosting-state="not_set"]').count()) === 1);
 await colleague.goto(`${APP}/admin/roadmap`);
-check("…a member who isn't the platform admin is refused", (await colleague.locator("[data-roadmap-forbidden]").count()) === 1 && (await colleague.locator("[data-roadmap-stage]").count()) === 0 && (await colleague.locator("[data-monitoring]").count()) === 0);
+check("…a member who isn't the platform admin is refused", (await colleague.locator("[data-roadmap-forbidden]").count()) === 1 && (await colleague.locator("[data-roadmap-stage]").count()) === 0 && (await colleague.locator("[data-monitoring]").count()) === 0 && (await colleague.locator("[data-hosting]").count()) === 0);
 
 // --- Domains proven through DNS ---------------------------------------------------------------
 // The server reads DNS from DNS_FAKE_FILE in CI; writing it is "adding the record".

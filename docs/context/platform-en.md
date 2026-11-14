@@ -47,6 +47,7 @@ The core gives every service people, access, storage, search, notifications and 
 - **List row actions (UI-5):** rename, duplicate, share, access (owner), bin on each row of the object lists; shown by role.
 - **Road map (ADMIN-1):** `/admin/roadmap`, platform admin only; data in `src/lib/roadmap.ts`, every PR that moves a stage updates it.
 - **Monitoring (ADMIN-2):** gauges, 90-day trend and forecast, per-workspace load on `/admin/roadmap`; `platform_daily_stats` (daily snapshot, platform admin reads only), `platform_workspace_load()`.
+- **Hosting (ADMIN-3):** deployments vs the daily limit from Vercel's API with `VERCEL_MONITOR_TOKEN` + `VERCEL_MONITOR_TEAM_ID` (server only); traffic needs the paid plan.
 - **Search** across all services, with filters by service and content type.
 
 ### Notifications and analytics
